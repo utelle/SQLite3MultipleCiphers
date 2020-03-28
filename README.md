@@ -17,7 +17,7 @@ In addition to reading and writing encrypted database files **SQLite** with the 
 
 Basically, the API of the official [SQLite Encryption Extension (SEE) ](https://www.hwaci.com/sw/sqlite/see.html) is supported. This API consists of 4 functions:
 
-```C
+```c
 SQLITE_API int sqlite3_key(
   sqlite3* db,                   /* Database to set the key on */
   const void* pKey, int nKey     /* The key */
