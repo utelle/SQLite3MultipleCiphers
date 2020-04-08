@@ -46,24 +46,31 @@ sqlite3mcGetCipherParameter(CipherParams* cipherParams, const char* paramName)
 
 static CodecParameter globalCodecParameterTable[] =
 {
-  { "global",    commonParams },
+  { "global",    CODEC_TYPE_UNKNOWN,   commonParams },
 #if HAVE_CIPHER_AES_128_CBC
-  { "aes128cbc", mcAES128Params },
+  { "aes128cbc", CODEC_TYPE_AES128,    mcAES128Params },
 #endif
-#if HAVE_CIPHER_AES_128_CBC
-  { "aes256cbc", mcAES256Params },
+#if HAVE_CIPHER_AES_256_CBC
+  { "aes256cbc", CODEC_TYPE_AES256,    mcAES256Params },
 #endif
 #if HAVE_CIPHER_CHACHA20
-  { "chacha20",  mcChaCha20Params },
+  { "chacha20",  CODEC_TYPE_CHACHA20,  mcChaCha20Params },
 #endif
 #if HAVE_CIPHER_SQLCIPHER
-  { "sqlcipher", mcSQLCipherParams },
+  { "sqlcipher", CODEC_TYPE_SQLCIPHER, mcSQLCipherParams },
 #endif
 #if HAVE_CIPHER_RC4
-  { "rc4",       mcRC4Params },
+  { "rc4",       CODEC_TYPE_RC4,       mcRC4Params },
 #endif
-  { "",          NULL }
+  { "",          CODEC_TYPE_UNKNOWN,   NULL }
 };
+
+#define CODEC_TYPE_UNKNOWN   0
+#define CODEC_TYPE_AES128    1
+#define CODEC_TYPE_AES256    2
+#define CODEC_TYPE_CHACHA20  3
+#define CODEC_TYPE_SQLCIPHER 4
+#define CODEC_TYPE_RC4       5
 
 SQLITE_PRIVATE CodecParameter*
 sqlite3mcCloneCodecParameterTable()

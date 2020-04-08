@@ -62,7 +62,7 @@ extern LPWSTR sqlite3_win32_utf8_to_unicode(const char *);
 /*
 ** Include SQLite3 amalgamation
 */
-#include "sqlite3.c"
+#include "sqlite3patched.c"
 
 /*
 ** Include SQLite3MultiCipher components 

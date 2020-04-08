@@ -715,3 +715,151 @@ wxsqlite3_codec_data(sqlite3* db, const char* zDbName, const char* paramName)
   return sqlite3mc_codec_data(db, zDbName, paramName);
 }
 #endif
+
+/*
+** Functions called from patched SQLite version
+*/
+
+SQLITE_PRIVATE int
+sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
+{
+  int rc = sqlite3_file_control(db, zDbName, op, pArg);
+  if (rc == SQLITE_NOTFOUND)
+  {
+    int dbIndex = sqlite3FindDbName(db, zDbName);
+    if (dbIndex < 0 && zDbName != NULL)
+    {
+      /* Unknown schema name */
+      return rc;
+    }
+
+    int configDefault = (dbIndex <= 0);
+    char* pragmaName = ((char**) pArg)[1];
+    char* pragmaValue = ((char**) pArg)[2];
+    if (sqlite3StrICmp(pragmaName, "cipher") == 0)
+    {
+      int j = -1;
+      if (pragmaValue != NULL)
+      {
+        /* Try to locate the cipher name */
+        for (j = 1; strlen(globalCodecParameterTable[j].m_name) > 0; ++j)
+        {
+          if (sqlite3_stricmp(pragmaValue, globalCodecParameterTable[j].m_name) == 0) break;
+        }
+      }
+
+      /* j is the index of the cipher name, if found */
+#if 0
+      cipherParams = (strlen(globalCodecParameterTable[j].m_name) > 0) ? globalCodecParameterTable[j].m_params : NULL;
+#endif
+      if ((j == -1) || (strlen(globalCodecParameterTable[j].m_name) > 0))
+      {
+        int value;
+        if (configDefault)
+        {
+          value = sqlite3mc_config(db, "default:cipher", j);
+        }
+        else
+        {
+          value = sqlite3mc_config(db, "cipher", j);
+        }
+        rc = SQLITE_OK;
+        ((char**)pArg)[0] = sqlite3_mprintf("%s", codecDescriptorTable[value - 1]->m_name);
+      }
+      else
+      {
+        ((char**) pArg)[0] = sqlite3_mprintf("Cipher '%s' unknown.", pragmaValue);
+        rc = SQLITE_ERROR;
+      }
+    }
+    else if (sqlite3StrICmp(pragmaName, "hmac_check") == 0)
+    {
+      int hmacCheck = (pragmaValue != NULL) ? sqlite3GetBoolean(pragmaValue, 1) : -1;
+      int value = sqlite3mc_config(db, "hmac_check", hmacCheck);
+      ((char**)pArg)[0] = sqlite3_mprintf("%d", value);
+      rc = SQLITE_OK;
+    }
+    else
+    {
+      int j;
+      int intValue = (pragmaValue != NULL) ? 0 : -1;
+      int isIntValue = (pragmaValue != NULL) ? (sqlite3GetInt32(pragmaValue, &intValue) != 0) : 1;
+
+      /* Determine cipher */
+      int cipher = sqlite3mc_config(db, "cipher", -1);
+      CipherParams* cipherParams = NULL;
+
+      /* Try to locate the cipher name */
+      for (j = 1; strlen(globalCodecParameterTable[j].m_name) > 0; ++j)
+      {
+        if (cipher == globalCodecParameterTable[j].m_id) break;
+      }
+
+      /* j is the index of the cipher name, if found */
+      cipherParams = (strlen(globalCodecParameterTable[j].m_name) > 0) ? globalCodecParameterTable[j].m_params : NULL;
+      if (cipherParams != NULL)
+      {
+        const char* cipherName = globalCodecParameterTable[j].m_name;
+        if ((cipher == CODEC_TYPE_SQLCIPHER) && (sqlite3StrICmp(pragmaName, "legacy") == 0))
+        {
+          /* Special handling for SQLCipher */
+          int legacy = (isIntValue) ? intValue : -1;
+          if (legacy > 0 && legacy <= SQLCIPHER_VERSION_MAX)
+          {
+            sqlite3mcConfigureSQLCipherVersion(db, configDefault, legacy);
+            ((char**)pArg)[0] = sqlite3_mprintf("%d", legacy);
+            rc = SQLITE_OK;
+          }
+          else
+          {
+            int value;
+            if (configDefault)
+            {
+              value = sqlite3mc_config_cipher(db, "sqlcipher", "default:legacy", legacy);
+            }
+            else
+            {
+              value = sqlite3mc_config_cipher(db, "sqlcipher", "legacy", legacy);
+            }
+            ((char**)pArg)[0] = sqlite3_mprintf("%d", value);
+            rc = SQLITE_OK;
+          }
+        }
+        else
+        {
+          int j;
+          for (j = 0; strlen(cipherParams[j].m_name) > 0; ++j)
+          {
+            if (sqlite3_stricmp(pragmaName, cipherParams[j].m_name) == 0) break;
+          }
+          if (strlen(cipherParams[j].m_name) > 0)
+          {
+            char* param = (configDefault) ? sqlite3_mprintf("default:%s", pragmaName) : pragmaName;
+            if (isIntValue)
+            {
+              int value = sqlite3mc_config_cipher(db, cipherName, param, intValue);
+              ((char**)pArg)[0] = sqlite3_mprintf("%d", value);
+              rc = SQLITE_OK;
+            }
+            else
+            {
+              ((char**) pArg)[0] = sqlite3_mprintf("Malformed integer value '%s'.", pragmaValue);
+              rc = SQLITE_ERROR;
+            }
+            if (configDefault)
+            {
+              sqlite3_free(param);
+            }
+          }
+        }
+      }
+    }
+  }
+  return rc;
+}
+
+SQLITE_PRIVATE int
+sqlite3mcHandleAttachKey(sqlite3* db, const char* zName, const char* zPath, sqlite3_value* pKey)
+{
+  return SQLITE_OK;
+}

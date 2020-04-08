@@ -77,6 +77,7 @@ extern int sqlite3mcGetCipherParameter(CipherParams* cipherParams, const char* p
 typedef struct _CodecParameter
 {
   char*         m_name;
+  int           m_id;
   CipherParams* m_params;
 } CodecParameter;
 
