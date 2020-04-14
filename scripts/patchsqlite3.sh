@@ -18,4 +18,4 @@ die() {
 # 2) Add handling of KEY parameter in ATTACH statements
 sed 's/sqlite3_file_control\(.*SQLITE_FCNTL_PRAGMA\)/sqlite3mcFileControlPragma\1/' "$INPUT" \
     | sed '/sqlite3mcFileControlPragma/i \  extern int sqlite3mcFileControlPragma(sqlite3*, const char*, int, void*);' \
-    | sed '/sqlite3_free_filename( zPath );/i \\n  \/\* Handle KEY parameter. \*\/\n  if( rc==SQLITE_OK ){\n    extern int sqlite3mcHandleAttachKey(sqlite3*, const char*, const char*, sqlite3_value*);\n    rc = sqlite3mcHandleAttachKey(db, zName, zPath, argv[2]);\n  }'
+    | sed '/sqlite3_free_filename( zPath );/i \\n  \/\* Handle KEY parameter. \*\/\n  if( rc==SQLITE_OK ){\n    extern int sqlite3mcHandleAttachKey(sqlite3*, const char*, const char*, sqlite3_value*, char**);\n    rc = sqlite3mcHandleAttachKey(db, zName, zPath, argv[2], &zErrDyn);\n  }'

@@ -10,7 +10,7 @@
 /*
 ** Prototypes for codec functions
 */
-int mcCodecAttach(sqlite3* db, int nDb, const void* zKey, int nKey);
+SQLITE_PRIVATE int sqlite3mcCodecAttach(sqlite3* db, int nDb, const void* zKey, int nKey);
 SQLITE_PRIVATE void sqlite3mcCodecGetKey(sqlite3* db, int nDb, void** zKey, int* nKey);
 
 /*
@@ -153,7 +153,7 @@ mcAdjustBtree(Btree* pBt, int nPageSize, int nReserved, int isLegacy)
 }
 
 static int
-mcCodecAttach(sqlite3* db, int nDb, const void* zKey, int nKey)
+sqlite3mcCodecAttach(sqlite3* db, int nDb, const void* zKey, int nKey)
 {
   /* Attach a key to a database. */
   Codec* codec = (Codec*) sqlite3_malloc(sizeof(Codec));
@@ -308,7 +308,7 @@ sqlite3_key_v2(sqlite3 *db, const char *zDbName, const void *zKey, int nKey)
     dbIndex = sqlite3FindDbName(db, zDbName);
     if (dbIndex >= 0)
     {
-      rc = mcCodecAttach(db, dbIndex, zKey, nKey);
+      rc = sqlite3mcCodecAttach(db, dbIndex, zKey, nKey);
     }
     else
     {

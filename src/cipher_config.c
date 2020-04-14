@@ -858,8 +858,81 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
   return rc;
 }
 
-SQLITE_PRIVATE int
-sqlite3mcHandleAttachKey(sqlite3* db, const char* zName, const char* zPath, sqlite3_value* pKey)
+/*
+** Process URI filename query parameters relevant to the SQLite Encryption
+** Extension.  Return true if any of the relevant query parameters are
+** seen and return false if not.
+*/
+int sqlite3mcCodecQueryParameters(sqlite3* db, const char* zDb, const char* zUri)
 {
-  return SQLITE_OK;
+  int rc = 1;
+  const char* zKey;
+  if ((zKey = sqlite3_uri_parameter(zUri, "hexkey")) != 0 && zKey[0])
+  {
+    u8 iByte;
+    int i;
+    char zDecoded[40];
+    for (i = 0, iByte = 0; i < sizeof(zDecoded) * 2 && sqlite3Isxdigit(zKey[i]); i++)
+    {
+      iByte = (iByte << 4) + sqlite3HexToInt(zKey[i]);
+      if ((i & 1) != 0) zDecoded[i / 2] = iByte;
+    }
+    sqlite3_key_v2(db, zDb, zDecoded, i / 2);
+  }
+  else if ((zKey = sqlite3_uri_parameter(zUri, "key")) != 0)
+  {
+    sqlite3_key_v2(db, zDb, zKey, sqlite3Strlen30(zKey));
+  }
+  else if ((zKey = sqlite3_uri_parameter(zUri, "textkey")) != 0)
+  {
+    sqlite3_key_v2(db, zDb, zKey, -1);
+  }
+  else
+  {
+    rc = 0;
+  }
+  return rc;
+}
+
+SQLITE_PRIVATE int
+sqlite3mcHandleAttachKey(sqlite3* db, const char* zName, const char* zPath, sqlite3_value* pKey, char** zErrDyn)
+{
+  extern int sqlite3mcCodecAttach(sqlite3*, int, const void*, int);
+  extern void sqlite3mcCodecGetKey(sqlite3*, int, void**, int*);
+  int rc = SQLITE_OK;
+  int nKey;
+  char* zKey;
+  int keyType = sqlite3_value_type(pKey);
+  switch (keyType)
+  {
+    case SQLITE_INTEGER:
+    case SQLITE_FLOAT:
+      /* Invalid data type for key */
+      *zErrDyn = sqlite3DbStrDup(db, "Invalid key value");
+      rc = SQLITE_ERROR;
+      break;
+
+    case SQLITE_TEXT:
+    case SQLITE_BLOB:
+      /* Key parameter specified in ATTACH statement */
+      nKey = sqlite3_value_bytes(pKey);
+      zKey = (char*) sqlite3_value_blob(pKey);
+      rc = sqlite3mcCodecAttach(db, db->nDb - 1, zKey, nKey);
+      break;
+
+    case SQLITE_NULL:
+      /* No key specified.  Use the key from URI filename, or if none,
+      ** use the key from the main database. */
+      if (sqlite3mcCodecQueryParameters(db, zName, zPath) == 0)
+      {
+        sqlite3mcCodecGetKey(db, 0, (void**) &zKey, &nKey);
+        if (nKey)
+        {
+          rc = sqlite3mcCodecAttach(db, db->nDb - 1, zKey, nKey);
+        }
+      }
+      break;
+  }
+
+  return rc;
 }
