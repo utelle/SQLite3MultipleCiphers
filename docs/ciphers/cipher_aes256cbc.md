@@ -1,4 +1,10 @@
-## <a name="cipher_aes256cbc"/>wxSQLite3: AES 256 Bit CBC - No HMAC
+---
+layout: default
+title: "wxSQLite3: AES 256 Bit"
+parent: Supported Ciphers
+nav_order: 2
+---
+## <a name="cipher_aes256cbc"/>wxSQLite3: AES 256 Bit
 
 This cipher was added to [wxSQLite3](https://github.com/utelle/wxsqlite3) in 2010. It is a 256 bit AES encryption in CBC mode.
 
@@ -16,4 +22,6 @@ The following table lists all parameters related to this cipher that can be set 
 | `legacy` | 0 | 0 | 1 | Boolean flag whether the legacy mode should be used |
 | `legacy_page_size` | 0 | 0 | 65536 | Page size to use in legacy mode, 0 = default SQLite page size |
 
-**Note**: It is not recommended to use _legacy_ mode for encrypting new databases. It is supported for compatibility reasons only, so that databases that were encrypted in _legacy_ mode can be accessed.
+**Note**
+{: .label .label-red .ml-0 .mb-1 .mt-2 }
+- It is not recommended to use [_legacy_ mode]({% link docs/ciphers/cipher_legacy_mode.md %}) for encrypting new databases. It is supported for compatibility reasons only, so that databases that were encrypted in _legacy_ mode can be accessed.
