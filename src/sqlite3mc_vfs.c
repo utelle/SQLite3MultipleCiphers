@@ -485,9 +485,6 @@ static int mcReadMainDb(sqlite3_file* pFile, void* buffer, int count, sqlite3_in
     if (deltaOffset || deltaCount)
     {
       const sqlite3_int64 prevOffset = offset - deltaOffset;
-      const int countRemaining = count - deltaOffset;
-      const int deltaCountRemaining = countRemaining % pageSize;
-      const int blockSize = (deltaOffset ? pageSize : 0) + (countRemaining - deltaCountRemaining) + (deltaCountRemaining ? pageSize : 0);
       unsigned char* pageBuffer = sqlite3mcGetPageBuffer(mcFile->codec);
       rc = REALFILE(pFile)->pMethods->xRead(REALFILE(pFile), pageBuffer, pageSize, prevOffset);
       if (rc == SQLITE_IOERR_SHORT_READ)
@@ -498,7 +495,7 @@ static int mcReadMainDb(sqlite3_file* pFile, void* buffer, int count, sqlite3_in
       void* bufferDecrypted = sqlite3mcCodec(mcFile->codec, pageBuffer, pageNo, 3);
       if (deltaOffset)
       {
-        memcpy(buffer, pageBuffer + pageSize - deltaOffset, count);
+        memcpy(buffer, pageBuffer + deltaOffset, count);
       }
       else
       {
