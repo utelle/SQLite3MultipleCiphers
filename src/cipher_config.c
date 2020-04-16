@@ -897,8 +897,6 @@ int sqlite3mcCodecQueryParameters(sqlite3* db, const char* zDb, const char* zUri
 SQLITE_PRIVATE int
 sqlite3mcHandleAttachKey(sqlite3* db, const char* zName, const char* zPath, sqlite3_value* pKey, char** zErrDyn)
 {
-  extern int sqlite3mcCodecAttach(sqlite3*, int, const void*, int);
-  extern void sqlite3mcCodecGetKey(sqlite3*, int, void**, int*);
   int rc = SQLITE_OK;
   int nKey;
   char* zKey;

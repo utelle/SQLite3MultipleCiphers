@@ -72,8 +72,6 @@ typedef struct _CipherParams
   int   m_maxValue;
 } CipherParams;
 
-extern int sqlite3mcGetCipherParameter(CipherParams* cipherParams, const char* paramName);
-
 typedef struct _CodecParameter
 {
   char*         m_name;
@@ -107,6 +105,7 @@ typedef struct _CodecDescriptor
   DecryptPage_t    m_decryptPage;
 } CipherDescriptor;
 
+SQLITE_PRIVATE int sqlite3mcGetCipherParameter(CipherParams* cipherParams, const char* paramName);
 SQLITE_PRIVATE int sqlite3mcGetCipherType(sqlite3* db);
 SQLITE_PRIVATE CipherParams* sqlite3mcGetCipherParams(sqlite3* db, int cypherType);
 SQLITE_PRIVATE int sqlite3mcCodecInit(Codec* codec);
@@ -194,5 +193,8 @@ SQLITE_PRIVATE void sqlite3mcConvertHex2Bin(const unsigned char* hex, int len, u
 
 SQLITE_PRIVATE int sqlite3mcConfigureFromUri(sqlite3* db, const char *zDbName, int configDefault);
 SQLITE_PRIVATE void sqlite3mcConfigureSQLCipherVersion(sqlite3* db, int configDefault, int legacyVersion);
+
+SQLITE_PRIVATE int sqlite3mcCodecAttach(sqlite3* db, int nDb, const void* zKey, int nKey);
+SQLITE_PRIVATE void sqlite3mcCodecGetKey(sqlite3* db, int nDb, void** zKey, int* nKey);
 
 #endif
