@@ -8,12 +8,6 @@
 */
 
 /*
-** Prototypes for codec functions
-*/
-SQLITE_PRIVATE int sqlite3mcCodecAttach(sqlite3* db, int nDb, const void* zKey, int nKey);
-SQLITE_PRIVATE void sqlite3mcCodecGetKey(sqlite3* db, int nDb, void** zKey, int* nKey);
-
-/*
 ** Include a "special" version of the VACUUM command
 */
 #include "rekeyvacuum.c"
@@ -92,7 +86,11 @@ sqlite3mcCodec(void* pCodecArg, void* data, Pgno nPageNum, int nMode)
     case 6: /* Encrypt a page for the main database file */
       if (sqlite3mcHasWriteCipher(codec))
       {
+#if 1
         unsigned char* pageBuffer = sqlite3mcGetPageBuffer(codec);
+#else
+        unsigned char pageBuffer[66000];
+#endif
         memcpy(pageBuffer, data, pageSize);
         data = pageBuffer;
         rc = sqlite3mcEncrypt(codec, nPageNum, (unsigned char*) data, pageSize, 1);
@@ -111,7 +109,11 @@ sqlite3mcCodec(void* pCodecArg, void* data, Pgno nPageNum, int nMode)
       */
       if (sqlite3mcHasReadCipher(codec))
       {
+#if 1
         unsigned char* pageBuffer = sqlite3mcGetPageBuffer(codec);
+#else
+        unsigned char pageBuffer[66000];
+#endif
         memcpy(pageBuffer, data, pageSize);
         data = pageBuffer;
         rc = sqlite3mcEncrypt(codec, nPageNum, (unsigned char*) data, pageSize, 0);
@@ -126,7 +128,7 @@ SQLITE_PRIVATE Codec*
 sqlite3mcGetMainCodec(sqlite3* db);
 
 SQLITE_PRIVATE void
-sqlite3mcSetCodec(sqlite3* db, int dbIndex, Codec* codec);
+sqlite3mcSetCodec(sqlite3* db, const char* zFileName, Codec* codec);
 
 static int
 mcAdjustBtree(Btree* pBt, int nPageSize, int nReserved, int isLegacy)
@@ -153,7 +155,7 @@ mcAdjustBtree(Btree* pBt, int nPageSize, int nReserved, int isLegacy)
 }
 
 static int
-sqlite3mcCodecAttach(sqlite3* db, int nDb, const void* zKey, int nKey)
+sqlite3mcCodecAttach(sqlite3* db, int nDb, const char* zPath, const void* zKey, int nKey)
 {
   /* Attach a key to a database. */
   Codec* codec = (Codec*) sqlite3_malloc(sizeof(Codec));
@@ -186,7 +188,7 @@ sqlite3mcCodecAttach(sqlite3* db, int nDb, const void* zKey, int nKey)
           sqlite3mcSetBtree(codec, db->aDb[nDb].pBt);
           mcAdjustBtree(db->aDb[nDb].pBt, pageSize, reserved, sqlite3mcGetLegacyWriteCipher(codec));
           sqlite3mcCodecSizeChange(codec, pageSize, reserved);
-          sqlite3mcSetCodec(db, nDb, codec);
+          sqlite3mcSetCodec(db, zPath, codec);
         }
         else
         {
@@ -243,7 +245,8 @@ sqlite3mcCodecAttach(sqlite3* db, int nDb, const void* zKey, int nKey)
       int reserved = sqlite3mcGetReservedWriteCipher(codec);
       mcAdjustBtree(db->aDb[nDb].pBt, pageSize, reserved, sqlite3mcGetLegacyWriteCipher(codec));
       sqlite3mcCodecSizeChange(codec, pageSize, reserved);
-      sqlite3mcSetCodec(db, nDb, codec);
+      const char* dbFileName = sqlite3_db_filename(db, zDbName);
+      sqlite3mcSetCodec(db, dbFileName, codec);
     }
     else
     {
@@ -267,8 +270,8 @@ sqlite3mcCodecGetKey(sqlite3* db, int nDb, void** zKey, int* nKey)
   ** In that case an attached database will get the same encryption key
   ** as the main database if no key was explicitly given for the attached database.
   */
-  Codec* mainCodec = sqlite3mcGetMainCodec(db);
-  int keylen = (mainCodec != NULL && sqlite3mcIsEncrypted(mainCodec)) ? 1 : 0;
+  Codec* codec = sqlite3mcGetCodec(db, db->aDb[nDb].zDbSName);
+  int keylen = (codec != NULL && sqlite3mcIsEncrypted(codec)) ? 1 : 0;
   *zKey = NULL;
   *nKey = keylen;
 }
@@ -292,6 +295,7 @@ sqlite3_key_v2(sqlite3 *db, const char *zDbName, const void *zKey, int nKey)
   if ((db != NULL) && (zKey != NULL) && (nKey > 0))
   {
     int dbIndex;
+    const char* dbFileName = sqlite3_db_filename(db, zDbName);
     /* Configure cipher from URI parameters if requested */
     if (sqlite3FindFunction(db, "sqlite3mc_config_table", 0, SQLITE_UTF8, 0) == NULL)
     {
@@ -300,7 +304,6 @@ sqlite3_key_v2(sqlite3 *db, const char *zDbName, const void *zKey, int nKey)
       ** that is, sqlite3_key_v2 was called from the internal open function.
       ** Therefore the URI should be checked for encryption configuration parameters.
       */
-      const char* dbFileName = sqlite3_db_filename(db, zDbName);
       rc = sqlite3mcConfigureFromUri(db, dbFileName, 0);
     }
 
@@ -308,7 +311,7 @@ sqlite3_key_v2(sqlite3 *db, const char *zDbName, const void *zKey, int nKey)
     dbIndex = sqlite3FindDbName(db, zDbName);
     if (dbIndex >= 0)
     {
-      rc = sqlite3mcCodecAttach(db, dbIndex, zKey, nKey);
+      rc = sqlite3mcCodecAttach(db, dbIndex, dbFileName, zKey, nKey);
     }
     else
     {
@@ -323,6 +326,7 @@ sqlite3_rekey_v2(sqlite3 *db, const char *zDbName, const void *zKey, int nKey)
 {
   /* Changes the encryption key for an existing database. */
   int rc = SQLITE_ERROR;
+  const char* dbFileName = sqlite3_db_filename(db, zDbName);
   int dbIndex = sqlite3FindDbName(db, zDbName);
   if (dbIndex < 0)
   {
@@ -339,7 +343,7 @@ sqlite3_rekey_v2(sqlite3 *db, const char *zDbName, const void *zKey, int nKey)
   sqlite3BtreeLeave(pBt);
 
   pPager = sqlite3BtreePager(pBt);
-  codec = sqlite3mcGetCodec(db, dbIndex);
+  codec = sqlite3mcGetCodec(db, zDbName);
 
   if ((zKey == NULL || nKey == 0) && (codec == NULL || !sqlite3mcIsEncrypted(codec)))
   {
@@ -371,7 +375,7 @@ sqlite3_rekey_v2(sqlite3 *db, const char *zDbName, const void *zKey, int nKey)
         int nReservedWriteCipher;
         sqlite3mcSetHasReadCipher(codec, 0); /* Original database is not encrypted */
         mcAdjustBtree(pBt, sqlite3mcGetPageSizeWriteCipher(codec), sqlite3mcGetReservedWriteCipher(codec), sqlite3mcGetLegacyWriteCipher(codec));
-        sqlite3mcSetCodec(db, dbIndex, codec);
+        sqlite3mcSetCodec(db, dbFileName, codec);
         nReservedWriteCipher = sqlite3mcGetReservedWriteCipher(codec);
         sqlite3mcCodecSizeChange(codec, nPagesize, nReservedWriteCipher);
         if (nReserved != nReservedWriteCipher)
@@ -568,7 +572,7 @@ leave_rekey:
   if (!sqlite3mcIsEncrypted(codec))
   {
     /* Remove codec for unencrypted database */
-    sqlite3mcSetCodec(db, dbIndex, NULL);
+    sqlite3mcSetCodec(db, dbFileName, NULL);
   }
   return rc;
 }

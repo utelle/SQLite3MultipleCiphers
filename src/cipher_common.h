@@ -82,6 +82,7 @@ typedef struct _CodecParameter
 typedef void* (*AllocateCipher_t)(sqlite3* db);
 typedef void  (*FreeCipher_t)(void* cipher);
 typedef void  (*CloneCipher_t)(void* cipherTo, void* cipherFrom);
+typedef int   (*CompareCipher_t)(void* cipher1, void* cipher2);
 typedef int   (*GetLegacy_t)(void* cipher);
 typedef int   (*GetPageSize_t)(void* cipher);
 typedef int   (*GetReserved_t)(void* cipher);
@@ -96,6 +97,7 @@ typedef struct _CodecDescriptor
   AllocateCipher_t m_allocateCipher;
   FreeCipher_t     m_freeCipher;
   CloneCipher_t    m_cloneCipher;
+  CompareCipher_t  m_compareCipher;
   GetLegacy_t      m_getLegacy;
   GetPageSize_t    m_getPageSize;
   GetReserved_t    m_getReserved;
@@ -140,6 +142,7 @@ SQLITE_PRIVATE int sqlite3mcGetReservedWriteCipher(Codec* codec);
 SQLITE_PRIVATE int sqlite3mcReservedEqual(Codec* codec);
 SQLITE_PRIVATE unsigned char* sqlite3mcGetSaltWriteCipher(Codec* codec);
 SQLITE_PRIVATE int sqlite3mcCodecCopy(Codec* codec, Codec* other);
+SQLITE_PRIVATE int sqlite3mcCodecCompare(Codec* codec1, Codec* codec2);
 
 SQLITE_PRIVATE void sqlite3mcGenerateReadKey(Codec* codec, char* userPassword, int passwordLength, unsigned char* cipherSalt);
 
@@ -194,7 +197,37 @@ SQLITE_PRIVATE void sqlite3mcConvertHex2Bin(const unsigned char* hex, int len, u
 SQLITE_PRIVATE int sqlite3mcConfigureFromUri(sqlite3* db, const char *zDbName, int configDefault);
 SQLITE_PRIVATE void sqlite3mcConfigureSQLCipherVersion(sqlite3* db, int configDefault, int legacyVersion);
 
-SQLITE_PRIVATE int sqlite3mcCodecAttach(sqlite3* db, int nDb, const void* zKey, int nKey);
+SQLITE_PRIVATE int sqlite3mcCodecAttach(sqlite3* db, int nDb, const char* zPath, const void* zKey, int nKey);
 SQLITE_PRIVATE void sqlite3mcCodecGetKey(sqlite3* db, int nDb, void** zKey, int* nKey);
+
+/* Debugging */
+
+#if 0
+#define SQLITE3MC_DEBUG
+#define SQLITE3MC_DEBUG_DATA
+#endif
+
+#ifdef SQLITE3MC_DEBUG
+#define SQLITE3MC_DEBUG_LOG(...)  { fprintf(stdout, __VA_ARGS__); fflush(stdout); }
+#else
+#define SQLITE3MC_DEBUG_LOG(...)
+#endif
+
+#ifdef SQLITE3MC_DEBUG_DATA
+#define SQLITE3MC_DEBUG_HEX(DESC,BUFFER,LEN)  \
+  { \
+    int count; \
+    printf(DESC); \
+    for (count = 0; count < LEN; ++count) \
+    { \
+      if (count % 16 == 0) printf("\n%05x: ", count); \
+      printf("%02x ", ((unsigned char*) BUFFER)[count]); \
+    } \
+    printf("\n"); \
+    fflush(stdout); \
+  }
+#else
+#define SQLITE3MC_DEBUG_HEX(DESC,BUFFER,LEN)
+#endif
 
 #endif

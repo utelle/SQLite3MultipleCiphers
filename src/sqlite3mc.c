@@ -211,6 +211,18 @@ int sqlite3_uuid_init(sqlite3 *db, char **pzErrMsg, const sqlite3_api_routines *
 #endif
 
 /*
+** REGEXP
+*/
+#ifdef SQLITE_ENABLE_REGEXP
+/* Prototype for initialization function of REGEXP extension */
+#ifdef _WIN32
+__declspec(dllexport)
+#endif
+int sqlite3_regexp_init(sqlite3 *db, char **pzErrMsg, const sqlite3_api_routines *pApi);
+#include "regexp.c"
+#endif
+
+/*
 ** Multi cipher VFS
 */
 #include "sqlite3mc_vfs.c"
@@ -340,6 +352,12 @@ sqlite3mc_initialize(const char* arg)
     rc = sqlite3_auto_extension((void(*)(void)) sqlite3_uuid_init);
   }
 #endif
+#ifdef SQLITE_ENABLE_REGEXP
+  if (rc == SQLITE_OK)
+  {
+    rc = sqlite3_auto_extension((void(*)(void)) sqlite3_regexp_init);
+  }
+#endif
   return rc;
 }
 
@@ -348,3 +366,11 @@ sqlite3mc_terminate(void)
 {
   sqlite3mc_vfs_terminate();
 }
+
+/*
+** TCL/TK Shell
+*/
+#ifdef TCLSH
+#define BUILD_tcl
+#include "tclsqlite.c"
+#endif

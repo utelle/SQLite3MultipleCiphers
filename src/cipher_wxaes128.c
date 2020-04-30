@@ -93,6 +93,18 @@ CloneAES128Cipher(void* cipherTo, void* cipherFrom)
 }
 
 static int
+CompareAES128Cipher(void* cipher1, void* cipher2)
+{
+  AES128Cipher* aesCipher1 = (AES128Cipher*)cipher1;
+  AES128Cipher* aesCipher2 = (AES128Cipher*)cipher2;
+  int cmp = aesCipher1->m_legacy == aesCipher2->m_legacy &&
+            aesCipher1->m_legacyPageSize == aesCipher2->m_legacyPageSize &&
+            aesCipher1->m_keyLength == aesCipher2->m_keyLength &&
+            memcmp(aesCipher1->m_key, aesCipher2->m_key, KEYLENGTH_AES128) == 0;
+  return cmp;
+}
+
+static int
 GetLegacyAES128Cipher(void* cipher)
 {
   AES128Cipher* aesCipher = (AES128Cipher*)cipher;
@@ -269,6 +281,7 @@ SQLITE_PRIVATE const CipherDescriptor mcAES128Descriptor =
  "aes128cbc", AllocateAES128Cipher,
               FreeAES128Cipher,
               CloneAES128Cipher,
+              CompareAES128Cipher,
               GetLegacyAES128Cipher,
               GetPageSizeAES128Cipher,
               GetReservedAES128Cipher,

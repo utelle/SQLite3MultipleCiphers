@@ -14,7 +14,7 @@
 
 
 SQLITE_PRIVATE Codec*
-sqlite3mcGetCodec(sqlite3* db, int dbIndex);
+sqlite3mcGetCodec(sqlite3* db, const char* zDbName);
 
 SQLITE_PRIVATE void
 sqlite3mcConfigTable(sqlite3_context* context, int argc, sqlite3_value** argv)
@@ -262,7 +262,7 @@ sqlite3mc_codec_data(sqlite3* db, const char* zDbName, const char* paramName)
     if ((sqlite3_stricmp(paramName, "cipher_salt") == 0) && (iDb >= 0))
     {
       /* Check whether database is encrypted */
-      Codec* codec = sqlite3mcGetCodec(db, iDb);
+      Codec* codec = sqlite3mcGetCodec(db, zDbName);
       if (codec != NULL && sqlite3mcIsEncrypted(codec) && sqlite3mcHasWriteCipher(codec))
       {
         unsigned char* salt = sqlite3mcGetSaltWriteCipher(codec);
@@ -749,9 +749,6 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
       }
 
       /* j is the index of the cipher name, if found */
-#if 0
-      cipherParams = (strlen(globalCodecParameterTable[j].m_name) > 0) ? globalCodecParameterTable[j].m_params : NULL;
-#endif
       if ((j == -1) || (strlen(globalCodecParameterTable[j].m_name) > 0))
       {
         int value;
@@ -778,6 +775,14 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
       int value = sqlite3mc_config(db, "hmac_check", hmacCheck);
       ((char**)pArg)[0] = sqlite3_mprintf("%d", value);
       rc = SQLITE_OK;
+    }
+    else if (sqlite3StrICmp(pragmaName, "key") == 0)
+    {
+      rc = sqlite3_key_v2(db, zDbName, pragmaValue, -1);
+    }
+    else if (sqlite3StrICmp(pragmaName, "rekey") == 0)
+    {
+      rc = sqlite3_rekey_v2(db, zDbName, pragmaValue, -1);
     }
     else
     {
@@ -863,7 +868,8 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
 ** Extension.  Return true if any of the relevant query parameters are
 ** seen and return false if not.
 */
-int sqlite3mcCodecQueryParameters(sqlite3* db, const char* zDb, const char* zUri)
+SQLITE_PRIVATE int
+sqlite3mcCodecQueryParameters(sqlite3* db, const char* zDb, const char* zUri)
 {
   int rc = 1;
   const char* zKey;
@@ -915,7 +921,7 @@ sqlite3mcHandleAttachKey(sqlite3* db, const char* zName, const char* zPath, sqli
       /* Key parameter specified in ATTACH statement */
       nKey = sqlite3_value_bytes(pKey);
       zKey = (char*) sqlite3_value_blob(pKey);
-      rc = sqlite3mcCodecAttach(db, db->nDb - 1, zKey, nKey);
+      rc = sqlite3mcCodecAttach(db, db->nDb - 1, zPath, zKey, nKey);
       break;
 
     case SQLITE_NULL:
@@ -926,11 +932,22 @@ sqlite3mcHandleAttachKey(sqlite3* db, const char* zName, const char* zPath, sqli
         sqlite3mcCodecGetKey(db, 0, (void**) &zKey, &nKey);
         if (nKey)
         {
-          rc = sqlite3mcCodecAttach(db, db->nDb - 1, zKey, nKey);
+          rc = sqlite3mcCodecAttach(db, db->nDb - 1, zPath, zKey, nKey);
         }
       }
       break;
   }
 
+  return rc;
+}
+
+SQLITE_PRIVATE int
+sqlite3mcHandleMainKey(sqlite3* db, const char* zPath)
+{
+  int rc = sqlite3mcConfigureFromUri(db, zPath, 1);
+  if (rc == SQLITE_OK)
+  {
+    sqlite3mcCodecQueryParameters(db, "main", zPath);
+  }
   return rc;
 }

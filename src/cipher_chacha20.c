@@ -102,6 +102,21 @@ CloneChaCha20Cipher(void* cipherTo, void* cipherFrom)
 }
 
 static int
+CompareChaCha20Cipher(void* cipher1, void* cipher2)
+{
+  ChaCha20Cipher* chacha20Cipher1 = (ChaCha20Cipher*)cipher1;
+  ChaCha20Cipher* chacha20Cipher2 = (ChaCha20Cipher*)cipher2;
+
+  int cmp = chacha20Cipher1->m_legacy == chacha20Cipher2->m_legacy &&
+            chacha20Cipher1->m_legacyPageSize == chacha20Cipher2->m_legacyPageSize &&
+            chacha20Cipher1->m_kdfIter == chacha20Cipher2->m_kdfIter &&
+            chacha20Cipher1->m_keyLength == chacha20Cipher2->m_keyLength &&
+            memcmp(chacha20Cipher1->m_key, chacha20Cipher2->m_key, KEYLENGTH_CHACHA20) == 0 &&
+            memcmp(chacha20Cipher1->m_salt, chacha20Cipher2->m_salt, SALTLENGTH_CHACHA20) == 0;
+  return cmp;
+}
+
+static int
 GetLegacyChaCha20Cipher(void* cipher)
 {
   ChaCha20Cipher* chacha20Cipher = (ChaCha20Cipher*)cipher;
@@ -151,6 +166,10 @@ GenerateKeyChaCha20Cipher(void* cipher, BtShared* pBt, char* userPassword, int p
   {
     chacha20_rng(chacha20Cipher->m_salt, SALTLENGTH_CHACHA20);
     keyOnly = 0;
+  }
+  else if (cipherSalt != NULL)
+  {
+    memcpy(chacha20Cipher->m_salt, cipherSalt, SALTLENGTH_CHACHA20);
   }
 
   /* Bypass key derivation if the key string starts with "raw:" */
@@ -206,6 +225,9 @@ GenerateKeyChaCha20Cipher(void* cipher, BtShared* pBt, char* userPassword, int p
                            chacha20Cipher->m_kdfIter,
                            chacha20Cipher->m_key, KEYLENGTH_CHACHA20);
   }
+  SQLITE3MC_DEBUG_LOG("generate: codec=%p pFile=%p\n", chacha20Cipher, fd);
+  SQLITE3MC_DEBUG_HEX("generate  key:", chacha20Cipher->m_key, KEYLENGTH_CHACHA20);
+  SQLITE3MC_DEBUG_HEX("generate salt:", chacha20Cipher->m_salt, SALTLENGTH_CHACHA20);
 }
 
 static int
@@ -265,6 +287,18 @@ EncryptPageChaCha20Cipher(void* cipher, int page, unsigned char* data, int len, 
   return rc;
 }
 
+int chacha20_ismemset(const void* v, unsigned char value, int len)
+{
+  const unsigned char* a = v;
+  int i = 0, result = 0;
+
+  for (i = 0; i < len; i++) {
+    result |= a[i] ^ value;
+  }
+
+  return (result != 0);
+}
+
 static int
 DecryptPageChaCha20Cipher(void* cipher, int page, unsigned char* data, int len, int reserved, int hmacCheck)
 {
@@ -288,12 +322,14 @@ DecryptPageChaCha20Cipher(void* cipher, int page, unsigned char* data, int len, 
 
   if (nReserved > 0)
   {
+    int allzero = 0;
     /* Decrypt and verify MAC */
     memset(otk, 0, 64);
     counter = LOAD32_LE(data + n + PAGE_NONCE_LEN_CHACHA20 - 4) ^ page;
     chacha20_xor(otk, 64, chacha20Cipher->m_key, data + n, counter);
 
     /* Determine MAC and decrypt */
+    allzero = chacha20_ismemset(data, 0, n);
     poly1305(data, n + PAGE_NONCE_LEN_CHACHA20, otk, tag);
     offset = (page == 1) ? (chacha20Cipher->m_legacy != 0) ? 0 : CIPHER_PAGE1_OFFSET : 0;
     chacha20_xor(data + offset, n - offset, otk + 32, data + n, counter + 1);
@@ -338,6 +374,7 @@ SQLITE_PRIVATE const CipherDescriptor mcChaCha20Descriptor =
   "chacha20",  AllocateChaCha20Cipher,
                FreeChaCha20Cipher,
                CloneChaCha20Cipher,
+               CompareChaCha20Cipher,
                GetLegacyChaCha20Cipher,
                GetPageSizeChaCha20Cipher,
                GetReservedChaCha20Cipher,

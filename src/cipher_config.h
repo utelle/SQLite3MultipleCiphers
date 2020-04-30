@@ -23,6 +23,8 @@ SQLITE_PRIVATE void sqlite3mcConfigParams(sqlite3_context* context, int argc, sq
 SQLITE_PRIVATE int sqlite3mcConfigureFromUri(sqlite3* db, const char *zDbName, int configDefault);
 
 SQLITE_PRIVATE int sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg);
+SQLITE_PRIVATE int sqlite3mcCodecQueryParameters(sqlite3* db, const char* zDb, const char* zUri);
 SQLITE_PRIVATE int sqlite3mcHandleAttachKey(sqlite3* db, const char* zName, const char* zPath, sqlite3_value* pKey, char** zErrDyn);
+SQLITE_PRIVATE int sqlite3mcHandleMainKey(sqlite3* db, const char* zPath);
 
 #endif

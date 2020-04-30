@@ -17,12 +17,20 @@
 /*
 ** Type definitions
 */
+typedef struct sqlite3mc_db sqlite3mc_db;
 typedef struct sqlite3mc_file sqlite3mc_file;
 typedef struct sqlite3mc_vfs sqlite3mc_vfs;
 
 /*
 ** MultiCipher file structure
 */
+struct sqlite3mc_db
+{
+  sqlite3mc_db* dbNext;        /* Pointer to next entry in list */
+  sqlite3* db;                 /* Database connection */
+  int dbIndex;                 /* Database index (0 for main database, >= 2 for attached databases) */
+};
+
 struct sqlite3mc_file
 {
   sqlite3_file base;           /* sqlite3_file I/O methods */
@@ -30,17 +38,8 @@ struct sqlite3mc_file
   const char* zFileName;       /* File name */
   int openFlags;               /* Open flags */
   sqlite3mc_file* pMainNext;   /* Next main db file */
-  sqlite3* db;                 /* Database connection */
-  int dbIndex;                 /* Database index (0 for main database, >= 2 for attached databases) */
-  sqlite3mc_file* dbMain;      /* Main database to which this one is attached */
-#if 0
-  /*
-  ** NOTE: Storing a pointer to a copy of the global codec parameter table
-  ** in the main database file descriptor doesn't work if the main database
-  ** is not file based, i.e. ':memory:'
-  */
-  CodecParameter* codecParams; /* Codec parameter tables (only for main databases) */
-#endif
+  sqlite3mc_file* pMainDb;     /* Main database to which this one is attached */
+  sqlite3mc_db* pDb;           /* Head of list of database connections */
   Codec* codec;                /* Codec if encrypted */
   int pageNo;                  /* Page number (in case of journal files) */
 };
@@ -139,7 +138,7 @@ static sqlite3mc_vfs mcVfsGlobal =
 
 static sqlite3_io_methods mcIoMethodsGlobal =
 {
-  1,                          /* iVersion */
+  3,                          /* iVersion */
   mcIoClose,                  /* xClose */
   mcIoRead,                   /* xRead */
   mcIoWrite,                  /* xWrite */
@@ -204,6 +203,7 @@ static sqlite3mc_file* mcFindDbMainFileName(sqlite3mc_vfs* mcVfs, const char* zF
   return pDb;
 }
 
+#if 0
 /*
 ** Given that dbIndex is the index of a main database or attached database within a
 ** database connection, search the list of main database files for the file handle
@@ -213,28 +213,9 @@ static sqlite3mc_file* mcFindDbMainFile(sqlite3mc_vfs* mcVfs, sqlite3* db, int d
 {
   sqlite3mc_file* pDbMain;
   sqlite3_mutex_enter(mcVfs->mutex);
-  for (pDbMain = mcVfs->pMain; pDbMain && (pDbMain->db != db || pDbMain->dbIndex != dbIndex); pDbMain = pDbMain->pMainNext) {}
+  for (pDbMain = mcVfs->pMain; pDbMain && mcDbListFind(pDbMain, db, dbIndex) == NULL; pDbMain = pDbMain->pMainNext) {}
   sqlite3_mutex_leave(mcVfs->mutex);
   return pDbMain;
-}
-
-#if 0
-/*
-** Find the pointer to the codec parameter tables of the main database
-*/
-SQLITE_PRIVATE CodecParameter* sqlite3mcGetCodecParams(sqlite3* db)
-{
-  CodecParameter* codecParams = NULL;
-  sqlite3mc_file* pDbMain = mcFindDbMainFile(&mcVfsGlobal, db, 0);
-  if (pDbMain)
-  {
-    codecParams = pDbMain->codecParams;
-  }
-  else
-  {
-    codecParams = globalCodecParameterTable;
-  }
-  return codecParams;
 }
 #endif
 
@@ -242,10 +223,11 @@ SQLITE_PRIVATE CodecParameter* sqlite3mcGetCodecParams(sqlite3* db)
 ** Find the codec of the database file
 ** corresponding to the database index.
 */
-SQLITE_PRIVATE Codec* sqlite3mcGetCodec(sqlite3* db, int dbIndex)
+SQLITE_PRIVATE Codec* sqlite3mcGetCodec(sqlite3* db, const char* zDbName)
 {
   Codec* codec = NULL;
-  sqlite3mc_file* pDbMain = mcFindDbMainFile(&mcVfsGlobal, db, dbIndex);
+  const char* dbFileName = sqlite3_db_filename(db, zDbName);
+  sqlite3mc_file* pDbMain = mcFindDbMainFileName(&mcVfsGlobal, dbFileName);
   if (pDbMain)
   {
     codec = pDbMain->codec;
@@ -258,22 +240,38 @@ SQLITE_PRIVATE Codec* sqlite3mcGetCodec(sqlite3* db, int dbIndex)
 */
 SQLITE_PRIVATE Codec* sqlite3mcGetMainCodec(sqlite3* db)
 {
-  return sqlite3mcGetCodec(db, 0);
+  return sqlite3mcGetCodec(db, "main");
 }
 
 /*
 ** Set the codec of the database file with the given database index.
 */
-SQLITE_PRIVATE void sqlite3mcSetCodec(sqlite3* db, int dbIndex, Codec* codec)
+SQLITE_PRIVATE void sqlite3mcSetCodec(sqlite3* db, const char* zFileName, Codec* codec)
 {
-  sqlite3mc_file* pDbMain = mcFindDbMainFile(&mcVfsGlobal, db, dbIndex);
+  sqlite3mc_file* pDbMain = mcFindDbMainFileName(&mcVfsGlobal, zFileName);
   if (pDbMain)
   {
+#if 0
     if (pDbMain->codec)
     {
       sqlite3mcCodecFree(pDbMain->codec);
     }
     pDbMain->codec = codec;
+#endif
+    if (pDbMain->codec == 0)
+    {
+      pDbMain->codec = codec;
+    }
+    else
+    {
+      int cmp = sqlite3mcCodecCompare(pDbMain->codec, codec);
+      if (!cmp)
+      {
+        int x = 5;
+        int cmp = sqlite3mcCodecCompare(pDbMain->codec, codec);
+      }
+      sqlite3mcCodecFree(codec);
+    }
   }
 }
 
@@ -288,13 +286,9 @@ static int mcVfsOpen(sqlite3_vfs* pVfs, const char* zName, sqlite3_file* pFile, 
   mcFile->pFile = (sqlite3_file*) &mcFile[1];
   mcFile->openFlags = flags;
   mcFile->zFileName = zName;
-  mcFile->db = 0;
-  mcFile->dbIndex = 0;
-#if 0
-  mcFile->codecParams = 0;
-#endif
+  mcFile->pDb = NULL;
   mcFile->codec = 0;
-  mcFile->dbMain = 0;
+  mcFile->pMainDb = 0;
   mcFile->pMainNext = 0;
   mcFile->pageNo = 0;
 
@@ -305,6 +299,7 @@ static int mcVfsOpen(sqlite3_vfs* pVfs, const char* zName, sqlite3_file* pFile, 
       /* A main database has just been opened.
       */
       mcFile->zFileName = zName;
+      SQLITE3MC_DEBUG_LOG("vfsopen: mcFile=%p fileName=%s\n", mcFile, mcFile->zFileName);
     }
 #if 1
     else if (flags & SQLITE_OPEN_TEMP_DB)
@@ -321,7 +316,7 @@ static int mcVfsOpen(sqlite3_vfs* pVfs, const char* zName, sqlite3_file* pFile, 
     {
       mcFile->zFileName = zName;
       const char* dbFileName = sqlite3_filename_database(zName);
-      mcFile->dbMain = mcFindDbMainFileName(&mcVfsGlobal, dbFileName);
+      mcFile->pMainDb = mcFindDbMainFileName(&mcVfsGlobal, dbFileName);
     }
 #if 0
     else if (flags & SQLITE_OPEN_TEMP_JOURNAL)
@@ -332,7 +327,7 @@ static int mcVfsOpen(sqlite3_vfs* pVfs, const char* zName, sqlite3_file* pFile, 
     {
       mcFile->zFileName = zName;
       const char* dbFileName = sqlite3_filename_database(zName);
-      mcFile->dbMain = mcFindDbMainFileName(&mcVfsGlobal, dbFileName);
+      mcFile->pMainDb = mcFindDbMainFileName(&mcVfsGlobal, dbFileName);
     }
 #if 0
     else if (flags & SQLITE_OPEN_MASTER_JOURNAL)
@@ -343,7 +338,7 @@ static int mcVfsOpen(sqlite3_vfs* pVfs, const char* zName, sqlite3_file* pFile, 
     {
       mcFile->zFileName = zName;
       const char* dbFileName = sqlite3_filename_database(zName);
-      mcFile->dbMain = mcFindDbMainFileName(&mcVfsGlobal, dbFileName);
+      mcFile->pMainDb = mcFindDbMainFileName(&mcVfsGlobal, dbFileName);
     }
   }
 
@@ -451,13 +446,6 @@ static int mcIoClose(sqlite3_file* pFile)
     sqlite3mcCodecFree(p->codec);
     p->codec = 0;
   }
-#if 0
-  if (p->codecParams)
-  {
-    sqlite3mcFreeCodecParameterTable(p->codecParams);
-    p->codecParams = 0;
-  }
-#endif
 
   assert(p->pMainNext == 0 && mcVfsGlobal.pMain != p);
   rc = REALFILE(pFile)->pMethods->xClose(REALFILE(pFile));
@@ -524,7 +512,7 @@ static int mcReadMainJournal(sqlite3_file* pFile, const void* buffer, int count,
 {
   int rc = SQLITE_OK;
   sqlite3mc_file* mcFile = (sqlite3mc_file*)pFile;
-  Codec* codec = (mcFile->dbMain) ? mcFile->dbMain->codec : 0;
+  Codec* codec = (mcFile->pMainDb) ? mcFile->pMainDb->codec : 0;
 
   if (codec != 0 && sqlite3mcIsEncrypted(codec))
   {
@@ -547,7 +535,7 @@ static int mcReadSubJournal(sqlite3_file* pFile, const void* buffer, int count, 
 {
   int rc = SQLITE_OK;
   sqlite3mc_file* mcFile = (sqlite3mc_file*)pFile;
-  Codec* codec = (mcFile->dbMain) ? mcFile->dbMain->codec : 0;
+  Codec* codec = (mcFile->pMainDb) ? mcFile->pMainDb->codec : 0;
 
   if (codec != 0 && sqlite3mcIsEncrypted(codec))
   {
@@ -570,17 +558,12 @@ static int mcReadWal(sqlite3_file* pFile, const void* buffer, int count, sqlite3
 {
   int rc = SQLITE_OK;
   sqlite3mc_file* mcFile = (sqlite3mc_file*)pFile;
-  Codec* codec = (mcFile->dbMain) ? mcFile->dbMain->codec : 0;
+  Codec* codec = (mcFile->pMainDb) ? mcFile->pMainDb->codec : 0;
 
   if (codec != 0 && sqlite3mcIsEncrypted(codec))
   {
     const int pageSize = sqlite3mcGetPageSize(codec);
 
-#if 0
-    if (count == walFileHeaderSize)
-    {
-    }
-#endif
     if (count == pageSize)
     {
       int pageNo = 0;
@@ -657,6 +640,7 @@ static int mcWriteMainDb(sqlite3_file* pFile, const void* buffer, int count, sql
     const int pageSize = sqlite3mcGetPageSize(mcFile->codec);
     const int deltaOffset = offset % pageSize;
     const int deltaCount = count % pageSize;
+
     if (deltaOffset || deltaCount)
     {
       rc = REALFILE(pFile)->pMethods->xWrite(REALFILE(pFile), buffer, count, offset);
@@ -688,7 +672,7 @@ static int mcWriteMainJournal(sqlite3_file* pFile, const void* buffer, int count
 {
   int rc = SQLITE_OK;
   sqlite3mc_file* mcFile = (sqlite3mc_file*)pFile;
-  Codec* codec = (mcFile->dbMain) ? mcFile->dbMain->codec : 0;
+  Codec* codec = (mcFile->pMainDb) ? mcFile->pMainDb->codec : 0;
 
   if (codec != 0 && sqlite3mcIsEncrypted(codec))
   {
@@ -720,7 +704,7 @@ static int mcWriteSubJournal(sqlite3_file* pFile, const void* buffer, int count,
 {
   int rc = SQLITE_OK;
   sqlite3mc_file* mcFile = (sqlite3mc_file*)pFile;
-  Codec* codec = (mcFile->dbMain) ? mcFile->dbMain->codec : 0;
+  Codec* codec = (mcFile->pMainDb) ? mcFile->pMainDb->codec : 0;
 
   if (codec != 0 && sqlite3mcIsEncrypted(codec))
   {
@@ -752,7 +736,7 @@ static int mcWriteWal(sqlite3_file* pFile, const void* buffer, int count, sqlite
 {
   int rc = SQLITE_OK;
   sqlite3mc_file* mcFile = (sqlite3mc_file*)pFile;
-  Codec* codec = (mcFile->dbMain) ? mcFile->dbMain->codec : 0;
+  Codec* codec = (mcFile->pMainDb) ? mcFile->pMainDb->codec : 0;
 
   if (codec != 0 && sqlite3mcIsEncrypted(codec))
   {
@@ -881,46 +865,27 @@ static int mcIoFileControl(sqlite3_file* pFile, int op, void* pArg)
   {
     case SQLITE_FCNTL_PDB:
       {
-        int configDefault = 0;
+#if 0
+        /* pArg points to the sqlite3* handle for which the database file  was opened */
+        /* In shared cache mode this function is invoked for every use of the database file in a connection */
+        /* Unfortunately there is no notification, when a database file is no longer used by a connection (close in normal mode) */
         sqlite3* db = *((sqlite3**) pArg);
-        sqlite3mc_file* pDbMain = mcFindDbMainFile(&mcVfsGlobal, db, 0);
-        if (pDbMain)
-        {
-          p->db = db;
-          p->dbIndex = db->nDb;
-          p->dbMain = pDbMain;
-#if 0
-          p->codecParams = 0;
 #endif
-        }
-        else
-        {
-          configDefault = 1;
-          p->db = db;
-          p->dbIndex = 0;
-          p->dbMain = 0;
-#if 0
-          p->codecParams = sqlite3mcCloneCodecParameterTable();
-#endif
-        }
-        rc = sqlite3mcConfigureFromUri(db, p->zFileName, configDefault);
-      }
+    }
       break;
     case SQLITE_FCNTL_PRAGMA:
       {
+#if 0
+      /* Handle database file specific pragmas */
         char* pragmaName = ((char**) pArg)[1];
         char* pragmaValue = ((char**) pArg)[2];
-        if (sqlite3StrICmp(pragmaName, "key") == 0)
+        if (sqlite3StrICmp(pragmaName, "...") == 0)
         {
-          sqlite3_key_v2(p->db, p->db->aDb[p->dbIndex].zDbSName, pragmaValue, -1);
+          /* Action */
+          /* ((char**) pArg)[0] = sqlite3_mprintf("error msg.");*/
           doReal = 0;
         }
-        else if (sqlite3StrICmp(pragmaName, "rekey") == 0)
-        {
-          sqlite3_key_v2(p->db, p->db->aDb[p->dbIndex].zDbSName, pragmaValue, -1);
-/*        ((char**) pArg)[0] = sqlite3_mprintf("pragma rekey found.");*/
-          doReal = 0;
-        }
+#endif
       }
       break;
     default:
@@ -1000,9 +965,6 @@ SQLITE_API void sqlite3mc_vfs_terminate()
 */
 SQLITE_API int sqlite3mc_vfs_initialize(sqlite3_vfs* vfsDefault, int makeDefault)
 {
-#if 0
-  sqlite3_vfs* vfsDefault = sqlite3_vfs_find(NULL);
-#endif
   if (!vfsDefault)
   {
     return SQLITE_NOTFOUND;
@@ -1029,15 +991,3 @@ SQLITE_API int sqlite3mc_vfs_initialize(sqlite3_vfs* vfsDefault, int makeDefault
   }
   return rc;
 }
-
-#if 0
-void sqlite3mc_debug(const void* buffer, int count)
-{
-  uint8_t* buffer_u8 = (uint8_t*)buffer;
-  for (int i = 0; i < count; i++)
-  {
-    printf("%02x ", buffer_u8[i]);
-  }
-  printf("\n");
-}
-#endif

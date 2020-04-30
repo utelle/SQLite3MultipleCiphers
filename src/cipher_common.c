@@ -177,9 +177,6 @@ static const CipherDescriptor* codecDescriptorTable[] =
 SQLITE_PRIVATE CodecParameter*
 sqlite3mcGetCodecParams(sqlite3* db);
 
-SQLITE_PRIVATE Codec*
-sqlite3mcGetCodec(sqlite3* db, int dbIndex);
-
 SQLITE_PRIVATE int
 sqlite3mcGetCipherType(sqlite3* db)
 {
@@ -525,6 +522,25 @@ sqlite3mcCodecCopy(Codec* codec, Codec* other)
   codec->m_bt = other->m_bt;
   codec->m_btShared = other->m_btShared;
   return rc;
+}
+
+SQLITE_PRIVATE int
+sqlite3mcCodecCompare(Codec* codec1, Codec* codec2)
+{
+  int equal = 0;
+  if (codec1->m_hasReadCipher == codec2->m_hasReadCipher &&
+      codec1->m_hasWriteCipher == codec2->m_hasWriteCipher)
+  {
+    int eqRead = (codec1->m_hasReadCipher) ? codec1->m_readCipherType == codec2->m_readCipherType : 1;
+    int eqWrite = (codec1->m_hasWriteCipher) ? codec1->m_writeCipherType == codec2->m_writeCipherType : 1;
+    if (eqRead && eqWrite)
+    {
+      eqRead = (codec1->m_hasReadCipher) ? codecDescriptorTable[codec1->m_readCipherType - 1]->m_compareCipher(codec1->m_readCipher, codec2->m_readCipher) : 1;
+      eqWrite = (codec1->m_hasWriteCipher) ? codecDescriptorTable[codec1->m_writeCipherType - 1]->m_compareCipher(codec1->m_writeCipher, codec2->m_writeCipher) : 1;
+      equal = eqRead && eqWrite;
+    }
+  }
+  return equal;
 }
 
 SQLITE_PRIVATE int
