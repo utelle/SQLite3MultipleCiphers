@@ -726,7 +726,7 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
   int rc = sqlite3_file_control(db, zDbName, op, pArg);
   if (rc == SQLITE_NOTFOUND)
   {
-    int dbIndex = sqlite3FindDbName(db, zDbName);
+    int dbIndex = (zDbName) ? sqlite3FindDbName(db, zDbName) : 0;
     if (dbIndex < 0 && zDbName != NULL)
     {
       /* Unknown schema name */
@@ -779,10 +779,18 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
     else if (sqlite3StrICmp(pragmaName, "key") == 0)
     {
       rc = sqlite3_key_v2(db, zDbName, pragmaValue, -1);
+      if (rc == SQLITE_OK)
+      {
+        ((char**)pArg)[0] = sqlite3_mprintf("ok");
+      }
     }
     else if (sqlite3StrICmp(pragmaName, "rekey") == 0)
     {
       rc = sqlite3_rekey_v2(db, zDbName, pragmaValue, -1);
+      if (rc == SQLITE_OK)
+      {
+        ((char**)pArg)[0] = sqlite3_mprintf("ok");
+      }
     }
     else
     {

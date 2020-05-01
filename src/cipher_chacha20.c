@@ -339,6 +339,14 @@ DecryptPageChaCha20Cipher(void* cipher, int page, unsigned char* data, int len, 
       /* Verify the MAC */
       if (poly1305_tagcmp(data + n + PAGE_NONCE_LEN_CHACHA20, tag))
       {
+        SQLITE3MC_DEBUG_LOG("decrypt: codec=%p page=%d\n", chacha20Cipher, page);
+        SQLITE3MC_DEBUG_HEX("decrypt key:", chacha20Cipher->m_key, 32);
+        SQLITE3MC_DEBUG_HEX("decrypt otk:", otk, 64);
+        SQLITE3MC_DEBUG_HEX("decrypt data+00:", data, 16);
+        SQLITE3MC_DEBUG_HEX("decrypt data+24:", data + 24, 16);
+        SQLITE3MC_DEBUG_HEX("decrypt data+n:", data + n, 16);
+        SQLITE3MC_DEBUG_HEX("decrypt tag r:", data + n + PAGE_NONCE_LEN_CHACHA20, PAGE_TAG_LEN_CHACHA20);
+        SQLITE3MC_DEBUG_HEX("decrypt tag c:", tag, PAGE_TAG_LEN_CHACHA20);
         /* Bad MAC */
         rc = SQLITE_CORRUPT;
       }

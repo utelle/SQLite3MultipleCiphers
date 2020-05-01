@@ -251,13 +251,13 @@ SQLITE_PRIVATE void sqlite3mcSetCodec(sqlite3* db, const char* zFileName, Codec*
   sqlite3mc_file* pDbMain = mcFindDbMainFileName(&mcVfsGlobal, zFileName);
   if (pDbMain)
   {
-#if 0
+#if 1
     if (pDbMain->codec)
     {
       sqlite3mcCodecFree(pDbMain->codec);
     }
     pDbMain->codec = codec;
-#endif
+#else
     if (pDbMain->codec == 0)
     {
       pDbMain->codec = codec;
@@ -272,6 +272,7 @@ SQLITE_PRIVATE void sqlite3mcSetCodec(sqlite3* db, const char* zFileName, Codec*
       }
       sqlite3mcCodecFree(codec);
     }
+#endif
   }
 }
 
@@ -575,7 +576,7 @@ static int mcReadWal(sqlite3_file* pFile, const void* buffer, int count, sqlite3
       }
       if (pageNo != 0)
       {
-        void* bufferDecrypted = sqlite3mcCodec(codec, (char*)buffer, mcFile->pageNo, 3);
+        void* bufferDecrypted = sqlite3mcCodec(codec, (char*)buffer, pageNo, 3);
       }
     }
   }

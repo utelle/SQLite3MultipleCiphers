@@ -308,7 +308,7 @@ sqlite3_key_v2(sqlite3 *db, const char *zDbName, const void *zKey, int nKey)
     }
 
     /* The key is only set for the main database, not the temp database  */
-    dbIndex = sqlite3FindDbName(db, zDbName);
+    dbIndex = (zDbName) ? sqlite3FindDbName(db, zDbName) : 0;
     if (dbIndex >= 0)
     {
       rc = sqlite3mcCodecAttach(db, dbIndex, dbFileName, zKey, nKey);
@@ -327,7 +327,7 @@ sqlite3_rekey_v2(sqlite3 *db, const char *zDbName, const void *zKey, int nKey)
   /* Changes the encryption key for an existing database. */
   int rc = SQLITE_ERROR;
   const char* dbFileName = sqlite3_db_filename(db, zDbName);
-  int dbIndex = sqlite3FindDbName(db, zDbName);
+  int dbIndex = (zDbName) ? sqlite3FindDbName(db, zDbName) : 0;
   if (dbIndex < 0)
   {
     return rc;
