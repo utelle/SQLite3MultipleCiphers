@@ -326,6 +326,11 @@ sqlite3_rekey_v2(sqlite3 *db, const char *zDbName, const void *zKey, int nKey)
 {
   /* Changes the encryption key for an existing database. */
   int rc = SQLITE_ERROR;
+  if (zKey != NULL && nKey < 0)
+  {
+    /* Key is zero-terminated string */
+    nKey = sqlite3Strlen30(zKey);
+  }
   const char* dbFileName = sqlite3_db_filename(db, zDbName);
   int dbIndex = (zDbName) ? sqlite3FindDbName(db, zDbName) : 0;
   if (dbIndex < 0)
