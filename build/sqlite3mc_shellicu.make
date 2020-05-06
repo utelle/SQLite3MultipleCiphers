@@ -37,7 +37,7 @@ ifeq ($(config),debug_win32)
 TARGETDIR = ../bin/gcc/lib/debug
 TARGET = $(TARGETDIR)/sqlite3mc_shellicu.exe
 OBJDIR = obj/gcc/Win32/Debug/sqlite3mc_shellicu
-DEFINES += -D_WINDOWS -DWIN32 -D_CRT_SECURE_NO_WARNINGS -D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_DEPRECATE -DDEBUG -D_DEBUG -DSQLITE_SHELL_IS_UTF8=1 -DSQLITE_USER_AUTHENTICATION=1
+DEFINES += -D_WINDOWS -DWIN32 -D_CRT_SECURE_NO_WARNINGS -D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_WARNINGS -D_CRT_NONSTDC_NO_DEPRECATE -DDEBUG -D_DEBUG -DSQLITE_SHELL_IS_UTF8=1 -DSQLITE_USER_AUTHENTICATION=1
 ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -m32 -g
 ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -m32 -g
 LIBS += ../bin/gcc/lib/debug/sqlite3mc_icu.lib -licuind -licuucd
@@ -48,7 +48,7 @@ else ifeq ($(config),debug_win64)
 TARGETDIR = ../bin/gcc/lib/debug
 TARGET = $(TARGETDIR)/sqlite3mc_shellicu_x64.exe
 OBJDIR = obj/gcc/Win64/Debug/sqlite3mc_shellicu
-DEFINES += -D_WINDOWS -DWIN32 -D_CRT_SECURE_NO_WARNINGS -D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_DEPRECATE -DDEBUG -D_DEBUG -DSQLITE_SHELL_IS_UTF8=1 -DSQLITE_USER_AUTHENTICATION=1
+DEFINES += -D_WINDOWS -DWIN32 -D_CRT_SECURE_NO_WARNINGS -D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_WARNINGS -D_CRT_NONSTDC_NO_DEPRECATE -DDEBUG -D_DEBUG -DSQLITE_SHELL_IS_UTF8=1 -DSQLITE_USER_AUTHENTICATION=1
 ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -m64 -g
 ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -m64 -g
 LIBS += ../bin/gcc/lib/debug/sqlite3mc_icu_x64.lib -licuind -licuucd
@@ -59,7 +59,7 @@ else ifeq ($(config),release_win32)
 TARGETDIR = ../bin/gcc/lib/release
 TARGET = $(TARGETDIR)/sqlite3mc_shellicu.exe
 OBJDIR = obj/gcc/Win32/Release/sqlite3mc_shellicu
-DEFINES += -D_WINDOWS -DWIN32 -D_CRT_SECURE_NO_WARNINGS -D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_DEPRECATE -DNDEBUG -DSQLITE_SHELL_IS_UTF8=1 -DSQLITE_USER_AUTHENTICATION=1
+DEFINES += -D_WINDOWS -DWIN32 -D_CRT_SECURE_NO_WARNINGS -D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_WARNINGS -D_CRT_NONSTDC_NO_DEPRECATE -DNDEBUG -DSQLITE_SHELL_IS_UTF8=1 -DSQLITE_USER_AUTHENTICATION=1
 ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -m32 -O2
 ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -m32 -O2
 LIBS += ../bin/gcc/lib/release/sqlite3mc_icu.lib -licuin -licuuc
@@ -70,15 +70,13 @@ else ifeq ($(config),release_win64)
 TARGETDIR = ../bin/gcc/lib/release
 TARGET = $(TARGETDIR)/sqlite3mc_shellicu_x64.exe
 OBJDIR = obj/gcc/Win64/Release/sqlite3mc_shellicu
-DEFINES += -D_WINDOWS -DWIN32 -D_CRT_SECURE_NO_WARNINGS -D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_DEPRECATE -DNDEBUG -DSQLITE_SHELL_IS_UTF8=1 -DSQLITE_USER_AUTHENTICATION=1
+DEFINES += -D_WINDOWS -DWIN32 -D_CRT_SECURE_NO_WARNINGS -D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_WARNINGS -D_CRT_NONSTDC_NO_DEPRECATE -DNDEBUG -DSQLITE_SHELL_IS_UTF8=1 -DSQLITE_USER_AUTHENTICATION=1
 ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -m64 -O2
 ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -m64 -O2
 LIBS += ../bin/gcc/lib/release/sqlite3mc_icu_x64.lib -licuin -licuuc
 LDDEPS += ../bin/gcc/lib/release/sqlite3mc_icu_x64.lib
 ALL_LDFLAGS += $(LDFLAGS) -L"$(LIBICU_PATH)/lib64" -L/usr/lib64 -m64 -s
 
-else
-  $(error "invalid configuration $(config)")
 endif
 
 # Per File Configurations
@@ -89,9 +87,12 @@ endif
 # #############################################
 
 CUSTOM :=
+GENERATED :=
 OBJECTS :=
 
 CUSTOM += $(OBJDIR)/sqlite3mc_shell.res
+GENERATED += $(OBJDIR)/shell.o
+GENERATED += $(OBJDIR)/sqlite3mc_shell.res
 OBJECTS += $(OBJDIR)/shell.o
 
 # Rules
@@ -100,7 +101,7 @@ OBJECTS += $(OBJDIR)/shell.o
 all: $(TARGET)
 	@:
 
-$(TARGET): $(CUSTOM) $(OBJECTS) $(LDDEPS) | $(TARGETDIR)
+$(TARGET): $(CUSTOM) $(GENERATED) $(OBJECTS) $(LDDEPS) | $(TARGETDIR)
 	$(PRELINKCMDS)
 	@echo Linking sqlite3mc_shellicu
 	$(SILENT) $(LINKCMD)
@@ -126,9 +127,11 @@ clean:
 	@echo Cleaning sqlite3mc_shellicu
 ifeq (posix,$(SHELLTYPE))
 	$(SILENT) rm -f  $(TARGET)
+	$(SILENT) rm -rf $(GENERATED)
 	$(SILENT) rm -rf $(OBJDIR)
 else
 	$(SILENT) if exist $(subst /,\\,$(TARGET)) del $(subst /,\\,$(TARGET))
+	$(SILENT) if exist $(subst /,\\,$(GENERATED)) rmdir /s /q $(subst /,\\,$(GENERATED))
 	$(SILENT) if exist $(subst /,\\,$(OBJDIR)) rmdir /s /q $(subst /,\\,$(OBJDIR))
 endif
 
