@@ -125,7 +125,7 @@ extern "C" {
 */
 #define SQLITE_VERSION        "3.32.0"
 #define SQLITE_VERSION_NUMBER 3032000
-#define SQLITE_SOURCE_ID      "2020-05-05 18:42:49 f339f31f9e9a856b576f99c5230fdf6d60fdc2873e48cb5aa0a4ab1d04e3c930"
+#define SQLITE_SOURCE_ID      "2020-05-08 18:22:00 0d23a0b209900f4d7c6c13f75d4364f19afc23db72f9cfdb11e05b81502ealt1"
 
 /*
 ** CAPI3REF: Run-Time Library Version Numbers
@@ -508,6 +508,7 @@ SQLITE_API int sqlite3_exec(
 #define SQLITE_LOCKED_VTAB             (SQLITE_LOCKED |  (2<<8))
 #define SQLITE_BUSY_RECOVERY           (SQLITE_BUSY   |  (1<<8))
 #define SQLITE_BUSY_SNAPSHOT           (SQLITE_BUSY   |  (2<<8))
+#define SQLITE_BUSY_TIMEOUT            (SQLITE_BUSY   |  (3<<8))
 #define SQLITE_CANTOPEN_NOTEMPDIR      (SQLITE_CANTOPEN | (1<<8))
 #define SQLITE_CANTOPEN_ISDIR          (SQLITE_CANTOPEN | (2<<8))
 #define SQLITE_CANTOPEN_FULLPATH       (SQLITE_CANTOPEN | (3<<8))
