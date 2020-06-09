@@ -696,7 +696,7 @@ sqlite3mcConfigureFromUri(sqlite3* db, const char *zDbName, int configDefault)
   return rc;
 }
 
-#if 0
+#ifdef SQLITE3MC_WXSQLITE3_COMPATIBLE
 SQLITE_API int
 wxsqlite3_config(sqlite3* db, const char* paramName, int newValue)
 {

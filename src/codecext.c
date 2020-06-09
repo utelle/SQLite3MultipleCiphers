@@ -245,7 +245,9 @@ sqlite3mcCodecAttach(sqlite3* db, int nDb, const char* zPath, const void* zKey, 
       int reserved = sqlite3mcGetReservedWriteCipher(codec);
       mcAdjustBtree(db->aDb[nDb].pBt, pageSize, reserved, sqlite3mcGetLegacyWriteCipher(codec));
       sqlite3mcCodecSizeChange(codec, pageSize, reserved);
+#if 0
       const char* dbFileName = sqlite3_db_filename(db, zDbName);
+#endif
       sqlite3mcSetCodec(db, dbFileName, codec);
     }
     else
