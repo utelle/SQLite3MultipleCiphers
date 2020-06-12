@@ -17,19 +17,13 @@
 /*
 ** Type definitions
 */
-typedef struct sqlite3mc_db sqlite3mc_db;
+
 typedef struct sqlite3mc_file sqlite3mc_file;
 typedef struct sqlite3mc_vfs sqlite3mc_vfs;
 
 /*
-** MultiCipher file structure
+** SQLite3 Multiple Ciphers file structure
 */
-struct sqlite3mc_db
-{
-  sqlite3mc_db* dbNext;        /* Pointer to next entry in list */
-  sqlite3* db;                 /* Database connection */
-  int dbIndex;                 /* Database index (0 for main database, >= 2 for attached databases) */
-};
 
 struct sqlite3mc_file
 {
@@ -39,17 +33,17 @@ struct sqlite3mc_file
   int openFlags;               /* Open flags */
   sqlite3mc_file* pMainNext;   /* Next main db file */
   sqlite3mc_file* pMainDb;     /* Main database to which this one is attached */
-  sqlite3mc_db* pDb;           /* Head of list of database connections */
   Codec* codec;                /* Codec if encrypted */
   int pageNo;                  /* Page number (in case of journal files) */
 };
 
 /*
-** MultiCipher VFS structure
+** SQLite3 Multiple Ciphers VFS structure
 */
+
 struct sqlite3mc_vfs
 {
-	sqlite3_vfs base;      /* MultiCipher VFS shim methods */
+  sqlite3_vfs base;      /* MultiCipher VFS shim methods */
   sqlite3_vfs* pVfs;     /* Underlying VFS */
   sqlite3_mutex* mutex;  /* Mutex to protect pMain */
   sqlite3mc_file* pMain; /* List of main database files */
@@ -104,9 +98,15 @@ static int mcIoUnfetch(sqlite3_file* pFile, sqlite3_int64 iOfst, void* p);
 
 #define SQLITE3MC_VFS_NAME ("multicipher")
 
+/*
+** Header sizes of WAL journal files
+*/
 static const int walFrameHeaderSize = 24;
 static const int walFileHeaderSize = 32;
 
+/*
+** Global VFS structure of SQLite3 Multiple Ciphers VFS
+*/
 static sqlite3mc_vfs mcVfsGlobal =
 {
   {
@@ -203,25 +203,9 @@ static sqlite3mc_file* mcFindDbMainFileName(sqlite3mc_vfs* mcVfs, const char* zF
   return pDb;
 }
 
-#if 0
-/*
-** Given that dbIndex is the index of a main database or attached database within a
-** database connection, search the list of main database files for the file handle
-** of the corresponding database file.
-*/
-static sqlite3mc_file* mcFindDbMainFile(sqlite3mc_vfs* mcVfs, sqlite3* db, int dbIndex)
-{
-  sqlite3mc_file* pDbMain;
-  sqlite3_mutex_enter(mcVfs->mutex);
-  for (pDbMain = mcVfs->pMain; pDbMain && mcDbListFind(pDbMain, db, dbIndex) == NULL; pDbMain = pDbMain->pMainNext) {}
-  sqlite3_mutex_leave(mcVfs->mutex);
-  return pDbMain;
-}
-#endif
-
 /*
 ** Find the codec of the database file
-** corresponding to the database index.
+** corresponding to the database schema name.
 */
 SQLITE_PRIVATE Codec* sqlite3mcGetCodec(sqlite3* db, const char* zDbName)
 {
@@ -244,7 +228,14 @@ SQLITE_PRIVATE Codec* sqlite3mcGetMainCodec(sqlite3* db)
 }
 
 /*
-** Set the codec of the database file with the given database index.
+** Set the codec of the database file with the given database file name.
+**
+** The parameter db, the handle of the database connection, is currently
+** not used to determine the database file handle, for which the codec
+** should be set. The reason is that for shared cache mode the database
+** connection handle is not unique, and it is not even clear which
+** connection handle is actually valid, because the association between
+** connection handles and database file handles is not maintained properly.
 */
 SQLITE_PRIVATE void sqlite3mcSetCodec(sqlite3* db, const char* zFileName, Codec* codec)
 {
@@ -253,13 +244,18 @@ SQLITE_PRIVATE void sqlite3mcSetCodec(sqlite3* db, const char* zFileName, Codec*
   {
     if (pDbMain->codec)
     {
+      /*
+      ** Free a codec that was already associated with this main database file handle
+      */
       sqlite3mcCodecFree(pDbMain->codec);
     }
     pDbMain->codec = codec;
   }
   else
   {
-    /* No main database file handle found, free codec */
+    /*
+    ** No main database file handle found, free codec
+    */
     sqlite3mcCodecFree(codec);
   }
 }
@@ -275,7 +271,6 @@ static int mcVfsOpen(sqlite3_vfs* pVfs, const char* zName, sqlite3_file* pFile, 
   mcFile->pFile = (sqlite3_file*) &mcFile[1];
   mcFile->openFlags = flags;
   mcFile->zFileName = zName;
-  mcFile->pDb = NULL;
   mcFile->codec = 0;
   mcFile->pMainDb = 0;
   mcFile->pMainNext = 0;
@@ -285,20 +280,20 @@ static int mcVfsOpen(sqlite3_vfs* pVfs, const char* zName, sqlite3_file* pFile, 
   {
     if (flags & SQLITE_OPEN_MAIN_DB)
     {
-      /* A main database has just been opened.
-      */
       mcFile->zFileName = zName;
-      SQLITE3MC_DEBUG_LOG("vfsopen: mcFile=%p fileName=%s\n", mcFile, mcFile->zFileName);
+      SQLITE3MC_DEBUG_LOG("mcVfsOpen MAIN: mcFile=%p fileName=%s\n", mcFile, mcFile->zFileName);
     }
-#if 1
     else if (flags & SQLITE_OPEN_TEMP_DB)
     {
       mcFile->zFileName = zName;
-  }
-#endif
+      SQLITE3MC_DEBUG_LOG("mcVfsOpen TEMP: mcFile=%p fileName=%s\n", mcFile, mcFile->zFileName);
+    }
 #if 0
     else if (flags & SQLITE_OPEN_TRANSIENT_DB)
     {
+      /*
+      ** TODO: When does SQLite open a transient DB? Could/Should it be encrypted?
+      */
     }
 #endif
     else if (flags & SQLITE_OPEN_MAIN_JOURNAL)
@@ -306,10 +301,14 @@ static int mcVfsOpen(sqlite3_vfs* pVfs, const char* zName, sqlite3_file* pFile, 
       mcFile->zFileName = zName;
       const char* dbFileName = sqlite3_filename_database(zName);
       mcFile->pMainDb = mcFindDbMainFileName(&mcVfsGlobal, dbFileName);
+      SQLITE3MC_DEBUG_LOG("mcVfsOpen MAIN Journal: mcFile=%p fileName=%s dbFileName=%s\n", mcFile, mcFile->zFileName, dbFileName);
     }
 #if 0
     else if (flags & SQLITE_OPEN_TEMP_JOURNAL)
     {
+      /*
+      ** TODO: When does SQLite open a temporary journal? Could/Should it be encrypted?
+      */
     }
 #endif
     else if (flags & SQLITE_OPEN_SUBJOURNAL)
@@ -317,10 +316,15 @@ static int mcVfsOpen(sqlite3_vfs* pVfs, const char* zName, sqlite3_file* pFile, 
       mcFile->zFileName = zName;
       const char* dbFileName = sqlite3_filename_database(zName);
       mcFile->pMainDb = mcFindDbMainFileName(&mcVfsGlobal, dbFileName);
+      SQLITE3MC_DEBUG_LOG("mcVfsOpen SUB Journal: mcFile=%p fileName=%s dbFileName=%s\n", mcFile, mcFile->zFileName, dbFileName);
     }
 #if 0
     else if (flags & SQLITE_OPEN_MASTER_JOURNAL)
     {
+      /*
+      ** Master journal contains only administrative information
+      ** No encryption necessary
+      */
     }
 #endif
     else if (flags & SQLITE_OPEN_WAL)
@@ -328,12 +332,16 @@ static int mcVfsOpen(sqlite3_vfs* pVfs, const char* zName, sqlite3_file* pFile, 
       mcFile->zFileName = zName;
       const char* dbFileName = sqlite3_filename_database(zName);
       mcFile->pMainDb = mcFindDbMainFileName(&mcVfsGlobal, dbFileName);
+      SQLITE3MC_DEBUG_LOG("mcVfsOpen WAL Journal: mcFile=%p fileName=%s dbFileName=%s\n", mcFile, mcFile->zFileName, dbFileName);
     }
   }
 
   int rc = REALVFS(pVfs)->xOpen(REALVFS(pVfs), zName, mcFile->pFile, flags, pOutFlags);
   if (rc == SQLITE_OK)
   {
+    /*
+    ** Real open succeeded, initialize methods, register main database files
+    */
     pFile->pMethods = &mcIoMethodsGlobal;
     if (flags & SQLITE_OPEN_MAIN_DB)
     {
@@ -424,12 +432,20 @@ static const char* mcVfsNextSystemCall(sqlite3_vfs* pVfs, const char* zName)
 
 static int mcIoClose(sqlite3_file* pFile)
 {
-  sqlite3mc_file* p = (sqlite3mc_file*) pFile;
   int rc;
+  sqlite3mc_file* p = (sqlite3mc_file*) pFile;
+
+  /*
+  ** Unregister main database files
+  */
   if (p->openFlags & SQLITE_OPEN_MAIN_DB)
   {
     mcMainListRemove(p);
   }
+
+  /*
+  ** Release codec memory
+  */
   if (p->codec)
   {
     sqlite3mcCodecFree(p->codec);
@@ -441,6 +457,9 @@ static int mcIoClose(sqlite3_file* pFile)
   return rc;
 }
 
+/*
+** Read operation on main database file
+*/
 static int mcReadMainDb(sqlite3_file* pFile, void* buffer, int count, sqlite3_int64 offset)
 {
   int rc = SQLITE_OK;
@@ -461,15 +480,32 @@ static int mcReadMainDb(sqlite3_file* pFile, void* buffer, int count, sqlite3_in
     const int deltaCount = count % pageSize;
     if (deltaOffset || deltaCount)
     {
+      /*
+      ** Read partial page
+      */
+      int pageNo = 0;
+      void* bufferDecrypted = 0;
       const sqlite3_int64 prevOffset = offset - deltaOffset;
       unsigned char* pageBuffer = sqlite3mcGetPageBuffer(mcFile->codec);
+
+      /*
+      ** Read complete page from file
+      */
       rc = REALFILE(pFile)->pMethods->xRead(REALFILE(pFile), pageBuffer, pageSize, prevOffset);
       if (rc == SQLITE_IOERR_SHORT_READ)
       {
         return rc;
       }
-      int pageNo = prevOffset / pageSize + 1;
-      void* bufferDecrypted = sqlite3mcCodec(mcFile->codec, pageBuffer, pageNo, 3);
+
+      /*
+      ** Determine page number and decrypt page buffer
+      */
+      pageNo = prevOffset / pageSize + 1;
+      bufferDecrypted = sqlite3mcCodec(mcFile->codec, pageBuffer, pageNo, 3);
+
+      /*
+      ** Return the requested content
+      */
       if (deltaOffset)
       {
         memcpy(buffer, pageBuffer + deltaOffset, count);
@@ -481,7 +517,13 @@ static int mcReadMainDb(sqlite3_file* pFile, void* buffer, int count, sqlite3_in
     }
     else
     {
-      unsigned char* data = (unsigned char*)buffer;
+      /*
+      ** Read full page(s)
+      **
+      ** In fact, SQLite reads only one database page at a time.
+      ** This would allow to remove the page loop below.
+      */
+      unsigned char* data = (unsigned char*) buffer;
       int pageNo = offset / pageSize + 1;
       int nPages = count / pageSize;
       int iPage;
@@ -497,10 +539,13 @@ static int mcReadMainDb(sqlite3_file* pFile, void* buffer, int count, sqlite3_in
   return rc;
 }
 
+/*
+** Read operation on main journal file
+*/
 static int mcReadMainJournal(sqlite3_file* pFile, const void* buffer, int count, sqlite3_int64 offset)
 {
   int rc = SQLITE_OK;
-  sqlite3mc_file* mcFile = (sqlite3mc_file*)pFile;
+  sqlite3mc_file* mcFile = (sqlite3mc_file*) pFile;
   Codec* codec = (mcFile->pMainDb) ? mcFile->pMainDb->codec : 0;
 
   if (codec != 0 && sqlite3mcIsEncrypted(codec))
@@ -509,21 +554,31 @@ static int mcReadMainJournal(sqlite3_file* pFile, const void* buffer, int count,
 
     if (count == pageSize && mcFile->pageNo != 0)
     {
-      void* bufferDecrypted = sqlite3mcCodec(codec, (char*)buffer, mcFile->pageNo, 3);
+      /*
+      ** Decrypt the page buffer, but only if the page number is valid
+      */
+      void* bufferDecrypted = sqlite3mcCodec(codec, (char*) buffer, mcFile->pageNo, 3);
       mcFile->pageNo = 0;
     }
     else if (count == 4)
     {
+      /*
+      ** SQLite always reads the page number from the journal file
+      ** immediately before the corresponding page content is read.
+      */
       mcFile->pageNo = sqlite3Get4byte(buffer);
     }
   }
   return rc;
 }
 
+/*
+** Read operation on subjournal file
+*/
 static int mcReadSubJournal(sqlite3_file* pFile, const void* buffer, int count, sqlite3_int64 offset)
 {
   int rc = SQLITE_OK;
-  sqlite3mc_file* mcFile = (sqlite3mc_file*)pFile;
+  sqlite3mc_file* mcFile = (sqlite3mc_file*) pFile;
   Codec* codec = (mcFile->pMainDb) ? mcFile->pMainDb->codec : 0;
 
   if (codec != 0 && sqlite3mcIsEncrypted(codec))
@@ -532,21 +587,30 @@ static int mcReadSubJournal(sqlite3_file* pFile, const void* buffer, int count, 
 
     if (count == pageSize && mcFile->pageNo != 0)
     {
+      /*
+      ** Decrypt the page buffer, but only if the page number is valid
+      */
       void* bufferDecrypted = sqlite3mcCodec(codec, (char*) buffer, mcFile->pageNo, 3);
     }
     else if (count == 4)
     {
+      /*
+      ** SQLite always reads the page number from the journal file
+      ** immediately before the corresponding page content is read.
+      */
       mcFile->pageNo = sqlite3Get4byte(buffer);
     }
   }
   return rc;
 }
 
-
+/*
+** Read operation on WAL journal file
+*/
 static int mcReadWal(sqlite3_file* pFile, const void* buffer, int count, sqlite3_int64 offset)
 {
   int rc = SQLITE_OK;
-  sqlite3mc_file* mcFile = (sqlite3mc_file*)pFile;
+  sqlite3mc_file* mcFile = (sqlite3mc_file*) pFile;
   Codec* codec = (mcFile->pMainDb) ? mcFile->pMainDb->codec : 0;
 
   if (codec != 0 && sqlite3mcIsEncrypted(codec))
@@ -557,14 +621,24 @@ static int mcReadWal(sqlite3_file* pFile, const void* buffer, int count, sqlite3
     {
       int pageNo = 0;
       char ac[4];
+
+      /*
+      ** Determine page number
+      **
+      ** It is necessary to explicitly read the page number from the frame header.
+      */
       rc = REALFILE(pFile)->pMethods->xRead(REALFILE(pFile), ac, 4, offset - walFrameHeaderSize);
       if (rc == SQLITE_OK)
       {
         pageNo = sqlite3Get4byte(ac);
       }
+
+      /*
+      ** Decrypt page content if page number is valid
+      */
       if (pageNo != 0)
       {
-        void* bufferDecrypted = sqlite3mcCodec(codec, (char*)buffer, pageNo, 3);
+        void* bufferDecrypted = sqlite3mcCodec(codec, (char*) buffer, pageNo, 3);
       }
     }
   }
@@ -573,7 +647,7 @@ static int mcReadWal(sqlite3_file* pFile, const void* buffer, int count, sqlite3
 
 static int mcIoRead(sqlite3_file* pFile, void* buffer, int count, sqlite3_int64 offset)
 {
-  sqlite3mc_file* mcFile = (sqlite3mc_file*)pFile;
+  sqlite3mc_file* mcFile = (sqlite3mc_file*) pFile;
   int rc = REALFILE(pFile)->pMethods->xRead(REALFILE(pFile), buffer, count, offset);
   if (rc == SQLITE_IOERR_SHORT_READ)
   {
@@ -587,11 +661,17 @@ static int mcIoRead(sqlite3_file* pFile, void* buffer, int count, sqlite3_int64 
 #if 0
   else if (mcFile->openFlags & SQLITE_OPEN_TEMP_DB)
   {
+    /*
+    ** TODO: Could/Should a temporary database file be encrypted?
+    */
   }
 #endif
 #if 0
   else if (mcFile->openFlags & SQLITE_OPEN_TRANSIENT_DB)
   {
+    /*
+    ** TODO: Could/Should a transient database file be encrypted?
+    */
   }
 #endif
   else if (mcFile->openFlags & SQLITE_OPEN_MAIN_JOURNAL)
@@ -601,6 +681,9 @@ static int mcIoRead(sqlite3_file* pFile, void* buffer, int count, sqlite3_int64 
 #if 0
   else if (mcFile->openFlags & SQLITE_OPEN_TEMP_JOURNAL)
   {
+    /*
+    ** TODO: Could/Should a temporary journal file be encrypted?
+    */
   }
 #endif
   else if (mcFile->openFlags & SQLITE_OPEN_SUBJOURNAL)
@@ -610,6 +693,10 @@ static int mcIoRead(sqlite3_file* pFile, void* buffer, int count, sqlite3_int64 
 #if 0
   else if (mcFile->openFlags & SQLITE_OPEN_MASTER_JOURNAL)
   {
+    /*
+    ** Master journal contains only administrative information
+    ** No encryption necessary
+    */
   }
 #endif
   else if (mcFile->openFlags & SQLITE_OPEN_WAL)
@@ -619,10 +706,13 @@ static int mcIoRead(sqlite3_file* pFile, void* buffer, int count, sqlite3_int64 
   return rc;
 }
 
+/*
+** Write operation on main database file
+*/
 static int mcWriteMainDb(sqlite3_file* pFile, const void* buffer, int count, sqlite3_int64 offset)
 {
   int rc = SQLITE_OK;
-  sqlite3mc_file* mcFile = (sqlite3mc_file*)pFile;
+  sqlite3mc_file* mcFile = (sqlite3mc_file*) pFile;
 
   if (mcFile->codec != 0 && sqlite3mcIsEncrypted(mcFile->codec))
   {
@@ -632,11 +722,23 @@ static int mcWriteMainDb(sqlite3_file* pFile, const void* buffer, int count, sql
 
     if (deltaOffset || deltaCount)
     {
+      /*
+      ** Write partial page
+      **
+      ** SQLite does never write partial database pages.
+      ** Therefore no encryption is required in this case.
+      */
       rc = REALFILE(pFile)->pMethods->xWrite(REALFILE(pFile), buffer, count, offset);
     }
     else
     {
-      char* data = (char*)buffer;
+      /*
+      ** Write full page(s)
+      **
+      ** In fact, SQLite writes only one database page at a time.
+      ** This would allow to remove the page loop below.
+      */
+      char* data = (char*) buffer;
       int pageNo = offset / pageSize + 1;
       int nPages = count / pageSize;
       int iPage;
@@ -652,15 +754,21 @@ static int mcWriteMainDb(sqlite3_file* pFile, const void* buffer, int count, sql
   }
   else
   {
+    /*
+    ** Write buffer without encryption
+    */
     rc = REALFILE(pFile)->pMethods->xWrite(REALFILE(pFile), buffer, count, offset);
   }
   return rc;
 }
 
+/*
+** Write operation on main journal file
+*/
 static int mcWriteMainJournal(sqlite3_file* pFile, const void* buffer, int count, sqlite3_int64 offset)
 {
   int rc = SQLITE_OK;
-  sqlite3mc_file* mcFile = (sqlite3mc_file*)pFile;
+  sqlite3mc_file* mcFile = (sqlite3mc_file*) pFile;
   Codec* codec = (mcFile->pMainDb) ? mcFile->pMainDb->codec : 0;
 
   if (codec != 0 && sqlite3mcIsEncrypted(codec))
@@ -670,29 +778,45 @@ static int mcWriteMainJournal(sqlite3_file* pFile, const void* buffer, int count
 
     if (count == pageSize && mcFile->pageNo != 0)
     {
-      void* bufferEncrypted = sqlite3mcCodec(codec, (char*)buffer, mcFile->pageNo, 7);
+      /*
+      ** Encrypt the page buffer, but only if the page number is valid
+      */
+      void* bufferEncrypted = sqlite3mcCodec(codec, (char*) buffer, mcFile->pageNo, 7);
       rc = REALFILE(pFile)->pMethods->xWrite(REALFILE(pFile), bufferEncrypted, pageSize, offset);
     }
     else
     {
+      /*
+      ** Write buffer without encryption
+      */
       rc = REALFILE(pFile)->pMethods->xWrite(REALFILE(pFile), buffer, count, offset);
       if (count == 4)
       {
+        /*
+        ** SQLite always writes the page number to the journal file
+        ** immediately before the corresponding page content is written.
+        */
         mcFile->pageNo = (rc == SQLITE_OK) ? sqlite3Get4byte(buffer) : 0;
       }
     }
   }
   else
   {
+    /*
+    ** Write buffer without encryption
+    */
     rc = REALFILE(pFile)->pMethods->xWrite(REALFILE(pFile), buffer, count, offset);
   }
   return rc;
 }
 
+/*
+** Write operation on subjournal file
+*/
 static int mcWriteSubJournal(sqlite3_file* pFile, const void* buffer, int count, sqlite3_int64 offset)
 {
   int rc = SQLITE_OK;
-  sqlite3mc_file* mcFile = (sqlite3mc_file*)pFile;
+  sqlite3mc_file* mcFile = (sqlite3mc_file*) pFile;
   Codec* codec = (mcFile->pMainDb) ? mcFile->pMainDb->codec : 0;
 
   if (codec != 0 && sqlite3mcIsEncrypted(codec))
@@ -702,29 +826,45 @@ static int mcWriteSubJournal(sqlite3_file* pFile, const void* buffer, int count,
 
     if (count == pageSize && mcFile->pageNo != 0)
     {
+      /*
+      ** Encrypt the page buffer, but only if the page number is valid
+      */
       void* bufferEncrypted = sqlite3mcCodec(codec, (char*) buffer, mcFile->pageNo, 7);
       rc = REALFILE(pFile)->pMethods->xWrite(REALFILE(pFile), bufferEncrypted, pageSize, offset);
     }
     else
     {
+      /*
+      ** Write buffer without encryption
+      */
       rc = REALFILE(pFile)->pMethods->xWrite(REALFILE(pFile), buffer, count, offset);
       if (count == 4)
       {
+        /*
+        ** SQLite always writes the page number to the journal file
+        ** immediately before the corresponding page content is written.
+        */
         mcFile->pageNo = (rc == SQLITE_OK) ? sqlite3Get4byte(buffer) : 0;
       }
     }
   }
   else
   {
+    /*
+    ** Write buffer without encryption
+    */
     rc = REALFILE(pFile)->pMethods->xWrite(REALFILE(pFile), buffer, count, offset);
   }
   return rc;
 }
 
+/*
+** Write operation on WAL journal file
+*/
 static int mcWriteWal(sqlite3_file* pFile, const void* buffer, int count, sqlite3_int64 offset)
 {
   int rc = SQLITE_OK;
-  sqlite3mc_file* mcFile = (sqlite3mc_file*)pFile;
+  sqlite3mc_file* mcFile = (sqlite3mc_file*) pFile;
   Codec* codec = (mcFile->pMainDb) ? mcFile->pMainDb->codec : 0;
 
   if (codec != 0 && sqlite3mcIsEncrypted(codec))
@@ -735,28 +875,51 @@ static int mcWriteWal(sqlite3_file* pFile, const void* buffer, int count, sqlite
     {
       int pageNo = 0;
       char ac[4];
+
+      /*
+      ** Read the corresponding page number from the file
+      **
+      ** In WAL mode SQLite does not write the page number of a page to file
+      ** immediately before writing the corresponding page content.
+      ** Page numbers and checksums are written to file independently.
+      ** Therefore it is necessary to explicitly read the page number
+      ** on writing to file the contetn of a page.
+      */
       rc = REALFILE(pFile)->pMethods->xRead(REALFILE(pFile), ac, 4, offset - walFrameHeaderSize);
       if (rc == SQLITE_OK)
       {
         pageNo = sqlite3Get4byte(ac);
       }
+
       if (pageNo != 0)
       {
-        void* bufferEncrypted = sqlite3mcCodec(codec, (char*)buffer, pageNo, 7);
+        /*
+        ** Encrypt the page buffer, but only if the page number is valid
+        */
+        void* bufferEncrypted = sqlite3mcCodec(codec, (char*) buffer, pageNo, 7);
         rc = REALFILE(pFile)->pMethods->xWrite(REALFILE(pFile), bufferEncrypted, pageSize, offset);
       }
       else
       {
+        /*
+        ** Write buffer without encryption if the page number could not be determined
+        */
         rc = REALFILE(pFile)->pMethods->xWrite(REALFILE(pFile), buffer, count, offset);
       }
     }
     else
     {
+      /*
+      ** Write buffer without encryption if it is not a database page
+      */
       rc = REALFILE(pFile)->pMethods->xWrite(REALFILE(pFile), buffer, count, offset);
     }
   }
   else
   {
+    /*
+    ** Write buffer without encryption
+    */
     rc = REALFILE(pFile)->pMethods->xWrite(REALFILE(pFile), buffer, count, offset);
   }
   return rc;
@@ -775,11 +938,17 @@ static int mcIoWrite(sqlite3_file* pFile, const void* buffer, int count, sqlite3
 #if 0
   else if (mcFile->openFlags & SQLITE_OPEN_TEMP_DB)
   {
+    /*
+    ** TODO: Could/Should a temporary database file be encrypted?
+    */
   }
 #endif
 #if 0
   else if (mcFile->openFlags & SQLITE_OPEN_TRANSIENT_DB)
   {
+    /*
+    ** TODO: Could/Should a transient database file be encrypted?
+    */
   }
 #endif
   else if (mcFile->openFlags & SQLITE_OPEN_MAIN_JOURNAL)
@@ -789,6 +958,9 @@ static int mcIoWrite(sqlite3_file* pFile, const void* buffer, int count, sqlite3
 #if 0
   else if (mcFile->openFlags & SQLITE_OPEN_TEMP_JOURNAL)
   {
+    /*
+    ** TODO: Could/Should a temporary journal file be encrypted?
+    */
   }
 #endif
   else if (mcFile->openFlags & SQLITE_OPEN_SUBJOURNAL)
@@ -798,6 +970,10 @@ static int mcIoWrite(sqlite3_file* pFile, const void* buffer, int count, sqlite3
 #if 0
   else if (mcFile->openFlags & SQLITE_OPEN_MASTER_JOURNAL)
   {
+    /*
+    ** Master journal contains only administrative information
+    ** No encryption necessary
+    */
   }
 #endif
   else if (mcFile->openFlags & SQLITE_OPEN_WAL)
@@ -847,25 +1023,43 @@ static int mcIoFileControl(sqlite3_file* pFile, int op, void* pArg)
   int doReal = 1;
   sqlite3mc_file* p = (sqlite3mc_file*) pFile;
 
-  /*
-  ** TODO: Handle pragmas
-  */
   switch (op)
   {
     case SQLITE_FCNTL_PDB:
       {
 #if 0
-        /* pArg points to the sqlite3* handle for which the database file  was opened */
-        /* In shared cache mode this function is invoked for every use of the database file in a connection */
-        /* Unfortunately there is no notification, when a database file is no longer used by a connection (close in normal mode) */
+        /*
+        ** pArg points to the sqlite3* handle for which the database file was opened.
+        ** In shared cache mode this function is invoked for every use of the database
+        ** file in a connection. Unfortunately there is no notification, when a database
+        ** file is no longer used by a connection (close in normal mode).
+        **
+        ** For now, the database handle will not be stored in the file object.
+        ** In the future, this behaviour may be changed, especially, if shared cache mode
+        ** is disabled. Shared cache mode is enabled for backward compatibility only, its
+        ** use is not recommended. A future version of SQLite might disable it by default.
+        */
         sqlite3* db = *((sqlite3**) pArg);
 #endif
     }
       break;
     case SQLITE_FCNTL_PRAGMA:
       {
+        /*
+        ** Handle pragmas specific to this database file
+        */
 #if 0
-      /* Handle database file specific pragmas */
+        /*
+        ** SQLite invokes this function for all pragmas, which are related to the schema
+        ** associated with this database file. In case of an unknown pragma, this function
+        ** should return SQLITE_NOTFOUND. However, since this VFS is just a shim, handling
+        ** of the pragma is forwarded to the underlying real VFS in such a case.
+        **
+        ** For now, all pragmas are handled at the connection level.
+        ** For this purpose the SQLite's pragma handling is intercepted.
+        ** The latter requires a patch of SQLite's amalgamation code.
+        ** Maybe a future version will be able to abandon the patch.
+        */
         char* pragmaName = ((char**) pArg)[1];
         char* pragmaValue = ((char**) pArg)[2];
         if (sqlite3StrICmp(pragmaName, "...") == 0)
@@ -928,16 +1122,19 @@ static int mcIoUnfetch( sqlite3_file* pFile, sqlite3_int64 iOfst, void* p)
 }
 
 /*
-** MultiCipher external API functions
+** SQLite3 Multiple Ciphers external API functions
 */
 
+/*
+** Retrieve the name of the VFS
+*/
 SQLITE_API const char* sqlite3mc_vfs_name()
 {
   return SQLITE3MC_VFS_NAME;
 }
 
 /*
-** Terminate and unregister the SQLite3 Multi Cipher VFS
+** Terminate and unregister the SQLite3 Multiple Ciphers VFS
 */
 SQLITE_API void sqlite3mc_vfs_terminate()
 {
@@ -949,16 +1146,16 @@ SQLITE_API void sqlite3mc_vfs_terminate()
 }
 
 /*
-** Initialize SQLite3 Multi Cipher VFS that accesses the underlying file-system
-** via the current default VFS.
+** Initialize SQLite3 Multiple Ciphers VFS
+** that accesses the underlying file-system via the current default VFS.
 */
 SQLITE_API int sqlite3mc_vfs_initialize(sqlite3_vfs* vfsDefault, int makeDefault)
 {
+  int rc = SQLITE_OK;
   if (!vfsDefault)
   {
     return SQLITE_NOTFOUND;
   }
-  int rc = SQLITE_OK;
   mcVfsGlobal.base.szOsFile = sizeof(sqlite3mc_file) + vfsDefault->szOsFile;
   mcVfsGlobal.base.mxPathname = vfsDefault->mxPathname;
   mcVfsGlobal.pVfs = vfsDefault;
