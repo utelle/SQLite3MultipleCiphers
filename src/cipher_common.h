@@ -51,7 +51,9 @@ typedef struct _Codec
   int           m_writeReserved;
 
   sqlite3*      m_db; /* Pointer to DB */
+#if 0
   Btree*        m_bt; /* Pointer to B-tree used by DB */
+#endif
   BtShared*     m_btShared; /* Pointer to shared B-tree used by DB */
   unsigned char m_page[SQLITE_MAX_PAGE_SIZE + 24];
   int           m_pageSize;
@@ -82,7 +84,6 @@ typedef struct _CodecParameter
 typedef void* (*AllocateCipher_t)(sqlite3* db);
 typedef void  (*FreeCipher_t)(void* cipher);
 typedef void  (*CloneCipher_t)(void* cipherTo, void* cipherFrom);
-typedef int   (*CompareCipher_t)(void* cipher1, void* cipher2);
 typedef int   (*GetLegacy_t)(void* cipher);
 typedef int   (*GetPageSize_t)(void* cipher);
 typedef int   (*GetReserved_t)(void* cipher);
@@ -97,7 +98,6 @@ typedef struct _CodecDescriptor
   AllocateCipher_t m_allocateCipher;
   FreeCipher_t     m_freeCipher;
   CloneCipher_t    m_cloneCipher;
-  CompareCipher_t  m_compareCipher;
   GetLegacy_t      m_getLegacy;
   GetPageSize_t    m_getPageSize;
   GetReserved_t    m_getReserved;
@@ -108,41 +108,72 @@ typedef struct _CodecDescriptor
 } CipherDescriptor;
 
 SQLITE_PRIVATE int sqlite3mcGetCipherParameter(CipherParams* cipherParams, const char* paramName);
+
 SQLITE_PRIVATE int sqlite3mcGetCipherType(sqlite3* db);
+
 SQLITE_PRIVATE CipherParams* sqlite3mcGetCipherParams(sqlite3* db, int cypherType);
+
 SQLITE_PRIVATE int sqlite3mcCodecInit(Codec* codec);
+
 SQLITE_PRIVATE void sqlite3mcCodecTerm(Codec* codec);
+
 SQLITE_PRIVATE void sqlite3mcClearKeySalt(Codec* codec);
+
 SQLITE_PRIVATE int sqlite3mcCodecSetup(Codec* codec, int cipherType, char* userPassword, int passwordLength);
+
 SQLITE_PRIVATE int sqlite3mcSetupWriteCipher(Codec* codec, int cipherType, char* userPassword, int passwordLength);
+
 SQLITE_PRIVATE void sqlite3mcSetIsEncrypted(Codec* codec, int isEncrypted);
+
 SQLITE_PRIVATE void sqlite3mcSetReadCipherType(Codec* codec, int cipherType);
+
 SQLITE_PRIVATE void sqlite3mcSetWriteCipherType(Codec* codec, int cipherType);
+
 SQLITE_PRIVATE void sqlite3mcSetHasReadCipher(Codec* codec, int hasReadCipher);
+
 SQLITE_PRIVATE void sqlite3mcSetHasWriteCipher(Codec* codec, int hasWriteCipher);
+
 SQLITE_PRIVATE void sqlite3mcSetDb(Codec* codec, sqlite3* db);
+
 SQLITE_PRIVATE void sqlite3mcSetBtree(Codec* codec, Btree* bt);
+
 SQLITE_PRIVATE void sqlite3mcSetReadReserved(Codec* codec, int reserved);
+
 SQLITE_PRIVATE void sqlite3mcSetWriteReserved(Codec* codec, int reserved);
+
 SQLITE_PRIVATE int sqlite3mcIsEncrypted(Codec* codec);
+
 SQLITE_PRIVATE int sqlite3mcHasReadCipher(Codec* codec);
+
 SQLITE_PRIVATE int sqlite3mcHasWriteCipher(Codec* codec);
-SQLITE_PRIVATE Btree* sqlite3mcGetBtree(Codec* codec);
+
 SQLITE_PRIVATE BtShared* sqlite3mcGetBtShared(Codec* codec);
+
 SQLITE_PRIVATE int sqlite3mcGetPageSize(Codec* codec);
+
 SQLITE_PRIVATE int sqlite3mcGetReadReserved(Codec* codec);
+
 SQLITE_PRIVATE int sqlite3mcGetWriteReserved(Codec* codec);
+
 SQLITE_PRIVATE unsigned char* sqlite3mcGetPageBuffer(Codec* codec);
+
 SQLITE_PRIVATE int sqlite3mcGetLegacyReadCipher(Codec* codec);
+
 SQLITE_PRIVATE int sqlite3mcGetLegacyWriteCipher(Codec* codec);
+
 SQLITE_PRIVATE int sqlite3mcGetPageSizeReadCipher(Codec* codec);
+
 SQLITE_PRIVATE int sqlite3mcGetPageSizeWriteCipher(Codec* codec);
+
 SQLITE_PRIVATE int sqlite3mcGetReservedReadCipher(Codec* codec);
+
 SQLITE_PRIVATE int sqlite3mcGetReservedWriteCipher(Codec* codec);
+
 SQLITE_PRIVATE int sqlite3mcReservedEqual(Codec* codec);
+
 SQLITE_PRIVATE unsigned char* sqlite3mcGetSaltWriteCipher(Codec* codec);
+
 SQLITE_PRIVATE int sqlite3mcCodecCopy(Codec* codec, Codec* other);
-SQLITE_PRIVATE int sqlite3mcCodecCompare(Codec* codec1, Codec* codec2);
 
 SQLITE_PRIVATE void sqlite3mcGenerateReadKey(Codec* codec, char* userPassword, int passwordLength, unsigned char* cipherSalt);
 
@@ -154,50 +185,28 @@ SQLITE_PRIVATE int sqlite3mcDecrypt(Codec* codec, int page, unsigned char* data,
 
 SQLITE_PRIVATE int sqlite3mcCopyCipher(Codec* codec, int read2write);
 
-SQLITE_PRIVATE int sqlite3mcCodecSetup(Codec* codec, int cipherType, char* userPassword, int passwordLength);
-SQLITE_PRIVATE int sqlite3mcSetupWriteCipher(Codec* codec, int cipherType, char* userPassword, int passwordLength);
-
-SQLITE_PRIVATE void sqlite3mcSetIsEncrypted(Codec* codec, int isEncrypted);
-SQLITE_PRIVATE void sqlite3mcSetReadCipherType(Codec* codec, int cipherType);
-SQLITE_PRIVATE void sqlite3mcSetWriteCipherType(Codec* codec, int cipherType);
-SQLITE_PRIVATE void sqlite3mcSetHasReadCipher(Codec* codec, int hasReadCipher);
-SQLITE_PRIVATE void sqlite3mcSetHasWriteCipher(Codec* codec, int hasWriteCipher);
-SQLITE_PRIVATE void sqlite3mcSetDb(Codec* codec, sqlite3* db);
-SQLITE_PRIVATE void sqlite3mcSetBtree(Codec* codec, Btree* bt);
-SQLITE_PRIVATE void sqlite3mcSetReadReserved(Codec* codec, int reserved);
-SQLITE_PRIVATE void sqlite3mcSetWriteReserved(Codec* codec, int reserved);
-
-SQLITE_PRIVATE int sqlite3mcIsEncrypted(Codec* codec);
-SQLITE_PRIVATE int sqlite3mcHasReadCipher(Codec* codec);
-SQLITE_PRIVATE int sqlite3mcHasWriteCipher(Codec* codec);
-SQLITE_PRIVATE Btree* sqlite3mcGetBtree(Codec* codec);
-SQLITE_PRIVATE BtShared* sqlite3mcGetBtShared(Codec* codec);
-SQLITE_PRIVATE int sqlite3mcGetPageSize(Codec* codec);
-SQLITE_PRIVATE int sqlite3mcGetReadReserved(Codec* codec);
-SQLITE_PRIVATE int sqlite3mcGetWriteReserved(Codec* codec);
-SQLITE_PRIVATE unsigned char* sqlite3mcGetPageBuffer(Codec* codec);
-SQLITE_PRIVATE int sqlite3mcGetLegacyReadCipher(Codec* codec);
-SQLITE_PRIVATE int sqlite3mcGetLegacyWriteCipher(Codec* codec);
-SQLITE_PRIVATE int sqlite3mcGetPageSizeReadCipher(Codec* codec);
-SQLITE_PRIVATE int sqlite3mcGetPageSizeWriteCipher(Codec* codec);
-SQLITE_PRIVATE int sqlite3mcGetReservedReadCipher(Codec* codec);
-SQLITE_PRIVATE int sqlite3mcGetReservedWriteCipher(Codec* codec);
-SQLITE_PRIVATE int sqlite3mcReservedEqual(Codec* codec);
-
 SQLITE_PRIVATE void sqlite3mcPadPassword(char* password, int pswdlen, unsigned char pswd[32]);
+
 SQLITE_PRIVATE void sqlite3mcRC4(unsigned char* key, int keylen, unsigned char* textin, int textlen, unsigned char* textout);
+
 SQLITE_PRIVATE void sqlite3mcGetMD5Binary(unsigned char* data, int length, unsigned char* digest);
+
 SQLITE_PRIVATE void sqlite3mcGetSHABinary(unsigned char* data, int length, unsigned char* digest);
+
 SQLITE_PRIVATE void sqlite3mcGenerateInitialVector(int seed, unsigned char iv[16]);
 
 SQLITE_PRIVATE int sqlite3mcIsHexKey(const unsigned char* hex, int len);
+
 SQLITE_PRIVATE int sqlite3mcConvertHex2Int(char c);
+
 SQLITE_PRIVATE void sqlite3mcConvertHex2Bin(const unsigned char* hex, int len, unsigned char* bin);
 
 SQLITE_PRIVATE int sqlite3mcConfigureFromUri(sqlite3* db, const char *zDbName, int configDefault);
+
 SQLITE_PRIVATE void sqlite3mcConfigureSQLCipherVersion(sqlite3* db, int configDefault, int legacyVersion);
 
 SQLITE_PRIVATE int sqlite3mcCodecAttach(sqlite3* db, int nDb, const char* zPath, const void* zKey, int nKey);
+
 SQLITE_PRIVATE void sqlite3mcCodecGetKey(sqlite3* db, int nDb, void** zKey, int* nKey);
 
 /* Debugging */

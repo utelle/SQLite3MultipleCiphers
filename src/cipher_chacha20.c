@@ -102,21 +102,6 @@ CloneChaCha20Cipher(void* cipherTo, void* cipherFrom)
 }
 
 static int
-CompareChaCha20Cipher(void* cipher1, void* cipher2)
-{
-  ChaCha20Cipher* chacha20Cipher1 = (ChaCha20Cipher*)cipher1;
-  ChaCha20Cipher* chacha20Cipher2 = (ChaCha20Cipher*)cipher2;
-
-  int cmp = chacha20Cipher1->m_legacy == chacha20Cipher2->m_legacy &&
-            chacha20Cipher1->m_legacyPageSize == chacha20Cipher2->m_legacyPageSize &&
-            chacha20Cipher1->m_kdfIter == chacha20Cipher2->m_kdfIter &&
-            chacha20Cipher1->m_keyLength == chacha20Cipher2->m_keyLength &&
-            memcmp(chacha20Cipher1->m_key, chacha20Cipher2->m_key, KEYLENGTH_CHACHA20) == 0 &&
-            memcmp(chacha20Cipher1->m_salt, chacha20Cipher2->m_salt, SALTLENGTH_CHACHA20) == 0;
-  return cmp;
-}
-
-static int
 GetLegacyChaCha20Cipher(void* cipher)
 {
   ChaCha20Cipher* chacha20Cipher = (ChaCha20Cipher*)cipher;
@@ -382,7 +367,6 @@ SQLITE_PRIVATE const CipherDescriptor mcChaCha20Descriptor =
   "chacha20",  AllocateChaCha20Cipher,
                FreeChaCha20Cipher,
                CloneChaCha20Cipher,
-               CompareChaCha20Cipher,
                GetLegacyChaCha20Cipher,
                GetPageSizeChaCha20Cipher,
                GetReservedChaCha20Cipher,

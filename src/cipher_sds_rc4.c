@@ -79,18 +79,6 @@ CloneRC4Cipher(void* cipherTo, void* cipherFrom)
 }
 
 static int
-CompareRC4Cipher(void* cipher1, void* cipher2)
-{
-  RC4Cipher* rc4Cipher1 = (RC4Cipher*)cipher1;
-  RC4Cipher* rc4Cipher2 = (RC4Cipher*)cipher2;
-  int cmp = rc4Cipher1->m_legacy == rc4Cipher2->m_legacy &&
-            rc4Cipher1->m_legacyPageSize == rc4Cipher2->m_legacyPageSize &&
-            rc4Cipher1->m_keyLength == rc4Cipher2->m_keyLength &&
-            memcmp(rc4Cipher1->m_key, rc4Cipher2->m_key, KEYLENGTH_RC4) == 0;
-  return cmp;
-}
-
-static int
 GetLegacyRC4Cipher(void* cipher)
 {
   RC4Cipher* rc4Cipher = (RC4Cipher*)cipher;
@@ -170,7 +158,6 @@ SQLITE_PRIVATE const CipherDescriptor mcRC4Descriptor =
   "rc4",       AllocateRC4Cipher,
                FreeRC4Cipher,
                CloneRC4Cipher,
-               CompareRC4Cipher,
                GetLegacyRC4Cipher,
                GetPageSizeRC4Cipher,
                GetReservedRC4Cipher,

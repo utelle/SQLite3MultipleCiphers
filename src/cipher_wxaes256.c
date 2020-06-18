@@ -99,19 +99,6 @@ CloneAES256Cipher(void* cipherTo, void* cipherFrom)
 }
 
 static int
-CompareAES256Cipher(void* cipher1, void* cipher2)
-{
-  AES256Cipher* aesCipher1 = (AES256Cipher*)cipher1;
-  AES256Cipher* aesCipher2 = (AES256Cipher*)cipher2;
-  int cmp = aesCipher1->m_legacy == aesCipher2->m_legacy &&
-            aesCipher1->m_legacyPageSize == aesCipher2->m_legacyPageSize &&
-            aesCipher1->m_kdfIter == aesCipher2->m_kdfIter &&
-            aesCipher1->m_keyLength == aesCipher2->m_keyLength &&
-            memcmp(aesCipher1->m_key, aesCipher2->m_key, KEYLENGTH_AES256) == 0;
-  return cmp;
-}
-
-static int
 GetLegacyAES256Cipher(void* cipher)
 {
   AES256Cipher* aesCipher = (AES256Cipher*)cipher;
@@ -250,7 +237,6 @@ SQLITE_PRIVATE const CipherDescriptor mcAES256Descriptor =
   "aes256cbc", AllocateAES256Cipher,
                FreeAES256Cipher,
                CloneAES256Cipher,
-               CompareAES256Cipher,
                GetLegacyAES256Cipher,
                GetPageSizeAES256Cipher,
                GetReservedAES256Cipher,

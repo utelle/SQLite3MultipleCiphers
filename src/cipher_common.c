@@ -224,7 +224,9 @@ sqlite3mcCodecInit(Codec* codec)
     codec->m_writeReserved = -1;
 
     codec->m_db = NULL;
+#if 0
     codec->m_bt = NULL;
+#endif
     codec->m_btShared = NULL;
     memset(codec->m_page, 0, sizeof(codec->m_page));
     codec->m_pageSize = 0;
@@ -351,7 +353,9 @@ sqlite3mcSetDb(Codec* codec, sqlite3* db)
 SQLITE_PRIVATE void
 sqlite3mcSetBtree(Codec* codec, Btree* bt)
 {
+#if 0
   codec->m_bt = bt;
+#endif
   codec->m_btShared = bt->pBt;
 }
 
@@ -383,12 +387,6 @@ SQLITE_PRIVATE int
 sqlite3mcHasWriteCipher(Codec* codec)
 {
   return codec->m_hasWriteCipher;
-}
-
-SQLITE_PRIVATE Btree*
-sqlite3mcGetBtree(Codec* codec)
-{
-  return codec->m_bt;
 }
 
 SQLITE_PRIVATE BtShared*
@@ -519,28 +517,11 @@ sqlite3mcCodecCopy(Codec* codec, Codec* other)
     }
   }
   codec->m_db = other->m_db;
+#if 0
   codec->m_bt = other->m_bt;
+#endif
   codec->m_btShared = other->m_btShared;
   return rc;
-}
-
-SQLITE_PRIVATE int
-sqlite3mcCodecCompare(Codec* codec1, Codec* codec2)
-{
-  int equal = 0;
-  if (codec1->m_hasReadCipher == codec2->m_hasReadCipher &&
-      codec1->m_hasWriteCipher == codec2->m_hasWriteCipher)
-  {
-    int eqRead = (codec1->m_hasReadCipher) ? codec1->m_readCipherType == codec2->m_readCipherType : 1;
-    int eqWrite = (codec1->m_hasWriteCipher) ? codec1->m_writeCipherType == codec2->m_writeCipherType : 1;
-    if (eqRead && eqWrite)
-    {
-      eqRead = (codec1->m_hasReadCipher) ? codecDescriptorTable[codec1->m_readCipherType - 1]->m_compareCipher(codec1->m_readCipher, codec2->m_readCipher) : 1;
-      eqWrite = (codec1->m_hasWriteCipher) ? codecDescriptorTable[codec1->m_writeCipherType - 1]->m_compareCipher(codec1->m_writeCipher, codec2->m_writeCipher) : 1;
-      equal = eqRead && eqWrite;
-    }
-  }
-  return equal;
 }
 
 SQLITE_PRIVATE int

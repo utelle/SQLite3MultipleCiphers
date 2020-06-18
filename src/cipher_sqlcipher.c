@@ -184,28 +184,6 @@ CloneSQLCipherCipher(void* cipherTo, void* cipherFrom)
 }
 
 static int
-CompareSQLCipherCipher(void* cipher1, void* cipher2)
-{
-  SQLCipherCipher* sqlCipherCipher1 = (SQLCipherCipher*)cipher1;
-  SQLCipherCipher* sqlCipherCipher2 = (SQLCipherCipher*)cipher2;
-  int cmp = sqlCipherCipher1->m_legacy == sqlCipherCipher2->m_legacy &&
-            sqlCipherCipher1->m_legacyPageSize == sqlCipherCipher2->m_legacyPageSize &&
-            sqlCipherCipher1->m_kdfIter == sqlCipherCipher2->m_kdfIter &&
-            sqlCipherCipher1->m_fastKdfIter == sqlCipherCipher2->m_fastKdfIter &&
-            sqlCipherCipher1->m_hmacUse == sqlCipherCipher2->m_hmacUse &&
-            sqlCipherCipher1->m_hmacPgno == sqlCipherCipher2->m_hmacPgno &&
-            sqlCipherCipher1->m_hmacSaltMask == sqlCipherCipher2->m_hmacSaltMask &&
-            sqlCipherCipher1->m_kdfAlgorithm == sqlCipherCipher2->m_kdfAlgorithm &&
-            sqlCipherCipher1->m_hmacAlgorithm == sqlCipherCipher2->m_hmacAlgorithm &&
-            sqlCipherCipher1->m_plaintextHeaderSize == sqlCipherCipher2->m_plaintextHeaderSize &&
-            sqlCipherCipher1->m_keyLength == sqlCipherCipher2->m_keyLength &&
-            memcmp(sqlCipherCipher1->m_key, sqlCipherCipher2->m_key, KEYLENGTH_SQLCIPHER) == 0 &&
-            memcmp(sqlCipherCipher1->m_salt, sqlCipherCipher2->m_salt, SALTLENGTH_SQLCIPHER) == 0 &&
-            memcmp(sqlCipherCipher1->m_hmacKey, sqlCipherCipher2->m_hmacKey, KEYLENGTH_SQLCIPHER) == 0;
-  return cmp;
-}
-
-static int
 GetLegacySQLCipherCipher(void* cipher)
 {
   SQLCipherCipher* sqlCipherCipher = (SQLCipherCipher*)cipher;
@@ -525,7 +503,6 @@ SQLITE_PRIVATE const CipherDescriptor mcSQLCipherDescriptor =
   "sqlcipher", AllocateSQLCipherCipher,
                FreeSQLCipherCipher,
                CloneSQLCipherCipher,
-               CompareSQLCipherCipher,
                GetLegacySQLCipherCipher,
                GetPageSizeSQLCipherCipher,
                GetReservedSQLCipherCipher,
