@@ -624,74 +624,74 @@ sqlite3mcConfigureFromUri(sqlite3* db, const char *zDbName, int configDefault)
 {
   int rc = SQLITE_OK;
 
-    /* Check URI parameters if database filename is available */
-    const char* dbFileName = /*sqlite3_db_filename(db,*/ zDbName /*)*/;
-    if (dbFileName != NULL)
+  /* Check URI parameters if database filename is available */
+  const char* dbFileName = zDbName;
+  if (dbFileName != NULL)
+  {
+    /* Check whether cipher is specified */
+    const char* cipherName = sqlite3_uri_parameter(dbFileName, "cipher");
+    if (cipherName != NULL)
     {
-      /* Check whether cipher is specified */
-      const char* cipherName = sqlite3_uri_parameter(dbFileName, "cipher");
-      if (cipherName != NULL)
+      int j = 0;
+      CipherParams* cipherParams = NULL;
+
+      /* Try to locate the cipher name */
+      for (j = 1; strlen(globalCodecParameterTable[j].m_name) > 0; ++j)
       {
-        int j = 0;
-        CipherParams* cipherParams = NULL;
+        if (sqlite3_stricmp(cipherName, globalCodecParameterTable[j].m_name) == 0) break;
+      }
 
-        /* Try to locate the cipher name */
-        for (j = 1; strlen(globalCodecParameterTable[j].m_name) > 0; ++j)
+      /* j is the index of the cipher name, if found */
+      cipherParams = (strlen(globalCodecParameterTable[j].m_name) > 0) ? globalCodecParameterTable[j].m_params : NULL;
+      if (cipherParams != NULL)
+      {
+        /* Set global parameters (cipher and hmac_check) */
+        int hmacCheck = sqlite3_uri_boolean(dbFileName, "hmac_check", 1);
+        if (configDefault)
         {
-          if (sqlite3_stricmp(cipherName, globalCodecParameterTable[j].m_name) == 0) break;
-        }
-
-        /* j is the index of the cipher name, if found */
-        cipherParams = (strlen(globalCodecParameterTable[j].m_name) > 0) ? globalCodecParameterTable[j].m_params : NULL;
-        if (cipherParams != NULL)
-        {
-          /* Set global parameters (cipher and hmac_check) */
-          int hmacCheck = sqlite3_uri_boolean(dbFileName, "hmac_check", 1);
-          if (configDefault)
-          {
-            sqlite3mc_config(db, "default:cipher", j);
-          }
-          else
-          {
-            sqlite3mc_config(db, "cipher", j);
-          }
-          if (!hmacCheck)
-          {
-            sqlite3mc_config(db, "hmac_check", hmacCheck);
-          }
-
-          /* Special handling for SQLCipher */
-          if (sqlite3_stricmp(cipherName, "sqlcipher") == 0)
-          {
-            int legacy = (int) sqlite3_uri_int64(dbFileName, "legacy", 0);
-            if (legacy > 0 && legacy <= SQLCIPHER_VERSION_MAX)
-            {
-              sqlite3mcConfigureSQLCipherVersion(db, configDefault, legacy);
-            }
-          }
-
-          /* Check all cipher specific parameters */
-          for (j = 0; strlen(cipherParams[j].m_name) > 0; ++j)
-          {
-            int value = (int) sqlite3_uri_int64(dbFileName, cipherParams[j].m_name, -1);
-            if (value >= 0)
-            {
-              /* Configure cipher parameter if it was given in the URI */
-              char* param = (configDefault) ? sqlite3_mprintf("default:%s", cipherParams[j].m_name) : cipherParams[j].m_name;
-              sqlite3mc_config_cipher(db, cipherName, param, value);
-              if (configDefault)
-              {
-                sqlite3_free(param);
-              }
-            }
-          }
+          sqlite3mc_config(db, "default:cipher", j);
         }
         else
         {
-          rc = SQLITE_ERROR;
-          sqlite3ErrorWithMsg(db, rc, "unknown cipher '%s'", cipherName);
+          sqlite3mc_config(db, "cipher", j);
+        }
+        if (!hmacCheck)
+        {
+          sqlite3mc_config(db, "hmac_check", hmacCheck);
+        }
+
+        /* Special handling for SQLCipher */
+        if (sqlite3_stricmp(cipherName, "sqlcipher") == 0)
+        {
+          int legacy = (int) sqlite3_uri_int64(dbFileName, "legacy", 0);
+          if (legacy > 0 && legacy <= SQLCIPHER_VERSION_MAX)
+          {
+            sqlite3mcConfigureSQLCipherVersion(db, configDefault, legacy);
+          }
+        }
+
+        /* Check all cipher specific parameters */
+        for (j = 0; strlen(cipherParams[j].m_name) > 0; ++j)
+        {
+          int value = (int) sqlite3_uri_int64(dbFileName, cipherParams[j].m_name, -1);
+          if (value >= 0)
+          {
+            /* Configure cipher parameter if it was given in the URI */
+            char* param = (configDefault) ? sqlite3_mprintf("default:%s", cipherParams[j].m_name) : cipherParams[j].m_name;
+            sqlite3mc_config_cipher(db, cipherName, param, value);
+            if (configDefault)
+            {
+              sqlite3_free(param);
+            }
+          }
         }
       }
+      else
+      {
+        rc = SQLITE_ERROR;
+        sqlite3ErrorWithMsg(db, rc, "unknown cipher '%s'", cipherName);
+      }
+    }
   }
   return rc;
 }
@@ -726,6 +726,9 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
   int rc = sqlite3_file_control(db, zDbName, op, pArg);
   if (rc == SQLITE_NOTFOUND)
   {
+    int configDefault;
+    char* pragmaName;
+    char* pragmaValue;
     int dbIndex = (zDbName) ? sqlite3FindDbName(db, zDbName) : 0;
     if (dbIndex < 0 && zDbName != NULL)
     {
@@ -733,9 +736,9 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
       return rc;
     }
 
-    int configDefault = (dbIndex <= 0);
-    char* pragmaName = ((char**) pArg)[1];
-    char* pragmaValue = ((char**) pArg)[2];
+    configDefault = (dbIndex <= 0);
+    pragmaName = ((char**) pArg)[1];
+    pragmaValue = ((char**) pArg)[2];
     if (sqlite3StrICmp(pragmaName, "cipher") == 0)
     {
       int j = -1;

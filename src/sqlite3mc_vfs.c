@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <inttypes.h>
+#include "mystdint.h"
 
 /*
 ** Type definitions
@@ -266,6 +266,7 @@ SQLITE_PRIVATE void sqlite3mcSetCodec(sqlite3* db, const char* zFileName, Codec*
 
 static int mcVfsOpen(sqlite3_vfs* pVfs, const char* zName, sqlite3_file* pFile, int flags, int* pOutFlags)
 {
+  int rc;
   sqlite3mc_vfs* mcVfs = (sqlite3mc_vfs*) pVfs;
   sqlite3mc_file* mcFile = (sqlite3mc_file*) pFile;
   mcFile->pFile = (sqlite3_file*) &mcFile[1];
@@ -298,9 +299,9 @@ static int mcVfsOpen(sqlite3_vfs* pVfs, const char* zName, sqlite3_file* pFile, 
 #endif
     else if (flags & SQLITE_OPEN_MAIN_JOURNAL)
     {
-      mcFile->zFileName = zName;
       const char* dbFileName = sqlite3_filename_database(zName);
       mcFile->pMainDb = mcFindDbMainFileName(&mcVfsGlobal, dbFileName);
+      mcFile->zFileName = zName;
       SQLITE3MC_DEBUG_LOG("mcVfsOpen MAIN Journal: mcFile=%p fileName=%s dbFileName=%s\n", mcFile, mcFile->zFileName, dbFileName);
     }
 #if 0
@@ -313,9 +314,9 @@ static int mcVfsOpen(sqlite3_vfs* pVfs, const char* zName, sqlite3_file* pFile, 
 #endif
     else if (flags & SQLITE_OPEN_SUBJOURNAL)
     {
-      mcFile->zFileName = zName;
       const char* dbFileName = sqlite3_filename_database(zName);
       mcFile->pMainDb = mcFindDbMainFileName(&mcVfsGlobal, dbFileName);
+      mcFile->zFileName = zName;
       SQLITE3MC_DEBUG_LOG("mcVfsOpen SUB Journal: mcFile=%p fileName=%s dbFileName=%s\n", mcFile, mcFile->zFileName, dbFileName);
     }
 #if 0
@@ -329,14 +330,14 @@ static int mcVfsOpen(sqlite3_vfs* pVfs, const char* zName, sqlite3_file* pFile, 
 #endif
     else if (flags & SQLITE_OPEN_WAL)
     {
-      mcFile->zFileName = zName;
       const char* dbFileName = sqlite3_filename_database(zName);
       mcFile->pMainDb = mcFindDbMainFileName(&mcVfsGlobal, dbFileName);
+      mcFile->zFileName = zName;
       SQLITE3MC_DEBUG_LOG("mcVfsOpen WAL Journal: mcFile=%p fileName=%s dbFileName=%s\n", mcFile, mcFile->zFileName, dbFileName);
     }
   }
 
-  int rc = REALVFS(pVfs)->xOpen(REALVFS(pVfs), zName, mcFile->pFile, flags, pOutFlags);
+  rc = REALVFS(pVfs)->xOpen(REALVFS(pVfs), zName, mcFile->pFile, flags, pOutFlags);
   if (rc == SQLITE_OK)
   {
     /*

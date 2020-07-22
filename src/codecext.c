@@ -286,13 +286,13 @@ sqlite3_key(sqlite3 *db, const void *zKey, int nKey)
 }
 
 SQLITE_API int
-sqlite3_key_v2(sqlite3 *db, const char *zDbName, const void *zKey, int nKey)
+sqlite3_key_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
 {
   int rc = SQLITE_ERROR;
   if (zKey != NULL && nKey < 0)
   {
     /* Key is zero-terminated string */
-    nKey = sqlite3Strlen30(zKey);
+    nKey = sqlite3Strlen30((const char*) zKey);
   }
   if ((db != NULL) && (zKey != NULL) && (nKey > 0))
   {
@@ -324,26 +324,30 @@ sqlite3_key_v2(sqlite3 *db, const char *zDbName, const void *zKey, int nKey)
 }
 
 SQLITE_API int
-sqlite3_rekey_v2(sqlite3 *db, const char *zDbName, const void *zKey, int nKey)
+sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
 {
   /* Changes the encryption key for an existing database. */
+  const char* dbFileName;
+  int dbIndex;
+  Btree* pBt;
+  int nPagesize;
+  int nReserved;
+  Pager* pPager;
+  Codec* codec;
   int rc = SQLITE_ERROR;
   if (zKey != NULL && nKey < 0)
   {
     /* Key is zero-terminated string */
-    nKey = sqlite3Strlen30(zKey);
+    nKey = sqlite3Strlen30((const char*) zKey);
   }
-  const char* dbFileName = sqlite3_db_filename(db, zDbName);
-  int dbIndex = (zDbName) ? sqlite3FindDbName(db, zDbName) : 0;
+  dbFileName = sqlite3_db_filename(db, zDbName);
+  dbIndex = (zDbName) ? sqlite3FindDbName(db, zDbName) : 0;
   if (dbIndex < 0)
   {
     return rc;
   }
-  Btree* pBt = db->aDb[dbIndex].pBt;
-  int nPagesize = sqlite3BtreeGetPageSize(pBt);
-  int nReserved;
-  Pager* pPager;
-  Codec* codec;
+  pBt = db->aDb[dbIndex].pBt;
+  nPagesize = sqlite3BtreeGetPageSize(pBt);
 
   sqlite3BtreeEnter(pBt);
   nReserved = sqlite3BtreeGetReserveNoMutex(pBt);
