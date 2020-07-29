@@ -15,10 +15,6 @@ ifeq ($(config),debug_win32)
   sqlite3mc_libicu_config = debug_win32
   sqlite3mc_dllicu_config = debug_win32
   sqlite3mc_shellicu_config = debug_win32
-  threadtest2_config = debug_win32
-  threadtest3_config = debug_win32
-  threadtest4_config = debug_win32
-  speedtest1_config = debug_win32
 
 else ifeq ($(config),debug_win64)
   sqlite3mc_lib_config = debug_win64
@@ -27,10 +23,6 @@ else ifeq ($(config),debug_win64)
   sqlite3mc_libicu_config = debug_win64
   sqlite3mc_dllicu_config = debug_win64
   sqlite3mc_shellicu_config = debug_win64
-  threadtest2_config = debug_win64
-  threadtest3_config = debug_win64
-  threadtest4_config = debug_win64
-  speedtest1_config = debug_win64
 
 else ifeq ($(config),release_win32)
   sqlite3mc_lib_config = release_win32
@@ -39,10 +31,6 @@ else ifeq ($(config),release_win32)
   sqlite3mc_libicu_config = release_win32
   sqlite3mc_dllicu_config = release_win32
   sqlite3mc_shellicu_config = release_win32
-  threadtest2_config = release_win32
-  threadtest3_config = release_win32
-  threadtest4_config = release_win32
-  speedtest1_config = release_win32
 
 else ifeq ($(config),release_win64)
   sqlite3mc_lib_config = release_win64
@@ -51,16 +39,12 @@ else ifeq ($(config),release_win64)
   sqlite3mc_libicu_config = release_win64
   sqlite3mc_dllicu_config = release_win64
   sqlite3mc_shellicu_config = release_win64
-  threadtest2_config = release_win64
-  threadtest3_config = release_win64
-  threadtest4_config = release_win64
-  speedtest1_config = release_win64
 
 else
   $(error "invalid configuration $(config)")
 endif
 
-PROJECTS := sqlite3mc_lib sqlite3mc_dll sqlite3mc_shell sqlite3mc_libicu sqlite3mc_dllicu sqlite3mc_shellicu threadtest2 threadtest3 threadtest4 speedtest1
+PROJECTS := sqlite3mc_lib sqlite3mc_dll sqlite3mc_shell sqlite3mc_libicu sqlite3mc_dllicu sqlite3mc_shellicu
 
 .PHONY: all clean help $(PROJECTS) 
 
@@ -102,30 +86,6 @@ ifneq (,$(sqlite3mc_shellicu_config))
 	@${MAKE} --no-print-directory -C . -f sqlite3mc_shellicu.make config=$(sqlite3mc_shellicu_config)
 endif
 
-threadtest2: sqlite3mc_dll
-ifneq (,$(threadtest2_config))
-	@echo "==== Building threadtest2 ($(threadtest2_config)) ===="
-	@${MAKE} --no-print-directory -C . -f threadtest2.make config=$(threadtest2_config)
-endif
-
-threadtest3: sqlite3mc_dll
-ifneq (,$(threadtest3_config))
-	@echo "==== Building threadtest3 ($(threadtest3_config)) ===="
-	@${MAKE} --no-print-directory -C . -f threadtest3.make config=$(threadtest3_config)
-endif
-
-threadtest4: sqlite3mc_dll
-ifneq (,$(threadtest4_config))
-	@echo "==== Building threadtest4 ($(threadtest4_config)) ===="
-	@${MAKE} --no-print-directory -C . -f threadtest4.make config=$(threadtest4_config)
-endif
-
-speedtest1: sqlite3mc_dll
-ifneq (,$(speedtest1_config))
-	@echo "==== Building speedtest1 ($(speedtest1_config)) ===="
-	@${MAKE} --no-print-directory -C . -f speedtest1.make config=$(speedtest1_config)
-endif
-
 clean:
 	@${MAKE} --no-print-directory -C . -f sqlite3mc_lib.make clean
 	@${MAKE} --no-print-directory -C . -f sqlite3mc_dll.make clean
@@ -133,10 +93,6 @@ clean:
 	@${MAKE} --no-print-directory -C . -f sqlite3mc_libicu.make clean
 	@${MAKE} --no-print-directory -C . -f sqlite3mc_dllicu.make clean
 	@${MAKE} --no-print-directory -C . -f sqlite3mc_shellicu.make clean
-	@${MAKE} --no-print-directory -C . -f threadtest2.make clean
-	@${MAKE} --no-print-directory -C . -f threadtest3.make clean
-	@${MAKE} --no-print-directory -C . -f threadtest4.make clean
-	@${MAKE} --no-print-directory -C . -f speedtest1.make clean
 
 help:
 	@echo "Usage: make [config=name] [target]"
@@ -156,9 +112,5 @@ help:
 	@echo "   sqlite3mc_libicu"
 	@echo "   sqlite3mc_dllicu"
 	@echo "   sqlite3mc_shellicu"
-	@echo "   threadtest2"
-	@echo "   threadtest3"
-	@echo "   threadtest4"
-	@echo "   speedtest1"
 	@echo ""
 	@echo "For more information, see https://github.com/premake/premake-core/wiki"
