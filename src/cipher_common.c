@@ -65,13 +65,6 @@ static CodecParameter globalCodecParameterTable[] =
   { "",          CODEC_TYPE_UNKNOWN,   NULL }
 };
 
-#define CODEC_TYPE_UNKNOWN   0
-#define CODEC_TYPE_AES128    1
-#define CODEC_TYPE_AES256    2
-#define CODEC_TYPE_CHACHA20  3
-#define CODEC_TYPE_SQLCIPHER 4
-#define CODEC_TYPE_RC4       5
-
 SQLITE_PRIVATE CodecParameter*
 sqlite3mcCloneCodecParameterTable()
 {

@@ -21,7 +21,7 @@
 ** - kdf_iter : number of iterations for key derivation
 */
 
-#ifdef WXSQLITE3_USE_SQLEET_LEGACY
+#ifdef SQLITE3MC_USE_SQLEET_LEGACY
 #define CHACHA20_LEGACY_DEFAULT   1
 #else
 #define CHACHA20_LEGACY_DEFAULT   0
