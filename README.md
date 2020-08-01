@@ -1,3 +1,9 @@
+---
+layout: default
+title: Overview
+nav_order: 1
+has_children: false
+---
 # Overview
 The project **SQLite3 Multiple Ciphers** implements an encryption extension for [SQLite](https://www.sqlite.org) with support for multiple ciphers.
 

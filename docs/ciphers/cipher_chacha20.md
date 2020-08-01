@@ -4,7 +4,7 @@ title: "sqleet: ChaCha20-Poly1305"
 parent: Supported Ciphers
 nav_order: 3
 ---
-## <a name="cipher_chacha20"/>sqleet: ChaCha20-Poly1305
+## sqleet: ChaCha20-Poly1305
 
 This cipher was introduced for SQLite database encryption by the project [sqleet](https://github.com/resilar/sqleet) in 2017.
 
