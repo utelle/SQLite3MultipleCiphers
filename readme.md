@@ -6,7 +6,9 @@ In the course of time several developers had asked for a stand-alone version of 
 
 In late February 2020 work started on a new implementation of a SQLite encryption extension that will be able to support SQLite 3.32.0 and later. The new approach is based on [SQLite's VFS feature](https://www.sqlite.org/vfs.html). This approach has its pros and cons. On the one hand, the code is less closely coupled with SQLite itself; on the other hand, access to SQLite's internal data structures is more complex.
 
-This project is _Work In Progress_. As of end of May 2020, a - still preliminary - code version based on SQLite 3.32.1 is publicly available. Although several teething problems were resolved since February, it is likely that further code modifications and/or reorganizations will occur, before a first regular release can be made. The code was mainly developed under Windows, but was tested under Linux as well. At the moment no major issues are known, but nevertheless the code should not yet be used for production.
+This project is _Work In Progress_. As of August 2020, a code version based on a pre-rerelease of SQLite 3.33.0 is publicly available. The code base has now stabilized to a certain degree, although further major code modifications and/or reorganizations may still occur. It is planned to make a first regular release after SQLite 3.33.0 has been officially released.
+
+The code was mainly developed under Windows, but was tested under Linux as well. At the moment no major issues are known.
 
 ## How to participate
 
@@ -16,4 +18,4 @@ This project is _Work In Progress_. As of end of May 2020, a - still preliminary
 
 Documentation of the currently supported cipher schemes and the C and SQL interfaces is provided already on the [SQLite3MultipleCiphers website](https://utelle.github.io/SQLite3MultipleCiphers/).
 
-Documentation on how to build the extension will be added soon. For the time being please consult the documentation of the [wxSQLite3 encryption extension](https://github.com/utelle/wxsqlite3/blob/master/sqlite3secure/readme.md). Please take notice that the prefix `wxsqlite3` in function names was renamed to `sqlite3mc` in the new implementation.
+Documentation on how to build the extension can be found on the page [SQLite3 Multiple Ciphers Installation](https://utelle.github.io/SQLite3MultipleCiphers/docs/installation/install_overview/).
