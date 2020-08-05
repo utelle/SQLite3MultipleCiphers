@@ -1,4 +1,5 @@
 EXPORTS
+sqlite3_activate_see
 sqlite3_aggregate_context
 sqlite3_aggregate_count
 sqlite3_auto_extension
@@ -283,3 +284,6 @@ sqlite3_win32_write_debug
 sqlite3mc_codec_data
 sqlite3mc_config
 sqlite3mc_config_cipher
+sqlite3mc_vfs_create
+sqlite3mc_vfs_destroy
+sqlite3mc_vfs_shutdown

@@ -43,14 +43,16 @@ struct sqlite3mc_file
 
 struct sqlite3mc_vfs
 {
-  sqlite3_vfs base;      /* MultiCipher VFS shim methods */
-  sqlite3_vfs* pVfs;     /* Underlying VFS */
+  sqlite3_vfs base;      /* Multiple Ciphers VFS shim methods */
   sqlite3_mutex* mutex;  /* Mutex to protect pMain */
   sqlite3mc_file* pMain; /* List of main database files */
 };
 
-#define REALVFS(p) (((sqlite3mc_vfs*)(p))->pVfs)
+#define REALVFS(p) ((sqlite3_vfs*)(((sqlite3mc_vfs*)(p))->base.pAppData))
 #define REALFILE(p) (((sqlite3mc_file*)(p))->pFile)
+
+#define ORIGVFS(p)  ((sqlite3_vfs*)((p)->pAppData))
+#define ORIGFILE(p) ((sqlite3_file*)(((CksmFile*)(p))+1))
 
 /*
 ** Prototypes for VFS methods
@@ -96,7 +98,7 @@ static int mcIoShmUnmap(sqlite3_file* pFile, int deleteFlag);
 static int mcIoFetch(sqlite3_file* pFile, sqlite3_int64 iOfst, int iAmt, void** pp);
 static int mcIoUnfetch(sqlite3_file* pFile, sqlite3_int64 iOfst, void* p);
 
-#define SQLITE3MC_VFS_NAME ("multicipher")
+#define SQLITE3MC_VFS_NAME ("multipleciphers")
 
 /*
 ** Header sizes of WAL journal files
@@ -1126,55 +1128,136 @@ static int mcIoUnfetch( sqlite3_file* pFile, sqlite3_int64 iOfst, void* p)
 ** SQLite3 Multiple Ciphers external API functions
 */
 
-/*
-** Retrieve the name of the VFS
-*/
-SQLITE_API const char* sqlite3mc_vfs_name()
+static void mcVfsDestroy(sqlite3_vfs* pVfs)
 {
-  return SQLITE3MC_VFS_NAME;
-}
-
-/*
-** Terminate and unregister the SQLite3 Multiple Ciphers VFS
-*/
-SQLITE_API void sqlite3mc_vfs_terminate()
-{
-  if (mcVfsGlobal.pMain == 0)
+  if (pVfs && pVfs->xOpen == mcVfsOpen)
   {
-    sqlite3_mutex_free(mcVfsGlobal.mutex);
-    sqlite3_vfs_unregister(&mcVfsGlobal.base);
+    /* Destroy the VFS instance only if no file is referring to it any longer */
+    if (((sqlite3mc_vfs*) pVfs)->pMain == 0)
+    {
+      sqlite3_mutex_free(((sqlite3mc_vfs*)pVfs)->mutex);
+      sqlite3_vfs_unregister(pVfs);
+      sqlite3_free(pVfs);
+    }
   }
 }
 
 /*
-** Initialize SQLite3 Multiple Ciphers VFS
-** that accesses the underlying file-system via the current default VFS.
+** Unregister and destroy a Multiple Ciphers VFS
+** created by an earlier call to sqlite3mc_vfs_create().
 */
-SQLITE_API int sqlite3mc_vfs_initialize(sqlite3_vfs* vfsDefault, int makeDefault)
+SQLITE_API void sqlite3mc_vfs_destroy(const char* zName)
 {
-  int rc = SQLITE_OK;
-  if (!vfsDefault)
+  mcVfsDestroy(sqlite3_vfs_find(zName));
+}
+
+/*
+** Create a Multiple Ciphers VFS based on the underlying VFS with name given by zVfsReal.
+** If makeDefault is true, the VFS is set as the default VFS.
+*/
+SQLITE_API int sqlite3mc_vfs_create(const char* zVfsReal, int makeDefault)
+{
+  static sqlite3_vfs mcVfsTemplate =
   {
-    return SQLITE_NOTFOUND;
-  }
-  mcVfsGlobal.base.szOsFile = sizeof(sqlite3mc_file) + vfsDefault->szOsFile;
-  mcVfsGlobal.base.mxPathname = vfsDefault->mxPathname;
-  mcVfsGlobal.pVfs = vfsDefault;
-  mcVfsGlobal.mutex = 0;
-  mcVfsGlobal.pMain = 0;
-  mcVfsGlobal.mutex = sqlite3_mutex_alloc(SQLITE_MUTEX_RECURSIVE);
-  if (mcVfsGlobal.mutex == 0)
+    3,                      /* iVersion */
+    0,                      /* szOsFile */
+    1024,                   /* mxPathname */
+    0,                      /* pNext */
+    0,                      /* zName */
+    0,                      /* pAppData */
+    mcVfsOpen,              /* xOpen */
+    mcVfsDelete,            /* xDelete */
+    mcVfsAccess,            /* xAccess */
+    mcVfsFullPathname,      /* xFullPathname */
+#ifndef SQLITE_OMIT_LOAD_EXTENSION
+    mcVfsDlOpen,            /* xDlOpen */
+    mcVfsDlError,           /* xDlError */
+    mcVfsDlSym,             /* xDlSym */
+    mcVfsDlClose,           /* xDlClose */
+#else
+    0, 0, 0, 0,
+#endif
+    mcVfsRandomness,        /* xRandomness */
+    mcVfsSleep,             /* xSleep */
+    mcVfsCurrentTime,       /* xCurrentTime */
+    mcVfsGetLastError,      /* xGetLastError */
+    mcVfsCurrentTimeInt64,  /* xCurrentTimeInt64 */
+    mcVfsSetSystemCall,     /* xSetSystemCall */
+    mcVfsGetSystemCall,     /* xGetSystemCall */
+    mcVfsNextSystemCall     /* xNextSystemCall */
+  };
+  sqlite3mc_vfs* pVfsNew = 0;  /* Newly allocated VFS */
+  sqlite3_vfs* pVfsReal = sqlite3_vfs_find(zVfsReal); /* Real VFS */
+  int rc;
+
+  if (pVfsReal)
   {
-    rc = SQLITE_NOMEM;
+    size_t nPrefix = strlen(SQLITE3MC_VFS_NAME);
+    size_t nRealName = strlen(pVfsReal->zName);
+    size_t nName =  nPrefix + nRealName + 1;
+    size_t nByte = sizeof(sqlite3mc_vfs) + nName + 1;
+    pVfsNew = (sqlite3mc_vfs*) sqlite3_malloc64(nByte);
+    if (pVfsNew)
+    {
+      char* zSpace = (char*) &pVfsNew[1];
+      memset(pVfsNew, 0, nByte);
+      memcpy(&pVfsNew->base, &mcVfsTemplate, sizeof(sqlite3_vfs));
+      pVfsNew->base.iVersion = pVfsReal->iVersion;
+      pVfsNew->base.pAppData = pVfsReal;
+      pVfsNew->base.mxPathname = pVfsReal->mxPathname;
+      pVfsNew->base.szOsFile = sizeof(sqlite3mc_file) + pVfsReal->szOsFile;
+
+      /* Set name of new VFS as combination of the multiple ciphers prefix and the name of the underlying VFS */
+      pVfsNew->base.zName = (const char*) zSpace;
+      memcpy(zSpace, SQLITE3MC_VFS_NAME, nPrefix);
+      memcpy(zSpace + nPrefix, "-", 1);
+      memcpy(zSpace + nPrefix + 1, pVfsReal->zName, nRealName);
+
+      /* Allocate the mutex and register the new VFS */
+      pVfsNew->mutex = sqlite3_mutex_alloc(SQLITE_MUTEX_RECURSIVE);
+      if (pVfsNew->mutex)
+      {
+        rc = sqlite3_vfs_register(&pVfsNew->base, makeDefault);
+        if (rc != SQLITE_OK)
+        {
+          sqlite3_mutex_free(pVfsNew->mutex);
+        }
+      }
+      else
+      {
+        /* Mutex could not be allocated */
+        rc = SQLITE_NOMEM;
+      }
+      if (rc != SQLITE_OK)
+      {
+        /* Mutex could not be allocated or new VFS could not be registered */
+        sqlite3_free(pVfsNew);
+      }
+    }
+    else
+    {
+      /* New VFS could not be allocated */
+      rc = SQLITE_NOMEM;
+    }
   }
   else
   {
-    rc = sqlite3_vfs_register(&mcVfsGlobal.base, makeDefault);
-    if (rc != SQLITE_OK)
-    {
-      sqlite3_mutex_free(mcVfsGlobal.mutex);
-      mcVfsGlobal.mutex = 0;
-    }
+    /* Underlying VFS not found */
+    rc = SQLITE_NOTFOUND;
   }
   return rc;
+}
+
+/*
+** Shutdown all registered SQLite3 Multiple Ciphers VFSs
+*/
+SQLITE_API void sqlite3mc_vfs_shutdown()
+{
+  sqlite3_vfs* pVfs;
+  sqlite3_vfs* pVfsNext;
+  for (pVfs = sqlite3_vfs_find(0); pVfs; pVfs = pVfsNext)
+  {
+    pVfsNext = pVfs->pNext;
+    mcVfsDestroy(pVfs);
+  }
 }

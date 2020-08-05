@@ -224,6 +224,7 @@
     <ClInclude Include="..\src\sqlite3.h" />
     <ClInclude Include="..\src\sqlite3ext.h" />
     <ClInclude Include="..\src\sqlite3mc.h" />
+    <ClInclude Include="..\src\sqlite3mc_version.h" />
     <ClInclude Include="..\src\sqlite3mc_vfs.h" />
     <ClInclude Include="..\src\sqlite3userauth.h" />
     <ClInclude Include="..\src\test_windirent.h" />

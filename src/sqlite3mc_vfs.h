@@ -9,12 +9,16 @@
 
 #ifndef SQLITE3MC_VFS_H_
 
-#include <stdlib.h>
-#include <stdint.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-SQLITE_API const char* sqlite3mc_vfs_name();
-SQLITE_API void sqlite3mc_vfs_terminate();
-SQLITE_API int sqlite3mc_vfs_initialize(sqlite3_vfs* vfsDefault, int makeDefault);
+SQLITE_API int sqlite3mc_vfs_create(const char* zVfsReal, int makeDefault);
+SQLITE_API void sqlite3mc_vfs_destroy(const char* zName);
+SQLITE_API void sqlite3mc_vfs_shutdown();
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* SQLITE3MC_VFS_H_ */

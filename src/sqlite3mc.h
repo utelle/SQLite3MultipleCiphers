@@ -3,7 +3,7 @@
 ** Purpose:     Header file for SQLite3 Multiple Ciphers support
 ** Author:      Ulrich Telle
 ** Created:     2020-03-01
-** Copyright:   (c) 2020 Ulrich Telle
+** Copyright:   (c) 2019-2020 Ulrich Telle
 ** License:     MIT
 */
 
@@ -93,17 +93,21 @@
 */
 #if SQLITE_VERSION_NUMBER >= 3007014
 #if SQLITE_OS_WIN == 1
+
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 #if SQLITE_VERSION_NUMBER >= 3024000
 SQLITE_API int sqlite3_win32_set_directory(unsigned long type, void* zValue);
 #else
 SQLITE_API int sqlite3_win32_set_directory(DWORD type, LPCWSTR zValue);
 #endif
+
 #ifdef __cplusplus
 }
 #endif
+
 #endif
 #endif
 
@@ -166,5 +170,10 @@ SQLITE_API unsigned char* wxsqlite3_codec_data(sqlite3* db, const char* zDbName,
 #ifdef __cplusplus
 }
 #endif
+
+/*
+** Define public SQLite3 Multiple Ciphers VFS interface
+*/
+#include "sqlite3mc_vfs.h"
 
 #endif

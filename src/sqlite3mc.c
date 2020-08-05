@@ -17,17 +17,20 @@
 #endif
 
 /*
-** Define function for extra initilization
+** Define function for extra initialization and extra shutdown
 **
 ** The extra initialization function registers an extension function
 ** which will be automatically executed for each new database connection.
+**
+** The extra shutdown function will be executed on the invocation of sqlite3_shutdown.
+** All created multiple ciphers VFSs will be unregistered and destroyed.
 */
 
 #define SQLITE_EXTRA_INIT sqlite3mc_initialize
-#define SQLITE_EXTRA_SHUTDOWN sqlite3mc_terminate
+#define SQLITE_EXTRA_SHUTDOWN sqlite3mc_shutdown
 
 int sqlite3mc_initialize(const char* arg);
-void sqlite3mc_terminate(void);
+void sqlite3mc_shutdown(void);
 
 /*
 ** To enable the extension functions define SQLITE_ENABLE_EXTFUNC on compiling this module
@@ -50,13 +53,13 @@ void sqlite3mc_terminate(void);
 #include <windows.h>
 
 /* SQLite functions only needed on Win32 */
-extern void sqlite3_win32_write_debug(const char *, int);
+extern void sqlite3_win32_write_debug(const char*, int);
 extern char *sqlite3_win32_unicode_to_utf8(LPCWSTR);
-extern char *sqlite3_win32_mbcs_to_utf8(const char *);
-extern char *sqlite3_win32_mbcs_to_utf8_v2(const char *, int);
-extern char *sqlite3_win32_utf8_to_mbcs(const char *);
-extern char *sqlite3_win32_utf8_to_mbcs_v2(const char *, int);
-extern LPWSTR sqlite3_win32_utf8_to_unicode(const char *);
+extern char *sqlite3_win32_mbcs_to_utf8(const char*);
+extern char *sqlite3_win32_mbcs_to_utf8_v2(const char*, int);
+extern char *sqlite3_win32_utf8_to_mbcs(const char*);
+extern char *sqlite3_win32_utf8_to_mbcs_v2(const char*, int);
+extern LPWSTR sqlite3_win32_utf8_to_unicode(const char*);
 #endif
 
 /*
@@ -97,7 +100,7 @@ void chacha20_rng(void* out, size_t n);
 ** Declare function prototype for registering the codec extension functions
 */
 static int
-mcRegisterCodecExtensions(sqlite3 *db, char **pzErrMsg, const sqlite3_api_routines *pApi);
+mcRegisterCodecExtensions(sqlite3* db, char** pzErrMsg, const sqlite3_api_routines* pApi);
 
 /*
 ** Codec implementation
@@ -120,7 +123,7 @@ mcRegisterCodecExtensions(sqlite3 *db, char **pzErrMsg, const sqlite3_api_routin
 */
 #ifdef SQLITE_ENABLE_EXTFUNC
 /* Prototype for initialization function of EXTENSIONFUNCTIONS extension */
-int RegisterExtensionFunctions(sqlite3 *db);
+int RegisterExtensionFunctions(sqlite3* db);
 #include "extensionfunctions.c"
 #endif
 
@@ -132,7 +135,7 @@ int RegisterExtensionFunctions(sqlite3 *db);
 #ifdef _WIN32
 __declspec(dllexport)
 #endif
-int sqlite3_csv_init(sqlite3 *db, char **pzErrMsg, const sqlite3_api_routines *pApi);
+int sqlite3_csv_init(sqlite3* db, char** pzErrMsg, const sqlite3_api_routines* pApi);
 #include "csv.c"
 #endif
 
@@ -144,7 +147,7 @@ int sqlite3_csv_init(sqlite3 *db, char **pzErrMsg, const sqlite3_api_routines *p
 #ifdef _WIN32
 __declspec(dllexport)
 #endif
-int sqlite3_shathree_init(sqlite3 *db, char **pzErrMsg, const sqlite3_api_routines *pApi);
+int sqlite3_shathree_init(sqlite3* db, char** pzErrMsg, const sqlite3_api_routines* pApi);
 #include "shathree.c"
 #endif
 
@@ -156,7 +159,7 @@ int sqlite3_shathree_init(sqlite3 *db, char **pzErrMsg, const sqlite3_api_routin
 #ifdef _WIN32
 __declspec(dllexport)
 #endif
-int sqlite3_carray_init(sqlite3 *db, char **pzErrMsg, const sqlite3_api_routines *pApi);
+int sqlite3_carray_init(sqlite3* db, char** pzErrMsg, const sqlite3_api_routines* pApi);
 #include "carray.c"
 #endif
 
@@ -168,7 +171,7 @@ int sqlite3_carray_init(sqlite3 *db, char **pzErrMsg, const sqlite3_api_routines
 #ifdef _WIN32
 __declspec(dllexport)
 #endif
-int sqlite3_fileio_init(sqlite3 *db, char **pzErrMsg, const sqlite3_api_routines *pApi);
+int sqlite3_fileio_init(sqlite3* db, char** pzErrMsg, const sqlite3_api_routines* pApi);
 
 /* MinGW specifics */
 #if (!defined(_WIN32) && !defined(WIN32)) || defined(__MINGW32__)
@@ -194,7 +197,7 @@ int sqlite3_fileio_init(sqlite3 *db, char **pzErrMsg, const sqlite3_api_routines
 #ifdef _WIN32
 __declspec(dllexport)
 #endif
-int sqlite3_series_init(sqlite3 *db, char **pzErrMsg, const sqlite3_api_routines *pApi);
+int sqlite3_series_init(sqlite3* db, char** pzErrMsg, const sqlite3_api_routines* pApi);
 #include "series.c"
 #endif
 
@@ -206,7 +209,7 @@ int sqlite3_series_init(sqlite3 *db, char **pzErrMsg, const sqlite3_api_routines
 #ifdef _WIN32
 __declspec(dllexport)
 #endif
-int sqlite3_uuid_init(sqlite3 *db, char **pzErrMsg, const sqlite3_api_routines *pApi);
+int sqlite3_uuid_init(sqlite3* db, char** pzErrMsg, const sqlite3_api_routines* pApi);
 #include "uuid.c"
 #endif
 
@@ -218,7 +221,7 @@ int sqlite3_uuid_init(sqlite3 *db, char **pzErrMsg, const sqlite3_api_routines *
 #ifdef _WIN32
 __declspec(dllexport)
 #endif
-int sqlite3_regexp_init(sqlite3 *db, char **pzErrMsg, const sqlite3_api_routines *pApi);
+int sqlite3_regexp_init(sqlite3* db, char** pzErrMsg, const sqlite3_api_routines* pApi);
 #include "regexp.c"
 #endif
 
@@ -228,12 +231,9 @@ int sqlite3_regexp_init(sqlite3 *db, char **pzErrMsg, const sqlite3_api_routines
 #include "sqlite3mc_vfs.c"
 
 static int
-mcRegisterCodecExtensions(sqlite3 *db, char **pzErrMsg, const sqlite3_api_routines *pApi)
+mcRegisterCodecExtensions(sqlite3* db, char** pzErrMsg, const sqlite3_api_routines* pApi)
 {
   int rc = SQLITE_OK;
-#if 0
-  CodecParameter* codecParameterTable = sqlite3mcGetCodecParams(db);
-#endif
   CodecParameter* codecParameterTable = NULL;
 
   if (sqlite3FindFunction(db, "sqlite3mc_config_table", 1, SQLITE_UTF8, 0) != NULL)
@@ -297,11 +297,7 @@ sqlite3mc_initialize(const char* arg)
   ** Initialize and register MultiCipher VFS as default VFS
   ** if it isn't already registered
   */
-  if (sqlite3_vfs_find(sqlite3mc_vfs_name()) == NULL)
-  {
-    sqlite3_vfs* vfsDefault = sqlite3_vfs_find(NULL);
-    rc = sqlite3mc_vfs_initialize(vfsDefault, 1);
-  }
+  rc = sqlite3mc_vfs_create(NULL, 1);
 
   /*
   ** Register Multi Cipher extension
@@ -362,9 +358,9 @@ sqlite3mc_initialize(const char* arg)
 }
 
 void
-sqlite3mc_terminate(void)
+sqlite3mc_shutdown(void)
 {
-  sqlite3mc_vfs_terminate();
+  sqlite3mc_vfs_shutdown();
 }
 
 /*
