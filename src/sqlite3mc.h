@@ -12,6 +12,10 @@
 
 #include "sqlite3.h"
 
+#ifdef SQLITE_USER_AUHENTICATION
+#include "sqlite3userauth.h"
+#endif
+
 /*
 ** Symbols for ciphers
 */
@@ -160,6 +164,7 @@ SQLITE_API void sqlite3_activate_see(const char* zPassPhrase);
 SQLITE_API int sqlite3mc_config(sqlite3* db, const char* paramName, int newValue);
 SQLITE_API int sqlite3mc_config_cipher(sqlite3* db, const char* cipherName, const char* paramName, int newValue);
 SQLITE_API unsigned char* sqlite3mc_codec_data(sqlite3* db, const char* zDbName, const char* paramName);
+SQLITE_API const char* sqlite3mc_version();
 
 #ifdef SQLITE3MC_WXSQLITE3_COMPATIBLE
 SQLITE_API int wxsqlite3_config(sqlite3* db, const char* paramName, int newValue);

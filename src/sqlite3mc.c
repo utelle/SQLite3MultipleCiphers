@@ -71,6 +71,21 @@ extern LPWSTR sqlite3_win32_utf8_to_unicode(const char*);
 ** Include SQLite3MultiCipher components 
 */
 #include "sqlite3mc.h"
+#include "sqlite3mc_version.h"
+
+SQLITE_API const char*
+sqlite3mc_version()
+{
+  static const char* version = SQLITE3MC_VERSION_STRING;
+  return version;
+}
+
+SQLITE_PRIVATE void
+sqlite3mcVersion(sqlite3_context* context, int argc, sqlite3_value** argv)
+{
+  assert(argc == 0);
+  sqlite3_result_text(context, sqlite3mc_version(), -1, 0);
+}
 
 /*
 ** Crypto algorithms
@@ -92,7 +107,6 @@ void chacha20_rng(void* out, size_t n);
 #endif
 
 #ifdef SQLITE_USER_AUTHENTICATION
-#include "sqlite3userauth.h"
 #include "userauth.c"
 #endif
 
@@ -276,6 +290,11 @@ mcRegisterCodecExtensions(sqlite3* db, char** pzErrMsg, const sqlite3_api_routin
   {
     rc = sqlite3_create_function(db, "sqlite3mc_codec_data", 2, SQLITE_UTF8 | SQLITE_DETERMINISTIC,
                                  NULL, sqlite3mcCodecDataSql, 0, 0);
+  }
+  if (rc == SQLITE_OK)
+  {
+    rc = sqlite3_create_function(db, "sqlite3mc_version", 0, SQLITE_UTF8 | SQLITE_DETERMINISTIC,
+                                 NULL, sqlite3mcVersion, 0, 0);
   }
   return rc;
 }

@@ -284,6 +284,7 @@ sqlite3_win32_write_debug
 sqlite3mc_codec_data
 sqlite3mc_config
 sqlite3mc_config_cipher
+sqlite3mc_version
 sqlite3mc_vfs_create
 sqlite3mc_vfs_destroy
 sqlite3mc_vfs_shutdown
