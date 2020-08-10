@@ -12,7 +12,7 @@
 
 #include "sqlite3.h"
 
-#ifdef SQLITE_USER_AUHENTICATION
+#ifdef SQLITE_USER_AUTHENTICATION
 #include "sqlite3userauth.h"
 #endif
 
@@ -95,24 +95,18 @@
 /*
 ** Define Windows specific SQLite API functions (not defined in sqlite3.h)
 */
-#if SQLITE_VERSION_NUMBER >= 3007014
 #if SQLITE_OS_WIN == 1
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#if SQLITE_VERSION_NUMBER >= 3024000
 SQLITE_API int sqlite3_win32_set_directory(unsigned long type, void* zValue);
-#else
-SQLITE_API int sqlite3_win32_set_directory(DWORD type, LPCWSTR zValue);
-#endif
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif
 #endif
 
 #ifdef __cplusplus

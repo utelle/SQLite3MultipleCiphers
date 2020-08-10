@@ -214,11 +214,7 @@ int sqlite3_user_authenticate(
   db->auth.nAuthPW = nPW;
   rc = sqlite3UserAuthCheckLogin(db, "main", &authLevel);
   db->auth.authLevel = authLevel;
-#if (SQLITE_VERSION_NUMBER >= 3025000)
   sqlite3ExpirePreparedStatements(db, 0);
-#else
-  sqlite3ExpirePreparedStatements(db);
-#endif
   if( rc ){
     return rc;           /* OOM error, I/O error, etc. */
   }

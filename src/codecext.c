@@ -158,6 +158,8 @@ static int
 sqlite3mcCodecAttach(sqlite3* db, int nDb, const char* zPath, const void* zKey, int nKey)
 {
   /* Attach a key to a database. */
+  const char* zDbName = db->aDb[nDb].zDbSName;
+  const char* dbFileName = sqlite3_db_filename(db, zDbName);
   Codec* codec = (Codec*) sqlite3_malloc(sizeof(Codec));
   int rc = (codec != NULL) ? sqlite3mcCodecInit(codec) : SQLITE_NOMEM;
   if (rc != SQLITE_OK)
@@ -188,7 +190,7 @@ sqlite3mcCodecAttach(sqlite3* db, int nDb, const char* zPath, const void* zKey, 
           sqlite3mcSetBtree(codec, db->aDb[nDb].pBt);
           mcAdjustBtree(db->aDb[nDb].pBt, pageSize, reserved, sqlite3mcGetLegacyWriteCipher(codec));
           sqlite3mcCodecSizeChange(codec, pageSize, reserved);
-          sqlite3mcSetCodec(db, zPath, codec);
+          sqlite3mcSetCodec(db, dbFileName, codec);
         }
         else
         {
@@ -210,12 +212,6 @@ sqlite3mcCodecAttach(sqlite3* db, int nDb, const char* zPath, const void* zKey, 
   }
   else
   {
-#if (SQLITE_VERSION_NUMBER >= 3015000)
-    const char* zDbName = db->aDb[nDb].zDbSName;
-#else
-    const char* zDbName = db->aDb[nDb].zName;
-#endif
-    const char* dbFileName = sqlite3_db_filename(db, zDbName);
     if (dbFileName != NULL)
     {
       /* Check whether key salt is provided in URI */
@@ -245,9 +241,6 @@ sqlite3mcCodecAttach(sqlite3* db, int nDb, const char* zPath, const void* zKey, 
       int reserved = sqlite3mcGetReservedWriteCipher(codec);
       mcAdjustBtree(db->aDb[nDb].pBt, pageSize, reserved, sqlite3mcGetLegacyWriteCipher(codec));
       sqlite3mcCodecSizeChange(codec, pageSize, reserved);
-#if 0
-      const char* dbFileName = sqlite3_db_filename(db, zDbName);
-#endif
       sqlite3mcSetCodec(db, dbFileName, codec);
     }
     else
@@ -395,11 +388,7 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
           char* err = NULL;
           sqlite3mcSetReadReserved(codec, nReserved);
           sqlite3mcSetWriteReserved(codec, nReservedWriteCipher);
-#if (SQLITE_VERSION_NUMBER >= 3027000)
           rc = sqlite3mcRunVacuumForRekey(&err, db, dbIndex, NULL, nReservedWriteCipher);
-#else
-          rc = sqlite3mcRunVacuumForRekey(&err, db, dbIndex, nReservedWriteCipher);
-#endif
           goto leave_rekey;
         }
       }
@@ -426,11 +415,7 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
       char* err = NULL;
       sqlite3mcSetReadReserved(codec, nReserved);
       sqlite3mcSetWriteReserved(codec, 0);
-#if (SQLITE_VERSION_NUMBER >= 3027000)
       rc = sqlite3mcRunVacuumForRekey(&err, db, dbIndex, NULL, 0);
-#else
-      rc = sqlite3mcRunVacuumForRekey(&err, db, dbIndex, 0);
-#endif
       goto leave_rekey;
     }
   }
@@ -451,11 +436,7 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
           char* err = NULL;
           sqlite3mcSetReadReserved(codec, nReserved);
           sqlite3mcSetWriteReserved(codec, nReservedWriteCipher);
-#if (SQLITE_VERSION_NUMBER >= 3027000)
           rc = sqlite3mcRunVacuumForRekey(&err, db, dbIndex, NULL, nReservedWriteCipher);
-#else
-          rc = sqlite3mcRunVacuumForRekey(&err, db, dbIndex, nReservedWriteCipher);
-#endif
           goto leave_rekey;
         }
       }
@@ -474,56 +455,27 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
   }
 
   /* Start transaction */
-#if (SQLITE_VERSION_NUMBER >= 3025000)
   rc = sqlite3BtreeBeginTrans(pBt, 1, 0);
-#else
-  rc = sqlite3BtreeBeginTrans(pBt, 1);
-#endif
   if (!rc)
   {
     int pageSize = sqlite3BtreeGetPageSize(pBt);
     Pgno nSkip = WX_PAGER_MJ_PGNO(pageSize);
-#if (SQLITE_VERSION_NUMBER >= 3003014)
     DbPage *pPage;
-#else
-    void *pPage;
-#endif
     Pgno n;
     /* Rewrite all pages using the new encryption key (if specified) */
-#if (SQLITE_VERSION_NUMBER >= 3007001)
     Pgno nPage;
     int nPageCount = -1;
     sqlite3PagerPagecount(pPager, &nPageCount);
     nPage = nPageCount;
-#elif (SQLITE_VERSION_NUMBER >= 3006000)
-    int nPageCount = -1;
-    int rc = sqlite3PagerPagecount(pPager, &nPageCount);
-    Pgno nPage = (Pgno) nPageCount;
-#elif (SQLITE_VERSION_NUMBER >= 3003014)
-    Pgno nPage = sqlite3PagerPagecount(pPager);
-#else
-    Pgno nPage = sqlite3pager_pagecount(pPager);
-#endif
 
     for (n = 1; rc == SQLITE_OK && n <= nPage; n++)
     {
       if (n == nSkip) continue;
-#if (SQLITE_VERSION_NUMBER >= 3010000)
       rc = sqlite3PagerGet(pPager, n, &pPage, 0);
-#elif (SQLITE_VERSION_NUMBER >= 3003014)
-      rc = sqlite3PagerGet(pPager, n, &pPage);
-#else
-      rc = sqlite3pager_get(pPager, n, &pPage);
-#endif
       if (!rc)
       {
-#if (SQLITE_VERSION_NUMBER >= 3003014)
         rc = sqlite3PagerWrite(pPage);
         sqlite3PagerUnref(pPage);
-#else
-        rc = sqlite3pager_write(pPage);
-        sqlite3pager_unref(pPage);
-#endif
       }
     }
   }
@@ -536,15 +488,7 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
   if (rc != SQLITE_OK)
   {
     /* Rollback in case of error */
-#if (SQLITE_VERSION_NUMBER >= 3008007)
-    /* Unfortunately this change was introduced in version 3.8.7.2 which cannot be detected using the SQLITE_VERSION_NUMBER */
-    /* That is, compilation will fail for version 3.8.7 or 3.8.7.1  ==> Please change manually ... or upgrade to 3.8.7.2 or higher */
     sqlite3BtreeRollback(pBt, SQLITE_OK, 0);
-#elif (SQLITE_VERSION_NUMBER >= 3007011)
-    sqlite3BtreeRollback(pbt, SQLITE_OK);
-#else
-    sqlite3BtreeRollback(pbt);
-#endif
   }
 
 leave_rekey:
