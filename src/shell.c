@@ -4996,7 +4996,6 @@ int sqlite3_decimal_init(
   const sqlite3_api_routines *pApi
 ){
   int rc = SQLITE_OK;
-  SQLITE_EXTENSION_INIT2(pApi);
   static const struct {
     const char *zFuncName;
     int nArg;
@@ -5010,6 +5009,8 @@ int sqlite3_decimal_init(
   };
   unsigned int i;
   (void)pzErrMsg;  /* Unused parameter */
+
+  SQLITE_EXTENSION_INIT2(pApi);
 
   for(i=0; i<sizeof(aFunc)/sizeof(aFunc[0]) && rc==SQLITE_OK; i++){
     rc = sqlite3_create_function(db, aFunc[i].zFuncName, aFunc[i].nArg,
@@ -12466,7 +12467,7 @@ static void explain_data_delete(ShellState *p){
 ** Disable and restore .wheretrace and .selecttrace settings.
 */
 #if defined(SQLITE_DEBUG) && defined(SQLITE_ENABLE_SELECTTRACE)
-extern int sqlite3SelectTrace;
+extern unsigned int sqlite3_unsupported_selecttrace;
 static int savedSelectTrace;
 #endif
 #if defined(SQLITE_DEBUG) && defined(SQLITE_ENABLE_WHERETRACE)
@@ -12475,8 +12476,8 @@ static int savedWhereTrace;
 #endif
 static void disable_debug_trace_modes(void){
 #if defined(SQLITE_DEBUG) && defined(SQLITE_ENABLE_SELECTTRACE)
-  savedSelectTrace = sqlite3SelectTrace;
-  sqlite3SelectTrace = 0;
+  savedSelectTrace = sqlite3_unsupported_selecttrace;
+  sqlite3_unsupported_selecttrace = 0;
 #endif
 #if defined(SQLITE_DEBUG) && defined(SQLITE_ENABLE_WHERETRACE)
   savedWhereTrace = sqlite3WhereTrace;
@@ -12485,7 +12486,7 @@ static void disable_debug_trace_modes(void){
 }
 static void restore_debug_trace_modes(void){
 #if defined(SQLITE_DEBUG) && defined(SQLITE_ENABLE_SELECTTRACE)
-  sqlite3SelectTrace = savedSelectTrace;
+  sqlite3_unsupported_selecttrace = savedSelectTrace;
 #endif
 #if defined(SQLITE_DEBUG) && defined(SQLITE_ENABLE_WHERETRACE)
   sqlite3WhereTrace = savedWhereTrace;
@@ -18755,7 +18756,7 @@ static int do_meta_command(char *zLine, ShellState *p){
 
 #if defined(SQLITE_DEBUG) && defined(SQLITE_ENABLE_SELECTTRACE)
   if( c=='s' && n==11 && strncmp(azArg[0], "selecttrace", n)==0 ){
-    sqlite3SelectTrace = nArg>=2 ? (int)integerValue(azArg[1]) : 0xffff;
+    sqlite3_unsupported_selecttrace = nArg>=2 ? (int)integerValue(azArg[1]) : 0xffff;
   }else
 #endif
 
