@@ -126,7 +126,7 @@ static inline void md_pad(uint8_t *block, size_t blocksz, size_t used, size_t ms
     if (nkey > _blocksz)                                                      \
     {                                                                         \
       _init(&ctx->inner);                                                     \
-      _update(&ctx->inner, key, nkey);                                        \
+      _update(&ctx->inner, key, (unsigned int) nkey);                         \
       _final(&ctx->inner, k);                                                 \
                                                                               \
       key = k;                                                                \
@@ -148,7 +148,7 @@ static inline void md_pad(uint8_t *block, size_t blocksz, size_t used, size_t ms
       uint8_t blk_outer[_blocksz];                                            \
       size_t i;                                                               \
                                                                               \
-      for (i = 0; i < _blocksz; i++)                                   \
+      for (i = 0; i < _blocksz; i++)                                          \
       {                                                                       \
         blk_inner[i] = 0x36 ^ k[i];                                           \
         blk_outer[i] = 0x5c ^ k[i];                                           \
@@ -166,7 +166,7 @@ static inline void md_pad(uint8_t *block, size_t blocksz, size_t used, size_t ms
   static inline void HMAC_UPDATE(_name)(HMAC_CTX(_name) *ctx,                 \
                                         const void *data, size_t ndata)       \
   {                                                                           \
-    _update(&ctx->inner, data, ndata);                                        \
+    _update(&ctx->inner, data, (unsigned int) ndata);                         \
   }                                                                           \
                                                                               \
   static inline void HMAC_FINAL(_name)(HMAC_CTX(_name) *ctx,                  \

@@ -217,7 +217,7 @@ int double_cmp(const void *a, const void *b);
 #endif /* _MAP_H_ */
 
 static char *sqlite3StrDup( const char *z ) {
-    char *res = sqlite3_malloc( strlen(z)+1 );
+    char *res = sqlite3_malloc( (int) (strlen(z)+1) );
     return strcpy( res, z );
 }
 
@@ -807,7 +807,7 @@ static void padlFunc(sqlite3_context *context, int argc, sqlite3_value **argv){
       }
       sqlite3_result_text(context, zo, -1, SQLITE_TRANSIENT);
     }else{
-      zo = sqlite3_malloc(strlen(zi)+ilen-zl+1);
+      zo = sqlite3_malloc((int) (strlen(zi)+ilen-zl+1));
       if (!zo){
         sqlite3_result_error_nomem(context);
         return;
@@ -964,7 +964,7 @@ static void strfilterFunc(sqlite3_context *context, int argc, sqlite3_value **ar
     ** maybe I could allocate less, but that would imply 2 passes, rather waste 
     ** (possibly) some memory
     */
-    zo = sqlite3_malloc(strlen(zi1)+1); 
+    zo = sqlite3_malloc((int) (strlen(zi1)+1)); 
     if (!zo){
       sqlite3_result_error_nomem(context);
       return;
@@ -1346,7 +1346,7 @@ static void reverseFunc(sqlite3_context *context, int argc, sqlite3_value **argv
     return;
   }
   z = (char *)sqlite3_value_text(argv[0]);
-  l = strlen(z);
+  l = (int) strlen(z);
   rz = sqlite3_malloc(l+1);
   if (!rz){
     sqlite3_result_error_nomem(context);

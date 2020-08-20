@@ -248,7 +248,7 @@ BOOLEAN NTAPI RtlGenRandom(PVOID RandomBuffer, ULONG RandomBufferLength);
 #pragma comment(lib, "advapi32.lib")
 static size_t entropy(void* buf, size_t n)
 {
-  return RtlGenRandom(buf, n) ? n : 0;
+  return RtlGenRandom(buf, (ULONG) n) ? n : 0;
 }
 #elif defined(__linux__) || defined(__unix__) || defined(__APPLE__)
 #ifndef _GNU_SOURCE

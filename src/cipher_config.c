@@ -435,7 +435,7 @@ sqlite3mcConfigParams(sqlite3_context* context, int argc, sqlite3_value** argv)
       for (j = 0; strlen(cipherParamTable[j].m_name) > 0; ++j)
       {
         ++nParams;
-        lenTotal += strlen(cipherParamTable[j].m_name);
+        lenTotal += (int) strlen(cipherParamTable[j].m_name);
       }
       if (nParams > 0)
       {
