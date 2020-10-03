@@ -154,6 +154,18 @@ int sqlite3_csv_init(sqlite3* db, char** pzErrMsg, const sqlite3_api_routines* p
 #endif
 
 /*
+** VSV import
+*/
+#ifdef SQLITE_ENABLE_VSV
+/* Prototype for initialization function of VSV extension */
+#ifdef _WIN32
+__declspec(dllexport)
+#endif
+int sqlite3_vsv_init(sqlite3* db, char** pzErrMsg, const sqlite3_api_routines* pApi);
+#include "vsv.c"
+#endif
+
+/*
 ** SHA3
 */
 #ifdef SQLITE_ENABLE_SHA3
@@ -335,6 +347,12 @@ sqlite3mc_initialize(const char* arg)
   if (rc == SQLITE_OK)
   {
     rc = sqlite3_auto_extension((void(*)(void)) sqlite3_csv_init);
+  }
+#endif
+#ifdef SQLITE_ENABLE_VSV
+  if (rc == SQLITE_OK)
+  {
+    rc = sqlite3_auto_extension((void(*)(void)) sqlite3_vsv_init);
   }
 #endif
 #ifdef SQLITE_ENABLE_SHA3

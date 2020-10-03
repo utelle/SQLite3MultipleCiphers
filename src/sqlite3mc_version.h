@@ -9,13 +9,13 @@
 
 /// \file sqlite3mc_version.h Version information for the SQLite3 Multiple Ciphers library
 
-#ifndef SQLITE3MV_VERSION_H_
+#ifndef SQLITE3MC_VERSION_H_
 #define SQLITE3MC_VERSION_H_
 
 #define SQLITE3MC_VERSION_MAJOR      1
 #define SQLITE3MC_VERSION_MINOR      0
-#define SQLITE3MC_VERSION_RELEASE    0
+#define SQLITE3MC_VERSION_RELEASE    1
 #define SQLITE3MC_VERSION_SUBRELEASE 0
-#define SQLITE3MC_VERSION_STRING     "SQLite3 Multiple Ciphers 1.0.0"
+#define SQLITE3MC_VERSION_STRING     "SQLite3 Multiple Ciphers 1.0.1"
 
 #endif /* SQLITE3MC_VERSION_H_ */
