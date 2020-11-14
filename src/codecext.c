@@ -8,6 +8,44 @@
 */
 
 /*
+** "Special" version of function sqlite3BtreeSetPageSize
+** This version allows to reduce the number of reserved bytes per page,
+** while the original version allows only to increase it.
+** Needed to reclaim reserved space on decrypting a database.
+*/
+SQLITE_PRIVATE int
+sqlite3mcBtreeSetPageSize(Btree* p, int pageSize, int nReserve, int iFix)
+{
+  int rc = SQLITE_OK;
+  int x;
+  BtShared* pBt = p->pBt;
+  assert(nReserve >= 0 && nReserve <= 255);
+  sqlite3BtreeEnter(p);
+  pBt->nReserveWanted = nReserve;
+  x = pBt->pageSize - pBt->usableSize;
+  if (nReserve < 0) nReserve = x;
+  if (pBt->btsFlags & BTS_PAGESIZE_FIXED)
+  {
+    sqlite3BtreeLeave(p);
+    return SQLITE_READONLY;
+  }
+  assert(nReserve >= 0 && nReserve <= 255);
+  if (pageSize >= 512 && pageSize <= SQLITE_MAX_PAGE_SIZE &&
+    ((pageSize - 1) & pageSize) == 0)
+  {
+    assert((pageSize & 7) == 0);
+    assert(!pBt->pCursor);
+    pBt->pageSize = (u32)pageSize;
+    freeTempSpace(pBt);
+  }
+  rc = sqlite3PagerSetPagesize(pBt->pPager, &pBt->pageSize, nReserve);
+  pBt->usableSize = pBt->pageSize - (u16)nReserve;
+  if (iFix) pBt->btsFlags |= BTS_PAGESIZE_FIXED;
+  sqlite3BtreeLeave(p);
+  return rc;
+}
+
+/*
 ** Include a "special" version of the VACUUM command
 */
 #include "rekeyvacuum.c"
@@ -86,11 +124,7 @@ sqlite3mcCodec(void* pCodecArg, void* data, Pgno nPageNum, int nMode)
     case 6: /* Encrypt a page for the main database file */
       if (sqlite3mcHasWriteCipher(codec))
       {
-#if 1
         unsigned char* pageBuffer = sqlite3mcGetPageBuffer(codec);
-#else
-        unsigned char pageBuffer[66000];
-#endif
         memcpy(pageBuffer, data, pageSize);
         data = pageBuffer;
         rc = sqlite3mcEncrypt(codec, nPageNum, (unsigned char*) data, pageSize, 1);
@@ -109,11 +143,7 @@ sqlite3mcCodec(void* pCodecArg, void* data, Pgno nPageNum, int nMode)
       */
       if (sqlite3mcHasReadCipher(codec))
       {
-#if 1
         unsigned char* pageBuffer = sqlite3mcGetPageBuffer(codec);
-#else
-        unsigned char pageBuffer[66000];
-#endif
         memcpy(pageBuffer, data, pageSize);
         data = pageBuffer;
         rc = sqlite3mcEncrypt(codec, nPageNum, (unsigned char*) data, pageSize, 0);
