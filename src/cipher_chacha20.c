@@ -302,7 +302,7 @@ DecryptPageChaCha20Cipher(void* cipher, int page, unsigned char* data, int len, 
   /* Check whether number of required reserved bytes and actually reserved bytes match */
   if ((legacy == 0 && nReserved > reserved) || ((legacy != 0 && nReserved != reserved)))
   {
-    return SQLITE_CORRUPT;
+    return (page == 1) ? SQLITE_NOTADB : SQLITE_CORRUPT;
   }
 
   if (nReserved > 0)
@@ -333,7 +333,7 @@ DecryptPageChaCha20Cipher(void* cipher, int page, unsigned char* data, int len, 
         SQLITE3MC_DEBUG_HEX("decrypt tag r:", data + n + PAGE_NONCE_LEN_CHACHA20, PAGE_TAG_LEN_CHACHA20);
         SQLITE3MC_DEBUG_HEX("decrypt tag c:", tag, PAGE_TAG_LEN_CHACHA20);
         /* Bad MAC */
-        rc = SQLITE_CORRUPT;
+        rc = (page == 1) ? SQLITE_NOTADB : SQLITE_CORRUPT;
       }
     }
     if (page == 1 && rc == SQLITE_OK)

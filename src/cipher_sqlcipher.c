@@ -442,7 +442,7 @@ DecryptPageSQLCipherCipher(void* cipher, int page, unsigned char* data, int len,
   /* Check whether number of required reserved bytes and actually reserved bytes match */
   if ((legacy == 0 && nReserved > reserved) || ((legacy != 0 && nReserved != reserved)))
   {
-    return SQLITE_CORRUPT;
+    return (page == 1) ? SQLITE_NOTADB : SQLITE_CORRUPT;
   }
 
   /* Get nonce from buffer */
@@ -493,7 +493,7 @@ DecryptPageSQLCipherCipher(void* cipher, int page, unsigned char* data, int len,
   else
   {
     /* Bad MAC */
-    rc = SQLITE_CORRUPT;
+    rc = (page == 1) ? SQLITE_NOTADB : SQLITE_CORRUPT;
   }
 
   return rc;
