@@ -228,6 +228,7 @@ sqlite3_total_changes
 sqlite3_trace
 sqlite3_trace_v2
 sqlite3_transfer_bindings
+sqlite3_txn_state
 sqlite3_update_hook
 sqlite3_uri_boolean
 sqlite3_uri_int64

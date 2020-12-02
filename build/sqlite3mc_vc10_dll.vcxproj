@@ -198,6 +198,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\src\carray.h" />
     <ClInclude Include="..\src\cipher_common.h" />
     <ClInclude Include="..\src\cipher_config.h" />
     <ClInclude Include="..\src\fastpbkdf2.h" />
