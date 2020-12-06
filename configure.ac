@@ -4,7 +4,7 @@ dnl Copyright (C) 2019-2020 Ulrich Telle <ulrich@telle-online.de>
 dnl
 dnl This file is covered by the same licence as the entire SQLite3 Multiple Ciphers package.
 
-AC_INIT([sqlite3mc], [1.0.0], [ulrich@telle-online.de])
+AC_INIT([sqlite3mc], [1.1.0], [ulrich@telle-online.de])
 
 dnl This is the version tested with, might work with earlier ones.
 AC_PREREQ([2.69])
@@ -45,6 +45,10 @@ AC_ARG_ENABLE(sqlite-debug,
       AC_DEFINE([SQLITE_DEBUG])
     ])
 
+dnl Options for deselecting ciphers
+
+dnl Cipher wxSQLite3 AES-128-CBC
+
 AC_ARG_WITH([aes128cbc],
     [AS_HELP_STRING([--without-aes128cbc],
         [Disable support for AES 128 Bit CBC Encryption])],
@@ -53,6 +57,8 @@ AC_ARG_WITH([aes128cbc],
 
 AS_IF([test "x$with_aes128cbc" = xno],
     [AC_DEFINE([HAVE_CIPHER_AES_128_CBC], [0], [Define if you have AES 128 Bit CBC disabled])])
+
+dnl Cipher wxSQLite3 AES-256-CBC
 
 AC_ARG_WITH([aes256cbc],
     [AS_HELP_STRING([--without-aes256cbc],
@@ -63,6 +69,8 @@ AC_ARG_WITH([aes256cbc],
 AS_IF([test "x$with_aes256cbc" = xno],
     [AC_DEFINE([HAVE_CIPHER_AES_256_CBC], [0], [Define if you have AES 256 Bit CBC disabled])])
 
+dnl Cipher ChaCha20-Poly1305 / sqleet
+
 AC_ARG_WITH([chacha20],
     [AS_HELP_STRING([--without-chacha20],
         [Disable support for ChaCha20-Poly1305 Encryption])],
@@ -71,6 +79,8 @@ AC_ARG_WITH([chacha20],
 
 AS_IF([test "x$with_chacha20" = xno],
     [AC_DEFINE([HAVE_CIPHER_CHACHA20], [0], [Define if you have ChaCha20-Poly1305 disabled])])
+
+dnl Cipher SQLCipher
 
 AC_ARG_WITH([sqlcipher],
     [AS_HELP_STRING([--without-sqlcipher],
@@ -81,12 +91,26 @@ AC_ARG_WITH([sqlcipher],
 AS_IF([test "x$with_sqlcipher" = xno],
     [AC_DEFINE([HAVE_CIPHER_SQLCIPHER], [0], [Define if you have SQLCipher disabled])])
 
+dnl Cipher System.Data.SQLite RC4
+
+AC_ARG_WITH([rc4],
+    [AS_HELP_STRING([--without-rc4],
+        [Disable support for System.Data.SQLite RC4 Encryption])],
+    [],
+    [with_sqlcipher=yes])
+
+AS_IF([test "x$with_rc4" = xno],
+    [AC_DEFINE([HAVE_CIPHER_SQLCIPHER], [0], [Define if you have System.Data.SQLite RC4  disabled])])
+
+dnl Enable cipher codec
+
 AC_ARG_ENABLE(codec,
     [  --enable-codec[=<codec type>] Specify the codec type:
                               aes128: AES 128 Bit CBC Encryption
                               aes256: AES 256 Bit CBC Encryption
                               chacha20 [default]: ChaCha20-Poly1305 Encryption
-                              sqlcipher: SQLCipher Encryption],
+                              sqlcipher: SQLCipher Encryption
+                              rc4: System.Data.SQLite RC4 Encryption],
       [if   test "x$enableval" = "xaes128" && test "x$with_aes128cbc" = xyes ; then
         codec_type=CODEC_TYPE_AES128
       elif test "x$enableval" = "xaes256" && test "x$with_aes256cbc" = xyes ; then
@@ -95,6 +119,8 @@ AC_ARG_ENABLE(codec,
         codec_type=CODEC_TYPE_CHACHA20
       elif test "x$enableval" = "xsqlcipher" && test "x$with_sqlcipher" = xyes ; then
         codec_type=CODEC_TYPE_SQLCIPHER
+      elif test "x$enableval" = "xrc4" && test "x$with_rc4" = xyes ; then
+        codec_type=CODEC_TYPE_RC4
       else
         echo
         echo "Error!"
@@ -107,8 +133,17 @@ AC_ARG_ENABLE(codec,
 AS_IF([test "x$with_aes128cbc" = xno &&
        test "x$with_aes256cbc" = xno &&
        test "x$with_chacha20" = xno &&
-       test "x$with_sqlcipher" = xno],
+       test "x$with_sqlcipher" = xno &&
+       test "x$with_rc4" = xno],
        [AC_DEFINE([SQLITE_HAS_CODEC], [0], [All ciphers disabled so encryption is disabled])])
+
+AC_CANONICAL_HOST
+hostX86 = false
+AS_CASE([$host_cpu],
+  [i?86], [hostX86=true],
+  [x86_64], [hostX86=true]
+)
+AM_CONDITIONAL([HOST_X86], [test x$hostX86 = xtrue])
 
 AC_SUBST(SQLITE3MC_LIBNAME, "sqlite3mc")
 AC_SUBST( LIBDIR, "lib" )

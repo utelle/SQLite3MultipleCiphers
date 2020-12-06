@@ -6,12 +6,16 @@ In the course of time several developers had asked for a stand-alone version of 
 
 In late February 2020 work started on a new implementation of a SQLite encryption extension that will be able to support SQLite 3.32.0 and later. The new approach is based on [SQLite's VFS feature](https://www.sqlite.org/vfs.html). This approach has its pros and cons. On the one hand, the code is less closely coupled with SQLite itself; on the other hand, access to SQLite's internal data structures is more complex.
 
-This project is _Work In Progress_. As of August 2020, the code base is now rather stable, however, further major code modifications and/or reorganizations may still occur.
+This project is _Work In Progress_. As of December 2020, the code base is now rather stable, however, further major code modifications and/or reorganizations may still occur.
 
 The code was mainly developed under Windows, but was tested under Linux as well. At the moment no major issues are known.
 
 ## Version history
 
+* 1.1.0 - *December 2020*
+  - Based on SQLite version 3.34.0
+  - Added code for AES hardware support on x86 platforms
+  - Fixed issues with sqlite3_key / sqlite3_rekey
 * 1.0.1 - *October 2020*
   - Added VSV extension (_V_ariably _S_eparated _V_alues)
 * 1.0.0 - *August 2020*

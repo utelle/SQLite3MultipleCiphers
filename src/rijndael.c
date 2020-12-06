@@ -43,7 +43,7 @@
 // and on 128 bit blocks
 */
 
-#define _RIJNDAEL_CPP_
+#define RIJNDAEL_CPP_
 
 #include "rijndael.h"
 
@@ -51,6 +51,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+/*
+** Use AES hardware support if available
+*/
+#include "aes_hardware.c"
 
 static UINT8 S[256]=
 {
@@ -71,7 +75,6 @@ static UINT8 S[256]=
   225, 248, 152,  17, 105, 217, 142, 148, 155,  30, 135, 233, 206,  85,  40, 223, 
   140, 161, 137,  13, 191, 230,  66, 104,  65, 153,  45,  15, 176,  84, 187,  22
 };
-
 
 static UINT8 T1[256][4]=
 {
@@ -966,7 +969,6 @@ static UINT32 rcon[30]=
   0xb3, 0x7d, 0xfa, 0xef, 0xc5, 0x91
 };
 
-
 /*
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // API
@@ -1011,7 +1013,6 @@ int RijndaelInit(Rijndael* rijndael, int mode, int dir, UINT8* key, int keyLen, 
     }
   }
 
-
   /* And check the key length */
   switch (keyLen)
   {
@@ -1036,22 +1037,37 @@ int RijndaelInit(Rijndael* rijndael, int mode, int dir, UINT8* key, int keyLen, 
 
   if (!key) return RIJNDAEL_BAD_KEY;
 
+#if HAS_AES_HARDWARE
+  if (aesHardwareAvailable())
+  {
+    if (rijndael->m_direction == RIJNDAEL_Direction_Encrypt)
+    {
+      aesGenKeyEncrypt(key, uKeyLenInBytes*8, (unsigned char*) rijndael->m_expandedKey);
+    }
+    else
+    {
+      aesGenKeyDecrypt(key, uKeyLenInBytes*8, (unsigned char*) rijndael->m_expandedKey);
+    }
+  }
+  else
+#endif
+  {
+    for (i = 0; i < uKeyLenInBytes; i++) keyMatrix[i >> 2][i & 3] = key[i];
 
-  for (i = 0;i < uKeyLenInBytes;i++) keyMatrix[i >> 2][i & 3] = key[i]; 
+    RijndaelKeySched(rijndael, keyMatrix);
 
-  RijndaelKeySched(rijndael, keyMatrix);
-
-  if (rijndael->m_direction == RIJNDAEL_Direction_Decrypt) RijndaelKeyEncToDec(rijndael);
+    if (rijndael->m_direction == RIJNDAEL_Direction_Decrypt) RijndaelKeyEncToDec(rijndael);
+  }
 
   rijndael->m_state = RIJNDAEL_State_Valid;
-
   return RIJNDAEL_SUCCESS;
 }
 
-int RijndaelBlockEncrypt(Rijndael* rijndael, UINT8 *input,int inputLen,UINT8 *outBuffer)
+int RijndaelBlockEncrypt(Rijndael* rijndael, UINT8* input, int inputLen, UINT8* outBuffer)
 {
   int i, k, numBlocks, lenFrag;
   UINT8 block[16], iv[4][4];
+  UINT8* outOrig = outBuffer;
 
   if (rijndael->m_state != RIJNDAEL_State_Valid) return RIJNDAEL_NOT_INITIALIZED;
   if (rijndael->m_direction != RIJNDAEL_Direction_Encrypt) return RIJNDAEL_BAD_DIRECTION;
@@ -1066,42 +1082,51 @@ int RijndaelBlockEncrypt(Rijndael* rijndael, UINT8 *input,int inputLen,UINT8 *ou
     case RIJNDAEL_Direction_Mode_ECB: 
       for(i = numBlocks;i > 0;i--)
       {
-        RijndaelEncrypt(rijndael, input,outBuffer);
+        RijndaelEncrypt(rijndael, input, outBuffer);
         input += 16;
         outBuffer += 16;
       }
     break;
     case RIJNDAEL_Direction_Mode_CBC:
-      ((UINT32*)block)[0] = ((UINT32*)rijndael->m_initVector)[0] ^ ((UINT32*)input)[0];
-      ((UINT32*)block)[1] = ((UINT32*)rijndael->m_initVector)[1] ^ ((UINT32*)input)[1];
-      ((UINT32*)block)[2] = ((UINT32*)rijndael->m_initVector)[2] ^ ((UINT32*)input)[2];
-      ((UINT32*)block)[3] = ((UINT32*)rijndael->m_initVector)[3] ^ ((UINT32*)input)[3];
-      RijndaelEncrypt(rijndael, block,outBuffer);
-      input += 16;
-      for(i = numBlocks - 1;i > 0;i--)
+#if HAS_AES_HARDWARE
+      if (aesHardwareAvailable())
       {
-        ((UINT32*)block)[0] = ((UINT32*)outBuffer)[0] ^ ((UINT32*)input)[0];
-        ((UINT32*)block)[1] = ((UINT32*)outBuffer)[1] ^ ((UINT32*)input)[1];
-        ((UINT32*)block)[2] = ((UINT32*)outBuffer)[2] ^ ((UINT32*)input)[2];
-        ((UINT32*)block)[3] = ((UINT32*)outBuffer)[3] ^ ((UINT32*)input)[3];
-        outBuffer += 16;
+        aesEncryptCBC(input, outBuffer, rijndael->m_initVector, inputLen/8, (unsigned char*) (rijndael->m_expandedKey), rijndael->m_uRounds);
+      }
+      else
+#endif
+      {
+        ((UINT32*)block)[0] = ((UINT32*)rijndael->m_initVector)[0] ^ ((UINT32*)input)[0];
+        ((UINT32*)block)[1] = ((UINT32*)rijndael->m_initVector)[1] ^ ((UINT32*)input)[1];
+        ((UINT32*)block)[2] = ((UINT32*)rijndael->m_initVector)[2] ^ ((UINT32*)input)[2];
+        ((UINT32*)block)[3] = ((UINT32*)rijndael->m_initVector)[3] ^ ((UINT32*)input)[3];
         RijndaelEncrypt(rijndael, block,outBuffer);
         input += 16;
-      }
-      /**/
-      if (lenFrag > 0)
-      {
-        UINT8 lastblock[16];
-        /* Adjust the second last plainblock. */
-        memcpy(lastblock, outBuffer, lenFrag);
-        /* Encrypt the last plainblock. */
-        memcpy(block, outBuffer, 16);
-        for (i = 0; i < lenFrag; i++)
+        for(i = numBlocks - 1;i > 0;i--)
         {
-          block[i] ^= input[i];
+          ((UINT32*)block)[0] = ((UINT32*)outBuffer)[0] ^ ((UINT32*)input)[0];
+          ((UINT32*)block)[1] = ((UINT32*)outBuffer)[1] ^ ((UINT32*)input)[1];
+          ((UINT32*)block)[2] = ((UINT32*)outBuffer)[2] ^ ((UINT32*)input)[2];
+          ((UINT32*)block)[3] = ((UINT32*)outBuffer)[3] ^ ((UINT32*)input)[3];
+          outBuffer += 16;
+          RijndaelEncrypt(rijndael, block,outBuffer);
+          input += 16;
         }
-        RijndaelEncrypt(rijndael, block, outBuffer);
-        memcpy(outBuffer + 16, lastblock, lenFrag);
+        /**/
+        if (lenFrag > 0)
+        {
+          UINT8 lastblock[16];
+          /* Adjust the second last plain block. */
+          memcpy(lastblock, outBuffer, lenFrag);
+          /* Encrypt the last plain block. */
+          memcpy(block, outBuffer, 16);
+          for (i = 0; i < lenFrag; i++)
+          {
+            block[i] ^= input[i];
+          }
+          RijndaelEncrypt(rijndael, block, outBuffer);
+          memcpy(outBuffer + 16, lastblock, lenFrag);
+        }
       }
     break;
     case RIJNDAEL_Direction_Mode_CFB1:
@@ -1211,10 +1236,11 @@ int RijndaelPadEncrypt(Rijndael* rijndael, UINT8 *input, int inputOctets, UINT8 
   return 16*(numBlocks + 1);
 }
   
-int RijndaelBlockDecrypt(Rijndael* rijndael, UINT8 *input, int inputLen, UINT8 *outBuffer)
+int RijndaelBlockDecrypt(Rijndael* rijndael, UINT8* input, int inputLen, UINT8* outBuffer)
 {
   int i, k, numBlocks, lenFrag;
   UINT8 block[16], iv[4][4];
+  UINT8* outOrig = outBuffer;
 
   if (rijndael->m_state != RIJNDAEL_State_Valid) return RIJNDAEL_NOT_INITIALIZED;
   if ((rijndael->m_mode != RIJNDAEL_Direction_Mode_CFB1) && (rijndael->m_direction == RIJNDAEL_Direction_Encrypt)) return RIJNDAEL_BAD_DIRECTION;
@@ -1235,63 +1261,72 @@ int RijndaelBlockDecrypt(Rijndael* rijndael, UINT8 *input, int inputLen, UINT8 *
       }
     break;
     case RIJNDAEL_Direction_Mode_CBC:
-      if (lenFrag > 0)
+#if HAS_AES_HARDWARE
+      if (aesHardwareAvailable())
       {
-        UINT8 lastblock[16];
-        int offset;
-        --numBlocks;
-        offset = numBlocks * 16;
-        /* Decrypt the last plainblock. */
-        RijndaelDecrypt(rijndael, input + offset, block);
-        for (i = 0; i < lenFrag; i++)
-        {
-          lastblock[i] = block[i] ^ (input + offset + 16)[i];
-        }
-        /* Decrypt the second last block. */
-        memcpy(block, input + offset + 16, lenFrag);
-        RijndaelDecrypt(rijndael, block, outBuffer + offset);
-        memcpy(outBuffer + offset + 16, lastblock, lenFrag);
-        if (offset == 0)
-        {
-          for (i = 0; i < 16; i++)
-          {
-            (outBuffer + offset)[i] ^= rijndael->m_initVector[i];
-          }
-        }
-        else
-        {
-          for (i = 0; i < 16; i++)
-          {
-            (outBuffer + offset)[i] ^= (input + offset - 16)[i];
-          }
-        }
+        aesDecryptCBC(input, outBuffer, rijndael->m_initVector, inputLen/8, (unsigned char*) (rijndael->m_expandedKey), rijndael->m_uRounds);
       }
-#if STRICT_ALIGN 
-      memcpy(iv,rijndael->m_initVector,16); 
-#else
-      *((UINT32*)iv[0]) = *((UINT32*)(rijndael->m_initVector  ));
-      *((UINT32*)iv[1]) = *((UINT32*)(rijndael->m_initVector+ 4));
-      *((UINT32*)iv[2]) = *((UINT32*)(rijndael->m_initVector+ 8));
-      *((UINT32*)iv[3]) = *((UINT32*)(rijndael->m_initVector+12));
+      else
 #endif
-      for (i = numBlocks; i > 0; i--)
       {
-        RijndaelDecrypt(rijndael, input, block);
-        ((UINT32*)block)[0] ^= *((UINT32*)iv[0]);
-        ((UINT32*)block)[1] ^= *((UINT32*)iv[1]);
-        ((UINT32*)block)[2] ^= *((UINT32*)iv[2]);
-        ((UINT32*)block)[3] ^= *((UINT32*)iv[3]);
-#if STRICT_ALIGN
-        memcpy(iv, input, 16);
-        memcpy(outBuf, block, 16);
+        if (lenFrag > 0)
+        {
+          UINT8 lastblock[16];
+          int offset;
+          --numBlocks;
+          offset = numBlocks * 16;
+          /* Decrypt the last plain block. */
+          RijndaelDecrypt(rijndael, input + offset, block);
+          for (i = 0; i < lenFrag; i++)
+          {
+            lastblock[i] = block[i] ^ (input + offset + 16)[i];
+          }
+          /* Decrypt the second last block. */
+          memcpy(block, input + offset + 16, lenFrag);
+          RijndaelDecrypt(rijndael, block, outBuffer + offset);
+          memcpy(outBuffer + offset + 16, lastblock, lenFrag);
+          if (offset == 0)
+          {
+            for (i = 0; i < 16; i++)
+            {
+              (outBuffer + offset)[i] ^= rijndael->m_initVector[i];
+            }
+          }
+          else
+          {
+            for (i = 0; i < 16; i++)
+            {
+              (outBuffer + offset)[i] ^= (input + offset - 16)[i];
+            }
+          }
+        }
+#if STRICT_ALIGN 
+        memcpy(iv,rijndael->m_initVector,16); 
 #else
-        *((UINT32*)iv[0]) = ((UINT32*)input)[0]; ((UINT32*)outBuffer)[0] = ((UINT32*)block)[0];
-        *((UINT32*)iv[1]) = ((UINT32*)input)[1]; ((UINT32*)outBuffer)[1] = ((UINT32*)block)[1];
-        *((UINT32*)iv[2]) = ((UINT32*)input)[2]; ((UINT32*)outBuffer)[2] = ((UINT32*)block)[2];
-        *((UINT32*)iv[3]) = ((UINT32*)input)[3]; ((UINT32*)outBuffer)[3] = ((UINT32*)block)[3];
+        *((UINT32*)iv[0]) = *((UINT32*)(rijndael->m_initVector  ));
+        *((UINT32*)iv[1]) = *((UINT32*)(rijndael->m_initVector+ 4));
+        *((UINT32*)iv[2]) = *((UINT32*)(rijndael->m_initVector+ 8));
+        *((UINT32*)iv[3]) = *((UINT32*)(rijndael->m_initVector+12));
 #endif
-        input += 16;
-        outBuffer += 16;
+        for (i = numBlocks; i > 0; i--)
+        {
+          RijndaelDecrypt(rijndael, input, block);
+          ((UINT32*)block)[0] ^= *((UINT32*)iv[0]);
+          ((UINT32*)block)[1] ^= *((UINT32*)iv[1]);
+          ((UINT32*)block)[2] ^= *((UINT32*)iv[2]);
+          ((UINT32*)block)[3] ^= *((UINT32*)iv[3]);
+#if STRICT_ALIGN
+          memcpy(iv, input, 16);
+          memcpy(outBuf, block, 16);
+#else
+          *((UINT32*)iv[0]) = ((UINT32*)input)[0]; ((UINT32*)outBuffer)[0] = ((UINT32*)block)[0];
+          *((UINT32*)iv[1]) = ((UINT32*)input)[1]; ((UINT32*)outBuffer)[1] = ((UINT32*)block)[1];
+          *((UINT32*)iv[2]) = ((UINT32*)input)[2]; ((UINT32*)outBuffer)[2] = ((UINT32*)block)[2];
+          *((UINT32*)iv[3]) = ((UINT32*)input)[3]; ((UINT32*)outBuffer)[3] = ((UINT32*)block)[3];
+#endif
+          input += 16;
+          outBuffer += 16;
+        }
       }
       break;
     case RIJNDAEL_Direction_Mode_CFB1:
