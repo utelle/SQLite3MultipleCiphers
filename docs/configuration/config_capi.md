@@ -122,8 +122,8 @@ The following table lists the supported cipher identifiers:
 
 | Cipher ID | Preprocessor Symbol | Cipher |
 | :---: | :--- | :--- |
-| 1 | `CODEC_TYPE_AES128` | [wxSQLite3: AES 128 Bit]({% link ../ciphers/cipher_aes128cbc.md %}) |
-| 2 | `CODEC_TYPE_AES256` | [wxSQLite3: AES 256 Bit](../ciphers/cipher_aes256cbc.md) |
+| 1 | `CODEC_TYPE_AES128` | [wxSQLite3: AES 128 Bit]({% link docs/ciphers/cipher_aes128cbc.md %}) |
+| 2 | `CODEC_TYPE_AES256` | [wxSQLite3: AES 256 Bit]({{ site.baseurl }}{% link docs/ciphers/cipher_aes256cbc.md %}) |
 | 3 | `CODEC_TYPE_CHACHA20`  | [sqleet: ChaCha20](../ciphers/cipher_chacha20.md) |
 | 4 | `CODEC_TYPE_SQLCIPHER` | [SQLCipher: AES 256 Bit]({../ciphers/cipher_sqlcipher.md) |
 | 5 | `CODEC_TYPE_RC4` | [System.Data.SQLite: RC4](../ciphers/cipher_sds_rc4.md) |
