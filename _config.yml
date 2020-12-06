@@ -7,7 +7,7 @@ description: SQLite3 encryption extension with support for multiple ciphers
 tagline: SQLite3 encryption extension with support for multiple ciphers
 
 #baseurl: "/SQLite3MultipleCiphers"
-url: "https://utelle.github.io"
+url: "https://utelle.github.io/SQLite3MultipleCiphers"
 
 permalink: pretty
 #exclude: ["node_modules/", "*.gemspec", "*.gem", "Gemfile", "Gemfile.lock", "package.json", "package-lock.json",  "script/", "LICENSE.txt", "lib/", "bin/", "README.md", "Rakefile"]
