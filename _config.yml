@@ -6,7 +6,7 @@ title: "SQLite3 Multiple&nbsp;Ciphers"
 description: SQLite3 encryption extension with support for multiple ciphers
 tagline: SQLite3 encryption extension with support for multiple ciphers
 
-baseurl: "/SQLite3MultipleCiphers"
+#baseurl: "/SQLite3MultipleCiphers"
 #url: "https://utelle.github.io"
 
 permalink: pretty
