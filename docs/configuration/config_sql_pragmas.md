@@ -82,7 +82,7 @@ PRAGMA key = 'raw:54686973206973206D792076657279207365637265742070617373776F7264
 
 Note
 {: .label .label-red .ml-0 .mb-1 .mt-2 }
-Currently only the cipher schemes [sqleet: ChaCha20]({% link docs/ciphers/cipher_chacha20.md %}) and [SQLCipher: AES 256 Bit]({% link docs/ciphers/cipher_sqlcipher.md %}) support this method, requiring the literal syntax as given in the example.
+Currently only the cipher schemes [sqleet: ChaCha20](/ciphers/cipher_chacha20.md) and [SQLCipher: AES 256 Bit](/ciphers/cipher_sqlcipher.md) support this method, requiring the literal syntax as given in the example.
 
 <span class="label label-green">Example 3:</span> _Raw key data including salt (without key derivation)_
 
@@ -97,7 +97,7 @@ PRAGMA key = 'raw:54686973206973206D792076657279207365637265742070617373776F7264
 
 Note
 {: .label .label-red .ml-0 .mb-1 .mt-2 }
-Currently only the cipher schemes [sqleet: ChaCha20]({% link docs/ciphers/cipher_chacha20.md %}) and [SQLCipher: AES 256 Bit]({% link docs/ciphers/cipher_sqlcipher.md %}) support this method, requiring the literal syntax as given in the example.
+Currently only the cipher schemes [sqleet: ChaCha20](/ciphers/cipher_chacha20.md) and [SQLCipher: AES 256 Bit](/ciphers/cipher_sqlcipher.md) support this method, requiring the literal syntax as given in the example.
 
 ---
 
@@ -153,11 +153,11 @@ The `PRAGMA cipher` allows to select the cipher to be used for encrypting the da
 PRAGMA cipher = { ciphername | 'ciphername' | "ciphername" };
 ```
 where `ciphername` is one of the following strings:
-- **_aes128cbc_** = [wxSQLite3: AES 128 Bit]({% link docs/ciphers/cipher_aes128cbc.md %}), 
-- **_aes256cbc_** = [wxSQLite3: AES 256 Bit]({% link docs/ciphers/cipher_aes256cbc.md %}), 
-- **_chacha20_** = [sqleet: ChaCha20]({% link docs/ciphers/cipher_chacha20.md %}), 
-- **_sqlcipher_** = [SQLCipher: AES 256 Bit]({% link docs/ciphers/cipher_sqlcipher.md %}), 
-- **_rc4_** = [System.Data.SQLite: RC4]({% link docs/ciphers/cipher_sds_rc4.md %})
+- **_aes128cbc_** = [wxSQLite3: AES 128 Bit](/ciphers/cipher_aes128cbc.md), 
+- **_aes256cbc_** = [wxSQLite3: AES 256 Bit](/ciphers/cipher_aes256cbc.md), 
+- **_chacha20_** = [sqleet: ChaCha20](/ciphers/cipher_chacha20.md), 
+- **_sqlcipher_** = [SQLCipher: AES 256 Bit](/ciphers/cipher_sqlcipher.md), 
+- **_rc4_** = [System.Data.SQLite: RC4](/ciphers/cipher_sds_rc4.md)
 
 <span class="label label-green">Example:</span> _Select cipher wxSQLite3: AES 256 Bit_
 
@@ -194,13 +194,13 @@ For each `PRAGMA` in the following sections it is noted to which cipher schemes 
 
 ### PRAGMA *legacy*
 
-**Applicable to:** [wxSQLite3: AES 128 Bit]({% link docs/ciphers/cipher_aes128cbc.md %}), 
-[wxSQLite3: AES 256 Bit]({% link docs/ciphers/cipher_aes256cbc.md %}), 
-[sqleet: ChaCha20]({% link docs/ciphers/cipher_chacha20.md %}), 
-[SQLCipher: AES 256 Bit]({% link docs/ciphers/cipher_sqlcipher.md %}), 
-[System.Data.SQLite: RC4]({% link docs/ciphers/cipher_sds_rc4.md %})
+**Applicable to:** [wxSQLite3: AES 128 Bit](/ciphers/cipher_aes128cbc.md), 
+[wxSQLite3: AES 256 Bit](/ciphers/cipher_aes256cbc.md), 
+[sqleet: ChaCha20](/ciphers/cipher_chacha20.md), 
+[SQLCipher: AES 256 Bit](/ciphers/cipher_sqlcipher.md), 
+[System.Data.SQLite: RC4](/ciphers/cipher_sds_rc4.md)
 
-The `PRAGMA legacy` defines the [_legacy_ mode]({% link docs/ciphers/cipher_legacy_mode.md %}) for a cipher scheme. It has the following syntax:
+The `PRAGMA legacy` defines the [_legacy_ mode](/ciphers/cipher_legacy_mode.md) for a cipher scheme. It has the following syntax:
 
 ```sql
 PRAGMA legacy = { 0 | 1 ... };
@@ -215,13 +215,13 @@ Note
 ### PRAGMA *legacy\_page\_size*
 
 **Applicable to:** 
-[wxSQLite3: AES 128 Bit]({% link docs/ciphers/cipher_aes128cbc.md %}), 
-[wxSQLite3: AES 256 Bit]({% link docs/ciphers/cipher_aes256cbc.md %}), 
-[sqleet: ChaCha20]({% link docs/ciphers/cipher_chacha20.md %}), 
-[SQLCipher: AES 256 Bit]({% link docs/ciphers/cipher_sqlcipher.md %}), 
-[System.Data.SQLite: RC4]({% link docs/ciphers/cipher_sds_rc4.md %})
+[wxSQLite3: AES 128 Bit](/ciphers/cipher_aes128cbc.md), 
+[wxSQLite3: AES 256 Bit](/ciphers/cipher_aes256cbc.md), 
+[sqleet: ChaCha20](/ciphers/cipher_chacha20.md), 
+[SQLCipher: AES 256 Bit](/ciphers/cipher_sqlcipher.md), 
+[System.Data.SQLite: RC4](/ciphers/cipher_sds_rc4.md)
 
-The `PRAGMA legacy_page_size` specifies the database page size to be used in [_legacy_ mode]({% link docs/ciphers/cipher_legacy_mode.md %}) for a cipher scheme. It has the following syntax:
+The `PRAGMA legacy_page_size` specifies the database page size to be used in [_legacy_ mode](/ciphers/cipher_legacy_mode.md) for a cipher scheme. It has the following syntax:
 
 ```sql
 PRAGMA legacy_page_size = { 0 | 512 | 1024 | ... 65536 };
@@ -240,9 +240,9 @@ Note
 ### PRAGMA *kdf\_iter*
 
 **Applicable to:** 
-[wxSQLite3: AES 256 Bit]({% link docs/ciphers/cipher_aes256cbc.md %}), 
-[sqleet: ChaCha20]({% link docs/ciphers/cipher_chacha20.md %}), 
-[SQLCipher: AES 256 Bit]({% link docs/ciphers/cipher_sqlcipher.md %})
+[wxSQLite3: AES 256 Bit](/ciphers/cipher_aes256cbc.md), 
+[sqleet: ChaCha20](/ciphers/cipher_chacha20.md), 
+[SQLCipher: AES 256 Bit](/ciphers/cipher_sqlcipher.md)
 
 Most key derivation functions perform a certain number of iterations to strengthen the key and make it resistent to brute force and dictionary attacks. The `PRAGMA kdf_iter` statement can be used to increase or decrease the number of iterations used. It has the following syntax:
 
@@ -260,7 +260,7 @@ Note
 ### PRAGMA *fast\_kdf\_iter*
 
 **Applicable to:** 
-[SQLCipher: AES 256 Bit]({% link docs/ciphers/cipher_sqlcipher.md %})
+[SQLCipher: AES 256 Bit](/ciphers/cipher_sqlcipher.md)
 
 The cipher scheme **SQLCipher** also performs a certain number of iterations for HMAC key derivation. The `PRAGMA fast_kdf_iter` statement can be used to increase or decrease the number of iterations used. It has the following syntax:
 
@@ -277,7 +277,7 @@ Note
 ### PRAGMA *hmac\_use*
 
 **Applicable to:** 
-[SQLCipher: AES 256 Bit]({% link docs/ciphers/cipher_sqlcipher.md %})
+[SQLCipher: AES 256 Bit](/ciphers/cipher_sqlcipher.md)
 
 The cipher scheme **SQLCipher** allows to enable or disable the use of per-page HMACs. The `PRAGMA hmac_use` statement can be used to enable or disable the use of HMACs. It has the following syntax:
 
@@ -294,7 +294,7 @@ Note
 ### PRAGMA *hmac\_pgno*
 
 **Applicable to:** 
-[SQLCipher: AES 256 Bit]({% link docs/ciphers/cipher_sqlcipher.md %})
+[SQLCipher: AES 256 Bit](/ciphers/cipher_sqlcipher.md)
 
 The cipher scheme **SQLCipher** uses the number of the current page to calculate the HMAC of that page. The `PRAGMA hmac_pgno` statement allows to modify in which endianess the page number should be used. It has the following syntax:
 
@@ -315,7 +315,7 @@ Note
 ### PRAGMA *hmac\_salt\_mask*
 
 **Applicable to:** 
-[SQLCipher: AES 256 Bit]({% link docs/ciphers/cipher_sqlcipher.md %})
+[SQLCipher: AES 256 Bit](/ciphers/cipher_sqlcipher.md)
 
 The cipher scheme **SQLCipher** uses a certain mask byte in calculating the HMAC salt. The `PRAGMA hmac_salt_mask` statement allows to modify the mask byte. It has the following syntax:
 
@@ -333,7 +333,7 @@ Note
 ### PRAGMA *kdf\_algorithm*
 
 **Applicable to:** 
-[SQLCipher: AES 256 Bit]({% link docs/ciphers/cipher_sqlcipher.md %})
+[SQLCipher: AES 256 Bit](/ciphers/cipher_sqlcipher.md)
 
 The `PRAGMA kdf_algorithm` statement allows to modify hash algorithm used for key derivation. It has the following syntax:
 
@@ -350,7 +350,7 @@ where the value corresponds to the hash algoritm for key derivation function:
 ### PRAGMA *hmac\_algorithm*
 
 **Applicable to:** 
-[SQLCipher: AES 256 Bit]({% link docs/ciphers/cipher_sqlcipher.md %})
+[SQLCipher: AES 256 Bit](docs/ciphers/cipher_sqlcipher.md)
 
 The `PRAGMA hmac_algorithm` statement allows to modify hash algorithm used for HMAC calculation. It has the following syntax:
 
@@ -367,7 +367,7 @@ where the value corresponds to the hash algoritm for HMAC calculation:
 ### PRAGMA *plaintext\_header\_size*
 
 **Applicable to:**
-[SQLCipher: AES 256 Bit]({% link docs/ciphers/cipher_sqlcipher.md %})
+[SQLCipher: AES 256 Bit](/ciphers/cipher_sqlcipher.md)
 
 The cipher scheme **SQLCipher** introduced a `PRAGMA` statement to keep the database header partially unencrypted in version 4. In the first place, it allows to overcome an issue with shared encrypted databases under iOS, when a database is operated in WAL mode. Such a database will be stored in a [shared container](https://developer.apple.com/library/archive/documentation/General/Conceptual/ExtensibilityPG/ExtensionScenarios.html). In this special case iOS actually examines a database file to determine whether it is an SQLite database in WAL mode. If the database is in WAL mode, then iOS extends [special privileges](https://developer.apple.com/library/content/technotes/tn2408/_index.html), allowing the application to maintain a file lock on the main database while it is in the background. However, if iOS can’t determine the file type from the database header, then iOS will kill the application process when it attempts to background with a file lock.
 

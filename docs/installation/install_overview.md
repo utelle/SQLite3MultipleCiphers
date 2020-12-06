@@ -87,17 +87,17 @@ In principle, the ICU DLLs should be compatible with Visual C++ 2015 and Visual 
 
 ## Default settings
 
-Currently the cipher scheme [sqleet: ChaCha20]({% link docs/ciphers/cipher_chacha20.md %}) is set as the default.
+Currently the cipher scheme [sqleet: ChaCha20](/ciphers/cipher_chacha20.md) is set as the default.
 However, this can be changed by setting the preprocessor symbol `CODEC_TYPE` to one of the values listed in
 the following table:
 
 | Preprocessor Symbol | Cipher |
 | :--- | :--- |
-| `CODEC_TYPE_AES128` | [wxSQLite3: AES 128 Bit]({% link docs/ciphers/cipher_aes128cbc.md %}) |
-| `CODEC_TYPE_AES256` | [wxSQLite3: AES 256 Bit]({% link docs/ciphers/cipher_aes256cbc.md %}) |
-| `CODEC_TYPE_CHACHA20`  | [sqleet: ChaCha20]({% link docs/ciphers/cipher_chacha20.md %}) |
-| `CODEC_TYPE_SQLCIPHER` | [SQLCipher: AES 256 Bit]({% link docs/ciphers/cipher_sqlcipher.md %}) |
-| `CODEC_TYPE_RC4` | [System.Data.SQLite: RC4]({% link docs/ciphers/cipher_sds_rc4.md %}) |
+| `CODEC_TYPE_AES128` | [wxSQLite3: AES 128 Bit](/ciphers/cipher_aes128cbc.md) |
+| `CODEC_TYPE_AES256` | [wxSQLite3: AES 256 Bit](/ciphers/cipher_aes256cbc.md) |
+| `CODEC_TYPE_CHACHA20`  | [sqleet: ChaCha20](/ciphers/cipher_chacha20.md) |
+| `CODEC_TYPE_SQLCIPHER` | [SQLCipher: AES 256 Bit](/ciphers/cipher_sqlcipher.md) |
+| `CODEC_TYPE_RC4` | [System.Data.SQLite: RC4](/ciphers/cipher_sds_rc4.md) |
 
 Notes
 {: .label .label-red .ml-0 .mb-1 .mt-2 }

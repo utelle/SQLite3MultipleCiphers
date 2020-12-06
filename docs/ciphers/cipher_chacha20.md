@@ -26,4 +26,4 @@ The following table lists all parameters related to this cipher that can be set 
 
 **Note**
 {: .label .label-red .ml-0 .mb-1 .mt-2 }
-- It is not recommended to use [_legacy_ mode]({% link docs/ciphers/cipher_legacy_mode.md %}) for encrypting new databases. It is supported for compatibility reasons only, so that databases that were encrypted in _legacy_ mode can be accessed.
+- It is not recommended to use [_legacy_ mode](/ciphers/cipher_legacy_mode.md) for encrypting new databases. It is supported for compatibility reasons only, so that databases that were encrypted in _legacy_ mode can be accessed.

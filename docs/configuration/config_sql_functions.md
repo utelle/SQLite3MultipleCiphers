@@ -8,7 +8,7 @@ nav_order: 2
 # SQL Functions
 {: .no_toc }
 
-**SQLite3 Multiple Ciphers** defines several SQL functions, which can be used to configure global encryption parameters or specific cipher parameters. They offer the same functionality as the [PRAGMA]({% link docs/configuration/config_sql_pragmas.md %}) statements, but can be called from any SQL statement expression.
+**SQLite3 Multiple Ciphers** defines several SQL functions, which can be used to configure global encryption parameters or specific cipher parameters. They offer the same functionality as the [PRAGMA](/configuration/config_sql_pragmas.md) statements, but can be called from any SQL statement expression.
 
 ## Table of contents
 {: .no_toc .text-delta }
@@ -47,11 +47,11 @@ The following table lists the supported cipher identifiers:
 
 | Cipher ID | Cipher name | Cipher |
 | :---: | :--- | :--- |
-| 1 | `aes128cbc` | [wxSQLite3: AES 128 Bit]({% link docs/ciphers/cipher_aes128cbc.md %}) |
-| 2 | `aes256cbc` | [wxSQLite3: AES 256 Bit]({% link docs/ciphers/cipher_aes256cbc.md %}) |
-| 3 | `chacha20`  | [sqleet: ChaCha20]({% link docs/ciphers/cipher_chacha20.md %}) |
-| 4 | `sqlcipher` | [SQLCipher: AES 256 Bit]({% link docs/ciphers/cipher_sqlcipher.md %}) |
-| 5 | `rc4` | [System.Data.SQLite: RC4]({% link docs/ciphers/cipher_sds_rc4.md %}) |
+| 1 | `aes128cbc` | [wxSQLite3: AES 128 Bit](/ciphers/cipher_aes128cbc.md) |
+| 2 | `aes256cbc` | [wxSQLite3: AES 256 Bit](/ciphers/cipher_aes256cbc.md) |
+| 3 | `chacha20`  | [sqleet: ChaCha20](/ciphers/cipher_chacha20.md) |
+| 4 | `sqlcipher` | [SQLCipher: AES 256 Bit](/ciphers/cipher_sqlcipher.md) |
+| 5 | `rc4` | [System.Data.SQLite: RC4](/ciphers/cipher_sds_rc4.md) |
 
 Note
 {: .label .label-red .ml-0 .mb-1 .mt-2 }
@@ -82,7 +82,7 @@ This version of the function `sqlite3mc_config` gets or sets cipher configuratio
 
 Note
 {: .label .label-red .ml-0 .mb-1 .mt-2 }
-- See the related [cipher descriptions]({% link docs/ciphers/cipher_overview.md %}) for the parameter names supported for `paramName`.
+- See the related [cipher descriptions](/ciphers/cipher_overview.md) for the parameter names supported for `paramName`.
 
 <span class="label label-green">Examples</span>
 

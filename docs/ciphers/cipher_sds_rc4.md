@@ -21,5 +21,5 @@ The following table lists all parameters related to this cipher that can be set 
 
 **Notes**
 {: .label .label-red .ml-0 .mb-1 .mt-2 }
-- Currently only the [_legacy_ mode]({% link docs/ciphers/cipher_legacy_mode.md %}) is implemented; it is not intended to implement a _non-legacy_ mode in the future, because RC4 encryption has known weaknesses (for example, the use of RC4 in TLS was prohibited by RFC 7465 published in February 2015).
+- Currently only the [_legacy_ mode](/ciphers/cipher_legacy_mode.md}) is implemented; it is not intended to implement a _non-legacy_ mode in the future, because RC4 encryption has known weaknesses (for example, the use of RC4 in TLS was prohibited by RFC 7465 published in February 2015).
 - **The use of this cipher scheme for new applications is strongly discouraged.**
