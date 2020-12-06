@@ -122,11 +122,11 @@ The following table lists the supported cipher identifiers:
 
 | Cipher ID | Preprocessor Symbol | Cipher |
 | :---: | :--- | :--- |
-| 1 | `CODEC_TYPE_AES128` | [wxSQLite3: AES 128 Bit]({% link docs/ciphers/cipher_aes128cbc.md %}) |
+| 1 | `CODEC_TYPE_AES128` | [wxSQLite3: AES 128 Bit]({{ site.baseurl }}{% link docs/ciphers/cipher_aes128cbc.md %}) |
 | 2 | `CODEC_TYPE_AES256` | [wxSQLite3: AES 256 Bit]({{ site.baseurl }}{% link docs/ciphers/cipher_aes256cbc.md %}) |
-| 3 | `CODEC_TYPE_CHACHA20`  | [sqleet: ChaCha20](../ciphers/cipher_chacha20.md) |
-| 4 | `CODEC_TYPE_SQLCIPHER` | [SQLCipher: AES 256 Bit]({../ciphers/cipher_sqlcipher.md) |
-| 5 | `CODEC_TYPE_RC4` | [System.Data.SQLite: RC4](../ciphers/cipher_sds_rc4.md) |
+| 3 | `CODEC_TYPE_CHACHA20`  | [sqleet: ChaCha20]({{ site.baseurl }}{% link docs/ciphers/cipher_chacha20.md %}) |
+| 4 | `CODEC_TYPE_SQLCIPHER` | [SQLCipher: AES 256 Bit]({{ site.baseurl }}{% link docs/ciphers/cipher_sqlcipher.md %}) |
+| 5 | `CODEC_TYPE_RC4` | [System.Data.SQLite: RC4]({{ site.baseurl }}{% link docs/ciphers/cipher_sds_rc4.md %}) |
 
 The return value always is the current parameter value on success, or **-1** on failure.
 
@@ -170,11 +170,11 @@ The following cipher names are supported for `cipherName`:
 
 | Cipher name | Refers to | Description |
 | :--- | :--- | :--- |
-| `aes128cbc` | `1`&nbsp;=&nbsp;`CODEC_TYPE_AES128` | [AES 128 Bit CBC - No HMAC (wxSQLite3)](../ciphers/cipher_aes128cbc.md) |
-| `aes256cbc` | `2`&nbsp;=&nbsp;`CODEC_TYPE_AES256` | [AES 256 Bit CBC - No HMAC (wxSQLite3)](../ciphers/cipher_aes256cbc.md) |
-| `chacha20`  | `3`&nbsp;=&nbsp;`CODEC_TYPE_CHACHA20` | [ChaCha20 - Poly1305 HMAC (sqleet)](../ciphers/cipher_chacha20.md) |
-| `sqlcipher` | `4`&nbsp;=&nbsp;`CODEC_TYPE_SQLCIPHER` | [AES 256 Bit CBC - SHA1 HMAC (SQLCipher)](../ciphers/cipher_sqlcipher.md) |
-| `rc4`       | `5`&nbsp;=&nbsp;`CODEC_TYPE_RC4` | [RC4 (System.Data.SQLite)](../ciphers/cipher_sds_rc4.md) |
+| `aes128cbc` | `1`&nbsp;=&nbsp;`CODEC_TYPE_AES128` | [AES 128 Bit CBC - No HMAC (wxSQLite3)]({{ site.baseurl }}{% link docs/ciphers/cipher_aes128cbc.md %}) |
+| `aes256cbc` | `2`&nbsp;=&nbsp;`CODEC_TYPE_AES256` | [AES 256 Bit CBC - No HMAC (wxSQLite3)]({{ site.baseurl }}{% link docs/ciphers/cipher_aes256cbc.md %}) |
+| `chacha20`  | `3`&nbsp;=&nbsp;`CODEC_TYPE_CHACHA20` | [ChaCha20 - Poly1305 HMAC (sqleet)]({{ site.baseurl }}{% link docs/ciphers/cipher_chacha20.md %}) |
+| `sqlcipher` | `4`&nbsp;=&nbsp;`CODEC_TYPE_SQLCIPHER` | [AES 256 Bit CBC - SHA1 HMAC (SQLCipher)]({{ site.baseurl }}{% link docs/ciphers/cipher_sqlcipher.md %}) |
+| `rc4`       | `5`&nbsp;=&nbsp;`CODEC_TYPE_RC4` | [RC4 (System.Data.SQLite)]({{ site.baseurl }}{% link docs/ciphers/cipher_sds_rc4.md %}) |
 
 The return value always is the current parameter value on success, or **-1** on failure.
 
