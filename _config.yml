@@ -37,6 +37,7 @@ color_scheme: nil
 
 plugins:
   - jekyll-seo-tag
+  - jekyll-relative-links
 
 compress_html:
   clippings: all
