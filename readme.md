@@ -12,6 +12,8 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version history
 
+* 1.1.1 - *December 2020*
+  - Fixed a bug on removing encryption from an encrypted database
 * 1.1.0 - *December 2020*
   - Based on SQLite version 3.34.0
   - Added code for AES hardware support on x86 platforms

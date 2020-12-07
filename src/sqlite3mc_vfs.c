@@ -252,7 +252,10 @@ SQLITE_PRIVATE void sqlite3mcSetCodec(sqlite3* db, const char* zFileName, Codec*
       sqlite3mcCodecFree(pDbMain->codec);
     }
     pDbMain->codec = codec;
-    mcReportCodecError(sqlite3mcGetBtShared(codec), SQLITE_OK);
+    if (codec)
+    {
+      mcReportCodecError(sqlite3mcGetBtShared(codec), SQLITE_OK);
+    }
   }
   else
   {
