@@ -645,6 +645,11 @@ sqlite3mcConfigureFromUri(sqlite3* db, const char *zDbName, int configDefault)
       cipherParams = (strlen(globalCodecParameterTable[j].m_name) > 0) ? globalCodecParameterTable[j].m_params : NULL;
       if (cipherParams != NULL)
       {
+        /*
+        ** Flag whether to skip the legacy parameter
+        ** Currently enabled only in case of the SQLCipher scheme
+        */
+        int skipLegacy = 0;
         /* Set global parameters (cipher and hmac_check) */
         int hmacCheck = sqlite3_uri_boolean(dbFileName, "hmac_check", 1);
         if (configDefault)
@@ -666,13 +671,17 @@ sqlite3mcConfigureFromUri(sqlite3* db, const char *zDbName, int configDefault)
           int legacy = (int) sqlite3_uri_int64(dbFileName, "legacy", 0);
           if (legacy > 0 && legacy <= SQLCIPHER_VERSION_MAX)
           {
-            sqlite3mcConfigureSQLCipherVersion(db, configDefault, legacy);
+            char* param = (configDefault) ? "default:legacy" : "legacy";
+            sqlite3mc_config_cipher(db, cipherName, param, legacy);
+            skipLegacy = 1;
           }
         }
 
         /* Check all cipher specific parameters */
         for (j = 0; strlen(cipherParams[j].m_name) > 0; ++j)
         {
+          if (skipLegacy && sqlite3_stricmp(cipherParams[j].m_name, "legacy") == 0) continue;
+
           int value = (int) sqlite3_uri_int64(dbFileName, cipherParams[j].m_name, -1);
           if (value >= 0)
           {
@@ -816,56 +825,28 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
       if (cipherParams != NULL)
       {
         const char* cipherName = globalCodecParameterTable[j].m_name;
-        if ((cipher == CODEC_TYPE_SQLCIPHER) && (sqlite3StrICmp(pragmaName, "legacy") == 0))
+        int j;
+        for (j = 0; strlen(cipherParams[j].m_name) > 0; ++j)
         {
-          /* Special handling for SQLCipher */
-          int legacy = (isIntValue) ? intValue : -1;
-          if (legacy > 0 && legacy <= SQLCIPHER_VERSION_MAX)
+          if (sqlite3_stricmp(pragmaName, cipherParams[j].m_name) == 0) break;
+        }
+        if (strlen(cipherParams[j].m_name) > 0)
+        {
+          char* param = (configDefault) ? sqlite3_mprintf("default:%s", pragmaName) : pragmaName;
+          if (isIntValue)
           {
-            sqlite3mcConfigureSQLCipherVersion(db, configDefault, legacy);
-            ((char**)pArg)[0] = sqlite3_mprintf("%d", legacy);
+            int value = sqlite3mc_config_cipher(db, cipherName, param, intValue);
+            ((char**)pArg)[0] = sqlite3_mprintf("%d", value);
             rc = SQLITE_OK;
           }
           else
           {
-            int value;
-            if (configDefault)
-            {
-              value = sqlite3mc_config_cipher(db, "sqlcipher", "default:legacy", legacy);
-            }
-            else
-            {
-              value = sqlite3mc_config_cipher(db, "sqlcipher", "legacy", legacy);
-            }
-            ((char**)pArg)[0] = sqlite3_mprintf("%d", value);
-            rc = SQLITE_OK;
+            ((char**) pArg)[0] = sqlite3_mprintf("Malformed integer value '%s'.", pragmaValue);
+            rc = SQLITE_ERROR;
           }
-        }
-        else
-        {
-          int j;
-          for (j = 0; strlen(cipherParams[j].m_name) > 0; ++j)
+          if (configDefault)
           {
-            if (sqlite3_stricmp(pragmaName, cipherParams[j].m_name) == 0) break;
-          }
-          if (strlen(cipherParams[j].m_name) > 0)
-          {
-            char* param = (configDefault) ? sqlite3_mprintf("default:%s", pragmaName) : pragmaName;
-            if (isIntValue)
-            {
-              int value = sqlite3mc_config_cipher(db, cipherName, param, intValue);
-              ((char**)pArg)[0] = sqlite3_mprintf("%d", value);
-              rc = SQLITE_OK;
-            }
-            else
-            {
-              ((char**) pArg)[0] = sqlite3_mprintf("Malformed integer value '%s'.", pragmaValue);
-              rc = SQLITE_ERROR;
-            }
-            if (configDefault)
-            {
-              sqlite3_free(param);
-            }
+            sqlite3_free(param);
           }
         }
       }
