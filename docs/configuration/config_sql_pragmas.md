@@ -209,6 +209,7 @@ PRAGMA legacy = { 0 | 1 ... };
 Note
 {: .label .label-red .ml-0 .mb-1 .mt-2 }
 - The value range of parameter `legacy` depends on the cipher scheme, although it is typically just a 0 / 1 decision.
+- This `PRAGMA` usually changes the default parameters according to the selected `legacy` version. If deviating parameter settings are required, they must be set **after** setting the `legacy` value.
 
 ---
 
