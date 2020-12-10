@@ -14,6 +14,7 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 * 1.1.2 - *December 2020*
   - Fixed a bug on cipher configuration via PRAGMA commands or URI parameters
+  - Added SQLite3 Multple Ciphers version info to shell application
 * 1.1.1 - *December 2020*
   - Fixed a bug on removing encryption from an encrypted database
 * 1.1.0 - *December 2020*

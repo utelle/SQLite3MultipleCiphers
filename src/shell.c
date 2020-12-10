@@ -21323,10 +21323,12 @@ int SQLITE_CDECL wmain(int argc, wchar_t **wargv){
       char *zHome;
       char *zHistory;
       int nHistory;
+      extern char* sqlite3mc_version();
       printf(
-        "SQLite version %s %.19s\n" /*extra-version-info*/
+        "SQLite version %s %.19s" /*extra-version-info*/
+        " (%s)\n" /*SQLite3-Multiple-Ciphers-version-info*/
         "Enter \".help\" for usage hints.\n",
-        sqlite3_libversion(), sqlite3_sourceid()
+        sqlite3_libversion(), sqlite3_sourceid(), sqlite3mc_version()
       );
       if( warnInmemoryDb ){
         printf("Connected to a ");
