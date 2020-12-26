@@ -138,12 +138,15 @@ AS_IF([test "x$with_aes128cbc" = xno &&
        [AC_DEFINE([SQLITE_HAS_CODEC], [0], [All ciphers disabled so encryption is disabled])])
 
 AC_CANONICAL_HOST
-hostX86 = false
+hostX86=false
+hostARM=false
 AS_CASE([$host_cpu],
   [i?86], [hostX86=true],
-  [x86_64], [hostX86=true]
+  [x86_64], [hostX86=true],
+  [arm*|aarch64*], [hostARM=true]
 )
 AM_CONDITIONAL([HOST_X86], [test x$hostX86 = xtrue])
+AM_CONDITIONAL([HOST_ARM], [test x$hostARM = xtrue])
 
 AC_SUBST(SQLITE3MC_LIBNAME, "sqlite3mc")
 AC_SUBST( LIBDIR, "lib" )

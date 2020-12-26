@@ -330,9 +330,16 @@ fail:
   return 0;
 }
 
+#if defined(__APPLE__) && defined(__MAC_10_12)
+#include <sys/random.h>
+#endif
+
 static size_t entropy(void* buf, size_t n)
 {
-#if defined(__linux__) && defined(SYS_getrandom)
+#if defined(__APPLE__) && defined(__MAC_10_12) && __MAC_OS_X_VERSION_MAX_ALLOWED >= __MAC_10_12
+  if (getentropy(buf, n) == 0)
+    return n;
+#elif defined(__linux__) && defined(SYS_getrandom)
   if (syscall(SYS_getrandom, buf, n, 0) == n)
     return n;
 #elif defined(SYS_getentropy)

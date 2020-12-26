@@ -627,7 +627,7 @@ static int mcReadWal(sqlite3_file* pFile, const void* buffer, int count, sqlite3
     if (count == pageSize)
     {
       int pageNo = 0;
-      char ac[4];
+      unsigned char ac[4];
 
       /*
       ** Determine page number
@@ -881,7 +881,7 @@ static int mcWriteWal(sqlite3_file* pFile, const void* buffer, int count, sqlite
     if (count == pageSize)
     {
       int pageNo = 0;
-      char ac[4];
+      unsigned char ac[4];
 
       /*
       ** Read the corresponding page number from the file
