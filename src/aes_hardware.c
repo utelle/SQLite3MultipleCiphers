@@ -128,6 +128,7 @@ aesHardwareCheck()
 #endif /* defined(__clang__) || defined(__GNUC__) */
 
 #include <wmmintrin.h>
+#include <smmintrin.h>
 
 static int
 aesGenKeyEncryptInternal(const unsigned char* userKey, const int bits, __m128i* keyData)
