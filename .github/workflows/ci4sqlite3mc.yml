@@ -16,6 +16,9 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
+    - name: Install dependencies (macOS)
+      run: brew install automake
+      if: matrix.os == 'macos-latest'
     - name: Checkout
       uses: actions/checkout@v2
     - name: Configure
