@@ -18,9 +18,10 @@ jobs:
           compiler: gcc
           env: WXGTK_PACKAGE=libwxgtk3.0-dev
           arch: arm64
-        - os: osx
-          osx_image: xcode11.4
-          compiler: clang
+# Disable OS X builds for now
+#        - os: osx
+#          osx_image: xcode11.4
+#          compiler: clang
 
 branches:
     only:
