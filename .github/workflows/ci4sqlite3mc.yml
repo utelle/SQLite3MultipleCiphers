@@ -24,7 +24,7 @@ jobs:
     - name: Configure
       run: |
         autoreconf
-        ./configure --disable-dependency-tracking
+        ./configure
     - name: Build
       run: |
         make
