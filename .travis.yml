@@ -11,9 +11,9 @@ dist: xenial
 
 jobs:
     include:
-        - dist: xenial
-          compiler: gcc
-          env: WXGTK_PACKAGE=libwxgtk3.0-dev
+#        - dist: xenial
+#          compiler: gcc
+#          env: WXGTK_PACKAGE=libwxgtk3.0-dev
         - dist: xenial
           compiler: gcc
           env: WXGTK_PACKAGE=libwxgtk3.0-dev

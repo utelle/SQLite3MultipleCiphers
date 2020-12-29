@@ -12,6 +12,9 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version history
 
+* 1.1.3 - *December 2020*
+  - Added code for AES hardware support on ARM platforms
+  - Added GitHub Actions for CI
 * 1.1.2 - *December 2020*
   - Fixed a bug on cipher configuration via PRAGMA commands or URI parameters
   - Added SQLite3 Multple Ciphers version info to shell application
