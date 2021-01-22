@@ -12,6 +12,8 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version history
 
+* 1.1.4 - *January 2021*
+  - Based on SQLite version 3.34.1
 * 1.1.3 - *December 2020*
   - Added code for AES hardware support on ARM platforms
   - Added GitHub Actions for CI

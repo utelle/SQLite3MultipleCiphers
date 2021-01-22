@@ -2014,9 +2014,11 @@ static void sha3QueryFunc(
     }
     nCol = sqlite3_column_count(pStmt);
     z = sqlite3_sql(pStmt);
-    n = (int)strlen(z);
-    hash_step_vformat(&cx,"S%d:",n);
-    SHA3Update(&cx,(unsigned char*)z,n);
+    if( z ){
+      n = (int)strlen(z);
+      hash_step_vformat(&cx,"S%d:",n);
+      SHA3Update(&cx,(unsigned char*)z,n);
+    }
 
     /* Compute a hash over the result of the query */
     while( SQLITE_ROW==sqlite3_step(pStmt) ){
@@ -9968,10 +9970,12 @@ static int idxPopulateStat1(sqlite3expert *p, char **pzErr){
   idxFinalize(&rc, pIndexXInfo);
   idxFinalize(&rc, pWrite);
 
-  for(i=0; i<pCtx->nSlot; i++){
-    sqlite3_free(pCtx->aSlot[i].z);
+  if( pCtx ){
+    for(i=0; i<pCtx->nSlot; i++){
+      sqlite3_free(pCtx->aSlot[i].z);
+    }
+    sqlite3_free(pCtx);
   }
-  sqlite3_free(pCtx);
 
   if( rc==SQLITE_OK ){
     rc = sqlite3_exec(p->dbm, "ANALYZE sqlite_schema", 0, 0, 0);
