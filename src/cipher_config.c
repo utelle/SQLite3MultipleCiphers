@@ -654,11 +654,11 @@ sqlite3mcConfigureFromUri(sqlite3* db, const char *zDbName, int configDefault)
         int hmacCheck = sqlite3_uri_boolean(dbFileName, "hmac_check", 1);
         if (configDefault)
         {
-          sqlite3mc_config(db, "default:cipher", j);
+          sqlite3mc_config(db, "default:cipher", globalCodecParameterTable[j].m_id);
         }
         else
         {
-          sqlite3mc_config(db, "cipher", j);
+          sqlite3mc_config(db, "cipher", globalCodecParameterTable[j].m_id);
         }
         if (!hmacCheck)
         {
