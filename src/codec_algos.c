@@ -8,7 +8,9 @@
 */
 
 #include "cipher_common.h"
+#if HAVE_CIPHER_AES_128_CBC || HAVE_CIPHER_AES_256_CBC || HAVE_CIPHER_SQLCIPHER
 #include "rijndael.h"
+#endif
 
 /*
 ** RC4 implementation
@@ -87,6 +89,8 @@ sqlite3mcGenerateInitialVector(int seed, unsigned char iv[16])
   sqlite3mcGetMD5Binary((unsigned char*) initkey, 16, iv);
 }
 
+#if HAVE_CIPHER_AES_128_CBC
+
 SQLITE_PRIVATE int
 sqlite3mcAES128(Rijndael* aesCtx, int page, int encrypt, unsigned char encryptionKey[KEYLENGTH_AES128],
                 unsigned char* datain, int datalen, unsigned char* dataout)
@@ -137,6 +141,10 @@ sqlite3mcAES128(Rijndael* aesCtx, int page, int encrypt, unsigned char encryptio
   return rc;
 }
 
+#endif
+
+#if HAVE_CIPHER_AES_256_CBC
+
 SQLITE_PRIVATE int
 sqlite3mcAES256(Rijndael* aesCtx, int page, int encrypt, unsigned char encryptionKey[KEYLENGTH_AES256],
                 unsigned char* datain, int datalen, unsigned char* dataout)
@@ -186,6 +194,8 @@ sqlite3mcAES256(Rijndael* aesCtx, int page, int encrypt, unsigned char encryptio
   }
   return rc;
 }
+
+#endif
 
 /* Check hex encoding */
 SQLITE_PRIVATE int

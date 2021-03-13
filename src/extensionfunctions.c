@@ -72,6 +72,7 @@ the HAVE_TRIM #define.
 Liam Healy
 
 History:
+2021-01-05 Disable math functions that are provided by the SQLite Math Extension since version 3.35.0
 2010-01-06 Correct check for argc in squareFunc, and add Windows
 compilation instructions.
 2009-06-24 Correct check for argc in properFunc.
@@ -384,6 +385,7 @@ static void name(sqlite3_context *context, int argc, sqlite3_value **argv){\
   }\
 }\
 
+#ifndef SQLITE_ENABLE_MATH_FUNCTIONS
 
 /*
 ** Example of GEN_MATH_WRAP_DOUBLE_1 usage
@@ -426,6 +428,8 @@ static double atanh(double x){
 
 GEN_MATH_WRAP_DOUBLE_1(atanhFunc, atanh)
 
+#endif /* SQLITE_ENABLE_MATH_FUNCTIONS */
+
 /*
 ** math.h doesn't require cot (cotangent) so it's defined here
 */
@@ -433,14 +437,21 @@ static double cot(double x){
   return 1.0/tan(x);
 }
 
+#ifndef SQLITE_ENABLE_MATH_FUNCTIONS
+
 GEN_MATH_WRAP_DOUBLE_1(sinFunc, sin)
 GEN_MATH_WRAP_DOUBLE_1(cosFunc, cos)
 GEN_MATH_WRAP_DOUBLE_1(tanFunc, tan)
+
+#endif /* SQLITE_ENABLE_MATH_FUNCTIONS */
+
 GEN_MATH_WRAP_DOUBLE_1(cotFunc, cot)
 
 static double coth(double x){
   return 1.0/tanh(x);
 }
+
+#ifndef SQLITE_ENABLE_MATH_FUNCTIONS
 
 /*
 ** Many systems don't have hyperbolic trigonometric functions so this will emulate
@@ -470,11 +481,15 @@ static double tanh(double x){
 
 GEN_MATH_WRAP_DOUBLE_1(tanhFunc, tanh)
 
+#endif /* SQLITE_ENABLE_MATH_FUNCTIONS */
+
 GEN_MATH_WRAP_DOUBLE_1(cothFunc, coth)
 
 /*
 ** Some systems lack log in base 10. This will emulate it
 */
+
+#ifndef SQLITE_ENABLE_MATH_FUNCTIONS
 
 #ifndef HAVE_LOG10
 static double log10(double x){
@@ -520,6 +535,8 @@ static void piFunc(sqlite3_context *context, int argc, sqlite3_value **argv){
   sqlite3_result_double(context, M_PI);
 }
 
+#endif /* SQLITE_ENABLE_MATH_FUNCTIONS */
+
 /*
 ** Implements the sqrt function, it has the peculiarity of returning an integer when the
 ** the argument is an integer.
@@ -546,6 +563,8 @@ static void squareFunc(sqlite3_context *context, int argc, sqlite3_value **argv)
     }
   }
 }
+
+#ifndef SQLITE_ENABLE_MATH_FUNCTIONS
 
 /*
 ** Wraps the pow math.h function
@@ -577,6 +596,8 @@ static void powerFunc(sqlite3_context *context, int argc, sqlite3_value **argv){
   }
 }
 
+#endif /* SQLITE_ENABLE_MATH_FUNCTIONS */
+
 /*
 ** atan2 wrapper
 */
@@ -594,6 +615,8 @@ static void atn2Func(sqlite3_context *context, int argc, sqlite3_value **argv){
     sqlite3_result_double(context, atan2(r1,r2));
   }
 }
+
+#ifndef SQLITE_ENABLE_MATH_FUNCTIONS
 
 /*
 ** Implementation of the sign() function
@@ -677,6 +700,8 @@ static void floorFunc(sqlite3_context *context, int argc, sqlite3_value **argv){
     }
   }
 }
+
+#endif /* SQLITE_ENABLE_MATH_FUNCTIONS */
 
 /*
 ** Given a string (s) in the first argument and an integer (n) in the second returns the 
@@ -1739,11 +1764,14 @@ int RegisterExtensionFunctions(sqlite3 *db){
      void (*xFunc)(sqlite3_context*,int,sqlite3_value **);
   } aFuncs[] = {
     /* math.h */
+#ifndef SQLITE_ENABLE_MATH_FUNCTIONS
     { "acos",               1, 0, SQLITE_UTF8,    0, acosFunc  },
     { "asin",               1, 0, SQLITE_UTF8,    0, asinFunc  },
     { "atan",               1, 0, SQLITE_UTF8,    0, atanFunc  },
+#endif
     { "atn2",               2, 0, SQLITE_UTF8,    0, atn2Func  },
     /* XXX alias */
+#ifndef SQLITE_ENABLE_MATH_FUNCTIONS
     { "atan2",              2, 0, SQLITE_UTF8,    0, atn2Func  },
     { "acosh",              1, 0, SQLITE_UTF8,    0, acoshFunc  },
     { "asinh",              1, 0, SQLITE_UTF8,    0, asinhFunc  },
@@ -1756,12 +1784,16 @@ int RegisterExtensionFunctions(sqlite3 *db){
     { "cos",                1, 0, SQLITE_UTF8,    0, cosFunc  },
     { "sin",                1, 0, SQLITE_UTF8,    0, sinFunc },
     { "tan",                1, 0, SQLITE_UTF8,    0, tanFunc },
+#endif
     { "cot",                1, 0, SQLITE_UTF8,    0, cotFunc },
+#ifndef SQLITE_ENABLE_MATH_FUNCTIONS
     { "cosh",               1, 0, SQLITE_UTF8,    0, coshFunc  },
     { "sinh",               1, 0, SQLITE_UTF8,    0, sinhFunc },
     { "tanh",               1, 0, SQLITE_UTF8,    0, tanhFunc },
+#endif
     { "coth",               1, 0, SQLITE_UTF8,    0, cothFunc },
 
+#ifndef SQLITE_ENABLE_MATH_FUNCTIONS
     { "exp",                1, 0, SQLITE_UTF8,    0, expFunc  },
     { "log",                1, 0, SQLITE_UTF8,    0, logFunc  },
     { "ln",                 1, 0, SQLITE_UTF8,    0, logFunc  },
@@ -1769,13 +1801,16 @@ int RegisterExtensionFunctions(sqlite3 *db){
     { "power",              2, 0, SQLITE_UTF8,    0, powerFunc  },
     { "sign",               1, 0, SQLITE_UTF8,    0, signFunc },
     { "sqrt",               1, 0, SQLITE_UTF8,    0, sqrtFunc },
+#endif
     { "square",             1, 0, SQLITE_UTF8,    0, squareFunc },
 
+#ifndef SQLITE_ENABLE_MATH_FUNCTIONS
     { "ceil",               1, 0, SQLITE_UTF8,    0, ceilFunc },
     { "ceiling",            1, 0, SQLITE_UTF8,    0, ceilFunc },
     { "floor",              1, 0, SQLITE_UTF8,    0, floorFunc },
 
     { "pi",                 0, 0, SQLITE_UTF8,    1, piFunc },
+#endif
 
     { "last_rows_affected", 0, 0, SQLITE_UTF8,    0, lastRowsFunc },
 

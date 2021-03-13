@@ -94,7 +94,7 @@ sqlite3mcVersion(sqlite3_context* context, int argc, sqlite3_value** argv)
 #include "sha1.c"
 #include "sha2.c"
 
-#if HAVE_CIPHER_SQLCIPHER || HAVE_CIPHER_SQLCIPHER
+#if HAVE_CIPHER_CHACHA20 || HAVE_CIPHER_SQLCIPHER
 #include "fastpbkdf2.c"
 
 /* Prototypes for several crypto functions to make pedantic compilers happy */
@@ -119,7 +119,9 @@ mcRegisterCodecExtensions(sqlite3* db, char** pzErrMsg, const sqlite3_api_routin
 /*
 ** Codec implementation
 */
+#if HAVE_CIPHER_AES_128_CBC || HAVE_CIPHER_AES_256_CBC || HAVE_CIPHER_SQLCIPHER
 #include "rijndael.c"
+#endif
 #include "codec_algos.c"
 
 #include "cipher_wxaes128.c"

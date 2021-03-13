@@ -12,6 +12,11 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version history
 
+* 1.2.0 - *March 2021*
+  - Based on SQLite version 3.35.0
+  - Enabled new SQLite Math Extension (Note: _log_ function now computes _log10_, not _ln_.)
+  - Fixed a bug in cipher selection via URI, if cipher schemes were excluded from build (issue #26)
+  - Cleaned up precompiler instructions to exclude cipher schemes from build
 * 1.1.4 - *January 2021*
   - Based on SQLite version 3.34.1
 * 1.1.3 - *December 2020*

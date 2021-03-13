@@ -180,6 +180,7 @@ sqlite3mc_config_cipher(sqlite3* db, const char* cipherName, const char* paramNa
       paramName += 4;
     }
 
+#if HAVE_CIPHER_SQLCIPHER
     /* Special handling for SQLCipher legacy mode */
     if (db != NULL &&
         sqlite3_stricmp(cipherName, "sqlcipher") == 0 &&
@@ -199,6 +200,7 @@ sqlite3mc_config_cipher(sqlite3* db, const char* cipherName, const char* paramNa
         }
       }
     }
+#endif
 
     for (; strlen(param->m_name) > 0; ++param)
     {
@@ -556,6 +558,7 @@ sqlite3mcConfigParams(sqlite3_context* context, int argc, sqlite3_value** argv)
         if (sqlite3_stricmp(nameParam2, param2->m_name) == 0) break;
       }
 
+#if HAVE_CIPHER_SQLCIPHER
       /* Special handling for SQLCipher legacy mode */
       if (argc == 3 &&
         sqlite3_stricmp(nameParam1, "sqlcipher") == 0 &&
@@ -571,6 +574,7 @@ sqlite3mcConfigParams(sqlite3_context* context, int argc, sqlite3_value** argv)
           }
         }
       }
+#endif
 
       if (strlen(param2->m_name) > 0)
       {
@@ -665,6 +669,7 @@ sqlite3mcConfigureFromUri(sqlite3* db, const char *zDbName, int configDefault)
           sqlite3mc_config(db, "hmac_check", hmacCheck);
         }
 
+#if HAVE_CIPHER_SQLCIPHER
         /* Special handling for SQLCipher */
         if (sqlite3_stricmp(cipherName, "sqlcipher") == 0)
         {
@@ -676,6 +681,7 @@ sqlite3mcConfigureFromUri(sqlite3* db, const char *zDbName, int configDefault)
             skipLegacy = 1;
           }
         }
+#endif
 
         /* Check all cipher specific parameters */
         for (j = 0; strlen(cipherParams[j].m_name) > 0; ++j)

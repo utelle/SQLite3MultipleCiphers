@@ -615,6 +615,8 @@ sqlite3mcDecrypt(Codec* codec, int page, unsigned char* data, int len)
   return codecDescriptorTable[cipherType-1]->m_decryptPage(cipher, page, data, len, reserved, codec->m_hmacCheck);
 }
 
+#if HAVE_CIPHER_SQLCIPHER
+
 SQLITE_PRIVATE void
 sqlite3mcConfigureSQLCipherVersion(sqlite3* db, int configDefault, int legacyVersion)
 {
@@ -638,3 +640,5 @@ sqlite3mcConfigureSQLCipherVersion(sqlite3* db, int configDefault, int legacyVer
     }
   }
 }
+
+#endif

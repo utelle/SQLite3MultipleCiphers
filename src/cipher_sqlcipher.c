@@ -10,7 +10,7 @@
 #include "cipher_common.h"
 
 /* --- SQLCipher AES256CBC-HMAC cipher --- */
-#if HAVE_CIPHER_SQLCIPHER || HAVE_CIPHER_CHACHA20
+#if HAVE_CIPHER_SQLCIPHER
 
 /*
 ** Configuration parameters for "sqlcipher"

@@ -10,7 +10,7 @@
 #include "cipher_common.h"
 
 /* --- ChaCha20-Poly1305 cipher (plus sqleet variant) --- */
-#if HAVE_CIPHER_CHACHA20 || HAVE_CIPHER_SQLCIPHER
+#if HAVE_CIPHER_CHACHA20
 
 /*
 ** Configuration parameters for "chacha20"
