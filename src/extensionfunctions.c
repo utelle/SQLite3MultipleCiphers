@@ -618,6 +618,7 @@ static void atn2Func(sqlite3_context *context, int argc, sqlite3_value **argv){
 
 #ifndef SQLITE_ENABLE_MATH_FUNCTIONS
 
+#if SQLITE_VERSION_NUMBER < 3035000
 /*
 ** Implementation of the sign() function
 ** return one of 3 possibilities +1,0 or -1 when the argument is respectively
@@ -649,7 +650,7 @@ static void signFunc(sqlite3_context *context, int argc, sqlite3_value **argv){
     }
   }
 }
-
+#endif
 
 /*
 ** smallest integer value not less than argument
