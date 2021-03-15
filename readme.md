@@ -6,12 +6,14 @@ In the course of time several developers had asked for a stand-alone version of 
 
 In late February 2020 work started on a new implementation of a SQLite encryption extension that will be able to support SQLite 3.32.0 and later. The new approach is based on [SQLite's VFS feature](https://www.sqlite.org/vfs.html). This approach has its pros and cons. On the one hand, the code is less closely coupled with SQLite itself; on the other hand, access to SQLite's internal data structures is more complex.
 
-This project is _Work In Progress_. As of December 2020, the code base is now rather stable, however, further major code modifications and/or reorganizations may still occur.
+This project is _Work In Progress_. As of March 2021, the code base is now rather stable, however, further major code modifications and/or reorganizations may still occur.
 
 The code was mainly developed under Windows, but was tested under Linux as well. At the moment no major issues are known.
 
 ## Version history
 
+* 1.2.1 - *March 2021*
+  - Based on SQLite version 3.35.1
 * 1.2.0 - *March 2021*
   - Based on SQLite version 3.35.0
   - Enabled new SQLite Math Extension (Note: _log_ function now computes _log10_, not _ln_.)
