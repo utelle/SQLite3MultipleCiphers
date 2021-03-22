@@ -12,6 +12,8 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version history
 
+* 1.2.2 - *March 2021*
+  - Based on SQLite version 3.35.2
 * 1.2.1 - *March 2021*
   - Based on SQLite version 3.35.1
 * 1.2.0 - *March 2021*

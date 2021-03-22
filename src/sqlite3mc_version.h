@@ -3,7 +3,7 @@
 ** Purpose:     SQLite3 Multiple Ciphers version numbers
 ** Author:      Ulrich Telle
 ** Created:     2020-08-05
-** Copyright:   (c) 2020 Ulrich Telle
+** Copyright:   (c) 2020-2021 Ulrich Telle
 ** License:     MIT
 */
 
@@ -14,8 +14,8 @@
 
 #define SQLITE3MC_VERSION_MAJOR      1
 #define SQLITE3MC_VERSION_MINOR      2
-#define SQLITE3MC_VERSION_RELEASE    1
+#define SQLITE3MC_VERSION_RELEASE    2
 #define SQLITE3MC_VERSION_SUBRELEASE 0
-#define SQLITE3MC_VERSION_STRING     "SQLite3 Multiple Ciphers 1.2.1"
+#define SQLITE3MC_VERSION_STRING     "SQLite3 Multiple Ciphers 1.2.2"
 
 #endif /* SQLITE3MC_VERSION_H_ */
