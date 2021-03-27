@@ -1581,7 +1581,7 @@ static int vsvtabColumn(
                     length = vsv_utf8IsValid(pCur->azVal[i]);
                     if (length == dLen)
                     {
-                        sqlite3_result_text(ctx, pCur->azVal[i], dLen, SQLITE_STATIC);
+                        sqlite3_result_text(ctx, pCur->azVal[i], dLen, SQLITE_TRANSIENT);
                     }
                     else
                     {
@@ -1590,13 +1590,13 @@ static int vsvtabColumn(
                 }
                 else
                 {
-                    sqlite3_result_text(ctx, pCur->azVal[i], -1, SQLITE_STATIC);
+                    sqlite3_result_text(ctx, pCur->azVal[i], -1, SQLITE_TRANSIENT);
                 }
                 break;
             }
             case 1:
             {
-                sqlite3_result_blob(ctx, pCur->azVal[i], dLen, SQLITE_STATIC);
+                sqlite3_result_blob(ctx, pCur->azVal[i], dLen, SQLITE_TRANSIENT);
                 break;
             }
             case 2:
@@ -1606,16 +1606,16 @@ static int vsvtabColumn(
                     length = vsv_utf8IsValid(pCur->azVal[i]);
                     if (length < dLen)
                     {
-                        sqlite3_result_blob(ctx, pCur->azVal[i], dLen, SQLITE_STATIC);
+                        sqlite3_result_blob(ctx, pCur->azVal[i], dLen, SQLITE_TRANSIENT);
                     }
                     else
                     {
-                        sqlite3_result_text(ctx, pCur->azVal[i], length, SQLITE_STATIC);
+                        sqlite3_result_text(ctx, pCur->azVal[i], length, SQLITE_TRANSIENT);
                     }
                 }
                 else
                 {
-                    sqlite3_result_text(ctx, pCur->azVal[i], -1, SQLITE_STATIC);
+                    sqlite3_result_text(ctx, pCur->azVal[i], -1, SQLITE_TRANSIENT);
                 }
                 break;
             }
@@ -1635,16 +1635,16 @@ static int vsvtabColumn(
                             length = vsv_utf8IsValid(pCur->azVal[i]);
                             if (length < dLen)
                             {
-                                sqlite3_result_blob(ctx, pCur->azVal[i], dLen, SQLITE_STATIC);
+                                sqlite3_result_blob(ctx, pCur->azVal[i], dLen, SQLITE_TRANSIENT);
                             }
                             else
                             {
-                                sqlite3_result_text(ctx, pCur->azVal[i], length, SQLITE_STATIC);
+                                sqlite3_result_text(ctx, pCur->azVal[i], length, SQLITE_TRANSIENT);
                             }
                         }
                         else
                         {
-                            sqlite3_result_text(ctx, pCur->azVal[i], -1, SQLITE_STATIC);
+                            sqlite3_result_text(ctx, pCur->azVal[i], -1, SQLITE_TRANSIENT);
                         }
                         break;
                     }
@@ -1668,16 +1668,16 @@ static int vsvtabColumn(
                             length = vsv_utf8IsValid(pCur->azVal[i]);
                             if (length < dLen)
                             {
-                                sqlite3_result_blob(ctx, pCur->azVal[i], dLen, SQLITE_STATIC);
+                                sqlite3_result_blob(ctx, pCur->azVal[i], dLen, SQLITE_TRANSIENT);
                             }
                             else
                             {
-                                sqlite3_result_text(ctx, pCur->azVal[i], length, SQLITE_STATIC);
+                                sqlite3_result_text(ctx, pCur->azVal[i], length, SQLITE_TRANSIENT);
                             }
                         }
                         else
                         {
-                            sqlite3_result_text(ctx, pCur->azVal[i], -1, SQLITE_STATIC);
+                            sqlite3_result_text(ctx, pCur->azVal[i], -1, SQLITE_TRANSIENT);
                         }
                         break;
                     }
@@ -1731,16 +1731,16 @@ static int vsvtabColumn(
                             length = vsv_utf8IsValid(pCur->azVal[i]);
                             if (length < dLen)
                             {
-                                sqlite3_result_blob(ctx, pCur->azVal[i], dLen, SQLITE_STATIC);
+                                sqlite3_result_blob(ctx, pCur->azVal[i], dLen, SQLITE_TRANSIENT);
                             }
                             else
                             {
-                                sqlite3_result_text(ctx, pCur->azVal[i], length, SQLITE_STATIC);
+                                sqlite3_result_text(ctx, pCur->azVal[i], length, SQLITE_TRANSIENT);
                             }
                         }
                         else
                         {
-                            sqlite3_result_text(ctx, pCur->azVal[i], -1, SQLITE_STATIC);
+                            sqlite3_result_text(ctx, pCur->azVal[i], -1, SQLITE_TRANSIENT);
                         }
                         break;
                     }
