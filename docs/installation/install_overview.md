@@ -76,14 +76,15 @@ builds the library and then copies the headers of the component to
 
 On **Windows** the **SQLite3 Multiple Ciphers** library can be built _with_ or _without_
 [ICU support](https://github.com/unicode-org/icu). ICU support for SQLite3 is
-currently based on pre-built ICU Libraries, which were compiled with Visual Studio 2017.
+currently based on pre-built ICU Libraries, which were compiled with Visual Studio 2019.
 The required ICU DLLs are not included in the repository, but can be downloaded from the
 [latest ICU release](https://github.com/unicode-org/icu/releases/latest).
+However, the pre-built binary packages for Windows include the required ICU DLLs.
 
-In addition, the Visual C++ 2017 runtime is required to be installed,
+In addition, the Visual C++ 2019 runtime is required to be installed,
 because the ICU DLLs depend on it.
 
-In principle, the ICU DLLs should be compatible with Visual C++ 2015 and Visual C++ 2019 as well.
+In principle, the ICU DLLs should be compatible with Visual C++ 2015 and Visual C++ 2017 as well.
 
 ## Default settings
 

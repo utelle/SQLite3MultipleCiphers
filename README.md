@@ -22,7 +22,11 @@ In addition to reading and writing encrypted database files **SQLite** with the 
 
 ## Usage
 
-Basically, the API of the official [SQLite Encryption Extension (SEE) ](https://www.hwaci.com/sw/sqlite/see.html) is supported. This API consists of 4 functions:
+The _SQLite3 Multiple Ciphers_ encryption extension can be used via the C API as well as via SQL.
+
+### C API
+
+Basically, the C API of the official [SQLite Encryption Extension (SEE) ](https://www.hwaci.com/sw/sqlite/see.html) is supported. This API consists of 4 functions:
 
 ```c
 SQLITE_API int sqlite3_key(
@@ -54,4 +58,22 @@ The functions `sqlite3_key()` and `sqlite3_key_v2()` set the database key to be 
 
 `sqlite3_rekey()` is used to change the encryption key for the main database, while `sqlite3_rekey_v2()` changes the key for the database with the schema name specified by `zDbName`. The schema name is `main` for the main database, `temp` for the temporary database, or the schema name specified in an `ATTACH` statement for an attached database. These functions can also decrypt a previously encrypted database by specifying an empty key.
 
-The encryption API is also accessible via `PRAGMA` statements.
+A more detailed description can be found [here]({{ site.baseurl }}{% link docs/configuration/config_capi.md %}).
+
+Note
+{: .label .label-red .ml-0 .mb-1 .mt-2 }
+Since _SQLite3 Multiple Ciphers_ makes use of the _automatic extension loading mechanism_ (via the function `sqlite3_auto_extension`) and dynamically allocates _Virtual File System_ (VFS) instances, it is strongly recommended to call function _**sqlite3_shutdown()**_, right before exiting the application **after** all active database connections have been closed, to **avoid memory leaks**.
+
+### SQL API
+
+The encryption API is also accessible via `PRAGMA` statements:
+
+- [PRAGMA key]({{ site.baseurl }}{% link docs/configuration/config_sql_pragmas.md %}#pragma-key) allows to set the passphrase.
+- [PRAGMA rekey]({{ site.baseurl }}{% link docs/configuration/config_sql_pragmas.md %}#pragma-rekey) allows to change the passphrase.
+
+A more detailed description (especially, how to configure cipher schemes) can be found [here]({{ site.baseurl }}{% link docs/configuration/config_sql_pragmas.md %}).
+
+Additionally, the SQL command `ATTACH` supports the `KEY` keyword to allow to attach an encrypted database file to the current database connection:
+```sql
+ATTACH [DATABASE] <db-file-expression> AS <schema-name> [KEY=passphrase]
+```

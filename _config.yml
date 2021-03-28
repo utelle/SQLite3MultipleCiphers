@@ -30,7 +30,7 @@ aux_links:
     - "//github.com/utelle/SQLite3MultipleCiphers"
 
 # Footer content appears at the bottom of every page's main content
-footer_content: "Copyright &copy; 2020 Ulrich Telle. Distributed under an <a href=\"https://github.com/utelle/SQLite3MultipleCiphers/tree/master/LICENSE\">MIT license.</a>"
+footer_content: "Copyright &copy; 2020-2021 Ulrich Telle. Distributed under an <a href=\"https://github.com/utelle/SQLite3MultipleCiphers/tree/master/LICENSE\">MIT license.</a>"
 
 # Color scheme currently only supports "dark" or nil (default)
 color_scheme: nil
