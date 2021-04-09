@@ -831,7 +831,6 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
       if (cipherParams != NULL)
       {
         const char* cipherName = globalCodecParameterTable[j].m_name;
-        int j;
         for (j = 0; strlen(cipherParams[j].m_name) > 0; ++j)
         {
           if (sqlite3_stricmp(pragmaName, cipherParams[j].m_name) == 0) break;

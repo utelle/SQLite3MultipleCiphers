@@ -121,7 +121,7 @@ static int
 aesHardwareCheck()
 {
   unsigned int CPUInfo[4];
-  __cpuid(CPUInfo, 1);
+  __cpuid((int*) CPUInfo, 1);
   return (CPUInfo[2] & (1 << 25)) != 0 && (CPUInfo[2] & (1 << 19)) != 0; /* Check AES and SSE4.1 */
 }
 
