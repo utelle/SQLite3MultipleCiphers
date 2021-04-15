@@ -86,6 +86,11 @@ mcReportCodecError(BtShared* pBt, int error)
   pBt->pPager->errCode = error;
   setGetterMethod(pBt->pPager);
   pBt->db->errCode = error;
+  if (error == SQLITE_OK)
+  {
+    /* Clear cache to force reread of database after a new passphrase has been set */
+    sqlite3PagerClearCache(pBt->pPager);
+  }
 }
 
 /*
