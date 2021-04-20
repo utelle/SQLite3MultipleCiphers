@@ -4,7 +4,7 @@ dnl Copyright (C) 2019-2021 Ulrich Telle <ulrich@telle-online.de>
 dnl
 dnl This file is covered by the same licence as the entire SQLite3 Multiple Ciphers package.
 
-AC_INIT([sqlite3mc], [1.2.4], [ulrich@telle-online.de])
+AC_INIT([sqlite3mc], [1.2.5], [ulrich@telle-online.de])
 
 dnl This is the version tested with, might work with earlier ones.
 AC_PREREQ([2.69])
