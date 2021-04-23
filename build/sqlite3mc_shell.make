@@ -38,8 +38,8 @@ TARGETDIR = ../bin/gcc/lib/debug
 TARGET = $(TARGETDIR)/sqlite3mc_shell.exe
 OBJDIR = obj/gcc/Win32/Debug/sqlite3mc_shell
 DEFINES += -D_WINDOWS -DWIN32 -D_CRT_SECURE_NO_WARNINGS -D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_WARNINGS -D_CRT_NONSTDC_NO_DEPRECATE -DDEBUG -D_DEBUG -DSQLITE_SHELL_IS_UTF8=1 -DSQLITE_USER_AUTHENTICATION=1
-ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -m32 -g -march=native
-ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -m32 -g -march=native
+ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -m32 -g -msse4.2 -maes
+ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -m32 -g -msse4.2 -maes
 LIBS += ../bin/gcc/lib/debug/sqlite3mc.lib
 LDDEPS += ../bin/gcc/lib/debug/sqlite3mc.lib
 ALL_LDFLAGS += $(LDFLAGS) -L/usr/lib32 -m32
@@ -49,8 +49,8 @@ TARGETDIR = ../bin/gcc/lib/debug
 TARGET = $(TARGETDIR)/sqlite3mc_shell_x64.exe
 OBJDIR = obj/gcc/Win64/Debug/sqlite3mc_shell
 DEFINES += -D_WINDOWS -DWIN32 -D_CRT_SECURE_NO_WARNINGS -D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_WARNINGS -D_CRT_NONSTDC_NO_DEPRECATE -DDEBUG -D_DEBUG -DSQLITE_SHELL_IS_UTF8=1 -DSQLITE_USER_AUTHENTICATION=1
-ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -m64 -g -march=native
-ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -m64 -g -march=native
+ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -m64 -g -msse4.2 -maes
+ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -m64 -g -msse4.2 -maes
 LIBS += ../bin/gcc/lib/debug/sqlite3mc_x64.lib
 LDDEPS += ../bin/gcc/lib/debug/sqlite3mc_x64.lib
 ALL_LDFLAGS += $(LDFLAGS) -L/usr/lib64 -m64
@@ -60,8 +60,8 @@ TARGETDIR = ../bin/gcc/lib/release
 TARGET = $(TARGETDIR)/sqlite3mc_shell.exe
 OBJDIR = obj/gcc/Win32/Release/sqlite3mc_shell
 DEFINES += -D_WINDOWS -DWIN32 -D_CRT_SECURE_NO_WARNINGS -D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_WARNINGS -D_CRT_NONSTDC_NO_DEPRECATE -DNDEBUG -DSQLITE_SHELL_IS_UTF8=1 -DSQLITE_USER_AUTHENTICATION=1
-ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -m32 -O2 -march=native
-ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -m32 -O2 -march=native
+ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -m32 -O2 -msse4.2 -maes
+ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -m32 -O2 -msse4.2 -maes
 LIBS += ../bin/gcc/lib/release/sqlite3mc.lib
 LDDEPS += ../bin/gcc/lib/release/sqlite3mc.lib
 ALL_LDFLAGS += $(LDFLAGS) -L/usr/lib32 -m32 -s
@@ -71,8 +71,8 @@ TARGETDIR = ../bin/gcc/lib/release
 TARGET = $(TARGETDIR)/sqlite3mc_shell_x64.exe
 OBJDIR = obj/gcc/Win64/Release/sqlite3mc_shell
 DEFINES += -D_WINDOWS -DWIN32 -D_CRT_SECURE_NO_WARNINGS -D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_WARNINGS -D_CRT_NONSTDC_NO_DEPRECATE -DNDEBUG -DSQLITE_SHELL_IS_UTF8=1 -DSQLITE_USER_AUTHENTICATION=1
-ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -m64 -O2 -march=native
-ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -m64 -O2 -march=native
+ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -m64 -O2 -msse4.2 -maes
+ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -m64 -O2 -msse4.2 -maes
 LIBS += ../bin/gcc/lib/release/sqlite3mc_x64.lib
 LDDEPS += ../bin/gcc/lib/release/sqlite3mc_x64.lib
 ALL_LDFLAGS += $(LDFLAGS) -L/usr/lib64 -m64 -s
