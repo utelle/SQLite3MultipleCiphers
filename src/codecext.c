@@ -178,7 +178,7 @@ mcAdjustBtree(Btree* pBt, int nPageSize, int nReserved, int isLegacy)
   }
 
   /* Adjust the page size and the reserved area */
-  if (pager->nReserve != nReserved)
+  if (pager->pageSize != pagesize || pager->nReserve != nReserved)
   {
     if (isLegacy != 0)
     {

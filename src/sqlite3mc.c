@@ -3,7 +3,7 @@
 ** Purpose:     Amalgamation of the SQLite3 Multiple Ciphers encryption extension for SQLite
 ** Author:      Ulrich Telle
 ** Created:     2020-02-28
-** Copyright:   (c) 2006-2020 Ulrich Telle
+** Copyright:   (c) 2006-2021 Ulrich Telle
 ** License:     MIT
 */
 
@@ -50,6 +50,22 @@ void sqlite3mc_shutdown(void);
 #endif
 
 #if defined(_WIN32) || defined(WIN32)
+
+#ifndef SQLITE3MC_USE_RAND_S
+#define SQLITE3MC_USE_RAND_S 1
+#endif
+
+#if SQLITE3MC_USE_RAND_S
+/* Force header stdlib.h to define rand_s() */
+#if !defined(_CRT_RAND_S)
+#define _CRT_RAND_S
+#endif
+#endif
+
+#ifndef SQLITE_API
+#define SQLITE_API
+#endif
+
 #include <windows.h>
 
 /* SQLite functions only needed on Win32 */

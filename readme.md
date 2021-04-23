@@ -12,6 +12,11 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version history
 
+* 1.3.0 - *April 2021*
+  - Based on SQLite version 3.35.5
+  - Fix issue #37: Allow concurrent access from legacy applications by establishing WAL journal mode compatibility
+  - Fix issue #36: Clear pager cache after setting a new passphrase to force a reread of the database header
+  - Adjusted build files for MinGW
 * 1.2.5 - *April 2021*
   - Based on SQLite version 3.35.5
 * 1.2.4 - *April 2021*

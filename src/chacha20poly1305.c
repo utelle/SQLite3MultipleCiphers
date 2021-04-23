@@ -242,6 +242,48 @@ int poly1305_tagcmp(const uint8_t tag1[16], const uint8_t tag2[16])
  * Platform-specific entropy functions for seeding RNG
  */
 #if defined(_WIN32) || defined(__CYGWIN__)
+
+#if SQLITE3MC_USE_RAND_S
+
+/* Force header stdlib.h to define rand_s() */
+#if !defined(_CRT_RAND_S)
+#define _CRT_RAND_S
+#endif
+#include <stdlib.h>
+
+/*
+  Provide declaration of rand_s() for MinGW-32 (not 64).
+  MinGW-32 didn't declare it prior to version 5.3.0.
+*/
+#if defined(__MINGW32__) && defined(__MINGW32_VERSION) && __MINGW32_VERSION < 5003000L && !defined(__MINGW64_VERSION_MAJOR)
+__declspec(dllimport) int rand_s(unsigned int *);
+#endif
+
+static size_t entropy(void* buf, size_t n)
+{
+  size_t totalBytes = 0;
+  while (totalBytes < n)
+  {
+    unsigned int random32 = 0;
+    size_t j = 0;
+
+    if (rand_s(&random32))
+    {
+      /* rand_s failed */
+      return 0;
+    }
+
+    for (; (j < sizeof(random32)) && (totalBytes < n); j++, totalBytes++)
+    {
+      const uint8_t random8 = (uint8_t)(random32 >> (j * 8));
+      ((uint8_t*) buf)[totalBytes] = random8;
+    }
+  }
+  return n;
+}
+
+#else
+  
 #include <windows.h>
 #define RtlGenRandom SystemFunction036
 BOOLEAN NTAPI RtlGenRandom(PVOID RandomBuffer, ULONG RandomBufferLength);
@@ -250,7 +292,11 @@ static size_t entropy(void* buf, size_t n)
 {
   return RtlGenRandom(buf, (ULONG) n) ? n : 0;
 }
+
+#endif
+
 #elif defined(__linux__) || defined(__unix__) || defined(__APPLE__)
+
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif

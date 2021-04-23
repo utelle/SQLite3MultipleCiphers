@@ -267,6 +267,37 @@ SQLITE_PRIVATE void sqlite3mcSetCodec(sqlite3* db, const char* zFileName, Codec*
 }
 
 /*
+** This function is called by the wal module when writing page content
+** into the log file.
+**
+** This function returns a pointer to a buffer containing the encrypted
+** page content. If a malloc fails, this function may return NULL.
+*/
+SQLITE_PRIVATE void* sqlite3mcPagerCodec(PgHdr* pPg)
+{
+  sqlite3_file* pFile = sqlite3PagerFile(pPg->pPager);
+  void* aData = 0;
+  if (pFile->pMethods == &mcIoMethodsGlobal)
+  {
+    sqlite3mc_file* mcFile = (sqlite3mc_file*) pFile;
+    Codec* codec = (mcFile->pMainDb) ? mcFile->pMainDb->codec : 0;
+    if (codec != 0 && sqlite3mcIsEncrypted(codec))
+    {
+      aData = sqlite3mcCodec(codec, pPg->pData, pPg->pgno, 6);
+    }
+    else
+    {
+      aData = (char*) pPg->pData;
+    }
+  }
+  else
+  {
+    aData = (char*) pPg->pData;
+  }
+  return aData;
+}
+
+/*
 ** Implementation of VFS methods
 */
 
@@ -983,10 +1014,17 @@ static int mcIoWrite(sqlite3_file* pFile, const void* buffer, int count, sqlite3
     */
   }
 #endif
+#if 0
+  /*
+  ** The page content is encrypted in memory in the WAL journal handler.
+  ** This provides for compatibility with legacy applications using the
+  ** previous SQLITE_HAS_CODEC encryption API.
+  */
   else if (mcFile->openFlags & SQLITE_OPEN_WAL)
   {
     rc = mcWriteWal(pFile, buffer, count, offset);
   }
+#endif
   else
   {
     rc = REALFILE(pFile)->pMethods->xWrite(REALFILE(pFile), buffer, count, offset);
