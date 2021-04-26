@@ -90,7 +90,7 @@ static int userAuthCheckLogin(
   int rc;
 
   *peAuth = UAUTH_Unknown;
-  if( !userTableExists(db, "main") ){
+  if( !userTableExists(db, zDb) ){
     *peAuth = UAUTH_Admin;  /* No sqlite_user table.  Everybody is admin. */
     return SQLITE_OK;
   }
