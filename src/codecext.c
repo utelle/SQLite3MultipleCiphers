@@ -3,7 +3,7 @@
 ** Purpose:     Implementation of SQLite codec API
 ** Author:      Ulrich Telle
 ** Created:     2006-12-06
-** Copyright:   (c) 2006-2020 Ulrich Telle
+** Copyright:   (c) 2006-2021 Ulrich Telle
 ** License:     MIT
 */
 
@@ -346,6 +346,7 @@ sqlite3_key_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
     else
     {
       rc = SQLITE_ERROR;
+      sqlite3ErrorWithMsg(db, rc, "Key failed. Database '%s' not found.", zDbName);
     }
   }
   return rc;
@@ -372,6 +373,7 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
   dbIndex = (zDbName) ? sqlite3FindDbName(db, zDbName) : 0;
   if (dbIndex < 0)
   {
+    sqlite3ErrorWithMsg(db, rc, "Rekey failed. Database '%s' not found.", zDbName);
     return rc;
   }
   pBt = db->aDb[dbIndex].pBt;
@@ -384,6 +386,12 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
   pPager = sqlite3BtreePager(pBt);
   codec = sqlite3mcGetCodec(db, zDbName);
 
+  if (pagerUseWal(pPager))
+  {
+    sqlite3ErrorWithMsg(db, rc, "Rekey is not supported in WAL journal mode.");
+    return rc;
+  }
+  
   if ((zKey == NULL || nKey == 0) && (codec == NULL || !sqlite3mcIsEncrypted(codec)))
   {
     /* Database not encrypted and key not specified, therefore do nothing	*/
@@ -431,6 +439,7 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
       {
         /* Pagesize cannot be changed for an encrypted database */
         rc = SQLITE_ERROR;
+        sqlite3ErrorWithMsg(db, rc, "Rekey failed. Pagesize cannot be changed for an encrypted database.");
         goto leave_rekey;
       }
     }
@@ -479,12 +488,14 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
       {
         /* Pagesize cannot be changed for an encrypted database */
         rc = SQLITE_ERROR;
+        sqlite3ErrorWithMsg(db, rc, "Rekey failed. Pagesize cannot be changed for an encrypted database.");
         goto leave_rekey;
       }
     }
     else
     {
       /* Setup of write cipher failed */
+      sqlite3ErrorWithMsg(db, rc, "Rekey failed. Setup of write cipher failed.");
       goto leave_rekey;
     }
   }

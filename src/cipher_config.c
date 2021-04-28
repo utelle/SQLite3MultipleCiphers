@@ -3,7 +3,7 @@
 ** Purpose:     Configuration of SQLite codecs
 ** Author:      Ulrich Telle
 ** Created:     2020-03-02
-** Copyright:   (c) 2006-2020 Ulrich Telle
+** Copyright:   (c) 2006-2021 Ulrich Telle
 ** License:     MIT
 */
 
@@ -808,6 +808,17 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
       if (rc == SQLITE_OK)
       {
         ((char**)pArg)[0] = sqlite3_mprintf("ok");
+      }
+      else
+      {
+        if (db->pErr)
+        {
+          const char* z = sqlite3_value_text(db->pErr);
+          if (z && sqlite3Strlen30(z) > 0)
+          {
+            ((char**)pArg)[0] = sqlite3_mprintf(z);
+          }
+        }
       }
     }
     else

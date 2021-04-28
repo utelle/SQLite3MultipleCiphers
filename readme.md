@@ -12,6 +12,9 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version history
 
+* 1.3.1 - *April 2021*
+  - Prevent rekey in WAL journal mode
+  - Fix issue in user authentication extension that prevented VACUUMing or rekeying
 * 1.3.0 - *April 2021*
   - Based on SQLite version 3.35.5
   - Fix issue #37: Allow concurrent access from legacy applications by establishing WAL journal mode compatibility
