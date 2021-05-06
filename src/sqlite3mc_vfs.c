@@ -280,7 +280,7 @@ SQLITE_PRIVATE void* sqlite3mcPagerCodec(PgHdr* pPg)
   if (pFile->pMethods == &mcIoMethodsGlobal)
   {
     sqlite3mc_file* mcFile = (sqlite3mc_file*) pFile;
-    Codec* codec = (mcFile->pMainDb) ? mcFile->pMainDb->codec : 0;
+    Codec* codec = mcFile->codec;
     if (codec != 0 && sqlite3mcIsEncrypted(codec))
     {
       aData = sqlite3mcCodec(codec, pPg->pData, pPg->pgno, 6);
