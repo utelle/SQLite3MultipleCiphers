@@ -39,6 +39,7 @@ typedef struct _Codec
 {
   int           m_isEncrypted;
   int           m_hmacCheck;
+  int           m_walLegacy;
   /* Read cipher */
   int           m_hasReadCipher;
   int           m_readCipherType;

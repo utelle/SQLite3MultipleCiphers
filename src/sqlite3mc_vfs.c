@@ -281,7 +281,7 @@ SQLITE_PRIVATE void* sqlite3mcPagerCodec(PgHdr* pPg)
   {
     sqlite3mc_file* mcFile = (sqlite3mc_file*) pFile;
     Codec* codec = mcFile->codec;
-    if (codec != 0 && sqlite3mcIsEncrypted(codec))
+    if (codec != 0 && codec->m_walLegacy == 0 && sqlite3mcIsEncrypted(codec))
     {
       aData = sqlite3mcCodec(codec, pPg->pData, pPg->pgno, 6);
     }
@@ -676,7 +676,19 @@ static int mcReadWal(sqlite3_file* pFile, const void* buffer, int count, sqlite3
       */
       if (pageNo != 0)
       {
-        void* bufferDecrypted = sqlite3mcCodec(codec, (char*) buffer, pageNo, 3);
+        void* bufferDecrypted = sqlite3mcCodec(codec, (char*)buffer, pageNo, 3);
+      }
+    }
+    else if (codec->m_walLegacy != 0 && count == pageSize + walFrameHeaderSize)
+    {
+      int pageNo = sqlite3Get4byte(buffer);
+
+      /*
+      ** Decrypt page content if page number is valid
+      */
+      if (pageNo != 0)
+      {
+        void* bufferDecrypted = sqlite3mcCodec(codec, (char*)buffer+walFrameHeaderSize, pageNo, 3);
       }
     }
   }
@@ -905,7 +917,7 @@ static int mcWriteWal(sqlite3_file* pFile, const void* buffer, int count, sqlite
   sqlite3mc_file* mcFile = (sqlite3mc_file*) pFile;
   Codec* codec = (mcFile->pMainDb) ? mcFile->pMainDb->codec : 0;
 
-  if (codec != 0 && sqlite3mcIsEncrypted(codec))
+  if (codec != 0 && codec->m_walLegacy != 0 && sqlite3mcIsEncrypted(codec))
   {
     const int pageSize = sqlite3mcGetPageSize(codec);
 
@@ -921,7 +933,7 @@ static int mcWriteWal(sqlite3_file* pFile, const void* buffer, int count, sqlite
       ** immediately before writing the corresponding page content.
       ** Page numbers and checksums are written to file independently.
       ** Therefore it is necessary to explicitly read the page number
-      ** on writing to file the contetn of a page.
+      ** on writing to file the content of a page.
       */
       rc = REALFILE(pFile)->pMethods->xRead(REALFILE(pFile), ac, 4, offset - walFrameHeaderSize);
       if (rc == SQLITE_OK)
@@ -936,6 +948,26 @@ static int mcWriteWal(sqlite3_file* pFile, const void* buffer, int count, sqlite
         */
         void* bufferEncrypted = sqlite3mcCodec(codec, (char*) buffer, pageNo, 7);
         rc = REALFILE(pFile)->pMethods->xWrite(REALFILE(pFile), bufferEncrypted, pageSize, offset);
+      }
+      else
+      {
+        /*
+        ** Write buffer without encryption if the page number could not be determined
+        */
+        rc = REALFILE(pFile)->pMethods->xWrite(REALFILE(pFile), buffer, count, offset);
+      }
+    }
+    else if (count == pageSize + walFrameHeaderSize)
+    {
+      int pageNo = sqlite3Get4byte(buffer);
+      if (pageNo != 0)
+      {
+        /*
+        ** Encrypt the page buffer, but only if the page number is valid
+        */
+        void* bufferEncrypted = sqlite3mcCodec(codec, (char*)buffer+walFrameHeaderSize, pageNo, 7);
+        rc = REALFILE(pFile)->pMethods->xWrite(REALFILE(pFile), buffer, walFrameHeaderSize, offset);
+        rc = REALFILE(pFile)->pMethods->xWrite(REALFILE(pFile), bufferEncrypted, pageSize, offset+walFrameHeaderSize);
       }
       else
       {
@@ -1014,7 +1046,7 @@ static int mcIoWrite(sqlite3_file* pFile, const void* buffer, int count, sqlite3
     */
   }
 #endif
-#if 0
+#if 1
   /*
   ** The page content is encrypted in memory in the WAL journal handler.
   ** This provides for compatibility with legacy applications using the
