@@ -3,7 +3,7 @@
 ** Purpose:     Implementation of SQLite VFS for Multiple Ciphers
 ** Author:      Ulrich Telle
 ** Created:     2020-02-28
-** Copyright:   (c) 2020 Ulrich Telle
+** Copyright:   (c) 2020-2021 Ulrich Telle
 ** License:     MIT
 */
 
@@ -1046,7 +1046,6 @@ static int mcIoWrite(sqlite3_file* pFile, const void* buffer, int count, sqlite3
     */
   }
 #endif
-#if 1
   /*
   ** The page content is encrypted in memory in the WAL journal handler.
   ** This provides for compatibility with legacy applications using the
@@ -1056,7 +1055,6 @@ static int mcIoWrite(sqlite3_file* pFile, const void* buffer, int count, sqlite3
   {
     rc = mcWriteWal(pFile, buffer, count, offset);
   }
-#endif
   else
   {
     rc = REALFILE(pFile)->pMethods->xWrite(REALFILE(pFile), buffer, count, offset);

@@ -3,7 +3,7 @@
 ** Purpose:     Header for the ciphers of SQLite3 Multiple Ciphers
 ** Author:      Ulrich Telle
 ** Created:     2020-02-02
-** Copyright:   (c) 2006-2020 Ulrich Telle
+** Copyright:   (c) 2006-2021 Ulrich Telle
 ** License:     MIT
 */
 
@@ -238,6 +238,33 @@ SQLITE_PRIVATE void sqlite3mcCodecGetKey(sqlite3* db, int nDb, void** zKey, int*
   }
 #else
 #define SQLITE3MC_DEBUG_HEX(DESC,BUFFER,LEN)
+#endif
+
+/*
+** If encryption was enabled and WAL journal mode was used,
+** SQLite3 Multiple Ciphers encrypted the WAL journal frames up to version 1.2.5
+** within the VFS implementation. As a consequence the WAL journal file was not
+** compatible with legacy encryption implementations (for example, System.Data.SQLite
+** or SQLCipher). Additionally, the implementation of the WAL journal encryption
+** was broken, because reading and writing of complete WAL frames was not handled
+** correctly. Usually, operating in WAL journal mode worked nevertheless, but after
+** crashes the WAL journal file could be corrupted leading to data loss.
+**
+** Version 1.3.0 introduced a new way to handle WAL journal encryption. The advantage
+** is that the WAL journal file is now compatible with legacy encryption implementations.
+** Unfortunately the new implementation is not compatible with that used up to version
+** 1.2.5. To be able to access WAL journals created by prior versions, the configuration
+** parameter 'mc_legacy_wal' was introduced. If the parameter is set to 1, then the
+** prior WAL journal encryption mode is used. The default of this parameter can be set
+** at compile time by setting the symbol SQLITE3MC_LEGACY_WAL accordingly, but the actual
+** value can also be set at runtime using the pragma or the URI parameter 'mc_legacy_wal'.
+**
+** In principle, operating generally in WAL legacy mode is possible, but it is strongly
+** recommended to use the WAL legacy mode only to recover WAL journals left behind by
+** prior versions without data loss.
+*/
+#ifndef SQLITE3MC_LEGACY_WAL
+#define SQLITE3MC_LEGACY_WAL 0
 #endif
 
 #endif
