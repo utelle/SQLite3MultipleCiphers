@@ -41,6 +41,20 @@ WAL journal files consist of a file header and  WAL frames. Each frame consists 
 
 Unfortunately, the frame header and the page content are not read or written in a particular order. Therefore on reading or writing the content of a page an additional read operation is required to read the page number from the frame header.
 
-### Checksums
+### Checksums in journal files
+
+For rollback journals as well as for WAL journals SQLite uses checksums to verify the integrity of a journal file. _SQLite3 Multiple Ciphers_ handles the various journal types differently.
+
+#### Rollback journal
 
 In the previous implementation SQLite calculated checksums **after** the page content was encrypted. In the new implementation SQLite uses the **unencrypted** page content to calculate checksums. In the transition from the previous to the new implementation this could possibly cause problems, if journal files written by the previous implementation have to be processed by the new implementation. Therefore it is strongly recommended to do the transition for intact databases without active journal files.
+
+#### WAL journal
+
+Up to version 1.2.5 _SQLite3 Multiple Ciphers_ encrypted the WAL journal frames within the VFS implementation.  As a consequence WAL journal files were not compatible with the previous implementation. Since active journal files are a common case for WAL journal mode, this could cause problems not only in the transition phase, but also when concurrent access from legacy applications (for example, _System.Data.SQLite_ or _SQLCipher_) has to be supported.
+
+Beginning with version 1.3.0 the encryption implementation for WAL journals was modified to be compatible with legacy applications. That is, checksums are now calculated based on the **encrypted** page content.
+
+Unfortunately the new implementation is not compatible with that used up to version 1.2.5. To be able to access WAL journals created by prior versions, the configuration parameter `mc_legacy_wal` was introduced. If the parameter is set to 1, then the prior WAL journal encryption mode is used. The default of this parameter can be set at compile time by setting the symbol `SQLITE3MC_LEGACY_WAL` accordingly, but the actual value can also be set at runtime using the pragma or the URI parameter `mc_legacy_wal`.
+
+In principle, operating generally in WAL legacy mode is possible, but it is strongly recommended to use the WAL legacy mode only to recover WAL journals left behind by prior versions without data loss.

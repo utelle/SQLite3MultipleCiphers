@@ -42,6 +42,7 @@ The following parameter names are supported for `paramName`:
 | :--- | :--- | :--- |
 | `cipher` | The cipher to be used for encrypting the database. | `cipherName`<br />(see&nbsp;table&nbsp;below) |
 | `hmac_check` | Boolean flag whether the HMAC should be validated on read operations for encryption schemes using HMACs | `0` <br/> `1` |
+| `mc_legacy_wal` | Boolean flag whether the _legacy_ mode for the WAL journal encryption should be used | `0` <br/> `1` |
 
 The following table lists the supported cipher identifiers:
 
@@ -56,6 +57,7 @@ The following table lists the supported cipher identifiers:
 Note
 {: .label .label-red .ml-0 .mb-1 .mt-2 }
 - Checking the HMAC on read operations is active by default. With the parameter `hmac_check` the HMAC check can be disabled in case of trying to recover a corrupted database. It is not recommended to deactivate the HMAC check for regular database operation. Therefore the default can not be changed.
+- The _legacy_ mode for WAL journal encryption is off by default. The encryption mode used by all versions up to 1.2.5 is called _legacy_ mode, version 1.3.0 introduced a new encryption mode that provides  compatibility with legacy encryption implementations and is less vulnerable to changes in SQLite. It should only be enabled to recover WAL journal files left behind by applications using versions up to 1.2.5.
 
 <span class="label label-green">Examples</span>
 

@@ -184,6 +184,21 @@ Note
 
 ---
 
+### PRAGMA *mc_legacy_wal*
+
+The `PRAGMA mc_legacy_wal` sets a boolean flag whether the legacy mode for the WAL journal encryption should be used. It has the following syntax:
+
+```sql
+PRAGMA mc_legacy_wal = { 0 | 1 };
+```
+where the value `0` stands for `false` or `disabled`, and the value `1` stands for `true` or `enabled`.
+
+Note
+{: .label .label-red .ml-0 .mb-1 .mt-2 }
+- The _legacy_ mode for WAL journal encryption is off by default. The encryption mode used by all versions up to 1.2.5 is called _legacy_ mode, version 1.3.0 introduced a new encryption mode that provides  compatibility with legacy encryption implementations and is less vulnerable to changes in SQLite. It should only be enabled to recover WAL journal files left behind by applications using versions up to 1.2.5.
+
+---
+
 ## PRAGMA statements for cipher configuration
 
 Each cipher scheme has certain parameters which can be configured. Usually, just selecting a cipher scheme for database encryption should be enough, but if compatibility with other applications matters, it may be necessary to adjust some or all of the cipher parameters.

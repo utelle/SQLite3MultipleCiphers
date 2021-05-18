@@ -30,6 +30,10 @@ It is convenient to be able to handle URI parameters at an early stage. Therefor
 
 However, handling of the URI parameters could be postponed until the first database file access. That is, this patch could be avoided.
 
+### Handling for WAL journal files
+
+Beginning with version 1.3.0 the page content of a WAL frame is encrypted **before** SQLite calculates any checksums. In prior versions SQLite calculated the checksums based on the **unencrypted** page content. However, that could lead to problems. Therefore 2 patches are applied to SQLite's WAL implementation.
+
 ### Pragma handling
 
 **SQLite3 Multiple Ciphers** keeps certain configuration parameters in a data structure which is bound to each database connection. Access to this data structure is implemented by a user-defined SQL function. The parameters held in this data structure can be queried or modified by `PRAGMA` statements or by calling user-defined functions.
