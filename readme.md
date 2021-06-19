@@ -12,6 +12,8 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version history
 
+* 1.3.3 - *June 2021*
+  - Based on SQLite version 3.36.0
 * 1.3.2 - *May 2021*
   - Added configuration parameter `mc_legacy_wal` (issue #40)
   - Fix issue #39: Corrupted WAL journal due to referencing the wrong codec pointer
