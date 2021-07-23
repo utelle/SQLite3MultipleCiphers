@@ -45,8 +45,15 @@ void sqlite3mc_shutdown(void);
 /*
 ** Enable the user authentication feature
 */
+#if !SQLITE_USER_AUTHENTICATION
+/* Option not defined or explicitly disabled */
 #ifndef SQLITE_USER_AUTHENTICATION
+/* Option not defined, therefore enable by default */
 #define SQLITE_USER_AUTHENTICATION 1
+#else
+/* Option defined and disabled, therefore undefine option */
+#undef SQLITE_USER_AUTHENTICATION
+#endif
 #endif
 
 #if defined(_WIN32) || defined(WIN32)

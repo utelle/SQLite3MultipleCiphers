@@ -244,18 +244,21 @@ SQLITE_PRIVATE void sqlite3mcSetCodec(sqlite3* db, const char* zFileName, Codec*
   sqlite3mc_file* pDbMain = mcFindDbMainFileName(&mcVfsGlobal, zFileName);
   if (pDbMain)
   {
-    if (pDbMain->codec)
+    Codec* prevCodec = pDbMain->codec;
+    Codec* msgCodec = (codec) ? codec : prevCodec;
+    if (msgCodec)
+    {
+      /* Reset error state of pager */
+      mcReportCodecError(sqlite3mcGetBtShared(msgCodec), SQLITE_OK);
+    }
+    if (prevCodec)
     {
       /*
       ** Free a codec that was already associated with this main database file handle
       */
-      sqlite3mcCodecFree(pDbMain->codec);
+      sqlite3mcCodecFree(prevCodec);
     }
     pDbMain->codec = codec;
-    if (codec)
-    {
-      mcReportCodecError(sqlite3mcGetBtShared(codec), SQLITE_OK);
-    }
   }
   else
   {

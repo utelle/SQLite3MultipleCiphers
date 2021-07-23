@@ -12,6 +12,9 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version history
 
+* 1.3.4 - *July 2021* (pending)
+  - Allow empty passphrase for `PRAGMA key`
+  - Allow to fully disable including of user authentication by defining `SQLITE_USER_AUTHENTICATION=0`
 * 1.3.3 - *June 2021*
   - Based on SQLite version 3.36.0
 * 1.3.2 - *May 2021*

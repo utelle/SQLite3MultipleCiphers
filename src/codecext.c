@@ -243,6 +243,11 @@ sqlite3mcCodecAttach(sqlite3* db, int nDb, const char* zPath, const void* zKey, 
     {
       /* Main database not encrypted, no key given for attached database */
       sqlite3mcCodecFree(codec);
+      /* Remove codec for main database */
+      if (nDb == 0 && nKey == 0)
+      {
+        sqlite3mcSetCodec(db, dbFileName, NULL);
+      }
     }
   }
   else
@@ -322,7 +327,8 @@ sqlite3_key_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
     /* Key is zero-terminated string */
     nKey = sqlite3Strlen30((const char*) zKey);
   }
-  if ((db != NULL) && (zKey != NULL) && (nKey > 0))
+  /* Database handle db and key must be given, but key length 0 is allowed */
+  if ((db != NULL) && (zKey != NULL) && (nKey >= 0))
   {
     int dbIndex;
     const char* dbFileName = sqlite3_db_filename(db, zDbName);
