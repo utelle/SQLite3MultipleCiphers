@@ -75,5 +75,5 @@ A more detailed description (especially, how to configure cipher schemes) can be
 
 Additionally, the SQL command `ATTACH` supports the `KEY` keyword to allow to attach an encrypted database file to the current database connection:
 ```sql
-ATTACH [DATABASE] <db-file-expression> AS <schema-name> [KEY=passphrase]
+ATTACH [DATABASE] <db-file-expression> AS <schema-name> [KEY <passphrase>]
 ```
