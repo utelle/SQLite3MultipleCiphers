@@ -42,6 +42,9 @@
     <ClInclude Include="..\src\sqlite3mc.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\sqlite3mc_config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\sqlite3mc_version.h">
       <Filter>Header Files</Filter>
     </ClInclude>

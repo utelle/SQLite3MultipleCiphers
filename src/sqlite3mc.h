@@ -3,13 +3,21 @@
 ** Purpose:     Header file for SQLite3 Multiple Ciphers support
 ** Author:      Ulrich Telle
 ** Created:     2020-03-01
-** Copyright:   (c) 2019-2020 Ulrich Telle
+** Copyright:   (c) 2019-2021 Ulrich Telle
 ** License:     MIT
 */
 
 #ifndef SQLITE3MC_H_
 #define SQLITE3MC_H_
 
+/*
+** Define SQLite3 Multiple Ciphers version information
+*/
+#include "sqlite3mc_version.h"
+
+/*
+** Define SQLite3 API
+*/
 #include "sqlite3.h"
 
 #ifdef SQLITE_USER_AUTHENTICATION
@@ -26,67 +34,6 @@
 #define CODEC_TYPE_SQLCIPHER 4
 #define CODEC_TYPE_RC4       5
 #define CODEC_TYPE_MAX       5
-
-/*
-** Definitions of supported ciphers
-*/
-
-/*
-** Compatibility with wxSQLite3
-*/
-#ifdef WXSQLITE3_HAVE_CIPHER_AES_128_CBC
-#define HAVE_CIPHER_AES_128_CBC WXSQLITE3_HAVE_CIPHER_AES_128_CBC
-#endif
-
-#ifdef WXSQLITE3_HAVE_CIPHER_AES_256_CBC
-#define HAVE_CIPHER_AES_256_CBC WXSQLITE3_HAVE_CIPHER_AES_256_CBC
-#endif
-
-#ifdef WXSQLITE3_HAVE_CIPHER_CHACHA20
-#define HAVE_CIPHER_CHACHA20 WXSQLITE3_HAVE_CIPHER_CHACHA20
-#endif
-
-#ifdef WXSQLITE3_HAVE_CIPHER_SQLCIPHER
-#define HAVE_CIPHER_SQLCIPHER WXSQLITE3_HAVE_CIPHER_SQLCIPHER
-#endif
-
-#ifdef WXSQLITE3_HAVE_CIPHER_RC4
-#define HAVE_CIPHER_RC4 WXSQLITE3_HAVE_CIPHER_RC4
-#endif
-
-/*
-** Actual definitions of supported ciphers
-*/
-#ifndef HAVE_CIPHER_AES_128_CBC
-#define HAVE_CIPHER_AES_128_CBC 1
-#endif
-
-#ifndef HAVE_CIPHER_AES_256_CBC
-#define HAVE_CIPHER_AES_256_CBC 1
-#endif
-
-#ifndef HAVE_CIPHER_CHACHA20
-#define HAVE_CIPHER_CHACHA20 1
-#endif
-
-#ifndef HAVE_CIPHER_SQLCIPHER
-#define HAVE_CIPHER_SQLCIPHER 1
-#endif
-
-#ifndef HAVE_CIPHER_RC4
-#define HAVE_CIPHER_RC4 1
-#endif
-
-/*
-** Check that at least one cipher is be supported
-*/
-#if HAVE_CIPHER_AES_128_CBC == 0 &&  \
-    HAVE_CIPHER_AES_256_CBC == 0 &&  \
-    HAVE_CIPHER_CHACHA20    == 0 &&  \
-    HAVE_CIPHER_SQLCIPHER   == 0 &&  \
-    HAVE_CIPHER_RC4         == 0
-#error Enable at least one cipher scheme!
-#endif
 
 /*
 ** Definition of API functions
