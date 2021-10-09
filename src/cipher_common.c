@@ -96,6 +96,7 @@ sqlite3mcCloneCodecParameterTable()
     {
       CipherParams* params = globalCodecParameterTable[j].m_params;
       cloneCodecParams[j].m_name = globalCodecParameterTable[j].m_name;
+      cloneCodecParams[j].m_id = globalCodecParameterTable[j].m_id;
       cloneCodecParams[j].m_params = &cloneCipherParams[offset];
       for (n = 0; strlen(params[n].m_name) > 0; ++n);
       /* Copy all parameters of the current table (including sentinel) */
@@ -110,6 +111,7 @@ sqlite3mcCloneCodecParameterTable()
       offset += (n + 1);
     }
     cloneCodecParams[nTables].m_name = globalCodecParameterTable[nTables].m_name;
+    cloneCodecParams[nTables].m_id = globalCodecParameterTable[nTables].m_id;
     cloneCodecParams[nTables].m_params = NULL;
   }
   else
@@ -193,8 +195,20 @@ sqlite3mcGetCipherType(sqlite3* db)
 SQLITE_PRIVATE CipherParams*
 sqlite3mcGetCipherParams(sqlite3* db, int cypherType)
 {
+  int j = 0;
   CodecParameter* codecParams = (db != NULL) ? sqlite3mcGetCodecParams(db) : globalCodecParameterTable;
-  CipherParams* cipherParamTable = (codecParams != NULL) ? codecParams[cypherType].m_params : globalCodecParameterTable[cypherType].m_params;
+  if (codecParams == NULL)
+  {
+    codecParams = globalCodecParameterTable;
+  }
+  if (cypherType > 0)
+  {
+    for (j = 1; codecParams[j].m_id > 0; ++j)
+    {
+      if (cypherType == codecParams[j].m_id) break;
+    }
+  }
+  CipherParams* cipherParamTable = codecParams[j].m_params;
   return cipherParamTable;
 }
 

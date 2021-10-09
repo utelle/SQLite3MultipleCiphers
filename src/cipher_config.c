@@ -97,13 +97,23 @@ sqlite3mc_config(sqlite3* db, const char* paramName, int newValue)
     value = (hasDefaultPrefix) ? param->m_default : (hasMinPrefix) ? param->m_minValue : (hasMaxPrefix) ? param->m_maxValue : param->m_value;
     if (!hasMinPrefix && !hasMaxPrefix && newValue >= 0 && newValue >= param->m_minValue && newValue <= param->m_maxValue)
     {
-      /* Do not allow to change the default value for parameter "hmac_check" */
-      if (hasDefaultPrefix && (sqlite3_stricmp(paramName, "hmac_check") != 0))
+      int allowChange = 1;
+      /* Allow cipher change only if new cipher is actually available */
+      if (sqlite3_stricmp(paramName, "cipher") == 0)
       {
-        param->m_default = newValue;
+        allowChange = (codecDescriptorTable[newValue - 1] != &mcDummyDescriptor);
       }
-      param->m_value = newValue;
-      value = newValue;
+
+      if (allowChange)
+      {
+        /* Do not allow to change the default value for parameter "hmac_check" */
+        if (hasDefaultPrefix && (sqlite3_stricmp(paramName, "hmac_check") != 0))
+        {
+          param->m_default = newValue;
+        }
+        param->m_value = newValue;
+        value = newValue;
+      }
     }
     if (db != NULL)
     {
@@ -758,27 +768,29 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
     pragmaValue = ((char**) pArg)[2];
     if (sqlite3StrICmp(pragmaName, "cipher") == 0)
     {
-      int j = -1;
+      int cipherId = -1;
       if (pragmaValue != NULL)
       {
+        int j = 1;
         /* Try to locate the cipher name */
         for (j = 1; strlen(globalCodecParameterTable[j].m_name) > 0; ++j)
         {
           if (sqlite3_stricmp(pragmaValue, globalCodecParameterTable[j].m_name) == 0) break;
         }
+        cipherId = (strlen(globalCodecParameterTable[j].m_name) > 0) ? globalCodecParameterTable[j].m_id : CODEC_TYPE_UNKNOWN;
       }
 
-      /* j is the index of the cipher name, if found */
-      if ((j == -1) || (strlen(globalCodecParameterTable[j].m_name) > 0))
+      /* cipherId is the numeric id of the cipher name, if found */
+      if ((cipherId == -1) || (cipherId > 0 && cipherId <= CODEC_TYPE_MAX))
       {
         int value;
         if (configDefault)
         {
-          value = sqlite3mc_config(db, "default:cipher", j);
+          value = sqlite3mc_config(db, "default:cipher", cipherId);
         }
         else
         {
-          value = sqlite3mc_config(db, "cipher", j);
+          value = sqlite3mc_config(db, "cipher", cipherId);
         }
         rc = SQLITE_OK;
         ((char**)pArg)[0] = sqlite3_mprintf("%s", codecDescriptorTable[value - 1]->m_name);
