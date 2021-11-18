@@ -143,13 +143,11 @@ void chacha20_xor(void* buffer, size_t n, const uint8_t key[32],
 void poly1305(const uint8_t* msg, size_t n, const uint8_t key[32],
               uint8_t tag[16])
 {
-  uint32_t hibit;
   uint64_t d0, d1, d2, d3, d4;
   uint32_t h0, h1, h2, h3, h4;
   uint32_t r0, r1, r2, r3, r4;
   uint32_t s1, s2, s3, s4;
 
-  hibit = (uint32_t) 1 << 24;
   h0 = h1 = h2 = h3 = h4 = 0;
   r0 = (LOAD32_LE(key +  0) >> 0) & 0x03FFFFFF;
   r1 = (LOAD32_LE(key +  3) >> 2) & 0x03FFFF03; s1 = r1 * 5;
@@ -158,12 +156,13 @@ void poly1305(const uint8_t* msg, size_t n, const uint8_t key[32],
   r4 = (LOAD32_LE(key + 12) >> 8) & 0x000FFFFF; s4 = r4 * 5;
   while (n >= 16)
   {
+    h4 += 0x01000000;
 process_block:
     h0 += (LOAD32_LE(msg +  0) >> 0) & 0x03FFFFFF;
     h1 += (LOAD32_LE(msg +  3) >> 2) & 0x03FFFFFF;
     h2 += (LOAD32_LE(msg +  6) >> 4) & 0x03FFFFFF;
     h3 += (LOAD32_LE(msg +  9) >> 6) & 0x03FFFFFF;
-    h4 += (LOAD32_LE(msg + 12) >> 8) | hibit;
+    h4 += (LOAD32_LE(msg + 12) >> 8);
 
     #define MUL(a,b) ((uint64_t)(a) * (b))
     d0 = MUL(h0,r0) + MUL(h1,s4) + MUL(h2,s3) + MUL(h3,s2) + MUL(h4,s1);
@@ -188,32 +187,26 @@ process_block:
     for (i = 0; i < n; tag[i] = msg[i], i++);
     for (tag[i++] = 1; i < 16; tag[i++] = 0);
     msg = tag;
-    hibit = 0;
     n = 16;
     goto process_block;
   }
 
-  r0 = h0 + 5;
-  r1 = h1 + (r0 >> 26); *(volatile uint32_t *)&r0 = 0;
-  r2 = h2 + (r1 >> 26); *(volatile uint32_t *)&r1 = 0;
-  r3 = h3 + (r2 >> 26); *(volatile uint32_t *)&r2 = 0;
-  r4 = h4 + (r3 >> 26); *(volatile uint32_t *)&r3 = 0;
-  h0 = h0 + (r4 >> 26) * 5; *(volatile uint32_t *)&r4 = 0;
+  r0 = (h0 + 5) >> 26;
+  r1 = (h1 + r0) >> 26;
+  r2 = (h2 + r1) >> 26;
+  r3 = (h3 + r2) >> 26;
+  r4 = (h4 + r3) >> 26;
+  h0 += r4 * 5;
 
-  d0 = (uint64_t)LOAD32_LE(key + 16) + (h0 >>  0) + (h1 << 26);
-  d1 = (uint64_t)LOAD32_LE(key + 20) + (h1 >>  6) + (h2 << 20) + (d0 >> 32);
-  d2 = (uint64_t)LOAD32_LE(key + 24) + (h2 >> 12) + (h3 << 14) + (d1 >> 32);
-  d3 = (uint64_t)LOAD32_LE(key + 28) + (h3 >> 18) + (h4 <<  8) + (d2 >> 32);
+  d1 = (uint64_t)LOAD32_LE(key + 16) + (h0 >>  0) + (h1 << 26);
+  d2 = (uint64_t)LOAD32_LE(key + 20) + (h1 >>  6) + (h2 << 20) + (d1 >> 32);
+  d3 = (uint64_t)LOAD32_LE(key + 24) + (h2 >> 12) + (h3 << 14) + (d2 >> 32);
+  d4 = (uint64_t)LOAD32_LE(key + 28) + (h3 >> 18) + (h4 <<  8) + (d3 >> 32);
 
-  STORE32_LE(tag +  0, d0); *(volatile uint32_t *)&s1 = 0;
-  STORE32_LE(tag +  4, d1); *(volatile uint32_t *)&s2 = 0;
-  STORE32_LE(tag +  8, d2); *(volatile uint32_t *)&s3 = 0;
-  STORE32_LE(tag + 12, d3); *(volatile uint32_t *)&s4 = 0;
-  *(volatile uint64_t *)&d0 = 0; *(volatile uint32_t *)&h0 = 0;
-  *(volatile uint64_t *)&d1 = 0; *(volatile uint32_t *)&h1 = 0;
-  *(volatile uint64_t *)&d2 = 0; *(volatile uint32_t *)&h2 = 0;
-  *(volatile uint64_t *)&d3 = 0; *(volatile uint32_t *)&h3 = 0;
-  *(volatile uint64_t *)&d4 = 0; *(volatile uint32_t *)&h4 = 0;
+  s1 = d1; STORE32_LE(tag +  0, s1);
+  s2 = d2; STORE32_LE(tag +  4, s2);
+  s3 = d3; STORE32_LE(tag +  8, s3);
+  s4 = d4; STORE32_LE(tag + 12, s4);
 }
 
 int poly1305_tagcmp(const uint8_t tag1[16], const uint8_t tag2[16])
@@ -295,7 +288,7 @@ static size_t entropy(void* buf, size_t n)
 
 #endif
 
-#elif defined(__linux__) || defined(__unix__) || defined(__APPLE__)
+#elif defined(__linux__) || defined(__unix__) || defined(__APPLE__) || defined(__QNX__)
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE

@@ -83,9 +83,13 @@ sqlite3mcCodecSizeChange(void *pArg, int pageSize, int reservedSize)
 static void
 mcReportCodecError(BtShared* pBt, int error)
 {
-  pBt->pPager->errCode = error;
-  setGetterMethod(pBt->pPager);
   pBt->db->errCode = error;
+  pBt->pPager->errCode = error;
+  if (error != SQLITE_OK)
+  {
+    pBt->pPager->eState = PAGER_ERROR;
+  }
+  setGetterMethod(pBt->pPager);
   if (error == SQLITE_OK)
   {
     /* Clear cache to force reread of database after a new passphrase has been set */
