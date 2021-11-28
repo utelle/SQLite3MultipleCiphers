@@ -6,13 +6,20 @@ In the course of time several developers had asked for a stand-alone version of 
 
 In late February 2020 work started on a new implementation of a SQLite encryption extension that will be able to support SQLite 3.32.0 and later. The new approach is based on [SQLite's VFS feature](https://www.sqlite.org/vfs.html). This approach has its pros and cons. On the one hand, the code is less closely coupled with SQLite itself; on the other hand, access to SQLite's internal data structures is more complex.
 
-This project is _Work In Progress_. As of May 2021, the code base is now rather stable, however, further major code modifications and/or reorganizations may still occur.
-
 The code was mainly developed under Windows, but was tested under Linux as well. At the moment no major issues are known.
 
 ## Version history
 
-* 1.3.4 - *July 2021* (pending)
+* 1.3.5 - *November 2021*
+  - Based on SQLite version 3.37.0
+  - Added build support for Visual C++ 2022
+  - Fix issue #55: Set pager error state on reporting decrypt error condition to avoid assertion when SQLITE_DEBUG is defined
+  - Fix issue #54: Check definition of symbol `__QNX__` to support compilation for QNX
+  - Apply minor adjustments to ChaCha20 implementation (taken from upstream resilar/sqleet)
+  - Fix issue #50 and #51: Numeric cipher ids are now handled correctly, if some of the cipher schemes are excluded from compilation
+  - The SQLite3 Multiple Ciphers version information is now exposed in the amalgamation header
+  - The compile-time configuration options have been moved to a separate header file
+* 1.3.4 - *July 2021*
   - Allow empty passphrase for `PRAGMA key`
   - Allow to fully disable including of user authentication by defining `SQLITE_USER_AUTHENTICATION=0`
 * 1.3.3 - *June 2021*

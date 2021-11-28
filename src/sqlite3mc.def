@@ -3,6 +3,7 @@ sqlite3_activate_see
 sqlite3_aggregate_context
 sqlite3_aggregate_count
 sqlite3_auto_extension
+sqlite3_autovacuum_pages
 sqlite3_backup_finish
 sqlite3_backup_init
 sqlite3_backup_pagecount
@@ -225,6 +226,7 @@ sqlite3_test_control
 sqlite3_thread_cleanup
 sqlite3_threadsafe
 sqlite3_total_changes
+sqlite3_total_changes64
 sqlite3_trace
 sqlite3_trace_v2
 sqlite3_transfer_bindings

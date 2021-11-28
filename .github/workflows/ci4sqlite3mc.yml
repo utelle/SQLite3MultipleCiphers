@@ -2,10 +2,10 @@ name: CI for SQLite3 Multiple Ciphers
 on:
   push:
     branches:
-    - master
+    - main
   pull_request:
     branches:
-    - master
+    - main
 
 jobs:
   build:

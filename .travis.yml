@@ -24,7 +24,7 @@ jobs:
 
 branches:
     only:
-        - master
+        - main
 
 before_install:
     - autoreconf

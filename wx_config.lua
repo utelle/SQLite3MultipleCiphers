@@ -59,6 +59,8 @@ elseif _ACTION == "vs2017" then
   vc_version = 15
 elseif _ACTION == "vs2019" then
   vc_version = 16
+elseif _ACTION == "vs2022" then
+  vc_version = 17
 end
 
 is_msvc = false
