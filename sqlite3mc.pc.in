@@ -10,4 +10,4 @@ Description: SQLite3 with encryption extension supporting multiple ciphers
 Version: @VERSION@
 Libs: -L${libdir} -l@SQLITE3MC_LIBNAME@
 Libs.private: -lpthread
-Cflags: -I${includedir}
+Cflags: -I${includedir}/sqlite3mc
