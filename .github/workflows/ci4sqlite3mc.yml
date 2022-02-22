@@ -8,7 +8,7 @@ on:
     - main
 
 jobs:
-  build:
+  host_x86:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
@@ -34,3 +34,28 @@ jobs:
         ./sqlite3shell test2.db3 ".read test/test2.sql"
         ./sqlite3shell dummy.db3 ".read test/sqlciphertest.sql"
 
+  host_arm:
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        arch: [armv7, aarch64]
+        cc_compiler: [gcc, clang]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2.4.0
+      - name: Build artifact
+        # The Github Action for non-x86 CPU
+        # https://github.com/uraimo/run-on-arch-action
+        uses: uraimo/run-on-arch-action@v2.1.1
+        with:
+          arch: ${{ matrix.arch }}
+          distro: ubuntu20.04
+          env: |
+            CC: ${{ matrix.cc_compiler }}
+          install: |
+            apt-get update -q -y
+            apt-get install -q -y "${{ matrix.cc_compiler }}" make automake
+          run: |
+            autoreconf
+            ./configure
+            make
