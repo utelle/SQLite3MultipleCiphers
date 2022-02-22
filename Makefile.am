@@ -11,7 +11,8 @@ X86_FLAGS =
 endif
 
 if HOST_ARM
-ARM_FLAGS = -march=native 
+#ARM_FLAGS = -march=native 
+ARM_FLAGS =
 else
 ARM_FLAGS =
 endif

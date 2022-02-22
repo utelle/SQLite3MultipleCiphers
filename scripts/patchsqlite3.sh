@@ -17,7 +17,7 @@ die() {
 # 1) Intercept VFS pragma handling
 # 2) Add handling of KEY parameter in ATTACH statements
 sed 's/sqlite3_file_control\(.*SQLITE_FCNTL_PRAGMA\)/sqlite3mcFileControlPragma\1/' "$INPUT" \
-    | sed '/\#endif \/\* SQLITE3\_H \*\//a \ \n\/\* Function prototypes of SQLite3 Multiple Ciphers \*\/\nSQLITE_PRIVATE int sqlite3mcFileControlPragma(sqlite3*, const char*, int, void*);\nSQLITE_PRIVATE int sqlite3mcHandleAttachKey(sqlite3*, const char*, const char*, sqlite3_value*, char**);\nSQLITE_PRIVATE int sqlite3mcHandleMainKey(sqlite3*, const char*);\ntypedef struct PgHdr PgHdr;\nSQLITE_PRIVATE void* sqlite3mcPagerCodec(PgHdr* pPg);' \
+    | sed '/\#endif \/\* SQLITE3\_H \*\//a \ \n\/\* Function prototypes of SQLite3 Multiple Ciphers \*\/\nSQLITE_PRIVATE int sqlite3mcFileControlPragma(sqlite3*, const char*, int, void*);\nSQLITE_PRIVATE int sqlite3mcHandleAttachKey(sqlite3*, const char*, const char*, sqlite3_value*, char**);\nSQLITE_PRIVATE int sqlite3mcHandleMainKey(sqlite3*, const char*);\ntypedef struct PgHdr PgHdrMC;\nSQLITE_PRIVATE void* sqlite3mcPagerCodec(PgHdrMC* pPg);' \
     | sed '/pData = pPage->pData;/c \  if( (pData = sqlite3mcPagerCodec(pPage))==0 ) return SQLITE_NOMEM_BKPT;' \
     | sed '/pData = p->pData;/c \        if( (pData = sqlite3mcPagerCodec(p))==0 ) return SQLITE_NOMEM;' \
     | sed '/sqlite3_free_filename( zPath );/i \\n  \/\* Handle KEY parameter. \*\/\n  if( rc==SQLITE_OK ){\n    rc = sqlite3mcHandleAttachKey(db, zName, zPath, argv[2], &zErrDyn);\n  }' \
