@@ -10,6 +10,10 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version history
 
+* 1.3.8 - *February 2022*
+  - Based on SQLite version 3.38.0
+  - Updated build files (JSON extension is now integral part of SQLite)
+  - Eliminated compile time warning (issue #66)
 * 1.3.7 - *January 2022*
   - Based on SQLite version 3.37.2
 * 1.3.6 - *January 2022*

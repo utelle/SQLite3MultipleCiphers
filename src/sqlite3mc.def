@@ -96,6 +96,7 @@ sqlite3_enable_shared_cache
 sqlite3_errcode
 sqlite3_errmsg
 sqlite3_errmsg16
+sqlite3_error_offset
 sqlite3_errstr
 sqlite3_exec
 sqlite3_expanded_sql
@@ -266,8 +267,13 @@ sqlite3_vmprintf
 sqlite3_vsnprintf
 sqlite3_vtab_collation
 sqlite3_vtab_config
+sqlite3_vtab_distinct
+sqlite3_vtab_in
+sqlite3_vtab_in_first
+sqlite3_vtab_in_next
 sqlite3_vtab_nochange
 sqlite3_vtab_on_conflict
+sqlite3_vtab_rhs_value
 sqlite3_wal_autocheckpoint
 sqlite3_wal_checkpoint
 sqlite3_wal_checkpoint_v2
