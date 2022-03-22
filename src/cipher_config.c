@@ -823,6 +823,26 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
         ((char**)pArg)[0] = sqlite3_mprintf("ok");
       }
     }
+    else if (sqlite3StrICmp(pragmaName, "hexkey") == 0)
+    {
+      int nValue = sqlite3Strlen30(pragmaValue);
+      if (((nValue & 1) == 0) && (sqlite3mcIsHexKey(pragmaValue, nValue) != 0))
+      {
+        char* zHexKey = sqlite3_malloc(nValue/2);
+        sqlite3mcConvertHex2Bin(pragmaValue, nValue, zHexKey);
+        rc = sqlite3_key_v2(db, zDbName, zHexKey, nValue/2);
+        sqlite3_free(zHexKey);
+        if (rc == SQLITE_OK)
+        {
+          ((char**)pArg)[0] = sqlite3_mprintf("ok");
+        }
+      }
+      else
+      {
+        rc = SQLITE_ERROR;
+        ((char**)pArg)[0] = sqlite3_mprintf("Malformed hex string");
+      }
+    }
     else if (sqlite3StrICmp(pragmaName, "rekey") == 0)
     {
       rc = sqlite3_rekey_v2(db, zDbName, pragmaValue, -1);
@@ -840,6 +860,37 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
             ((char**)pArg)[0] = sqlite3_mprintf(z);
           }
         }
+      }
+    }
+    else if (sqlite3StrICmp(pragmaName, "hexrekey") == 0)
+    {
+      int nValue = sqlite3Strlen30(pragmaValue);
+      if (((nValue & 1) == 0) && (sqlite3mcIsHexKey(pragmaValue, nValue) != 0))
+      {
+        char* zHexKey = sqlite3_malloc(nValue/2);
+        sqlite3mcConvertHex2Bin(pragmaValue, nValue, zHexKey);
+        rc = sqlite3_rekey_v2(db, zDbName, zHexKey, nValue/2);
+        sqlite3_free(zHexKey);
+        if (rc == SQLITE_OK)
+        {
+          ((char**)pArg)[0] = sqlite3_mprintf("ok");
+        }
+        else
+        {
+          if (db->pErr)
+          {
+            const char* z = (const char*)sqlite3_value_text(db->pErr);
+            if (z && sqlite3Strlen30(z) > 0)
+            {
+              ((char**)pArg)[0] = sqlite3_mprintf(z);
+            }
+          }
+        }
+      }
+      else
+      {
+        rc = SQLITE_ERROR;
+        ((char**)pArg)[0] = sqlite3_mprintf("Malformed hex string");
       }
     }
     else
@@ -906,13 +957,15 @@ sqlite3mcCodecQueryParameters(sqlite3* db, const char* zDb, const char* zUri)
   {
     u8 iByte;
     int i;
-    char zDecoded[40];
-    for (i = 0, iByte = 0; i < sizeof(zDecoded) * 2 && sqlite3Isxdigit(zKey[i]); i++)
+    int nKey = sqlite3Strlen30(zKey);
+    char* zDecoded = sqlite3_malloc(nKey);
+    for (i = 0, iByte = 0; i < nKey && sqlite3Isxdigit(zKey[i]); i++)
     {
       iByte = (iByte << 4) + sqlite3HexToInt(zKey[i]);
-      if ((i & 1) != 0) zDecoded[i / 2] = iByte;
+      if ((i & 1) != 0) zDecoded[i/2] = iByte;
     }
-    sqlite3_key_v2(db, zDb, zDecoded, i / 2);
+    sqlite3_key_v2(db, zDb, zDecoded, i/2);
+    sqlite3_free(zDecoded);
   }
   else if ((zKey = sqlite3_uri_parameter(zUri, "key")) != 0)
   {
