@@ -226,6 +226,15 @@ SQLITE_EXTENSION_INIT1
 #include <stdio.h>
 #include <math.h>
 
+#ifdef SQLITE_HAVE_ZLIB
+#include <zlib.h>
+#define fopen  gzopen
+#define fclose gzclose
+#define fread  gzfread
+#define fseek  gzseek
+#define ftell  gztell
+#endif
+
 #ifndef SQLITE_OMIT_VIRTUALTABLE
 
 /*
@@ -257,7 +266,11 @@ SQLITE_EXTENSION_INIT1
 typedef struct VsvReader VsvReader;
 struct VsvReader
 {
+#ifdef SQLITE_HAVE_ZLIB
+    gzFile in;             /* Read the VSV text from this compressed input stream */
+#else
     FILE *in;              /* Read the VSV text from this input stream */
+#endif
     char *z;               /* Accumulated text for a field */
     int n;                 /* Number of bytes in z */
     int nAlloc;            /* Space allocated for z[] */
@@ -1157,6 +1170,7 @@ static int vsvtabConnect(
     }
     else if (nCol<0)
     {
+        nCol = 0;
         do
         {
             vsv_read_one_field(&sRdr);
