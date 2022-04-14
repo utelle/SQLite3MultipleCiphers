@@ -3,7 +3,7 @@
 ** Purpose:     Implementation of SQLite VFS for Multiple Ciphers
 ** Author:      Ulrich Telle
 ** Created:     2020-02-28
-** Copyright:   (c) 2020-2021 Ulrich Telle
+** Copyright:   (c) 2020-2022 Ulrich Telle
 ** License:     MIT
 */
 
@@ -29,6 +29,7 @@ struct sqlite3mc_file
 {
   sqlite3_file base;           /* sqlite3_file I/O methods */
   sqlite3_file* pFile;         /* Real underlying OS file */
+  sqlite3mc_vfs* pVfsMC;       /* Pointer to the sqlite3mc_vfs object */
   const char* zFileName;       /* File name */
   int openFlags;               /* Open flags */
   sqlite3mc_file* pMainNext;   /* Next main db file */
@@ -50,9 +51,6 @@ struct sqlite3mc_vfs
 
 #define REALVFS(p) ((sqlite3_vfs*)(((sqlite3mc_vfs*)(p))->base.pAppData))
 #define REALFILE(p) (((sqlite3mc_file*)(p))->pFile)
-
-#define ORIGVFS(p)  ((sqlite3_vfs*)((p)->pAppData))
-#define ORIGFILE(p) ((sqlite3_file*)(((CksmFile*)(p))+1))
 
 /*
 ** Prototypes for VFS methods
@@ -107,37 +105,8 @@ static const int walFrameHeaderSize = 24;
 static const int walFileHeaderSize = 32;
 
 /*
-** Global VFS structure of SQLite3 Multiple Ciphers VFS
+** Global I/O method structure of SQLite3 Multiple Ciphers VFS
 */
-static sqlite3mc_vfs mcVfsGlobal =
-{
-  {
-    3,                      /* iVersion */
-    0,                      /* szOsFile */
-    1024,                   /* mxPathname */
-    0,                      /* pNext */
-    SQLITE3MC_VFS_NAME,     /* zName */
-    0,                      /* pAppData */
-    mcVfsOpen,              /* xOpen */
-    mcVfsDelete,            /* xDelete */
-    mcVfsAccess,            /* xAccess */
-    mcVfsFullPathname,      /* xFullPathname */
-    mcVfsDlOpen,            /* xDlOpen */
-    mcVfsDlError,           /* xDlError */
-    mcVfsDlSym,             /* xDlSym */
-    mcVfsDlClose,           /* xDlClose */
-    mcVfsRandomness,        /* xRandomness */
-    mcVfsSleep,             /* xSleep */
-    mcVfsCurrentTime,       /* xCurrentTime */
-    mcVfsGetLastError,      /* xGetLastError */
-    mcVfsCurrentTimeInt64,  /* xCurrentTimeInt64 */
-    mcVfsSetSystemCall,     /* xSetSystemCall */
-    mcVfsGetSystemCall,     /* xGetSystemCall */
-    mcVfsNextSystemCall     /* xNextSystemCall */
-  },
-  NULL
-};
-
 static sqlite3_io_methods mcIoMethodsGlobal =
 {
   3,                          /* iVersion */
@@ -171,10 +140,10 @@ static sqlite3_io_methods mcIoMethodsGlobal =
 static void mcMainListAdd(sqlite3mc_file* pFile)
 {
   assert( (pFile->openFlags & SQLITE_OPEN_MAIN_DB) );
-  sqlite3_mutex_enter(mcVfsGlobal.mutex);
-  pFile->pMainNext = mcVfsGlobal.pMain;
-  mcVfsGlobal.pMain = pFile;
-  sqlite3_mutex_leave(mcVfsGlobal.mutex);
+  sqlite3_mutex_enter(pFile->pVfsMC->mutex);
+  pFile->pMainNext = pFile->pVfsMC->pMain;
+  pFile->pVfsMC->pMain = pFile;
+  sqlite3_mutex_leave(pFile->pVfsMC->mutex);
 }
 
 /*
@@ -183,11 +152,11 @@ static void mcMainListAdd(sqlite3mc_file* pFile)
 static void mcMainListRemove(sqlite3mc_file* pFile)
 {
   sqlite3mc_file** pMainPrev;
-  sqlite3_mutex_enter(mcVfsGlobal.mutex);
-  for (pMainPrev = &mcVfsGlobal.pMain; *pMainPrev && *pMainPrev != pFile; pMainPrev = &((*pMainPrev)->pMainNext)){}
+  sqlite3_mutex_enter(pFile->pVfsMC->mutex);
+  for (pMainPrev = &pFile->pVfsMC->pMain; *pMainPrev && *pMainPrev != pFile; pMainPrev = &((*pMainPrev)->pMainNext)){}
   if (*pMainPrev) *pMainPrev = pFile->pMainNext;
   pFile->pMainNext = 0;
-  sqlite3_mutex_leave(mcVfsGlobal.mutex);
+  sqlite3_mutex_leave(pFile->pVfsMC->mutex);
 }
 
 /*
@@ -206,17 +175,67 @@ static sqlite3mc_file* mcFindDbMainFileName(sqlite3mc_vfs* mcVfs, const char* zF
 }
 
 /*
+** Find a pointer to the Multiple Ciphers VFS in use for a database connection.
+*/
+static sqlite3mc_vfs* mcFindVfs(sqlite3* db, const char* zDbName)
+{
+  sqlite3mc_vfs* pVfsMC = NULL;
+  if (db->pVfs && db->pVfs->xOpen == mcVfsOpen)
+  {
+    /* The top level VFS is a Multiple Ciphers VFS */
+    pVfsMC = (sqlite3mc_vfs*)(db->pVfs);
+  }
+  else
+  {
+    /*
+    ** The top level VFS is not a Multiple Ciphers VFS.
+    ** Retrieve the VFS names stack.
+    */
+    char* zVfsNameStack = 0;
+    if ((sqlite3_file_control(db, zDbName, SQLITE_FCNTL_VFSNAME, &zVfsNameStack) == SQLITE_OK) && (zVfsNameStack != NULL))
+    {
+      /* Search for the name prefix of a Multiple Ciphers VFS. */
+      char* zVfsName = strstr(zVfsNameStack, SQLITE3MC_VFS_NAME);
+      if (zVfsName != NULL)
+      {
+        /* The prefix was found, now determine the full VFS name. */
+        char* zVfsNameEnd = zVfsName + strlen(SQLITE3MC_VFS_NAME);
+        if (*zVfsNameEnd == '-')
+        {
+          for (++zVfsNameEnd; *zVfsNameEnd != '/'  && *zVfsNameEnd != 0; ++zVfsNameEnd);
+          if (*zVfsNameEnd == '/') *zVfsNameEnd = 0;
+
+          /* Find a pointer to the VFS with the determined name. */
+          sqlite3_vfs* pVfs = sqlite3_vfs_find(zVfsName);
+          if (pVfs && pVfs->xOpen == mcVfsOpen)
+          {
+            pVfsMC = (sqlite3mc_vfs*) pVfs;
+          }
+        }
+      }
+      sqlite3_free(zVfsNameStack);
+    }
+  }
+  return pVfsMC;
+}
+
+/*
 ** Find the codec of the database file
 ** corresponding to the database schema name.
 */
 SQLITE_PRIVATE Codec* sqlite3mcGetCodec(sqlite3* db, const char* zDbName)
 {
   Codec* codec = NULL;
-  const char* dbFileName = sqlite3_db_filename(db, zDbName);
-  sqlite3mc_file* pDbMain = mcFindDbMainFileName(&mcVfsGlobal, dbFileName);
-  if (pDbMain)
+  sqlite3mc_vfs* pVfsMC = mcFindVfs(db, zDbName);
+
+  if (pVfsMC)
   {
-    codec = pDbMain->codec;
+    const char* dbFileName = sqlite3_db_filename(db, zDbName);
+    sqlite3mc_file* pDbMain = mcFindDbMainFileName(pVfsMC, dbFileName);
+    if (pDbMain)
+    {
+      codec = pDbMain->codec;
+    }
   }
   return codec;
 }
@@ -239,9 +258,14 @@ SQLITE_PRIVATE Codec* sqlite3mcGetMainCodec(sqlite3* db)
 ** connection handle is actually valid, because the association between
 ** connection handles and database file handles is not maintained properly.
 */
-SQLITE_PRIVATE void sqlite3mcSetCodec(sqlite3* db, const char* zFileName, Codec* codec)
+SQLITE_PRIVATE void sqlite3mcSetCodec(sqlite3* db, const char* zDbName, const char* zFileName, Codec* codec)
 {
-  sqlite3mc_file* pDbMain = mcFindDbMainFileName(&mcVfsGlobal, zFileName);
+  sqlite3mc_file* pDbMain = NULL;
+  sqlite3mc_vfs* pVfsMC = mcFindVfs(db, zDbName);
+  if (pVfsMC)
+  {
+    pDbMain = mcFindDbMainFileName((sqlite3mc_vfs*)(db->pVfs), zFileName);
+  }
   if (pDbMain)
   {
     Codec* prevCodec = pDbMain->codec;
@@ -310,6 +334,7 @@ static int mcVfsOpen(sqlite3_vfs* pVfs, const char* zName, sqlite3_file* pFile, 
   sqlite3mc_vfs* mcVfs = (sqlite3mc_vfs*) pVfs;
   sqlite3mc_file* mcFile = (sqlite3mc_file*) pFile;
   mcFile->pFile = (sqlite3_file*) &mcFile[1];
+  mcFile->pVfsMC = mcVfs;
   mcFile->openFlags = flags;
   mcFile->zFileName = zName;
   mcFile->codec = 0;
@@ -340,7 +365,7 @@ static int mcVfsOpen(sqlite3_vfs* pVfs, const char* zName, sqlite3_file* pFile, 
     else if (flags & SQLITE_OPEN_MAIN_JOURNAL)
     {
       const char* dbFileName = sqlite3_filename_database(zName);
-      mcFile->pMainDb = mcFindDbMainFileName(&mcVfsGlobal, dbFileName);
+      mcFile->pMainDb = mcFindDbMainFileName(mcFile->pVfsMC, dbFileName);
       mcFile->zFileName = zName;
       SQLITE3MC_DEBUG_LOG("mcVfsOpen MAIN Journal: mcFile=%p fileName=%s dbFileName=%s\n", mcFile, mcFile->zFileName, dbFileName);
     }
@@ -355,7 +380,7 @@ static int mcVfsOpen(sqlite3_vfs* pVfs, const char* zName, sqlite3_file* pFile, 
     else if (flags & SQLITE_OPEN_SUBJOURNAL)
     {
       const char* dbFileName = sqlite3_filename_database(zName);
-      mcFile->pMainDb = mcFindDbMainFileName(&mcVfsGlobal, dbFileName);
+      mcFile->pMainDb = mcFindDbMainFileName(mcFile->pVfsMC, dbFileName);
       mcFile->zFileName = zName;
       SQLITE3MC_DEBUG_LOG("mcVfsOpen SUB Journal: mcFile=%p fileName=%s dbFileName=%s\n", mcFile, mcFile->zFileName, dbFileName);
     }
@@ -371,7 +396,7 @@ static int mcVfsOpen(sqlite3_vfs* pVfs, const char* zName, sqlite3_file* pFile, 
     else if (flags & SQLITE_OPEN_WAL)
     {
       const char* dbFileName = sqlite3_filename_database(zName);
-      mcFile->pMainDb = mcFindDbMainFileName(&mcVfsGlobal, dbFileName);
+      mcFile->pMainDb = mcFindDbMainFileName(mcFile->pVfsMC, dbFileName);
       mcFile->zFileName = zName;
       SQLITE3MC_DEBUG_LOG("mcVfsOpen WAL Journal: mcFile=%p fileName=%s dbFileName=%s\n", mcFile, mcFile->zFileName, dbFileName);
     }
@@ -1155,6 +1180,14 @@ static int mcIoFileControl(sqlite3_file* pFile, int op, void* pArg)
   if (doReal)
   {
     rc = REALFILE(pFile)->pMethods->xFileControl(REALFILE(pFile), op, pArg);
+    if (rc == SQLITE_OK && op == SQLITE_FCNTL_VFSNAME)
+    {
+      sqlite3mc_vfs* pVfsMC = p->pVfsMC;
+      char* zIn = *(char**)pArg;
+      char* zOut = sqlite3_mprintf("%s/%z", pVfsMC->base.zName, zIn);
+      *(char**)pArg = zOut;
+      if (zOut == 0) rc = SQLITE_NOMEM;
+    }
   }
   return rc;
 }

@@ -3,7 +3,7 @@
 ** Purpose:     Implementation of SQLite codec API
 ** Author:      Ulrich Telle
 ** Created:     2006-12-06
-** Copyright:   (c) 2006-2021 Ulrich Telle
+** Copyright:   (c) 2006-2022 Ulrich Telle
 ** License:     MIT
 */
 
@@ -167,7 +167,7 @@ SQLITE_PRIVATE Codec*
 sqlite3mcGetMainCodec(sqlite3* db);
 
 SQLITE_PRIVATE void
-sqlite3mcSetCodec(sqlite3* db, const char* zFileName, Codec* codec);
+sqlite3mcSetCodec(sqlite3* db, const char* zDbName, const char* zFileName, Codec* codec);
 
 static int
 mcAdjustBtree(Btree* pBt, int nPageSize, int nReserved, int isLegacy)
@@ -229,7 +229,7 @@ sqlite3mcCodecAttach(sqlite3* db, int nDb, const char* zPath, const void* zKey, 
           sqlite3mcSetBtree(codec, db->aDb[nDb].pBt);
           mcAdjustBtree(db->aDb[nDb].pBt, pageSize, reserved, sqlite3mcGetLegacyWriteCipher(codec));
           sqlite3mcCodecSizeChange(codec, pageSize, reserved);
-          sqlite3mcSetCodec(db, dbFileName, codec);
+          sqlite3mcSetCodec(db, zDbName, dbFileName, codec);
         }
         else
         {
@@ -250,7 +250,7 @@ sqlite3mcCodecAttach(sqlite3* db, int nDb, const char* zPath, const void* zKey, 
       /* Remove codec for main database */
       if (nDb == 0 && nKey == 0)
       {
-        sqlite3mcSetCodec(db, dbFileName, NULL);
+        sqlite3mcSetCodec(db, zDbName, dbFileName, NULL);
       }
     }
   }
@@ -285,7 +285,7 @@ sqlite3mcCodecAttach(sqlite3* db, int nDb, const char* zPath, const void* zKey, 
       int reserved = sqlite3mcGetReservedWriteCipher(codec);
       mcAdjustBtree(db->aDb[nDb].pBt, pageSize, reserved, sqlite3mcGetLegacyWriteCipher(codec));
       sqlite3mcCodecSizeChange(codec, pageSize, reserved);
-      sqlite3mcSetCodec(db, dbFileName, codec);
+      sqlite3mcSetCodec(db, zDbName, dbFileName, codec);
     }
     else
     {
@@ -432,7 +432,7 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
         int nReservedWriteCipher;
         sqlite3mcSetHasReadCipher(codec, 0); /* Original database is not encrypted */
         mcAdjustBtree(pBt, sqlite3mcGetPageSizeWriteCipher(codec), sqlite3mcGetReservedWriteCipher(codec), sqlite3mcGetLegacyWriteCipher(codec));
-        sqlite3mcSetCodec(db, dbFileName, codec);
+        sqlite3mcSetCodec(db, zDbName, dbFileName, codec);
         nReservedWriteCipher = sqlite3mcGetReservedWriteCipher(codec);
         sqlite3mcCodecSizeChange(codec, nPagesize, nReservedWriteCipher);
         if (nReserved != nReservedWriteCipher)
@@ -583,7 +583,7 @@ leave_rekey:
   if (!sqlite3mcIsEncrypted(codec))
   {
     /* Remove codec for unencrypted database */
-    sqlite3mcSetCodec(db, dbFileName, NULL);
+    sqlite3mcSetCodec(db, zDbName, dbFileName, NULL);
   }
   return rc;
 }
