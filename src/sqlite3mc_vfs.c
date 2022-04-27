@@ -518,7 +518,7 @@ static int mcIoClose(sqlite3_file* pFile)
     p->codec = 0;
   }
 
-  assert(p->pMainNext == 0 && mcVfsGlobal.pMain != p);
+  assert(p->pMainNext == 0 && p->pVfsMC->pMain != p);
   rc = REALFILE(pFile)->pMethods->xClose(REALFILE(pFile));
   return rc;
 }
