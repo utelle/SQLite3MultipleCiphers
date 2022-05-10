@@ -3,6 +3,7 @@
   <PropertyGroup Label="UserMacros">
     <CODEC_TYPE>CODEC_TYPE_CHACHA20</CODEC_TYPE>
     <SQLITE_ENABLE_DEBUG>0</SQLITE_ENABLE_DEBUG>
+    <SQLITE3MC_USE_MINIZ>1</SQLITE3MC_USE_MINIZ>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <Link>

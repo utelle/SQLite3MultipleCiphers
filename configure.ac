@@ -4,7 +4,7 @@ dnl Copyright (C) 2019-2022 Ulrich Telle <ulrich@telle-online.de>
 dnl
 dnl This file is covered by the same licence as the entire SQLite3 Multiple Ciphers package.
 
-AC_INIT([sqlite3mc], [1.4.3], [ulrich@telle-online.de])
+AC_INIT([sqlite3mc], [1.4.4], [ulrich@telle-online.de])
 
 dnl This is the version tested with, might work with earlier ones.
 AC_PREREQ([2.69])
@@ -137,6 +137,12 @@ AS_IF([test "x$with_aes128cbc" = xno &&
        test "x$with_rc4" = xno],
        [AC_DEFINE([SQLITE_HAS_CODEC], [0], [All ciphers disabled so encryption is disabled])])
 
+dnl Check for zlib
+haveZLib=false
+AC_CHECK_HEADERS(zlib.h, [
+  AC_SEARCH_LIBS(deflate, z, [haveZLib=true], [haveZLib=false])
+], [haveZLib=false])
+
 AC_CANONICAL_HOST
 hostX86=false
 hostARM=false
@@ -147,6 +153,7 @@ AS_CASE([$host_cpu],
 )
 AM_CONDITIONAL([HOST_X86], [test x$hostX86 = xtrue])
 AM_CONDITIONAL([HOST_ARM], [test x$hostARM = xtrue])
+AM_CONDITIONAL([HAVE_ZLIB], [test x$haveZLib = xtrue])
 
 AC_SUBST(SQLITE3MC_LIBNAME, "sqlite3mc")
 AC_SUBST( LIBDIR, "lib" )

@@ -47,6 +47,14 @@
 # include SHELL_STRINGIFY(SQLITE_CUSTOM_INCLUDE)
 #endif
 
+#if SQLITE3MC_USE_MINIZ != 0
+#include "miniz.c"
+#ifdef SQLITE_HAVE_ZLIB
+#undef SQLITE_HAVE_ZLIB
+#endif
+#define SQLITE_HAVE_ZLIB 1
+#endif
+
 /*
 ** Determine if we are dealing with WinRT, which provides only a subset of
 ** the full Win32 API.
@@ -6732,7 +6740,7 @@ SQLITE_EXTENSION_INIT1
 #include <string.h>
 #include <assert.h>
 
-#include <zlib.h>
+#include "zlibwrap.h"
 
 #ifndef SQLITE_OMIT_VIRTUALTABLE
 
@@ -8929,7 +8937,7 @@ int sqlite3_zipfile_init(
 */
 /* #include "sqlite3ext.h" */
 SQLITE_EXTENSION_INIT1
-#include <zlib.h>
+#include "zlibwrap.h"
 #include <assert.h>
 
 /*

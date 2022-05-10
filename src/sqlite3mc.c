@@ -276,6 +276,45 @@ int sqlite3_regexp_init(sqlite3* db, char** pzErrMsg, const sqlite3_api_routines
 #include "regexp.c"
 #endif
 
+#if defined(SQLITE_ENABLE_COMPRESS) || defined(SQLITE_ENABLE_SQLAR) || defined(SQLITE_ENABLE_ZIPFILE)
+#if SQLITE3MC_USE_MINIZ != 0
+#include "miniz.c"
+#endif
+#endif
+
+/*
+** COMPRESS
+*/
+#ifdef SQLITE_ENABLE_COMPRESS
+#ifdef _WIN32
+__declspec(dllexport)
+#endif
+int sqlite3_compress_init(sqlite3 *db, char **pzErrMsg, const sqlite3_api_routines *pApi);
+#include "compress.c"
+#endif
+
+/*
+** SQLAR
+*/
+#ifdef SQLITE_ENABLE_SQLAR
+#ifdef _WIN32
+__declspec(dllexport)
+#endif
+int sqlite3_sqlar_init(sqlite3 *db, char **pzErrMsg, const sqlite3_api_routines *pApi);
+#include "sqlar.c"
+#endif
+
+/*
+** ZIPFILE
+*/
+#ifdef SQLITE_ENABLE_ZIPFILE
+#ifdef _WIN32
+__declspec(dllexport)
+#endif
+int sqlite3_zipfile_init(sqlite3 *db, char **pzErrMsg, const sqlite3_api_routines *pApi);
+#include "zipfile.c"
+#endif
+
 /*
 ** Multi cipher VFS
 */
@@ -414,6 +453,24 @@ sqlite3mc_initialize(const char* arg)
   if (rc == SQLITE_OK)
   {
     rc = sqlite3_auto_extension((void(*)(void)) sqlite3_regexp_init);
+  }
+#endif
+#ifdef SQLITE_ENABLE_COMPRESS
+  if (rc == SQLITE_OK)
+  {
+    rc = sqlite3_auto_extension((void(*)(void)) sqlite3_compress_init);
+  }
+#endif
+#ifdef SQLITE_ENABLE_SQLAR
+  if (rc == SQLITE_OK)
+  {
+    rc = sqlite3_auto_extension((void(*)(void)) sqlite3_sqlar_init);
+  }
+#endif
+#ifdef SQLITE_ENABLE_ZIPFILE
+  if (rc == SQLITE_OK)
+  {
+    rc = sqlite3_auto_extension((void(*)(void)) sqlite3_zipfile_init);
   }
 #endif
   return rc;

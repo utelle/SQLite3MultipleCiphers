@@ -51,6 +51,7 @@ project "sqlite3mc_lib"
   }
   characterset ("Unicode")
   staticruntime "On"
+  includedirs { "src" }
 
   location( BUILDDIR )
   targetname "sqlite3mc"
@@ -84,6 +85,10 @@ project "sqlite3mc_lib"
 --    "SQLITE_ENABLE_SERIES=1",
     "SQLITE_ENABLE_UUID=1",
 --    "SQLITE_ENABLE_REGEXP=1",
+--    "SQLITE3MC_USE_MINIZ=$(SQLITE3MC_USE_MINIZ)",
+--    "SQLITE_ENABLE_COMPRESS=1"
+--    "SQLITE_ENABLE_SQLAR=1"
+--    "SQLITE_ENABLE_ZIPFILE=1"
     "SQLITE_TEMP_STORE=2",
     "SQLITE_USE_URI=1",
     "SQLITE_USER_AUTHENTICATION=1",
@@ -143,6 +148,7 @@ project "sqlite3mc_dll"
   }
   characterset ("Unicode")
   staticruntime "On"
+  includedirs { "src" }
 
   location( BUILDDIR )
   targetname "sqlite3mc"
@@ -175,6 +181,10 @@ project "sqlite3mc_dll"
     "SQLITE_ENABLE_SERIES=1",
     "SQLITE_ENABLE_UUID=1",
     "SQLITE_ENABLE_REGEXP=1",
+--    "SQLITE3MC_USE_MINIZ=$(SQLITE3MC_USE_MINIZ)",
+--    "SQLITE_ENABLE_COMPRESS=1"
+--    "SQLITE_ENABLE_SQLAR=1"
+--    "SQLITE_ENABLE_ZIPFILE=1"
     "SQLITE_TEMP_STORE=2",
     "SQLITE_USE_URI=1",
     "SQLITE_USER_AUTHENTICATION=1"
@@ -225,11 +235,13 @@ project "sqlite3mc_shell"
   files { "src/sqlite3.h", "src/shell.c", "src/sqlite3mc_shell.rc" }
   characterset ("Unicode")
   staticruntime "On"
+  includedirs { "src" }
   links { "sqlite3mc_lib" }
 
   location( BUILDDIR )
 
   defines {
+    "SQLITE3MC_USE_MINIZ=$(SQLITE3MC_USE_MINIZ)",
     "SQLITE_SHELL_IS_UTF8=1",
     "SQLITE_USER_AUTHENTICATION=1"
   }
@@ -280,7 +292,7 @@ project "sqlite3mc_libicu"
   }
   characterset ("Unicode")
   staticruntime "On"
-  includedirs { "$(LIBICU_PATH)/include" }
+  includedirs { "src", "$(LIBICU_PATH)/include" }
 
   location( BUILDDIR )
   targetname "sqlite3mc_icu"
@@ -315,6 +327,10 @@ project "sqlite3mc_libicu"
 --    "SQLITE_ENABLE_SERIES=1",
     "SQLITE_ENABLE_UUID=1",
 --    "SQLITE_ENABLE_REGEXP=1",
+--    "SQLITE3MC_USE_MINIZ=$(SQLITE3MC_USE_MINIZ)",
+--    "SQLITE_ENABLE_COMPRESS=1"
+--    "SQLITE_ENABLE_SQLAR=1"
+--    "SQLITE_ENABLE_ZIPFILE=1"
     "SQLITE_TEMP_STORE=2",
     "SQLITE_USE_URI=1",
     "SQLITE_USER_AUTHENTICATION=1",
@@ -374,7 +390,7 @@ project "sqlite3mc_dllicu"
   }
   characterset ("Unicode")
   staticruntime "On"
-  includedirs { "$(LIBICU_PATH)/include" }
+  includedirs { "src", "$(LIBICU_PATH)/include" }
 
   filter { "platforms:Win32" }
     libdirs { "$(LIBICU_PATH)/lib" }
@@ -420,6 +436,10 @@ project "sqlite3mc_dllicu"
     "SQLITE_ENABLE_SERIES=1",
     "SQLITE_ENABLE_UUID=1",
     "SQLITE_ENABLE_REGEXP=1",
+--    "SQLITE3MC_USE_MINIZ=$(SQLITE3MC_USE_MINIZ)",
+--    "SQLITE_ENABLE_COMPRESS=1"
+--    "SQLITE_ENABLE_SQLAR=1"
+--    "SQLITE_ENABLE_ZIPFILE=1"
     "SQLITE_TEMP_STORE=2",
     "SQLITE_USE_URI=1",
     "SQLITE_USER_AUTHENTICATION=1"
@@ -470,6 +490,7 @@ project "sqlite3mc_shellicu"
   files { "src/sqlite3.h", "src/shell.c", "src/sqlite3mc_shell.rc" }
   characterset ("Unicode")
   staticruntime "On"
+  includedirs { "src" }
   links { "sqlite3mc_libicu" }
 
   filter { "platforms:Win32" }
@@ -487,6 +508,7 @@ project "sqlite3mc_shellicu"
   location( BUILDDIR )
 
   defines {
+    "SQLITE3MC_USE_MINIZ=$(SQLITE3MC_USE_MINIZ)",
     "SQLITE_SHELL_IS_UTF8=1",
     "SQLITE_USER_AUTHENTICATION=1"
   }

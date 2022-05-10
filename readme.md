@@ -10,6 +10,9 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version history
 
+* 1.4.4 - *May 2022*
+  - Based on SQLite version 3.38.5
+  - Added optional support for the SQLite extensions COMPRESS, SQLAR, and ZIPFILE
 * 1.4.3 - *May 2022*
   - Based on SQLite version 3.38.5
 * 1.4.2 - *April 2022*

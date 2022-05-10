@@ -115,7 +115,7 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>_WINDOWS;WIN32;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;DEBUG;_DEBUG;_LIB;CODEC_TYPE=$(CODEC_TYPE);SQLITE_ENABLE_DEBUG=$(SQLITE_ENABLE_DEBUG);SQLITE_THREADSAFE=1;SQLITE_ENABLE_ICU=1;SQLITE_DQS=0;SQLITE_MAX_ATTACHED=10;SQLITE_ENABLE_EXPLAIN_COMMENTS=1;SQLITE_SOUNDEX=1;SQLITE_ENABLE_COLUMN_METADATA=1;SQLITE_SECURE_DELETE=1;SQLITE_ENABLE_DESERIALIZE=1;SQLITE_ENABLE_FTS3=1;SQLITE_ENABLE_FTS3_PARENTHESIS=1;SQLITE_ENABLE_FTS4=1;SQLITE_ENABLE_FTS5=1;SQLITE_ENABLE_RTREE=1;SQLITE_ENABLE_GEOPOLY=1;SQLITE_CORE=1;SQLITE_ENABLE_EXTFUNC=1;SQLITE_ENABLE_MATH_FUNCTIONS=1;SQLITE_ENABLE_CSV=1;SQLITE_ENABLE_VSV=1;SQLITE_ENABLE_CARRAY=1;SQLITE_ENABLE_UUID=1;SQLITE_TEMP_STORE=2;SQLITE_USE_URI=1;SQLITE_USER_AUTHENTICATION=1;SQLITE_ENABLE_DBPAGE_VTAB=1;SQLITE_ENABLE_DBSTAT_VTAB=1;SQLITE_ENABLE_STMTVTAB=1;SQLITE_ENABLE_UNKNOWN_SQL_FUNCTION=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(LIBICU_PATH)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\src;$(LIBICU_PATH)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -130,7 +130,7 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>_WINDOWS;WIN32;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;DEBUG;_DEBUG;_LIB;CODEC_TYPE=$(CODEC_TYPE);SQLITE_ENABLE_DEBUG=$(SQLITE_ENABLE_DEBUG);SQLITE_THREADSAFE=1;SQLITE_ENABLE_ICU=1;SQLITE_DQS=0;SQLITE_MAX_ATTACHED=10;SQLITE_ENABLE_EXPLAIN_COMMENTS=1;SQLITE_SOUNDEX=1;SQLITE_ENABLE_COLUMN_METADATA=1;SQLITE_SECURE_DELETE=1;SQLITE_ENABLE_DESERIALIZE=1;SQLITE_ENABLE_FTS3=1;SQLITE_ENABLE_FTS3_PARENTHESIS=1;SQLITE_ENABLE_FTS4=1;SQLITE_ENABLE_FTS5=1;SQLITE_ENABLE_RTREE=1;SQLITE_ENABLE_GEOPOLY=1;SQLITE_CORE=1;SQLITE_ENABLE_EXTFUNC=1;SQLITE_ENABLE_MATH_FUNCTIONS=1;SQLITE_ENABLE_CSV=1;SQLITE_ENABLE_VSV=1;SQLITE_ENABLE_CARRAY=1;SQLITE_ENABLE_UUID=1;SQLITE_TEMP_STORE=2;SQLITE_USE_URI=1;SQLITE_USER_AUTHENTICATION=1;SQLITE_ENABLE_DBPAGE_VTAB=1;SQLITE_ENABLE_DBSTAT_VTAB=1;SQLITE_ENABLE_STMTVTAB=1;SQLITE_ENABLE_UNKNOWN_SQL_FUNCTION=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(LIBICU_PATH)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\src;$(LIBICU_PATH)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -145,7 +145,7 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>_WINDOWS;WIN32;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;NDEBUG;_LIB;CODEC_TYPE=$(CODEC_TYPE);SQLITE_ENABLE_DEBUG=$(SQLITE_ENABLE_DEBUG);SQLITE_THREADSAFE=1;SQLITE_ENABLE_ICU=1;SQLITE_DQS=0;SQLITE_MAX_ATTACHED=10;SQLITE_ENABLE_EXPLAIN_COMMENTS=1;SQLITE_SOUNDEX=1;SQLITE_ENABLE_COLUMN_METADATA=1;SQLITE_SECURE_DELETE=1;SQLITE_ENABLE_DESERIALIZE=1;SQLITE_ENABLE_FTS3=1;SQLITE_ENABLE_FTS3_PARENTHESIS=1;SQLITE_ENABLE_FTS4=1;SQLITE_ENABLE_FTS5=1;SQLITE_ENABLE_RTREE=1;SQLITE_ENABLE_GEOPOLY=1;SQLITE_CORE=1;SQLITE_ENABLE_EXTFUNC=1;SQLITE_ENABLE_MATH_FUNCTIONS=1;SQLITE_ENABLE_CSV=1;SQLITE_ENABLE_VSV=1;SQLITE_ENABLE_CARRAY=1;SQLITE_ENABLE_UUID=1;SQLITE_TEMP_STORE=2;SQLITE_USE_URI=1;SQLITE_USER_AUTHENTICATION=1;SQLITE_ENABLE_DBPAGE_VTAB=1;SQLITE_ENABLE_DBSTAT_VTAB=1;SQLITE_ENABLE_STMTVTAB=1;SQLITE_ENABLE_UNKNOWN_SQL_FUNCTION=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(LIBICU_PATH)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\src;$(LIBICU_PATH)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>Full</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
@@ -164,7 +164,7 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>_WINDOWS;WIN32;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;NDEBUG;_LIB;CODEC_TYPE=$(CODEC_TYPE);SQLITE_ENABLE_DEBUG=$(SQLITE_ENABLE_DEBUG);SQLITE_THREADSAFE=1;SQLITE_ENABLE_ICU=1;SQLITE_DQS=0;SQLITE_MAX_ATTACHED=10;SQLITE_ENABLE_EXPLAIN_COMMENTS=1;SQLITE_SOUNDEX=1;SQLITE_ENABLE_COLUMN_METADATA=1;SQLITE_SECURE_DELETE=1;SQLITE_ENABLE_DESERIALIZE=1;SQLITE_ENABLE_FTS3=1;SQLITE_ENABLE_FTS3_PARENTHESIS=1;SQLITE_ENABLE_FTS4=1;SQLITE_ENABLE_FTS5=1;SQLITE_ENABLE_RTREE=1;SQLITE_ENABLE_GEOPOLY=1;SQLITE_CORE=1;SQLITE_ENABLE_EXTFUNC=1;SQLITE_ENABLE_MATH_FUNCTIONS=1;SQLITE_ENABLE_CSV=1;SQLITE_ENABLE_VSV=1;SQLITE_ENABLE_CARRAY=1;SQLITE_ENABLE_UUID=1;SQLITE_TEMP_STORE=2;SQLITE_USE_URI=1;SQLITE_USER_AUTHENTICATION=1;SQLITE_ENABLE_DBPAGE_VTAB=1;SQLITE_ENABLE_DBSTAT_VTAB=1;SQLITE_ENABLE_STMTVTAB=1;SQLITE_ENABLE_UNKNOWN_SQL_FUNCTION=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(LIBICU_PATH)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\src;$(LIBICU_PATH)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>Full</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
@@ -183,6 +183,7 @@
     <ClInclude Include="..\src\cipher_common.h" />
     <ClInclude Include="..\src\cipher_config.h" />
     <ClInclude Include="..\src\fastpbkdf2.h" />
+    <ClInclude Include="..\src\miniz.h" />
     <ClInclude Include="..\src\mystdint.h" />
     <ClInclude Include="..\src\rijndael.h" />
     <ClInclude Include="..\src\sha1.h" />
@@ -195,6 +196,7 @@
     <ClInclude Include="..\src\sqlite3mc_vfs.h" />
     <ClInclude Include="..\src\sqlite3userauth.h" />
     <ClInclude Include="..\src\test_windirent.h" />
+    <ClInclude Include="..\src\zlibwrap.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\sqlite3mc.c" />
