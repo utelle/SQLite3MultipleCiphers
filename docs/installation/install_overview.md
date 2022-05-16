@@ -81,6 +81,10 @@ The required ICU DLLs are not included in the repository, but can be downloaded 
 [latest ICU release](https://github.com/unicode-org/icu/releases/latest).
 However, the pre-built binary packages for Windows include the required ICU DLLs.
 
+Using the build files coming with _SQLite3 Multiple Ciphers_ for building the library with ICU support,
+requires to define the environment variable `LIBICU_PATH` that must point to the directory
+to which the archive with the pre-built ICU libraries was extracted. 
+
 In addition, the Visual C++ 2019 runtime is required to be installed,
 because the ICU DLLs depend on it.
 
@@ -143,3 +147,39 @@ Note
 {: .label .label-red .ml-0 .mb-1 .mt-2 }
 - In case of memory constraints it is of course possible to disable unneeded features.
 However, this will require to modify the build files.
+
+The source code of 3 extensions that require ZLIB support is also included, but is not
+enabled by default:
+ 
+- [COMPRESS](https://sqlite.org/src/file/ext/misc/compress.c)
+- [SQLAR](https://sqlite.org/src/file/ext/misc/sqlar.c)
+- [ZIPFILE](https://sqlite.org/src/file/ext/misc/zipfile.c)
+
+To enable one or more of those extensions, it is required to specify the corresponding
+preprocessor symbol:
+
+| Symbol | Description|
+| :--- | :--- |
+| SQLITE_ENABLE_COMPRESS=1 | Enable extension COMPRESS |
+| SQLITE_ENABLE_SQLAR=1 | Enable extension SQLAR |
+| SQLITE_ENABLE_ZIPFILE=1 | Enable extension ZIPFILE |
+
+To successfully compile these extensions it is required to specify for the compiler,
+where the ZLIB header can be found, and for the linker, the name and location of the
+ZLIB library. Alternatively, it is possible to use the included MINIZ library,
+a subset of ZLIB, by  specifying the preprocessor symbol `SQLITE3MC_USE_MINIZ=1`.
+This allows to remove the external dependency on the ZLIB library.
+
+## TCL Interface
+
+SQLite offers an implementation of a TCL interface and a TCL command shell. The source
+code of this interface is included with _SQLite3 Multiple Ciphers_. 
+
+| Symbol | Description|
+| :--- | :--- |
+| SQLITE_ENABLE_TCL=1 | Enable the TCL interface |
+
+Please consult the original SQLite documentation
+[Compiling the TCL interface](https://www.sqlite.org/howtocompile.html#compiling_the_tcl_interface)
+for further information, how to build the TCL interface and TCL command shell, since 
+_SQLite3 Multiple Ciphers_ does not contain build support for this feature.
