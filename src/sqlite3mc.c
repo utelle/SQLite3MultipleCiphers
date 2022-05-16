@@ -483,9 +483,8 @@ sqlite3mc_shutdown(void)
 }
 
 /*
-** TCL/TK Shell
+** TCL/TK Extension and/or Shell
 */
-#ifdef TCLSH
-#define BUILD_tcl
+#ifdef SQLITE_ENABLE_TCL
 #include "tclsqlite.c"
 #endif
