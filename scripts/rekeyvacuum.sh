@@ -54,6 +54,6 @@ sed -n '/^SQLITE_PRIVATE .*int sqlite3RunVacuum([^;]*$/,/^}$/p' "$INPUT" \
     | sed 's/sqlite3RunVacuum/sqlite3mcRunVacuumForRekey/' \
     | sed 's/rc = sqlite3BtreeSetPageSize/rc = sqlite3mcBtreeSetPageSize/' \
     | sed 's/^\([^ )][^)]*\)\?){$/\1, int nRes){/' \
-    | sed '/nRes = /i \\n  \/\* A VACUUM cannot change the pagesize of an encrypted database. \*\/\n  if( db->nextPagesize ){\n    extern void sqlite3mcCodecGetKey(sqlite3*, int, void**, int*);\n    int nKey;\n    char *zKey;\n    sqlite3mcCodecGetKey(db, iDb, (void**)&zKey, &nKey);\n    if( nKey ) db->nextPagesize = 0;\n  }' \
+    | sed '/nRes = sqlite3BtreeGetRequestedReserve(pMain)/i \\n  \/\* A VACUUM cannot change the pagesize of an encrypted database. \*\/\n  if( db->nextPagesize ){\n    extern void sqlite3mcCodecGetKey(sqlite3*, int, void**, int*);\n    int nKey;\n    char *zKey;\n    sqlite3mcCodecGetKey(db, iDb, (void**)&zKey, &nKey);\n    if( nKey ) db->nextPagesize = 0;\n  }' \
     | grep -v "int nRes;\|nRes = " \
     | grep "^" || die "Error generating rekeyvacuum.c"
