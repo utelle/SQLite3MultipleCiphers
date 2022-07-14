@@ -10,6 +10,8 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version history
 
+* 1.4.6 - *July 2022*
+  - Based on SQLite version 3.39.1
 * 1.4.5 - *July 2022*
   - Based on SQLite version 3.39.0
   - Enabled preupdate hooks in build files

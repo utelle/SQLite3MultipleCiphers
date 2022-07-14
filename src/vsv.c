@@ -562,6 +562,7 @@ static char *vsv_read_one_field(VsvReader *p)
         }
         p->cTerm = (char)c;
     }
+    assert( p->z==0 || p->n<p->nAlloc );
     if (p->z)
     {
         p->z[p->n] = 0;
@@ -1798,6 +1799,12 @@ static int vsvtabFilter(
     VsvCursor *pCur = (VsvCursor*)pVtabCursor;
     VsvTable *pTab = (VsvTable*)pVtabCursor->pVtab;
     pCur->iRowid = 0;
+
+    /* Ensure the field buffer is always allocated. Otherwise, if the
+    ** first field is zero bytes in size, this may be mistaken for an OOM
+    ** error in csvtabNext(). */
+    if( vsv_append(&pCur->rdr, 0) ) return SQLITE_NOMEM;
+
     if (pCur->rdr.in==0)
     {
         assert( pCur->rdr.zIn==pTab->zData );

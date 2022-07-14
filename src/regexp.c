@@ -299,9 +299,9 @@ static int re_match(ReCompiled *pRe, const unsigned char *zIn, int nIn){
         }
         case RE_OP_CC_EXC: {
           if( c==0 ) break;
-          /* fall-through */
+          /* fall-through */ goto re_op_cc_inc;
         }
-        case RE_OP_CC_INC: {
+        case RE_OP_CC_INC: re_op_cc_inc: {
           int j = 1;
           int n = pRe->aArg[x];
           int hit = 0;
@@ -685,7 +685,7 @@ static const char *re_compile(ReCompiled **ppRe, const char *zIn, int noCase){
         pRe->zInit[j++] = (unsigned char)(0xc0 | (x>>6));
         pRe->zInit[j++] = 0x80 | (x&0x3f);
       }else if( x<=0xffff ){
-        pRe->zInit[j++] = (unsigned char)(0xd0 | (x>>12));
+        pRe->zInit[j++] = (unsigned char)(0xe0 | (x>>12));
         pRe->zInit[j++] = 0x80 | ((x>>6)&0x3f);
         pRe->zInit[j++] = 0x80 | (x&0x3f);
       }else{
@@ -759,15 +759,15 @@ int sqlite3_regexp_init(
   int rc = SQLITE_OK;
   SQLITE_EXTENSION_INIT2(pApi);
   (void)pzErrMsg;  /* Unused */
-  rc = sqlite3_create_function(db, "regexp", 2,
-                               SQLITE_UTF8|SQLITE_INNOCUOUS|SQLITE_DETERMINISTIC,
-                               0, re_sql_func, 0, 0);
+  rc = sqlite3_create_function(db, "regexp", 2, 
+                            SQLITE_UTF8|SQLITE_INNOCUOUS|SQLITE_DETERMINISTIC,
+                            0, re_sql_func, 0, 0);
   if( rc==SQLITE_OK ){
     /* The regexpi(PATTERN,STRING) function is a case-insensitive version
     ** of regexp(PATTERN,STRING). */
     rc = sqlite3_create_function(db, "regexpi", 2,
-                                 SQLITE_UTF8|SQLITE_INNOCUOUS|SQLITE_DETERMINISTIC,
-                                 (void*)db, re_sql_func, 0, 0);
+                            SQLITE_UTF8|SQLITE_INNOCUOUS|SQLITE_DETERMINISTIC,
+                            (void*)db, re_sql_func, 0, 0);
   }
   return rc;
 }
