@@ -388,7 +388,17 @@ static size_t entropy(void* buf, size_t n)
   return read_urandom(buf, n);
 }
 #else
+#if defined(__WASM__)
+static size_t entropy(void* buf, size_t n)
+{
+  if (getentropy(buf, n) == 0)
+    return n;
+
+
+}
+#else
 # error "Secure pseudorandom number generator not implemented for this OS"
+#endif
 #endif
 
 /*
