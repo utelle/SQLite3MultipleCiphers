@@ -822,6 +822,17 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
       {
         ((char**)pArg)[0] = sqlite3_mprintf("ok");
       }
+      else
+      {
+        if (db->pErr)
+        {
+          const char* z = (const char*)sqlite3_value_text(db->pErr);
+          if (z && sqlite3Strlen30(z) > 0)
+          {
+            ((char**)pArg)[0] = sqlite3_mprintf(z);
+          }
+        }
+      }
     }
     else if (sqlite3StrICmp(pragmaName, "hexkey") == 0)
     {
@@ -835,6 +846,17 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
         if (rc == SQLITE_OK)
         {
           ((char**)pArg)[0] = sqlite3_mprintf("ok");
+        }
+        else
+        {
+          if (db->pErr)
+          {
+            const char* z = (const char*)sqlite3_value_text(db->pErr);
+            if (z && sqlite3Strlen30(z) > 0)
+            {
+              ((char**)pArg)[0] = sqlite3_mprintf(z);
+            }
+          }
         }
       }
       else
