@@ -336,6 +336,11 @@ sqlite3_key_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
   {
     int dbIndex;
     const char* dbFileName = sqlite3_db_filename(db, zDbName);
+    if (dbFileName == NULL || dbFileName[0] == 0)
+    {
+      sqlite3ErrorWithMsg(db, rc, "Setting key not supported for in-memory or temporary databases.");
+      return rc;
+    }
     /* Configure cipher from URI parameters if requested */
     if (sqlite3FindFunction(db, "sqlite3mc_config_table", 0, SQLITE_UTF8, 0) == NULL)
     {
@@ -356,7 +361,7 @@ sqlite3_key_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
     else
     {
       rc = SQLITE_ERROR;
-      sqlite3ErrorWithMsg(db, rc, "Key failed. Database '%s' not found.", zDbName);
+      sqlite3ErrorWithMsg(db, rc, "Setting key failed. Database '%s' not found.", zDbName);
     }
   }
   return rc;
@@ -383,7 +388,12 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
   dbIndex = (zDbName) ? sqlite3FindDbName(db, zDbName) : 0;
   if (dbIndex < 0)
   {
-    sqlite3ErrorWithMsg(db, rc, "Rekey failed. Database '%s' not found.", zDbName);
+    sqlite3ErrorWithMsg(db, rc, "Rekeying failed. Database '%s' not found.", zDbName);
+    return rc;
+  }
+  if (dbFileName == NULL || dbFileName[0] == 0)
+  {
+    sqlite3ErrorWithMsg(db, rc, "Rekeying not supported for in-memory or temporary databases.");
     return rc;
   }
   pBt = db->aDb[dbIndex].pBt;
@@ -398,7 +408,7 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
 
   if (pagerUseWal(pPager))
   {
-    sqlite3ErrorWithMsg(db, rc, "Rekey is not supported in WAL journal mode.");
+    sqlite3ErrorWithMsg(db, rc, "Rekeying is not supported in WAL journal mode.");
     return rc;
   }
   
@@ -449,7 +459,7 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
       {
         /* Pagesize cannot be changed for an encrypted database */
         rc = SQLITE_ERROR;
-        sqlite3ErrorWithMsg(db, rc, "Rekey failed. Pagesize cannot be changed for an encrypted database.");
+        sqlite3ErrorWithMsg(db, rc, "Rekeying failed. Pagesize cannot be changed for an encrypted database.");
         goto leave_rekey;
       }
     }
@@ -498,14 +508,14 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
       {
         /* Pagesize cannot be changed for an encrypted database */
         rc = SQLITE_ERROR;
-        sqlite3ErrorWithMsg(db, rc, "Rekey failed. Pagesize cannot be changed for an encrypted database.");
+        sqlite3ErrorWithMsg(db, rc, "Rekeying failed. Pagesize cannot be changed for an encrypted database.");
         goto leave_rekey;
       }
     }
     else
     {
       /* Setup of write cipher failed */
-      sqlite3ErrorWithMsg(db, rc, "Rekey failed. Setup of write cipher failed.");
+      sqlite3ErrorWithMsg(db, rc, "Rekeying failed. Setup of write cipher failed.");
       goto leave_rekey;
     }
   }
