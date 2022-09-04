@@ -390,15 +390,14 @@ static size_t entropy(void* buf, size_t n)
 #elif defined(__WASM__)
 extern size_t getentropy(void* buf, size_t n);
 
-static size_t entropy(void* buf, size_t n)
+size_t entropy(void* buf, size_t n)
 {
-  if (getentropy(buf, n) == 0)
-    return n;
+  return (getentropy(buf, n) == 0) ? n : 0;
 }
 #else
 # error "Secure pseudorandom number generator not implemented for this OS"
 #endif
-#endif
+
 
 /*
  * ChaCha20 random number generator
