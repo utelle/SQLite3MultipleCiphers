@@ -396,29 +396,8 @@ static size_t entropy(void* buf, size_t n)
     return n;
 }
 #else
-
-#if defined(__WASM__)
-
-extern size_t getentropy(void* buf, size_t n);
-
-static size_t entropy(void* buf, size_t n)
-{
-      printf("getting some entropy");
-
-  if (getentropy(buf, n) == 0)
-  {
-    return n;
-  }
-  else
-  {
-    return 0;
-  }
-
-}
-#else
 # error "Secure pseudorandom number generator not implemented for this OS"
 #endif
-
 #endif
 
 /*
