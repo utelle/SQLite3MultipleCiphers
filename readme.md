@@ -10,6 +10,10 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version history
 
+* 1.5.0 - *September 2022*
+  - Based on SQLite version 3.39.3
+  - Added option to register cipher schemes dynamically
+  - Eliminated a few compile time warnings
 * 1.4.8 - *July 2022*
   - Based on SQLite version 3.39.2
   - Fix issue in `PRAGMA rekey` that could lead to a crash

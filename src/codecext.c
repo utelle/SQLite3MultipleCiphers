@@ -452,6 +452,10 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
           sqlite3mcSetReadReserved(codec, nReserved);
           sqlite3mcSetWriteReserved(codec, nReservedWriteCipher);
           rc = sqlite3mcRunVacuumForRekey(&err, db, dbIndex, NULL, nReservedWriteCipher);
+          if (rc != SQLITE_OK && err != NULL)
+          {
+            sqlite3ErrorWithMsg(db, rc, err);
+          }
           goto leave_rekey;
         }
       }
@@ -480,6 +484,10 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
       sqlite3mcSetReadReserved(codec, nReserved);
       sqlite3mcSetWriteReserved(codec, 0);
       rc = sqlite3mcRunVacuumForRekey(&err, db, dbIndex, NULL, 0);
+      if (rc != SQLITE_OK && err != NULL)
+      {
+        sqlite3ErrorWithMsg(db, rc, err);
+      }
       goto leave_rekey;
     }
   }
@@ -501,6 +509,10 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
           sqlite3mcSetReadReserved(codec, nReserved);
           sqlite3mcSetWriteReserved(codec, nReservedWriteCipher);
           rc = sqlite3mcRunVacuumForRekey(&err, db, dbIndex, NULL, nReservedWriteCipher);
+          if (rc != SQLITE_OK && err != NULL)
+          {
+            sqlite3ErrorWithMsg(db, rc, err);
+          }
           goto leave_rekey;
         }
       }

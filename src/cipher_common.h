@@ -3,7 +3,7 @@
 ** Purpose:     Header for the ciphers of SQLite3 Multiple Ciphers
 ** Author:      Ulrich Telle
 ** Created:     2020-02-02
-** Copyright:   (c) 2006-2021 Ulrich Telle
+** Copyright:   (c) 2006-2022 Ulrich Telle
 ** License:     MIT
 */
 
@@ -24,9 +24,30 @@
 #define CODEC_TYPE CODEC_TYPE_DEFAULT
 #endif
 
-#if CODEC_TYPE < 1 || CODEC_TYPE > CODEC_TYPE_MAX
+#if CODEC_TYPE < 1 || CODEC_TYPE > CODEC_TYPE_MAX_BUILTIN
 #error "Invalid codec type selected"
 #endif
+
+/*
+** Define the maximum number of ciphers that can be registered
+*/
+
+/* Use a reasonable upper limit for the maximum number of ciphers */
+#define CODEC_COUNT_LIMIT 16
+
+#ifdef SQLITE3MC_MAX_CODEC_COUNT
+/* Allow at least to register all built-in ciphers, but use a reasonable upper limit */
+#if SQLITE3MC_MAX_CODEC_COUNT >= CODEC_TYPE_MAX_BUILTIN && SQLITE3MC_MAX_CODEC_COUNT <= CODEC_COUNT_LIMIT
+#define CODEC_COUNT_MAX SQLITE3MC_MAX_CODEC_COUNT
+#else
+#error "Maximum cipher count not in range [CODEC_TYPE_MAX_BUILTIN .. CODEC_COUNT_LIMIT]"
+#endif
+#else
+#define CODEC_COUNT_MAX CODEC_COUNT_LIMIT
+#endif
+
+#define CIPHER_NAME_MAXLEN 32
+#define CIPHER_PARAMS_COUNT_MAX 64
 
 #define MAXKEYLENGTH     32
 #define KEYLENGTH_AES128 16
@@ -34,6 +55,13 @@
 #define KEYSALT_LENGTH   16
 
 #define CODEC_SHA_ITER 4001
+
+typedef struct _CodecParameter
+{
+  char* m_name;
+  int           m_id;
+  CipherParams* m_params;
+} CodecParameter;
 
 typedef struct _Codec
 {
@@ -65,48 +93,6 @@ typedef struct _Codec
 
 #define CIPHER_PARAMS_SENTINEL  { "", 0, 0, 0, 0 }
 #define CIPHER_PAGE1_OFFSET 24
-
-typedef struct _CipherParams
-{
-  char* m_name;
-  int   m_value;
-  int   m_default;
-  int   m_minValue;
-  int   m_maxValue;
-} CipherParams;
-
-typedef struct _CodecParameter
-{
-  char*         m_name;
-  int           m_id;
-  CipherParams* m_params;
-} CodecParameter;
-
-typedef void* (*AllocateCipher_t)(sqlite3* db);
-typedef void  (*FreeCipher_t)(void* cipher);
-typedef void  (*CloneCipher_t)(void* cipherTo, void* cipherFrom);
-typedef int   (*GetLegacy_t)(void* cipher);
-typedef int   (*GetPageSize_t)(void* cipher);
-typedef int   (*GetReserved_t)(void* cipher);
-typedef unsigned char* (*GetSalt_t)(void* cipher);
-typedef void  (*GenerateKey_t)(void* cipher, BtShared* pBt, char* userPassword, int passwordLength, int rekey, unsigned char* cipherSalt);
-typedef int   (*EncryptPage_t)(void* cipher, int page, unsigned char* data, int len, int reserved);
-typedef int   (*DecryptPage_t)(void* cipher, int page, unsigned char* data, int len, int reserved, int hmacCheck);
-
-typedef struct _CodecDescriptor
-{
-  char             m_name[32];
-  AllocateCipher_t m_allocateCipher;
-  FreeCipher_t     m_freeCipher;
-  CloneCipher_t    m_cloneCipher;
-  GetLegacy_t      m_getLegacy;
-  GetPageSize_t    m_getPageSize;
-  GetReserved_t    m_getReserved;
-  GetSalt_t        m_getSalt;
-  GenerateKey_t    m_generateKey;
-  EncryptPage_t    m_encryptPage;
-  DecryptPage_t    m_decryptPage;
-} CipherDescriptor;
 
 SQLITE_PRIVATE int sqlite3mcGetCipherParameter(CipherParams* cipherParams, const char* paramName);
 

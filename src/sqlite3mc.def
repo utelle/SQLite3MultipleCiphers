@@ -298,9 +298,13 @@ sqlite3_win32_utf8_to_mbcs
 sqlite3_win32_utf8_to_mbcs_v2
 sqlite3_win32_utf8_to_unicode
 sqlite3_win32_write_debug
+sqlite3mc_cipher_count
+sqlite3mc_cipher_index
+sqlite3mc_cipher_name
 sqlite3mc_codec_data
 sqlite3mc_config
 sqlite3mc_config_cipher
+sqlite3mc_register_cipher
 sqlite3mc_version
 sqlite3mc_vfs_create
 sqlite3mc_vfs_destroy
