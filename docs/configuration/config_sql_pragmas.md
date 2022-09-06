@@ -33,6 +33,10 @@ Notes
   - If the parameter `schemaName` is given as `temp` (or the schema name of any attached database), the `PRAGMA` statement affects the **_transient_** values of the encryption parameters.
   - Using other schema names than `main` or `temp` has currently no effect on the encryption of attached databases.
 
+Important
+{: .label .label-purple .ml-0 .mb-1 .mt-2 }
+It is strongly recommended to **avoid executing** `PRAGMA` statements for the configuration of the encryption extension **_within_ a transaction**. The effect of these `PRAGMA` statements can't be rolled back. In some cases execution will even fail (for example, `PRAGMA rekey` can't be executed within a transaction, if the number of reserved bytes per database page changes).
+
 ---
 
 ## Key handling

@@ -6,27 +6,37 @@ nav_order: 1
 ---
 # <a name="config_capi" />C Interface
 
-The C interface of **SQLite3 Multiple Ciphers** consists of the _official_ [SQLite C Interface](https://www.sqlite.org/c3ref/funclist.html) and the following additional functions:
+The C interface of **SQLite3 Multiple Ciphers** consists of the _official_ [SQLite C Interface](https://www.sqlite.org/c3ref/funclist.html) and several additional functions described in the following sections. Please click on the function name in below tables to jump to a detailed description of the respective function.
+
+## Passphrase functions
 
 | Function | Description |
 | :--- | :--- |
-| `sqlite3_key()` and `sqlite3_key_v2()` | Set the database key to use when accessing an encrypted database |
-| `sqlite3_rekey()` and `sqlite3_rekey_v2()` | Change the database encryption key |
-| `sqlite3mc_config()` | Configure database encryption parameters |
-| `sqlite3mc_config_cipher()` | Configure cipher encryption parameters |
-| `sqlite3mc_codec_data()` | Configure cipher encryption parameters |
-
-A detailed description of each function and its parameters is provided in the following sections:
-
-- [Functions `sqlite3_key()` and `sqlite3_key_v2()`](#config_key)
-- [Functions `sqlite3_rekey()` and `sqlite3_rekey_v2()`](#config_rekey)
-- [Function `sqlite3mc_config()`](#config_general)
-- [Function `sqlite3mc_config_cipher()`](#config_cipher)
-- [Function `sqlite3mc_codec_data()`](#config_codec_data)
+| [`sqlite3_key()`](#config_key) and [`sqlite3_key_v2()`](#config_key) | Set the database key to use when accessing an encrypted database |
+| [`sqlite3_rekey()`](#config_rekey) and [`sqlite3_rekey_v2()`](#config_key) | Change the database encryption key |
 
 The functions `sqlite3_key()`, `sqlite3_key_v2()`, `sqlite3_rekey()`, and `sqlite3_rekey_v2()` belong to the C interface of the _official_ (commercial) SQLite Add-On [SQLite Encryption Extension (SEE)](https://www.hwaci.com/sw/sqlite/see.html). For compatibility with this add-on the names of these functions use the typical `sqlite3_` prefix. Functions that are specific for **SQLite3 Multiple Ciphers** use the name prefix `sqlite3mc_`.
 
+## Configuration functions
+
+| Function | Description |
+| :--- | :--- |
+| [`sqlite3mc_config()`](#config_general) | Configure database encryption parameters |
+| [`sqlite3mc_config_cipher()`](#config_cipher) | Configure cipher encryption parameters |
+| [`sqlite3mc_codec_data()`](#config_codec_data) | Retrieve cipher scheme data |
+
+## Registration functions
+
+| Function | Description |
+| :--- | :--- |
+| [`sqlite3mc_register_cipher()`](#cipher_register) | Register a cipher scheme |
+| [`sqlite3mc_cipher_count()`](#cipher_count) | Retrieve number of registered cipher schemes |
+| [`sqlite3mc_cipher_index()`](#cipher_index) | Retrieve index of a cipher scheme |
+| [`sqlite3mc_cipher_name()`](#cipher_name) | Retrieve name of cipher at a given index |
+
 ---
+
+# Description of passphrase functions
 
 ## <a name="config_key" />Functions `sqlite3_key()` and `sqlite3_key_v2()`
 
@@ -90,6 +100,8 @@ However, please keep in mind that this works only on plain unencrypted databases
 
 ---
 
+# Description of configuration functions
+
 ## <a name="config_general" />Function `sqlite3mc_config()`
 
 ```c
@@ -115,24 +127,25 @@ The following parameter names are supported for `paramName`:
 
 | Parameter name | Description | Possible values |
 | :--- | :--- | :--- |
-| `cipher` | The cipher to be used for encrypting the database. | `1` .. `5`<br />(see&nbsp;Cipher&nbsp;IDs&nbsp;below) |
+| `cipher` | The cipher to be used for encrypting the database. | `1` .. `n`<br />(where&nbsp;`n`&nbsp;is&nbsp;the&nbsp;number&nbsp;of<br />registered&nbsp;cipher&nbsp;schemes;<br />see&nbsp;Cipher&nbsp;IDs&nbsp;below) |
 | `hmac_check` | Boolean flag whether the HMAC should be validated on read operations for encryption schemes using HMACs | `0` <br/> `1` |
 | `mc_legacy_wal` | Boolean flag whether the _legacy_ mode for the WAL journal encryption should be used | `0` <br/> `1` |
 
-The following table lists the supported cipher identifiers:
+The following table lists the builtin cipher schemes:
 
-| Cipher ID | Preprocessor Symbol | Cipher |
-| :---: | :--- | :--- |
-| 1 | `CODEC_TYPE_AES128` | [wxSQLite3: AES 128 Bit]({{ site.baseurl }}{% link docs/ciphers/cipher_aes128cbc.md %}) |
-| 2 | `CODEC_TYPE_AES256` | [wxSQLite3: AES 256 Bit]({{ site.baseurl }}{% link docs/ciphers/cipher_aes256cbc.md %}) |
-| 3 | `CODEC_TYPE_CHACHA20`  | [sqleet: ChaCha20]({{ site.baseurl }}{% link docs/ciphers/cipher_chacha20.md %}) |
-| 4 | `CODEC_TYPE_SQLCIPHER` | [SQLCipher: AES 256 Bit]({{ site.baseurl }}{% link docs/ciphers/cipher_sqlcipher.md %}) |
-| 5 | `CODEC_TYPE_RC4` | [System.Data.SQLite: RC4]({{ site.baseurl }}{% link docs/ciphers/cipher_sds_rc4.md %}) |
+| Cipher Name | Cipher ID | Preprocessor Symbol | Cipher |
+| :--- | :---: | :--- | :--- |
+| `aes128cbc` | 1 | `CODEC_TYPE_AES128` | [wxSQLite3: AES 128 Bit]({{ site.baseurl }}{% link docs/ciphers/cipher_aes128cbc.md %}) |
+| `aes256cbc` | 2 | `CODEC_TYPE_AES256` | [wxSQLite3: AES 256 Bit]({{ site.baseurl }}{% link docs/ciphers/cipher_aes256cbc.md %}) |
+| `chacha20` | 3 | `CODEC_TYPE_CHACHA20`  | [sqleet: ChaCha20]({{ site.baseurl }}{% link docs/ciphers/cipher_chacha20.md %}) |
+| `sqlcipher` | 4 | `CODEC_TYPE_SQLCIPHER` | [SQLCipher: AES 256 Bit]({{ site.baseurl }}{% link docs/ciphers/cipher_sqlcipher.md %}) |
+| `rc4` | 5 | `CODEC_TYPE_RC4` | [System.Data.SQLite: RC4]({{ site.baseurl }}{% link docs/ciphers/cipher_sds_rc4.md %}) |
 
 The return value always is the current parameter value on success, or **-1** on failure.
 
-Note
+Notes
 {: .label .label-red .ml-0 .mb-1 .mt-2 }
+- When configuring the `cipher` scheme with function `sqlite3mc_config()`, the _cipher ID_ has to be used. However, the _cipher IDs_ depend on the order of cipher scheme registrations. Therefore it is strongly recommended to use function [`sqlite3mc_cipher_index()`](#cipher_index) to determine the _cipher ID_ of the requested cipher scheme via the _cipher name_.
 - Checking the HMAC on read operations is active by default. With the parameter `hmac_check` the HMAC check can be disabled in case of trying to recover a corrupted database. It is not recommended to deactivate the HMAC check for regular database operation. Therefore the default can not be changed.
 - The _legacy_ mode for WAL journal encryption is off by default. The encryption mode used by all versions up to 1.2.5 is called _legacy_ mode, version 1.3.0 introduced a new encryption mode that provides  compatibility with legacy encryption implementations and is less vulnerable to changes in SQLite. It should only be enabled to recover WAL journal files left behind by applications using versions up to 1.2.5.
 
@@ -140,17 +153,12 @@ Note
 
 ```c
 /* Use AES-256 cipher for the next call to sqlite3_key() or sqlite3_rekey() for the given db */
-sqlite3mc_config(db, "cipher", CODEC_TYPE_AES256);
+sqlite3mc_config(db, "cipher", sqlite3mc_cipher_index("aes256cbc"));
 ```
 
 ```c
 /* Use SQLCipher during the entire lifetime of database instance */
-sqlite3mc_config(db, "default:cipher", CODEC_TYPE_SQLCIPHER);
-```
-
-```c
-/* Get the maximum value which can be used for the "cipher" parameter */
-sqlite3mc_config(NULL, "max:cipher", -1);
+sqlite3mc_config(db, "default:cipher", sqlite3mc_cipher_index("sqlcipher"));
 ```
 
 ---
@@ -168,15 +176,15 @@ SQLITE_API int sqlite3mc_config_cipher(
 
 `sqlite3mc_config_cipher()` gets or sets encryption parameters which are relevant for a specific encryption cipher only. See the [`sqlite3mc_config()` function](#config_general) for details about the `db`, `paramName` and `newValue` parameters. See the related [cipher descriptions](#ciphers) for the parameter names supported for `paramName`.
 
-The following cipher names are supported for `cipherName`:
+The following cipher names are used as the `cipherName` for the supported builtin cipher schemes:
 
-| Cipher name | Refers to | Description |
-| :--- | :--- | :--- |
-| `aes128cbc` | `1`&nbsp;=&nbsp;`CODEC_TYPE_AES128` | [AES 128 Bit CBC - No HMAC (wxSQLite3)]({{ site.baseurl }}{% link docs/ciphers/cipher_aes128cbc.md %}) |
-| `aes256cbc` | `2`&nbsp;=&nbsp;`CODEC_TYPE_AES256` | [AES 256 Bit CBC - No HMAC (wxSQLite3)]({{ site.baseurl }}{% link docs/ciphers/cipher_aes256cbc.md %}) |
-| `chacha20`  | `3`&nbsp;=&nbsp;`CODEC_TYPE_CHACHA20` | [ChaCha20 - Poly1305 HMAC (sqleet)]({{ site.baseurl }}{% link docs/ciphers/cipher_chacha20.md %}) |
-| `sqlcipher` | `4`&nbsp;=&nbsp;`CODEC_TYPE_SQLCIPHER` | [AES 256 Bit CBC - SHA1 HMAC (SQLCipher)]({{ site.baseurl }}{% link docs/ciphers/cipher_sqlcipher.md %}) |
-| `rc4`       | `5`&nbsp;=&nbsp;`CODEC_TYPE_RC4` | [RC4 (System.Data.SQLite)]({{ site.baseurl }}{% link docs/ciphers/cipher_sds_rc4.md %}) |
+| Cipher name | Description |
+| :--- | :--- |
+| `aes128cbc` | [AES 128 Bit CBC - No HMAC (wxSQLite3)]({{ site.baseurl }}{% link docs/ciphers/cipher_aes128cbc.md %}) |
+| `aes256cbc` | [AES 256 Bit CBC - No HMAC (wxSQLite3)]({{ site.baseurl }}{% link docs/ciphers/cipher_aes256cbc.md %}) |
+| `chacha20`  | [ChaCha20 - Poly1305 HMAC (sqleet)]({{ site.baseurl }}{% link docs/ciphers/cipher_chacha20.md %}) |
+| `sqlcipher` | [AES 256 Bit CBC - SHA1 HMAC (SQLCipher)]({{ site.baseurl }}{% link docs/ciphers/cipher_sqlcipher.md %}) |
+| `rc4`       | [RC4 (System.Data.SQLite)]({{ site.baseurl }}{% link docs/ciphers/cipher_sds_rc4.md %}) |
 
 The return value always is the current parameter value on success, or **-1** on failure.
 
@@ -184,7 +192,7 @@ The return value always is the current parameter value on success, or **-1** on 
 
 ```c
 /* Activate SQLCipher version 1 encryption scheme for the next key or rekey operation */
-sqlite3mc_config(db, "cipher", CODEC_TYPE_SQLCIPHER);
+sqlite3mc_config(db, "cipher", sqlite3mc_cipher_index("sqlcipher"));
 sqlite3mc_config_cipher(db, "sqlcipher", "kdf_iter", 4000);
 sqlite3mc_config_cipher(db, "sqlcipher", "fast_kdf_iter", 2);
 sqlite3mc_config_cipher(db, "sqlcipher", "hmac_use", 0);
@@ -217,3 +225,55 @@ Notes
 {: .label .label-red .ml-0 .mb-1 .mt-2 }
 - A NULL pointer is returned if the database is not encrypted or if the encryption scheme doesn't use a cipher salt. If a non-NULL pointer is returned, it is the application's responsibility to free the memory using function `sqlite3_free`.
 - Some cipher schemes use a random cipher salt on database creation. If the database header gets corrupted for some reason, it is almost impossible to recover the database without knowing the cipher salt. For critical applications it is therefore recommended to retrieve the cipher salt after the initial creation of a database and keep it in a safe place.
+
+---
+
+# Description of cipher registration functions
+
+## <a name="cipher_count" />Function `sqlite3mc_cipher_count()`
+
+```c
+SQLITE_API int sqlite3mc_cipher_count();
+```
+
+`sqlite3mc_cipher_count()` retrieves the number of currently registered cipher schemes.
+
+## <a name="cipher_index" />Function `sqlite3mc_cipher_index()`
+
+```c
+SQLITE_API int sqlite3mc_cipher_index(
+  const char* cipherName  /* Name of the cipher scheme */
+);
+```
+
+`sqlite3mc_cipher_index()` retrieves the relative 1-based index of the named cipher scheme in the list of registered cipher schemes. This index can be used in function [`sqlite3mc_config_cipher()`](#config_general).
+
+Note
+{: .label .label-red .ml-0 .mb-1 .mt-2 }
+- The value **-1** is returned, if the given cipher scheme name could not be found.
+
+## <a name="cipher_name" />Function `sqlite3mc_cipher_name()`
+
+```c
+SQLITE_API const char* sqlite3mc_cipher_name(
+  int cipherIndex   /* Index of cipher scheme */
+);
+```
+
+`sqlite3mc_cipher_name()` retrieves the name of the cipher scheme for the given relative 1-based index in the list of registered cipher schemes. This index can be used in function [`sqlite3mc_config_cipher()`](#config_general).
+
+Notes
+{: .label .label-red .ml-0 .mb-1 .mt-2 }
+- An empty string is returned if an invalid index was given.
+- The returned string is valid until the next call to this function. That is, the string will be overwritten by the next call to this function.
+
+## <a name="cipher_register" />Function `sqlite3mc_register_cipher()`
+
+```c
+SQLITE_API int sqlite3mc_register_cipher(
+  const CipherDescriptor* desc, /* Cipher descriptor */
+  const CipherParams* params,   /* List of cipher configuration parameters */
+  int makeDefault               /* Flag, whether this cipher scheme should be made the default */
+);
+```
+

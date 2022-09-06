@@ -46,13 +46,13 @@ The following parameter names are supported for `paramName`:
 
 The following table lists the supported cipher identifiers:
 
-| Cipher ID | Cipher name | Cipher |
-| :---: | :--- | :--- |
-| 1 | `aes128cbc` | [wxSQLite3: AES 128 Bit]({{ site.baseurl }}{% link docs/ciphers/cipher_aes128cbc.md %}) |
-| 2 | `aes256cbc` | [wxSQLite3: AES 256 Bit]({{ site.baseurl }}{% link docs/ciphers/cipher_aes256cbc.md %}) |
-| 3 | `chacha20`  | [sqleet: ChaCha20]({{ site.baseurl }}{% link docs/ciphers/cipher_chacha20.md %}) |
-| 4 | `sqlcipher` | [SQLCipher: AES 256 Bit]({{ site.baseurl }}{% link docs/ciphers/cipher_sqlcipher.md %}) |
-| 5 | `rc4` | [System.Data.SQLite: RC4]({{ site.baseurl }}{% link docs/ciphers/cipher_sds_rc4.md %}) |
+| Cipher name | Cipher |
+| :--- | :--- |
+| `aes128cbc` | [wxSQLite3: AES 128 Bit]({{ site.baseurl }}{% link docs/ciphers/cipher_aes128cbc.md %}) |
+| `aes256cbc` | [wxSQLite3: AES 256 Bit]({{ site.baseurl }}{% link docs/ciphers/cipher_aes256cbc.md %}) |
+| `chacha20`  | [sqleet: ChaCha20]({{ site.baseurl }}{% link docs/ciphers/cipher_chacha20.md %}) |
+| `sqlcipher` | [SQLCipher: AES 256 Bit]({{ site.baseurl }}{% link docs/ciphers/cipher_sqlcipher.md %}) |
+| `rc4` | [System.Data.SQLite: RC4]({{ site.baseurl }}{% link docs/ciphers/cipher_sds_rc4.md %}) |
 
 Note
 {: .label .label-red .ml-0 .mb-1 .mt-2 }
@@ -146,5 +146,5 @@ Notes
 
 ```sql
 -- Get the random key salt as a hexadecimal encoded string (if database is encrypted and uses key salt)
-SELECT sqlite3mc_codec_data('salt');
+SELECT sqlite3mc_codec_data('cipher_salt');
 ```

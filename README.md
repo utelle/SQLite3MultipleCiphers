@@ -20,6 +20,14 @@ In addition to reading and writing encrypted database files **SQLite** with the 
 
 **SQLite3 Multiple Ciphers** encrypts the entire database file, so that an encrypted SQLite database file appears to be white noise to an outside observer. Not only the database files themselves, but also journal files are encrypted.
 
+Note
+{: .label .label-red .ml-0 .mb-1 .mt-2 }
+**SQLite3 Multiple Ciphers** has more or less the same limitations as the official [SQLite Encryption Extension (SEE)](https://www.sqlite.org/see):
+
+  1. `TEMP` tables are not encrypted.
+  2. In-memory (`":memory:"`) databases are not encrypted.
+  3. Bytes 16 through 23 of the database file contain header information that is usually **not** encrypted.
+    
 ## Usage
 
 The _SQLite3 Multiple Ciphers_ encryption extension can be used via the C API as well as via SQL.
