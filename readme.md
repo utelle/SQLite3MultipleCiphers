@@ -10,6 +10,9 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version history
 
+* 1.5.2 - *September 2022*
+  - Based on SQLite version 3.39.3
+  - Fixed retrieval of configuration parameter table
 * 1.5.1 - *September 2022*
   - Based on SQLite version 3.39.3
   - Fixed a bug in shutdown code

@@ -12,6 +12,8 @@
 /* --- AES 256-bit cipher (wxSQLite3) --- */
 #if HAVE_CIPHER_AES_256_CBC
 
+#define CIPHER_NAME_AES256 "aes256cbc"
+
 /*
 ** Configuration parameters for "aes256cbc"
 **
@@ -66,7 +68,7 @@ AllocateAES256Cipher(sqlite3* db)
   }
   if (aesCipher != NULL)
   {
-    CipherParams* cipherParams = sqlite3mcGetCipherParams(db, CODEC_TYPE_AES256);
+    CipherParams* cipherParams = sqlite3mcGetCipherParams(db, CIPHER_NAME_AES256);
     aesCipher->m_legacy = sqlite3mcGetCipherParameter(cipherParams, "legacy");
     aesCipher->m_legacyPageSize = sqlite3mcGetCipherParameter(cipherParams, "legacy_page_size");
     aesCipher->m_kdfIter = sqlite3mcGetCipherParameter(cipherParams, "kdf_iter");
@@ -234,15 +236,16 @@ DecryptPageAES256Cipher(void* cipher, int page, unsigned char* data, int len, in
 
 SQLITE_PRIVATE const CipherDescriptor mcAES256Descriptor =
 {
-  "aes256cbc", AllocateAES256Cipher,
-               FreeAES256Cipher,
-               CloneAES256Cipher,
-               GetLegacyAES256Cipher,
-               GetPageSizeAES256Cipher,
-               GetReservedAES256Cipher,
-               GetSaltAES256Cipher,
-               GenerateKeyAES256Cipher,
-               EncryptPageAES256Cipher,
-               DecryptPageAES256Cipher
+  CIPHER_NAME_AES256,
+  AllocateAES256Cipher,
+  FreeAES256Cipher,
+  CloneAES256Cipher,
+  GetLegacyAES256Cipher,
+  GetPageSizeAES256Cipher,
+  GetReservedAES256Cipher,
+  GetSaltAES256Cipher,
+  GenerateKeyAES256Cipher,
+  EncryptPageAES256Cipher,
+  DecryptPageAES256Cipher
 };
 #endif

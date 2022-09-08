@@ -12,6 +12,8 @@
 /* --- AES 128-bit cipher (wxSQLite3) --- */
 #if HAVE_CIPHER_AES_128_CBC
 
+#define CIPHER_NAME_AES128 "aes128cbc"
+
 /*
 ** Configuration parameters for "aes128cbc"
 **
@@ -62,7 +64,7 @@ AllocateAES128Cipher(sqlite3* db)
   }
   if (aesCipher != NULL)
   {
-    CipherParams* cipherParams = sqlite3mcGetCipherParams(db, CODEC_TYPE_AES128);
+    CipherParams* cipherParams = sqlite3mcGetCipherParams(db, CIPHER_NAME_AES128);
     aesCipher->m_legacy = sqlite3mcGetCipherParameter(cipherParams, "legacy");
     aesCipher->m_legacyPageSize = sqlite3mcGetCipherParameter(cipherParams, "legacy_page_size");
   }
@@ -266,15 +268,16 @@ DecryptPageAES128Cipher(void* cipher, int page, unsigned char* data, int len, in
 
 SQLITE_PRIVATE const CipherDescriptor mcAES128Descriptor =
 {
- "aes128cbc", AllocateAES128Cipher,
-              FreeAES128Cipher,
-              CloneAES128Cipher,
-              GetLegacyAES128Cipher,
-              GetPageSizeAES128Cipher,
-              GetReservedAES128Cipher,
-              GetSaltAES128Cipher,
-              GenerateKeyAES128Cipher,
-              EncryptPageAES128Cipher,
-              DecryptPageAES128Cipher
+  CIPHER_NAME_AES128,
+  AllocateAES128Cipher,
+  FreeAES128Cipher,
+  CloneAES128Cipher,
+  GetLegacyAES128Cipher,
+  GetPageSizeAES128Cipher,
+  GetReservedAES128Cipher,
+  GetSaltAES128Cipher,
+  GenerateKeyAES128Cipher,
+  EncryptPageAES128Cipher,
+  DecryptPageAES128Cipher
 };
 #endif

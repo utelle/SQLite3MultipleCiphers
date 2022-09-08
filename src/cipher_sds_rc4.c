@@ -12,6 +12,8 @@
 /* --- RC4 cipher (System.Data.SQLite) --- */
 #if HAVE_CIPHER_RC4
 
+#define CIPHER_NAME_RC4 "rc4"
+
 /*
 ** Configuration parameters for "rc4"
 **
@@ -52,7 +54,7 @@ AllocateRC4Cipher(sqlite3* db)
   }
   if (rc4Cipher != NULL)
   {
-    CipherParams* cipherParams = sqlite3mcGetCipherParams(db, CODEC_TYPE_RC4);
+    CipherParams* cipherParams = sqlite3mcGetCipherParams(db, CIPHER_NAME_RC4);
     rc4Cipher->m_legacy = sqlite3mcGetCipherParameter(cipherParams, "legacy");
     rc4Cipher->m_legacyPageSize = sqlite3mcGetCipherParameter(cipherParams, "legacy_page_size");
   }
@@ -155,15 +157,16 @@ DecryptPageRC4Cipher(void* cipher, int page, unsigned char* data, int len, int r
 
 SQLITE_PRIVATE const CipherDescriptor mcRC4Descriptor =
 {
-  "rc4",       AllocateRC4Cipher,
-               FreeRC4Cipher,
-               CloneRC4Cipher,
-               GetLegacyRC4Cipher,
-               GetPageSizeRC4Cipher,
-               GetReservedRC4Cipher,
-               GetSaltRC4Cipher,
-               GenerateKeyRC4Cipher,
-               EncryptPageRC4Cipher,
-               DecryptPageRC4Cipher
+  CIPHER_NAME_RC4,
+  AllocateRC4Cipher,
+  FreeRC4Cipher,
+  CloneRC4Cipher,
+  GetLegacyRC4Cipher,
+  GetPageSizeRC4Cipher,
+  GetReservedRC4Cipher,
+  GetSaltRC4Cipher,
+  GenerateKeyRC4Cipher,
+  EncryptPageRC4Cipher,
+  DecryptPageRC4Cipher
 };
 #endif

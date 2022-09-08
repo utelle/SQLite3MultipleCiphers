@@ -29,8 +29,10 @@ static CipherParams commonParams[] =
   CIPHER_PARAMS_SENTINEL
 };
 
-static CodecParameter globalCommonParams   = { "global", CODEC_TYPE_UNKNOWN, commonParams };
-static CodecParameter globalSentinelParams = { "",       CODEC_TYPE_UNKNOWN, NULL };
+#define CIPHER_NAME_GLOBAL "global"
+
+static CodecParameter globalCommonParams   = { CIPHER_NAME_GLOBAL, CODEC_TYPE_UNKNOWN, commonParams };
+static CodecParameter globalSentinelParams = { "",                 CODEC_TYPE_UNKNOWN, NULL };
 
 SQLITE_PRIVATE int
 sqlite3mcGetCipherParameter(CipherParams* cipherParams, const char* paramName)
@@ -157,19 +159,20 @@ sqlite3mcGetCipherType(sqlite3* db)
 }
 
 SQLITE_PRIVATE CipherParams*
-sqlite3mcGetCipherParams(sqlite3* db, int cypherType)
+sqlite3mcGetCipherParams(sqlite3* db, const char* cipherName)
 {
   int j = 0;
+  int cipherType = sqlite3mc_cipher_index(cipherName);
   CodecParameter* codecParams = (db != NULL) ? sqlite3mcGetCodecParams(db) : globalCodecParameterTable;
   if (codecParams == NULL)
   {
     codecParams = globalCodecParameterTable;
   }
-  if (cypherType > 0)
+  if (cipherType > 0)
   {
     for (j = 1; codecParams[j].m_id > 0; ++j)
     {
-      if (cypherType == codecParams[j].m_id) break;
+      if (cipherType == codecParams[j].m_id) break;
     }
   }
   CipherParams* cipherParamTable = codecParams[j].m_params;
@@ -241,7 +244,7 @@ SQLITE_PRIVATE int
 sqlite3mcCodecSetup(Codec* codec, int cipherType, char* userPassword, int passwordLength)
 {
   int rc = SQLITE_OK;
-  CipherParams* globalParams = sqlite3mcGetCipherParams(codec->m_db, 0);
+  CipherParams* globalParams = sqlite3mcGetCipherParams(codec->m_db, CIPHER_NAME_GLOBAL);
   codec->m_isEncrypted = 1;
   codec->m_hmacCheck = sqlite3mcGetCipherParameter(globalParams, "hmac_check");
   codec->m_walLegacy = sqlite3mcGetCipherParameter(globalParams, "mc_legacy_wal");
@@ -266,7 +269,7 @@ SQLITE_PRIVATE int
 sqlite3mcSetupWriteCipher(Codec* codec, int cipherType, char* userPassword, int passwordLength)
 {
   int rc = SQLITE_OK;
-  CipherParams* globalParams = sqlite3mcGetCipherParams(codec->m_db, 0);
+  CipherParams* globalParams = sqlite3mcGetCipherParams(codec->m_db, CIPHER_NAME_GLOBAL);
   if (codec->m_writeCipher != NULL)
   {
     globalCodecDescriptorTable[codec->m_writeCipherType-1].m_freeCipher(codec->m_writeCipher);

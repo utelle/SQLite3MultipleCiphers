@@ -12,6 +12,8 @@
 /* --- ChaCha20-Poly1305 cipher (plus sqleet variant) --- */
 #if HAVE_CIPHER_CHACHA20
 
+#define CIPHER_NAME_CHACHA20 "chacha20"
+
 /*
 ** Configuration parameters for "chacha20"
 **
@@ -68,7 +70,7 @@ AllocateChaCha20Cipher(sqlite3* db)
   }
   if (chacha20Cipher != NULL)
   {
-    CipherParams* cipherParams = sqlite3mcGetCipherParams(db, CODEC_TYPE_CHACHA20);
+    CipherParams* cipherParams = sqlite3mcGetCipherParams(db, CIPHER_NAME_CHACHA20);
     chacha20Cipher->m_legacy = sqlite3mcGetCipherParameter(cipherParams, "legacy");
     chacha20Cipher->m_legacyPageSize = sqlite3mcGetCipherParameter(cipherParams, "legacy_page_size");
     chacha20Cipher->m_kdfIter = sqlite3mcGetCipherParameter(cipherParams, "kdf_iter");
@@ -364,15 +366,16 @@ DecryptPageChaCha20Cipher(void* cipher, int page, unsigned char* data, int len, 
 
 SQLITE_PRIVATE const CipherDescriptor mcChaCha20Descriptor =
 {
-  "chacha20",  AllocateChaCha20Cipher,
-               FreeChaCha20Cipher,
-               CloneChaCha20Cipher,
-               GetLegacyChaCha20Cipher,
-               GetPageSizeChaCha20Cipher,
-               GetReservedChaCha20Cipher,
-               GetSaltChaCha20Cipher,
-               GenerateKeyChaCha20Cipher,
-               EncryptPageChaCha20Cipher,
-               DecryptPageChaCha20Cipher
+  CIPHER_NAME_CHACHA20,
+  AllocateChaCha20Cipher,
+  FreeChaCha20Cipher,
+  CloneChaCha20Cipher,
+  GetLegacyChaCha20Cipher,
+  GetPageSizeChaCha20Cipher,
+  GetReservedChaCha20Cipher,
+  GetSaltChaCha20Cipher,
+  GenerateKeyChaCha20Cipher,
+  EncryptPageChaCha20Cipher,
+  DecryptPageChaCha20Cipher
 };
 #endif

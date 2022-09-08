@@ -98,7 +98,7 @@ SQLITE_PRIVATE int sqlite3mcGetCipherParameter(CipherParams* cipherParams, const
 
 SQLITE_PRIVATE int sqlite3mcGetCipherType(sqlite3* db);
 
-SQLITE_PRIVATE CipherParams* sqlite3mcGetCipherParams(sqlite3* db, int cypherType);
+SQLITE_PRIVATE CipherParams* sqlite3mcGetCipherParams(sqlite3* db, const char* cipherName);
 
 SQLITE_PRIVATE int sqlite3mcCodecInit(Codec* codec);
 

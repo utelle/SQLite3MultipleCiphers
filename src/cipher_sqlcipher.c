@@ -12,6 +12,8 @@
 /* --- SQLCipher AES256CBC-HMAC cipher --- */
 #if HAVE_CIPHER_SQLCIPHER
 
+#define CIPHER_NAME_SQLCIPHER "sqlcipher"
+
 /*
 ** Configuration parameters for "sqlcipher"
 **
@@ -127,7 +129,7 @@ AllocateSQLCipherCipher(sqlite3* db)
   }
   if (sqlCipherCipher != NULL)
   {
-    CipherParams* cipherParams = sqlite3mcGetCipherParams(db, CODEC_TYPE_SQLCIPHER);
+    CipherParams* cipherParams = sqlite3mcGetCipherParams(db, CIPHER_NAME_SQLCIPHER);
     sqlCipherCipher->m_legacy = sqlite3mcGetCipherParameter(cipherParams, "legacy");
     sqlCipherCipher->m_legacyPageSize = sqlite3mcGetCipherParameter(cipherParams, "legacy_page_size");
     sqlCipherCipher->m_kdfIter = sqlite3mcGetCipherParameter(cipherParams, "kdf_iter");
@@ -500,15 +502,16 @@ DecryptPageSQLCipherCipher(void* cipher, int page, unsigned char* data, int len,
 }
 SQLITE_PRIVATE const CipherDescriptor mcSQLCipherDescriptor =
 {
-  "sqlcipher", AllocateSQLCipherCipher,
-               FreeSQLCipherCipher,
-               CloneSQLCipherCipher,
-               GetLegacySQLCipherCipher,
-               GetPageSizeSQLCipherCipher,
-               GetReservedSQLCipherCipher,
-               GetSaltSQLCipherCipher,
-               GenerateKeySQLCipherCipher,
-               EncryptPageSQLCipherCipher,
-               DecryptPageSQLCipherCipher
+  CIPHER_NAME_SQLCIPHER,
+  AllocateSQLCipherCipher,
+  FreeSQLCipherCipher,
+  CloneSQLCipherCipher,
+  GetLegacySQLCipherCipher,
+  GetPageSizeSQLCipherCipher,
+  GetReservedSQLCipherCipher,
+  GetSaltSQLCipherCipher,
+  GenerateKeySQLCipherCipher,
+  EncryptPageSQLCipherCipher,
+  DecryptPageSQLCipherCipher
 };
 #endif
