@@ -10,6 +10,9 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version history
 
+* 1.5.1 - *September 2022*
+  - Based on SQLite version 3.39.3
+  - Fixed a bug in shutdown code
 * 1.5.0 - *September 2022*
   - Based on SQLite version 3.39.3
   - Added option to register cipher schemes dynamically
