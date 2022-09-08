@@ -587,9 +587,9 @@ sqlite3mcTermCipherTables()
     {
       int k;
       CipherParams* params = globalCodecParameterTable[n].m_params;
-      for (k = 0; params->m_name[0] != 0; ++k)
+      for (k = 0; params[k].m_name[0] != 0; ++k)
       {
-        sqlite3_free(params->m_name);
+        sqlite3_free(params[k].m_name);
       }
       sqlite3_free(globalCodecParameterTable[n].m_params);
     }
