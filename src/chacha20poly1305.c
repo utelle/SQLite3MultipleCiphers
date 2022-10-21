@@ -369,7 +369,7 @@ fail:
   return 0;
 }
 
-#if defined(__APPLE__) && defined(__MAC_10_12)
+#if defined(__APPLE__) && defined(__MAC_10_12) && !defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
 #include <sys/random.h>
 #endif
 
