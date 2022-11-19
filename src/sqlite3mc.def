@@ -255,6 +255,7 @@ sqlite3_value_bytes
 sqlite3_value_bytes16
 sqlite3_value_double
 sqlite3_value_dup
+sqlite3_value_encoding
 sqlite3_value_free
 sqlite3_value_frombind
 sqlite3_value_int

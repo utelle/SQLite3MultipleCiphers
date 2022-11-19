@@ -1564,6 +1564,36 @@ static long long vsv_utf8IsValid(char *string)
             length++;
             continue;
         }
+#if 0   // UTF-8 does not encode sequences longer than 4 bytes (yet)
+        if ((c & 0xFC) == 0xF8)
+        {
+            trailing = 4;
+            start++;
+            length++;
+            continue;
+        }
+        if ((c & 0xFE) == 0xFC)
+        {
+            trailing = 5;
+            start++;
+            length++;
+            continue;
+        }
+        if ((c & 0xFF) == 0xFE)
+        {
+            trailing = 6;
+            start++;
+            length++;
+            continue;
+        }
+        if ((c & 0xFF) == 0xFF)
+        {
+            trailing = 7;
+            start++;
+            length++;
+            continue;
+        }
+#endif
         length = -1;
         break;
     }

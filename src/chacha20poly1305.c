@@ -52,7 +52,8 @@
 static void chacha20_block(uint32_t x[16])
 {
   int i;
-  #define QR(x, a, b, c, d)                           \
+  /* Macro renamed from QR to CC20QR to avoid name clashes. */
+  #define CC20QR(x, a, b, c, d)                           \
   x[a] += x[b]; x[d] ^= x[a]; x[d] = ROL32(x[d], 16); \
   x[c] += x[d]; x[b] ^= x[c]; x[b] = ROL32(x[b], 12); \
   x[a] += x[b]; x[d] ^= x[a]; x[d] = ROL32(x[d],  8); \
@@ -60,17 +61,17 @@ static void chacha20_block(uint32_t x[16])
   for (i = 0; i < 10; i++)
   {
     /* Column round */
-    QR(x, 0, 4, 8, 12)
-    QR(x, 1, 5, 9, 13)
-    QR(x, 2, 6, 10, 14)
-    QR(x, 3, 7, 11, 15)
+    CC20QR(x, 0, 4, 8, 12)
+    CC20QR(x, 1, 5, 9, 13)
+    CC20QR(x, 2, 6, 10, 14)
+    CC20QR(x, 3, 7, 11, 15)
     /* Diagonal round */
-    QR(x, 0, 5, 10, 15)
-    QR(x, 1, 6, 11, 12)
-    QR(x, 2, 7, 8, 13)
-    QR(x, 3, 4, 9, 14)
+    CC20QR(x, 0, 5, 10, 15)
+    CC20QR(x, 1, 6, 11, 12)
+    CC20QR(x, 2, 7, 8, 13)
+    CC20QR(x, 3, 4, 9, 14)
   }
-  #undef QR
+  #undef CC20QR
 }
 
 void chacha20_xor(void* buffer, size_t n, const uint8_t key[32],

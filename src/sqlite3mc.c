@@ -505,7 +505,7 @@ sqlite3mcRegisterCipher(const CipherDescriptor* desc, const CipherParams* params
     for (n = 0; n < np; ++n)
     {
       cipherParams[n] = params[n];
-      cipherParams[n].m_name = (char*) sqlite3_malloc(strlen(params[n].m_name) + 1);
+      cipherParams[n].m_name = (char*) sqlite3_malloc((int) strlen(params[n].m_name) + 1);
       strcpy(cipherParams[n].m_name, params[n].m_name);
     }
     /* Add sentinel */
