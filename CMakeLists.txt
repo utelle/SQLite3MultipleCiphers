@@ -37,8 +37,8 @@ set(SQLITE3MC_DLLRES_SRCS
     src/sqlite3mc.rc
 )
 set(SQLITE3MC_SHELL_SRCS
-    src/sqlite3.h
     src/shell.c
+    src/sqlite3mc.c
     src/sqlite3mc_shell.rc
 )
 set(SQLITE3MC_BASE_DEFINITIONS
@@ -111,11 +111,6 @@ set(SQLTE3MC_SHELL_SYSTEM_LINKS
 set(SQLITE3MC_BASE_DEFINITIONS 
     ${SQLITE3MC_BASE_DEFINITIONS}
     SQLITE_ENABLE_PREUPDATE_HOOK=1
-)
-
-set(SQLITE3MC_SHELL_SRCS 
-    ${SQLITE3MC_SHELL_SRCS}
-    src/sqlite3mc.c
 )
 endif()
 
