@@ -3731,11 +3731,11 @@ static sqlite3_module seriesModule = {
 #ifdef _WIN32
 
 #endif
-extern int sqlite3_series_init(
+int sqlite3_series_init(
   sqlite3 *db, 
   char **pzErrMsg, 
   const sqlite3_api_routines *pApi
-);/*{
+){
   int rc = SQLITE_OK;
   SQLITE_EXTENSION_INIT2(pApi);
 #ifndef SQLITE_OMIT_VIRTUALTABLE
@@ -3747,7 +3747,7 @@ extern int sqlite3_series_init(
   rc = sqlite3_create_module(db, "generate_series", &seriesModule, 0);
 #endif
   return rc;
-}*/
+}
 
 /************************* End ../ext/misc/series.c ********************/
 /************************* Begin ../ext/misc/regexp.c ******************/
@@ -4604,20 +4604,20 @@ re_bytecode_func_err:
 #ifdef _WIN32
 
 #endif
-extern int sqlite3_regexp_init(
+int sqlite3_regexp_init(
   sqlite3 *db, 
   char **pzErrMsg, 
   const sqlite3_api_routines *pApi
-);/*{
+){
   int rc = SQLITE_OK;
   SQLITE_EXTENSION_INIT2(pApi);
-  (void)pzErrMsg;  // Unused 
+  (void)pzErrMsg;  /* Unused */
   rc = sqlite3_create_function(db, "regexp", 2, 
                             SQLITE_UTF8|SQLITE_INNOCUOUS|SQLITE_DETERMINISTIC,
                             0, re_sql_func, 0, 0);
   if( rc==SQLITE_OK ){
-    //The regexpi(PATTERN,STRING) function is a case-insensitive version
-    // of regexp(PATTERN,STRING). 
+    /* The regexpi(PATTERN,STRING) function is a case-insensitive version
+    ** of regexp(PATTERN,STRING). */
     rc = sqlite3_create_function(db, "regexpi", 2,
                             SQLITE_UTF8|SQLITE_INNOCUOUS|SQLITE_DETERMINISTIC,
                             (void*)db, re_sql_func, 0, 0);
@@ -4627,10 +4627,10 @@ extern int sqlite3_regexp_init(
                             SQLITE_UTF8|SQLITE_INNOCUOUS|SQLITE_DETERMINISTIC,
                             0, re_bytecode_func, 0, 0);
     }
-#endif  //SQLITE_DEBUG 
+#endif /* SQLITE_DEBUG */
   }
   return rc;
-}*/
+}
 
 /************************* End ../ext/misc/regexp.c ********************/
 #ifndef SQLITE_SHELL_FIDDLE
