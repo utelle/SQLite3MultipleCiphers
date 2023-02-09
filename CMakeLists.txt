@@ -253,7 +253,7 @@ set(SQLITE3MC_ICU_LINK_LIBRARIES
     icuuc
     icuio
     icudata
-    icuil8n
+    icui18n
 )
 set(SQLITE3MC_ICU_INCLUDE_DIRS )
 set(SQLITE3MC_ICU_LIB_DIRS )
