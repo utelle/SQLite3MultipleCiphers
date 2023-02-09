@@ -4,7 +4,7 @@ project(sqlite3mc)
 OPTION(SQLITE3MC_STATIC_RUNTIME_LINK "Link the c++ runtime statically" OFF)
 OPTION(SQLITE3MC_STATIC "Build SQLITE3MC as a static library" OFF)
 OPTION(SQLITE3MC_BUILD_SHELL "Builds the SQLITE3MC Shell" ON)
-OPTION(SQLITE3MC_WITH_ICU "Builds SQLITE3MC with the ICU library. Set WITH_ICU_INCLUDE_DIRS and WITH_ICU_LIB_DIRS to specify where to find ICU (not required if using linux and have installed the libicu-devel package) " OFF)
+OPTION(SQLITE3MC_WITH_ICU "Builds SQLITE3MC with the ICU library. Will use the FindICU function to locate the library. (https://cmake.org/cmake/help/latest/module/FindICU.html)" OFF)
 
 # Helper macro
 macro(_Enable_MT _target)
@@ -120,15 +120,14 @@ set(SQLITE3MC_SHELL_SRCS
 endif()
 
 if(SQLITE3MC_WITH_ICU)
+find_package(ICU REQUIRED COMPONENTS data i18n io uc)
+if(ICU_FOUND)
 set(SQLITE3MC_ICU_DEFINITIONS
     SQLITE_ENABLE_ICU=1
 )
-set(SQLITE3MC_ICU_LINK_LIBRARIES
-    icuuc
-    icuio
-    icudata
-    icui18n
-)
+else()
+message("ICU not found.")
+endif()
 endif()
 
 
@@ -196,13 +195,10 @@ target_compile_definitions(${SQLITE3MC_TARGET} PRIVATE
     ${SQLITE3MC_ICU_DEFINITIONS}
 )
 target_include_directories(${SQLITE3MC_TARGET} PRIVATE 
-    ${SQLITE3MC_ICU_INCLUDE_DIRS}
-)
-target_link_directories(${SQLITE3MC_TARGET} PRIVATE 
-    ${SQLITE3MC_ICU_LIB_DIRS}
+    ${ICU_INCLUDE_DIRS}
 )
 target_link_libraries(${SQLITE3MC_TARGET} PRIVATE
-    ${SQLITE3MC_ICU_LINK_LIBRARIES}
+    ${ICU_LIBRARIES}
 )
 message("Will build ${SQLITE3MC_TARGET} with ICU")
 endif()
@@ -237,13 +233,10 @@ target_compile_definitions(${SQLIT3MC_SHELL_TARGET} PRIVATE
     ${SQLITE3MC_ICU_DEFINITIONS}
 )
 target_include_directories(${SQLIT3MC_SHELL_TARGET} PRIVATE 
-    ${SQLITE3MC_ICU_INCLUDE_DIRS}
-)
-target_link_directories(${SQLIT3MC_SHELL_TARGET} PRIVATE 
-    ${SQLITE3MC_ICU_LIB_DIRS}
+    ${ICU_INCLUDE_DIRS}
 )
 target_link_libraries(${SQLIT3MC_SHELL_TARGET} PRIVATE
-    ${SQLITE3MC_ICU_LINK_LIBRARIES}
+    ${ICU_LIBRARIES}
 )
 message("Will build ${SQLIT3MC_SHELL_TARGET} with ICU")
 endif()
