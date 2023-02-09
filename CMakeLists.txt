@@ -242,7 +242,6 @@ target_link_libraries(sqlite3mc_shell PRIVATE
 )
 _Enable_MT(sqlite3mc_shell)
 
-message(${CMAKE_GENERATOR_PLATFORM})
 if(${WITH_ICU})
 
 
