@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.13.0.0)
 project(sqlite3mc)
 
+OPTION(SQLITE3MC_STATIC_RUNTIME_LINK "Link the c++ runtime statically" OFF)
+OPTION(SQLITE3MC_STATIC "Build SQLITE3MC as a static library" OFF)
+OPTION(SQLITE3MC_BUILD_SHELL "Builds the SQLITE3MC Shell" ON)
+OPTION(SQLITE3MC_WITH_ICU "Builds SQLITE3MC with the ICU library. Set WITH_ICU_INCLUDE_DIRS and WITH_ICU_LIB_DIRS to specify where to find ICU (not required if using linux and have installed the libicu-devel package) " OFF)
+
 # Helper macro
 macro(_Enable_MT _target)
     target_compile_options(${_target} PRIVATE
@@ -37,7 +42,7 @@ set(SQLITE3MC_SHELL_SRCS
     src/sqlite3mc_shell.rc
 )
 set(SQLITE3MC_BASE_DEFINITIONS
-    CODEC_TYPE=CODEC_TYPE_CHACHA20
+    CODEC_TYPE=CODEC_TYPE_SQLCIPHER
     SQLITE_ENABLE_DEBUG=0
     SQLITE_THREADSAFE=1
     SQLITE_DQS=0
@@ -81,25 +86,9 @@ set(SQLITE3MC_LINK_LIBRARIES )
 
 set(SQLITE3MC_DLL_DEFINITIONS )
 
-set(SQLITE3MC_COMPILE_OPTIONS )
-
 set(SQLTE3MC_SHELL_SYSTEM_LINKS )
 
 if(MSVC)
-set(SQLITE3MC_COMPILE_OPTIONS
-    # Debug Information Format: Program Database
-    /Zi
-    # Enable String Pooling
-    /GF
-    # Enable C++ Exceptions
-    /EHsc
-    # Enable Function-Level Linking
-    /Gy
-    # Full Optimize for Release
-    $<$<CONFIG:Release>:/Ox>
-    # Enable Intrinsic Functions for Release
-    $<$<CONFIG:Release>:/Oi>
-)
 set(SQLITE3MC_DLL_DEFINITIONS
     _USRDLL
 )
@@ -123,11 +112,29 @@ set(SQLITE3MC_BASE_DEFINITIONS
     ${SQLITE3MC_BASE_DEFINITIONS}
     SQLITE_ENABLE_PREUPDATE_HOOK=1
 )
+
+set(SQLITE3MC_SHELL_SRCS 
+    ${SQLITE3MC_SHELL_SRCS}
+    src/sqlite3mc.c
+)
 endif()
 
+if(SQLITE3MC_WITH_ICU)
+set(SQLITE3MC_ICU_DEFINITIONS
+    SQLITE_ENABLE_ICU=1
+)
+set(SQLITE3MC_ICU_LINK_LIBRARIES
+    icuuc
+    icuio
+    icudata
+    icui18n
+)
+endif()
+
+
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=native")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse4.2 -maes")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -maes")
 set(SQLITE3MC_LINK_LIBRARIES
     pthread
     m
@@ -135,8 +142,8 @@ set(SQLITE3MC_LINK_LIBRARIES
 endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=native")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse4.2 -maes")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -maes")
 set(SQLITE3MC_LINK_LIBRARIES
     pthread
     m
@@ -156,237 +163,94 @@ set(_DEFAULT_DEFINITIONS
     UNICODE
 )
 
-# MD Lib project
-add_library(sqlite3mc_lib STATIC
-    ${SQLITE3MC_BASE_SRCS}
-)
-target_include_directories(sqlite3mc_lib PRIVATE
-    ${SQLITE3MC_INCLUDEDIRS}
-)
-target_compile_definitions(sqlite3mc_lib PRIVATE
-    ${_LIB_DIFINITIONS}
-    ${_DEFAULT_DEFINITIONS}
-    ${SQLITE3MC_BASE_DEFINITIONS}
-)
-target_link_libraries(sqlite3mc_lib PRIVATE
-        ${SQLITE3MC_LINK_LIBRARIES}
-)
-# MT Lib project
-add_library(sqlite3mc_lib_mt STATIC
-    ${SQLITE3MC_BASE_SRCS}
-)
-target_include_directories(sqlite3mc_lib_mt PRIVATE
-    ${SQLITE3MC_INCLUDEDIRS}
-)
-target_compile_definitions(sqlite3mc_lib_mt PRIVATE
-    ${_LIB_DIFINITIONS}
-    ${_DEFAULT_DEFINITIONS}
-    ${SQLITE3MC_BASE_DEFINITIONS}
-)
-target_link_libraries(sqlite3mc_lib_mt PRIVATE
-        ${SQLITE3MC_LINK_LIBRARIES}
-)
-_Enable_MT(sqlite3mc_lib_mt)
+set(SQLITE3MC_TARGET "sqlite3mc")
+set(SQLIT3MC_SHELL_TARGET "sqlite3mc_shell")
 
-# MD Dll project
-add_library(sqlite3mc_dll SHARED
-    ${SQLITE3MC_BASE_SRCS}
-    ${SQLITE3MC_DLLRES_SRCS}
-)
-target_include_directories(sqlite3mc_dll PRIVATE
-    ${SQLITE3MC_INCLUDEDIRS}
-)
-target_compile_definitions(sqlite3mc_dll PRIVATE
-    ${SQLITE3MC_DLL_DEFINITIONS}
-    ${_DEFAULT_DEFINITIONS}
-    ${SQLITE3MC_BASE_DEFINITIONS}
-)
-target_link_libraries(sqlite3mc_dll PRIVATE
-        ${SQLITE3MC_LINK_LIBRARIES}
-)
-# MT Dll project
-add_library(sqlite3mc_dll_mt SHARED
-    ${SQLITE3MC_BASE_SRCS}
-    ${SQLITE3MC_DLLRES_SRCS}
-)
-target_include_directories(sqlite3mc_dll_mt PRIVATE
-    ${SQLITE3MC_INCLUDEDIRS}
-)
-target_compile_definitions(sqlite3mc_dll_mt PRIVATE
-    ${SQLITE3MC_DLL_DEFINITIONS}
-    ${_DEFAULT_DEFINITIONS}
-    ${SQLITE3MC_BASE_DEFINITIONS}
-)
-target_link_libraries(sqlite3mc_dll_mt PRIVATE
-        ${SQLITE3MC_LINK_LIBRARIES}
-)
-_Enable_MT(sqlite3mc_dll_mt)
+set(SQLITE3MC_LINK "SHARED")
 
-# Shell Executable project
-add_executable(sqlite3mc_shell
-    ${SQLITE3MC_SHELL_SRCS}
-)
-target_include_directories(sqlite3mc_shell PRIVATE
-    ${SQLITE3MC_INCLUDEDIRS}
-)
-target_compile_definitions(sqlite3mc_shell PRIVATE
-    ${_DEFAULT_DEFINITIONS}
-    ${SQLITE3MC_SHELL_DEFINITIONS}
-)
-target_link_libraries(sqlite3mc_shell PRIVATE
-    sqlite3mc_lib_mt
-    ${SQLTE3MC_SHELL_SYSTEM_LINKS}
-)
-target_link_libraries(sqlite3mc_shell PRIVATE
-        ${SQLITE3MC_LINK_LIBRARIES}
-)
-_Enable_MT(sqlite3mc_shell)
-
-if(${WITH_ICU})
-
-
-
-set(SQLITE3MC_ICU_DEFINITIONS
-    SQLITE_ENABLE_ICU=1
-)
-set(SQLITE3MC_ICU_LINK_LIBRARIES
-    icuuc
-    icuio
-    icudata
-    icui18n
-)
-set(SQLITE3MC_ICU_INCLUDE_DIRS )
-set(SQLITE3MC_ICU_LIB_DIRS )
-
-if(MSVC)
-    set(SQLITE3MC_ICU_INCLUDE_DIRS
-        ${WITH_ICU}\include
-    )
-    if(${CMAKE_GENERATOR_PLATFORM} STREQUAL "x64")
-        set(SQLITE3MC_ICU_LIB_DIRS
-            ${WITH_ICU}\lib64
-        )
-    else(
-        set(SQLITE3MC_ICU_LIB_DIRS
-            ${WITH_ICU}\lib
-        )
-    )
-    endif()
+if(SQLITE3MC_STATIC)
+set(SQLITE3MC_LINK "STATIC")
+set(SQLITE3MC_TARGET "sqlite3mc_static")
 endif()
 
-# MD icu Lib project
-add_library(sqlite3mc_libicu STATIC
-    ${SQLITE3MC_BASE_SRCS}
-    ${SQLITE3MC_DLLRES_SRCS}
-)
-target_include_directories(sqlite3mc_libicu PRIVATE
-    ${SQLITE3MC_INCLUDEDIRS}
-    ${SQLITE3MC_ICU_INCLUDE_DIRS}
-)
-target_compile_definitions(sqlite3mc_libicu PRIVATE
-    ${SQLITE3MC_DLL_DEFINITIONS}
-    ${_DEFAULT_DEFINITIONS}
-    ${SQLITE3MC_BASE_DEFINITIONS}
-    ${SQLITE3MC_ICU_DEFINITIONS}
-)
-target_link_directories(sqlite3mc_libicu PRIVATE 
-    ${SQLITE3MC_IC_LIB_DIRS}
-)
-target_link_libraries(sqlite3mc_libicu PRIVATE
-    ${SQLITE3MC_LINK_LIBRARIES}
-    ${SQLITE3MC_ICU_LINK_LIBRARIES}
-)
 
-# MT icu Lib project
-add_library(sqlite3mc_libicu_mt STATIC
+
+#Lib Project
+add_library(${SQLITE3MC_TARGET} ${SQLITE3MC_LINK}
     ${SQLITE3MC_BASE_SRCS}
 )
-target_include_directories(sqlite3mc_libicu_mt PRIVATE
+target_include_directories(${SQLITE3MC_TARGET} PRIVATE
     ${SQLITE3MC_INCLUDEDIRS}
-    ${SQLITE3MC_ICU_INCLUDE_DIRS}
 )
-target_compile_definitions(sqlite3mc_libicu_mt PRIVATE
+target_compile_definitions(${SQLITE3MC_TARGET} PRIVATE
     ${_LIB_DIFINITIONS}
     ${_DEFAULT_DEFINITIONS}
     ${SQLITE3MC_BASE_DEFINITIONS}
+)
+target_link_libraries(${SQLITE3MC_TARGET} PRIVATE
+    ${SQLITE3MC_LINK_LIBRARIES}
+)
+
+if(SQLITE3MC_WITH_ICU)
+target_compile_definitions(${SQLITE3MC_TARGET} PRIVATE
     ${SQLITE3MC_ICU_DEFINITIONS}
 )
-target_link_directories(sqlite3mc_libicu_mt PRIVATE 
-    ${SQLITE3MC_ICU_LIB_DIRS}
-)
-target_link_libraries(sqlite3mc_libicu_mt PRIVATE
-    ${SQLITE3MC_LINK_LIBRARIES}
-    ${SQLITE3MC_ICU_LINK_LIBRARIES}
-)
-_Enable_MT(sqlite3mc_libicu_mt)
-
-# MD Dll icu project
-add_library(sqlite3mc_dllicu SHARED
-    ${SQLITE3MC_BASE_SRCS}
-    ${SQLITE3MC_DLLRES_SRCS}
-)
-target_include_directories(sqlite3mc_dllicu PRIVATE
-    ${SQLITE3MC_INCLUDEDIRS}
+target_include_directories(${SQLITE3MC_TARGET} PRIVATE 
     ${SQLITE3MC_ICU_INCLUDE_DIRS}
 )
-target_compile_definitions(sqlite3mc_dllicu PRIVATE
-    ${SQLITE3MC_DLL_DEFINITIONS}
-    ${_DEFAULT_DEFINITIONS}
-    ${SQLITE3MC_BASE_DEFINITIONS}
-    ${SQLITE3MC_ICU_DEFINITIONS}
-)
-target_link_directories(sqlite3mc_dllicu PRIVATE 
+target_link_directories(${SQLITE3MC_TARGET} PRIVATE 
     ${SQLITE3MC_ICU_LIB_DIRS}
 )
-target_link_libraries(sqlite3mc_dllicu PRIVATE
-    ${SQLITE3MC_LINK_LIBRARIES}
+target_link_libraries(${SQLITE3MC_TARGET} PRIVATE
     ${SQLITE3MC_ICU_LINK_LIBRARIES}
 )
+message("Will build ${SQLITE3MC_TARGET} with ICU")
+endif()
 
-# MT Dll icu project
-add_library(sqlite3mc_dllicu_mt SHARED
-    ${SQLITE3MC_BASE_SRCS}
-    ${SQLITE3MC_DLLRES_SRCS}
-)
-target_include_directories(sqlite3mc_dllicu_mt PRIVATE
-    ${SQLITE3MC_INCLUDEDIRS}
-    ${SQLITE3MC_ICU_INCLUDE_DIRS}
-)
-target_compile_definitions(sqlite3mc_dllicu_mt PRIVATE
-    ${SQLITE3MC_DLL_DEFINITIONS}
-    ${_DEFAULT_DEFINITIONS}
-    ${SQLITE3MC_BASE_DEFINITIONS}
-    ${SQLITE3MC_ICU_DEFINITIONS}
-)
-target_link_directories(sqlite3mc_dllicu_mt PRIVATE 
-    ${SQLITE3MC_ICU_LIB_DIRS}
-)
-target_link_libraries(sqlite3mc_dllicu_mt PRIVATE
-    ${SQLITE3MC_LINK_LIBRARIES}
-    ${SQLITE3MC_ICU_LINK_LIBRARIES}
-)
-_Enable_MT(sqlite3mc_dllicu_mt)
+if(SQLITE3MC_STATIC_RUNTIME_LINK)
+message("Will build ${SQLITE3MC_TARGET} with static runtime link")
+_Enable_MT(${SQLITE3MC_TARGET})
+endif()
+message("Will build ${SQLITE3MC_TARGET} as ${SQLITE3MC_LINK}")
 
-#Shell Executable icu project
-add_executable(sqlite3mc_shellicu
+if(SQLITE3MC_BUILD_SHELL)
+
+# Shell Executable project
+add_executable(${SQLIT3MC_SHELL_TARGET}
     ${SQLITE3MC_SHELL_SRCS}
 )
-target_include_directories(sqlite3mc_shellicu PRIVATE
+target_include_directories(${SQLIT3MC_SHELL_TARGET} PRIVATE
     ${SQLITE3MC_INCLUDEDIRS}
-    ${SQLITE3MC_ICU_INCLUDE_DIRS}
 )
-target_compile_definitions(sqlite3mc_shellicu PRIVATE
+target_compile_definitions(${SQLIT3MC_SHELL_TARGET} PRIVATE
     ${_DEFAULT_DEFINITIONS}
     ${SQLITE3MC_SHELL_DEFINITIONS}
 )
-target_link_directories(sqlite3mc_shellicu PRIVATE 
-    ${SQLITE3MC_ICU_LIB_DIRS}
-)
-target_link_libraries(sqlite3mc_shellicu PRIVATE
-    sqlite3mc_libicu_mt
+target_link_libraries(${SQLIT3MC_SHELL_TARGET} PRIVATE
+    ${SQLITE3MC_TARGET}
     ${SQLTE3MC_SHELL_SYSTEM_LINKS}
     ${SQLITE3MC_LINK_LIBRARIES}
+)
+
+if(SQLITE3MC_WITH_ICU)
+target_compile_definitions(${SQLIT3MC_SHELL_TARGET} PRIVATE
+    ${SQLITE3MC_ICU_DEFINITIONS}
+)
+target_include_directories(${SQLIT3MC_SHELL_TARGET} PRIVATE 
+    ${SQLITE3MC_ICU_INCLUDE_DIRS}
+)
+target_link_directories(${SQLIT3MC_SHELL_TARGET} PRIVATE 
+    ${SQLITE3MC_ICU_LIB_DIRS}
+)
+target_link_libraries(${SQLIT3MC_SHELL_TARGET} PRIVATE
     ${SQLITE3MC_ICU_LINK_LIBRARIES}
 )
-_Enable_MT(sqlite3mc_shellicu)
+message("Will build ${SQLIT3MC_SHELL_TARGET} with ICU")
+endif()
+
+if(SQLITE3MC_RUNTIME_LINK)
+message("Will build ${SQLIT3MC_SHELL_TARGET} with static runtime")
+_Enable_MT(${SQLIT3MC_SHELL_TARGET})
+endif()
+message("Will build ${SQLIT3MC_SHELL_TARGET}")
 endif()
