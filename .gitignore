@@ -56,3 +56,4 @@ dkms.conf
 /build/sqlite3mc_vc17_lib.vcxproj.user
 /.vs/
 /build/sqlite3mc_vc17_dll.vcxproj.user
+/.vscode/
