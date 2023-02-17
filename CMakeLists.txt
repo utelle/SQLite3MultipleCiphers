@@ -7,6 +7,7 @@ macro(_Enable_MT _target)
         $<$<CONFIG:Release>:/MT>$<$<CONFIG:Debug>:/MTd>
     )
 endmacro()
+
 set(_SQLITE3MC_REQUIRE_ZLIB OFF)
 
 OPTION(SQLITE3MC_STATIC_RUNTIME_LINK "Link the c++ runtime statically" OFF)
@@ -14,102 +15,74 @@ OPTION(SQLITE3MC_STATIC "Build SQLITE3MC as a static library" OFF)
 OPTION(SQLITE3MC_BUILD_SHELL "Builds the SQLITE3MC Shell" ON)
 OPTION(SQLITE3MC_WITH_ICU "Builds SQLITE3MC with the ICU library. Will use the FindICU function to locate the library. (https://cmake.org/cmake/help/latest/module/FindICU.html)" OFF)
 
-OPTION(SQLITE_ENABLE_DEBUG "" OFF)
-OPTION(SQLITE_ENABLE_EXPLAIN_COMMENTS "" ON)
-OPTION(SQLITE_SOUNDEX "" ON)
-OPTION(SQLITE_ENABLE_COLUMN_METADATA "" ON)
-OPTION(SQLITE_SECURE_DELETE "" ON)
-OPTION(SQLITE_ENABLE_DESERIALIZE "" ON)
-OPTION(SQLITE_ENABLE_FTS3 "" ON)
-OPTION(SQLITE_ENABLE_FTS3_PARENTHESIS "" ON)
-OPTION(SQLITE_ENABLE_FTS4 "" ON)
-OPTION(SQLITE_ENABLE_FTS5 "" ON)
-OPTION(SQLITE_ENABLE_JSON1 "" ON)
-OPTION(SQLITE_ENABLE_RTREE "" ON)
-OPTION(SQLITE_ENABLE_GEOPOLY "" ON)
-OPTION(SQLITE_ENABLE_EXTFUNC "" ON)
-OPTION(SQLITE_ENABLE_CSV "" ON)
-OPTION(SQLITE_ENABLE_CARRAY "" ON)
-OPTION(SQLITE_ENABLE_SERIES "" ON)
-OPTION(SQLITE_ENABLE_UUID "" ON)
-OPTION(SQLITE_ENABLE_REGEXP "" ON)
-OPTION(SQLITE_USE_URI "" ON)
-OPTION(SQLITE_USER_AUTHENTICATION "" ON)
-OPTION(SQLITE_ENABLE_DBPAGE_VTAB "" ON)
-OPTION(SQLITE_ENABLE_DBSTAT_VTAB "" ON)
-OPTION(SQLITE_ENABLE_STMTVTAB "" ON)
-OPTION(SQLITE_ENABLE_UNKNOWN_SQL_FUNCTION "" ON)
-OPTION(SQLITE_ENABLE_PREUPDATE_HOOK "" OFF)
-OPTION(SQLITE_SHELL_IS_UTF8 "" ON)
+OPTION(SQLITE_ENABLE_DEBUG "Enable SQLite debugging" OFF)
+OPTION(SQLITE_SOUNDEX "Enable the soundex() SQL function" ON)
+OPTION(SQLITE_ENABLE_COLUMN_METADATA "Enable convenient access to meta-data about tables and queries" ON)
+OPTION(SQLITE_SECURE_DELETE "Enable secure delete to overwrite deleted content with zeros" ON)
+OPTION(SQLITE_ENABLE_FTS3 "Enable version 3 of the full-text search engine" ON)
+OPTION(SQLITE_ENABLE_FTS3_PARENTHESIS "Support operators AND and NOT and nested parenthesis" ON)
+OPTION(SQLITE_ENABLE_FTS4 "Enable version 4 of the full-text search engine" ON)
+OPTION(SQLITE_ENABLE_FTS5 "Enable version 5 of the full-text search engine" ON)
+OPTION(SQLITE_ENABLE_JSON1 "Enable extension 'json1'" ON)
+OPTION(SQLITE_ENABLE_RTREE "Enable extension 'rtree'" ON)
+OPTION(SQLITE_ENABLE_GEOPOLY "Enable extension 'geopoly'" ON)
+OPTION(SQLITE_ENABLE_EXTFUNC "Enable extension 'extfunc'" ON)
+OPTION(SQLITE_ENABLE_CSV "Enable extension 'csv'" ON)
+OPTION(SQLITE_ENABLE_CARRAY "Enable extension 'carray'" ON)
+OPTION(SQLITE_ENABLE_SERIES "Enable extension 'series'" ON)
+OPTION(SQLITE_ENABLE_UUID "Enable extension 'uuid'" ON)
+OPTION(SQLITE_ENABLE_REGEXP "Enable extension 'regexp'" ON)
+OPTION(SQLITE_USE_URI "Enable the URI filename process logic" ON)
+OPTION(SQLITE_USER_AUTHENTICATION "Enable extension 'user authentication'" ON)
+OPTION(SQLITE_ENABLE_PREUPDATE_HOOK "Enable preupdate hooks" OFF)
+OPTION(SQLITE_SHELL_IS_UTF8 "Shell command line arguments in UTF-8 encoding" ON)
+
+#Shell only
+OPTION(SQLITE_ENABLE_EXPLAIN_COMMENTS "Insert comment text into the output of EXPLAIN (shell only)" ON)
+OPTION(SQLITE_ENABLE_DBPAGE_VTAB "Enable the SQLITE_DBPAGE virtual table (shell only)" ON)
+OPTION(SQLITE_ENABLE_DBSTAT_VTAB "Enable the dbstat virtual table (shell only)" ON)
+OPTION(SQLITE_ENABLE_STMTVTAB "Enable the SQLITE_STMT virtual table (shell only)" ON)
+OPTION(SQLITE_ENABLE_UNKNOWN_SQL_FUNCTION "Suppress 'unknown function' errors when running an EXPLAIN or EXPLAIN QUERY PLAN (shell only)" ON)
 
 #Embedded Compression
-OPTION(SQLITE3MC_USE_MINIZ "" OFF)
+OPTION(SQLITE3MC_USE_MINIZ "Use builtin ZLIB replacement" OFF)
 
 #Compression/Options that require ZLIB
-OPTION(SQLITE_ENABLE_COMPRESS "" OFF)
-OPTION(SQLITE_ENABLE_SQLAR "" OFF)
-OPTION(SQLITE_ENABLE_ZIPFILE "" OFF)
+OPTION(SQLITE_ENABLE_COMPRESS "Enable extension 'compress'" OFF)
+OPTION(SQLITE_ENABLE_SQLAR "Enable extension 'sqlar'" OFF)
+OPTION(SQLITE_ENABLE_ZIPFILE "Enable extension 'zipfile'" OFF)
 
 #Legacy Encryption Extensions
-OPTION(SQLITE3MC_USE_SQLEET_LEGACY "" OFF)
-OPTION (SQLITE3MC_USE_SQLCIPHER_LEGACY "" OFF)
+OPTION(SQLITE3MC_USE_SQLEET_LEGACY "Use sqleet legacy mode as default" OFF)
+OPTION (SQLITE3MC_USE_SQLCIPHER_LEGACY "Use sqlcipher legacy mode as default" OFF)
 
 #TCL
-OPTION(SQLITE_ENABLE_TCL "" OFF)
+OPTION(SQLITE_ENABLE_TCL "Enable TCL interface" OFF)
 
-if(NOT DEFINED SQLITE_MAX_ATTACHED)
-set(SQLITE_MAX_ATTACHED "10")
-endif()
+set(SQLITE_MAX_ATTACHED "10" CACHE STRING "Max number of attached files (must be in the range 0..125)")
 
-if(NOT DEFINED SQLITE_DQS)
-set(SQLITE_DQS "0")
-endif()
+set(SQLITE_DQS "0" CACHE STRING "Allow double-quoted string literals")
+set_property(CACHE SQLITE_DQS PROPERTY STRINGS 0 1 2 3)
 
+set(SQLITE_THREADSAFE 1 CACHE STRING "Set threading mode (0 = single-threaded, 1 = serialized, 2 = multi-threaded)")
+set_property(CACHE SQLITE_THREADSAFE PROPERTY STRINGS 0 1 2)
 
-if(NOT DEFINED SQLITE_TEMP_STORE)
-set(SQLITE_TEMP_STORE "2")
-endif()
-
-if(NOT DEFINED SQLITE_THREADSAFE)
-set(SQLITE_THREADSAFE "1")
-endif()
-
-if(NOT DEFINED CODEC_TYPE)
-set(CODEC_TYPE CODEC_TYPE_CHACHA20)
-endif()
-
-if(CODEC_TYPE STREQUAL "AES128")
-set(CODEC_TYPE CODEC_TYPE_AES128)
-endif()
-
-if(CODEC_TYPE STREQUAL "AES256")
-set(CODEC_TYPE CODEC_TYPE_AES256)
-endif()
-
-if(CODEC_TYPE STREQUAL "CHACHA20")
-set(CODEC_TYPE CODEC_TYPE_CHACHA20)
-endif()
-
-if(CODEC_TYPE STREQUAL "RC4")
-set(CODEC_TYPE CODEC_TYPE_RC4)
-endif()
+set(CODEC_TYPE CHACHA20 CACHE STRING "Set default codec type")
+set_property(CACHE CODEC_TYPE PROPERTY STRINGS AES128 AES256 CHACHA20 SQLCIPHER RC4)
 
 if(SQLITE_ENABLE_COMPRESS OR SQLITE_ENABLE_SQLAR OR SQLITE_ENABLE_ZIPFILE)
-set(_SQLITE3MC_REQUIRE_ZLIB ON)
+    set(_SQLITE3MC_REQUIRE_ZLIB ON)
 endif()
 
-
-
-#setup the options
+#Setup the options
 set(SQLITE3MC_BASE_DEFINITIONS 
     $<$<BOOL:${SQLITE_SHELL_IS_UTF8}>:SQLITE_SHELL_IS_UTF8=1>
-    CODEC_TYPE=${CODEC_TYPE}
+    CODEC_TYPE=CODEC_TYPE_${CODEC_TYPE}
     SQLITE_DQS=${SQLITE_DQS}
     SQLITE_MAX_ATTACHED=${SQLITE_MAX_ATTACHED}
     $<$<BOOL:${SQLITE_USER_AUTHENTICATION}>:SQLITE_USER_AUTHENTICATION=1>
     $<$<BOOL:${SQLITE_ENABLE_DEBUG}>:SQLITE_ENABLE_DEBUG=1>
     SQLITE_THREADSAFE=${SQLITE_THREADSAFE}
-    $<$<BOOL:${SQLITE_ENABLE_EXPLAIN_COMMENTS}>:SQLITE_ENABLE_EXPLAIN_COMMENTS=1>
     $<$<BOOL:${SQLITE_SOUNDEX}>:SQLITE_SOUNDEX=1>
     $<$<BOOL:${SQLITE_ENABLE_COLUMN_METADATA}>:SQLITE_ENABLE_COLUMN_METADATA=1>
     $<$<BOOL:${SQLITE_SECURE_DELETE}>:SQLITE_SECURE_DELETE=1>
@@ -125,13 +98,9 @@ set(SQLITE3MC_BASE_DEFINITIONS
     $<$<BOOL:${SQLITE_ENABLE_SERIES}>:SQLITE_ENABLE_SERIES=1>
     $<$<BOOL:${SQLITE_ENABLE_UUID}>:SQLITE_ENABLE_UUID=1>
     $<$<BOOL:${SQLITE_ENABLE_REGEXP}>:SQLITE_ENABLE_REGEXP=1>
-    SQLITE_TEMP_STORE=${SQLITE_TEMP_STORE}
+    SQLITE_TEMP_STORE=2
     $<$<BOOL:${SQLITE_USE_URI}>:SQLITE_USE_URI=1>
     $<$<BOOL:${SQLITE_USER_AUTHENTICATION}>:SQLITE_USER_AUTHENTICATION=1>
-    $<$<BOOL:${SQLITE_ENABLE_DBPAGE_VTAB}>:SQLITE_ENABLE_DBPAGE_VTAB=1>
-    $<$<BOOL:${SQLITE_ENABLE_DBSTAT_VTAB}>:SQLITE_ENABLE_DBSTAT_VTAB=1>
-    $<$<BOOL:${SQLITE_ENABLE_STMTVTAB}>:SQLITE_ENABLE_STMTVTAB=1>
-    $<$<BOOL:${SQLITE_ENABLE_UNKNOWN_SQL_FUNCTION}>:SQLITE_ENABLE_UNKNOWN_SQL_FUNCTION=1>
     $<$<BOOL:${SQLITE_ENABLE_PREUPDATE_HOOK}>:SQLITE_ENABLE_PREUPDATE_HOOK=1>
     $<$<BOOL:${SQLITE3MC_USE_MINIZ}>:SQLITE3MC_USE_MINIZ=1>
     $<$<BOOL:${SQLITE3MC_USE_MINIZ}>:SQLITE_USE_TCL=1>
@@ -140,6 +109,11 @@ set(SQLITE3MC_BASE_DEFINITIONS
 set(SQLITE3MC_SHELL_DEFINITIONS 
     $<$<BOOL:${SQLITE_SHELL_IS_UTF8}>:SQLITE_SHELL_IS_UTF8=1>
     $<$<BOOL:${SQLITE_USER_AUTHENTICATION}>:SQLITE_USER_AUTHENTICATION=1>
+    $<$<BOOL:${SQLITE_ENABLE_EXPLAIN_COMMENTS}>:SQLITE_ENABLE_EXPLAIN_COMMENTS=1>
+    $<$<BOOL:${SQLITE_ENABLE_DBPAGE_VTAB}>:SQLITE_ENABLE_DBPAGE_VTAB=1>
+    $<$<BOOL:${SQLITE_ENABLE_DBSTAT_VTAB}>:SQLITE_ENABLE_DBSTAT_VTAB=1>
+    $<$<BOOL:${SQLITE_ENABLE_STMTVTAB}>:SQLITE_ENABLE_STMTVTAB=1>
+    $<$<BOOL:${SQLITE_ENABLE_UNKNOWN_SQL_FUNCTION}>:SQLITE_ENABLE_UNKNOWN_SQL_FUNCTION=1>
 )
 
 
@@ -151,7 +125,7 @@ if(SQLITE3MC_USE_SQLEET_LEGACY)
 else()
     if(SQLITE3MC_USE_SQLCIPHER_LEGACY)
         if(NOT DEFINED SQLCIPHER_VERSION_DEFAULT)
-        set(SQLCIPHER_VERSION_DEFAULT "4")
+            set(SQLCIPHER_VERSION_DEFAULT "4")
         endif()
         set(SQLITE3MC_BASE_DEFINITIONS 
             ${SQLITE3MC_BASE_DEFINITIONS}
@@ -162,22 +136,30 @@ else()
 endif()
 
 if(_SQLITE3MC_REQUIRE_ZLIB)
-#Use ZLIB_ROOT to specify the location to look
-find_package(ZLIB)
-if(ZLIB_FOUND)
-set(SQLITE3MC_BASE_DEFINITIONS 
-    ${SQLITE3MC_BASE_DEFINITIONS}
-    $<$<BOOL:${SQLITE_ENABLE_COMPRESS}>:SQLITE_ENABLE_COMPRESS=1>
-    $<$<BOOL:${SQLITE_ENABLE_SQLAR}>:SQLITE_ENABLE_SQLAR=1>
-    $<$<BOOL:${SQLITE_ENABLE_ZIPFILE}>:SQLITE_ENABLE_ZIPFILE=1>
-)
-else()
-message( FATAL_ERROR "One of the flags specified requires zlib. Zlib is not found. Try specifying the ZLIB_ROOT environment variable.")
+    #Use ZLIB_ROOT to specify the location to look
+    find_package(ZLIB)
+    if(ZLIB_FOUND)
+        set(SQLITE3MC_BASE_DEFINITIONS 
+            ${SQLITE3MC_BASE_DEFINITIONS}
+            $<$<BOOL:${SQLITE_ENABLE_COMPRESS}>:SQLITE_ENABLE_COMPRESS=1>
+            $<$<BOOL:${SQLITE_ENABLE_SQLAR}>:SQLITE_ENABLE_SQLAR=1>
+            $<$<BOOL:${SQLITE_ENABLE_ZIPFILE}>:SQLITE_ENABLE_ZIPFILE=1>
+        )
+    else()
+        message( FATAL_ERROR "One of the flags specified requires zlib. Zlib is not found. Try specifying the ZLIB_ROOT environment variable.")
+    endif()
 endif()
+
+if(SQLITE3MC_WITH_ICU)
+    find_package(ICU REQUIRED COMPONENTS data i18n io uc)
+    if(ICU_FOUND)
+        set(SQLITE3MC_ICU_DEFINITIONS
+            SQLITE_ENABLE_ICU=1
+        )
+    else()
+        message( FATAL_ERROR "ICU not found.")
+    endif()
 endif()
-
-
-
 
 # Only generate Debug and Release configuration types.
 set(CMAKE_CONFIGURATION_TYPES Debug Release)
@@ -222,51 +204,24 @@ if(MSVC)
 set(SQLITE3MC_DLL_DEFINITIONS
     _USRDLL
 )
-
-set(SQLTE3MC_SHELL_SYSTEM_LINKS
-    kernel32.lib
-    user32.lib
-    gdi32.lib
-    winspool.lib
-    comdlg32.lib
-    advapi32.lib
-    shell32.lib
-    ole32.lib
-    oleaut32.lib
-    uuid.lib
-    odbc32.lib
-    odbccp32.lib
-)
 endif()
-
-if(SQLITE3MC_WITH_ICU)
-find_package(ICU REQUIRED COMPONENTS data i18n io uc)
-if(ICU_FOUND)
-set(SQLITE3MC_ICU_DEFINITIONS
-    SQLITE_ENABLE_ICU=1
-)
-else()
-message( FATAL_ERROR "ICU not found.")
-endif()
-endif()
-
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse4.2 -maes")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -maes")
-set(SQLITE3MC_LINK_LIBRARIES
-    pthread
-    m
-)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse4.2 -maes")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -maes")
+    set(SQLITE3MC_LINK_LIBRARIES
+        pthread
+        m
+    )
 endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse4.2 -maes")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -maes")
-set(SQLITE3MC_LINK_LIBRARIES
-    pthread
-    m
-)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse4.2 -maes")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -maes")
+    set(SQLITE3MC_LINK_LIBRARIES
+        pthread
+        m
+    )
 endif()
 
 set(_LIB_DIFINITIONS
@@ -288,8 +243,8 @@ set(SQLIT3MC_SHELL_TARGET "sqlite3mc_shell")
 set(SQLITE3MC_LINK "SHARED")
 
 if(SQLITE3MC_STATIC)
-set(SQLITE3MC_LINK "STATIC")
-set(SQLITE3MC_TARGET "sqlite3mc_static")
+    set(SQLITE3MC_LINK "STATIC")
+    set(SQLITE3MC_TARGET "sqlite3mc_static")
 endif()
 
 
@@ -310,78 +265,75 @@ target_link_libraries(${SQLITE3MC_TARGET} PRIVATE
     ${SQLITE3MC_LINK_LIBRARIES}
 )
 if(ZLIB_FOUND)
-target_include_directories(${SQLITE3MC_TARGET} PRIVATE
-    ${ZLIB_INCLUDE_DIRS}
-)
-target_link_libraries(${SQLITE3MC_TARGET} PRIVATE
-    ${ZLIB_LIBRARIES}
-)
-message(${ZLIB_LIBRARIES})
+    target_include_directories(${SQLITE3MC_TARGET} PRIVATE
+        ${ZLIB_INCLUDE_DIRS}
+    )
+    target_link_libraries(${SQLITE3MC_TARGET} PRIVATE
+        ${ZLIB_LIBRARIES}
+    )
 endif()
 
 if(SQLITE3MC_WITH_ICU)
-target_compile_definitions(${SQLITE3MC_TARGET} PRIVATE
-    ${SQLITE3MC_ICU_DEFINITIONS}
-)
-target_include_directories(${SQLITE3MC_TARGET} PRIVATE 
-    ${ICU_INCLUDE_DIRS}
-)
-target_link_libraries(${SQLITE3MC_TARGET} PRIVATE
-    ${ICU_LIBRARIES}
-)
-message("Will build ${SQLITE3MC_TARGET} with ICU")
+    target_compile_definitions(${SQLITE3MC_TARGET} PRIVATE
+        ${SQLITE3MC_ICU_DEFINITIONS}
+    )
+    target_include_directories(${SQLITE3MC_TARGET} PRIVATE 
+        ${ICU_INCLUDE_DIRS}
+    )
+    target_link_libraries(${SQLITE3MC_TARGET} PRIVATE
+        ${ICU_LIBRARIES}
+    )
+    message("Will build ${SQLITE3MC_TARGET} with ICU")
 endif()
 
 if(SQLITE3MC_STATIC_RUNTIME_LINK)
-message("Will build ${SQLITE3MC_TARGET} with static runtime link")
-_Enable_MT(${SQLITE3MC_TARGET})
+    message("Will build ${SQLITE3MC_TARGET} with static runtime link")
+    _Enable_MT(${SQLITE3MC_TARGET})
 endif()
 message("Will build ${SQLITE3MC_TARGET} as ${SQLITE3MC_LINK}")
 
-
 if(SQLITE3MC_BUILD_SHELL)
+    # Shell Executable project
+    add_executable(${SQLIT3MC_SHELL_TARGET}
+        ${SQLITE3MC_SHELL_SRCS}
+    )
+    target_include_directories(${SQLIT3MC_SHELL_TARGET} PRIVATE
+        ${SQLITE3MC_INCLUDEDIRS}
+    )
+    target_compile_definitions(${SQLIT3MC_SHELL_TARGET} PRIVATE
+        ${_DEFAULT_DEFINITIONS}
+        ${SQLITE3MC_SHELL_DEFINITIONS}
+    )
+    target_link_libraries(${SQLIT3MC_SHELL_TARGET} PRIVATE
+        ${SQLITE3MC_TARGET}
+        ${SQLTE3MC_SHELL_SYSTEM_LINKS}
+        ${SQLITE3MC_LINK_LIBRARIES}
+    )
+    if(ZLIB_FOUND)
+        target_include_directories(${SQLIT3MC_SHELL_TARGET} PRIVATE
+            ${ZLIB_INCLUDE_DIRS}
+        )
+        target_link_libraries(${SQLIT3MC_SHELL_TARGET} PRIVATE
+            ${ZLIB_LIBRARIES}
+        )
+    endif()
 
-# Shell Executable project
-add_executable(${SQLIT3MC_SHELL_TARGET}
-    ${SQLITE3MC_SHELL_SRCS}
-)
-target_include_directories(${SQLIT3MC_SHELL_TARGET} PRIVATE
-    ${SQLITE3MC_INCLUDEDIRS}
-)
-target_compile_definitions(${SQLIT3MC_SHELL_TARGET} PRIVATE
-    ${_DEFAULT_DEFINITIONS}
-    ${SQLITE3MC_SHELL_DEFINITIONS}
-)
-target_link_libraries(${SQLIT3MC_SHELL_TARGET} PRIVATE
-    ${SQLITE3MC_TARGET}
-    ${SQLTE3MC_SHELL_SYSTEM_LINKS}
-    ${SQLITE3MC_LINK_LIBRARIES}
-)
-if(ZLIB_FOUND)
-target_include_directories(${SQLIT3MC_SHELL_TARGET} PRIVATE
-    ${ZLIB_INCLUDE_DIRS}
-)
-target_link_libraries(${SQLIT3MC_SHELL_TARGET} PRIVATE
-    ${ZLIB_LIBRARIES}
-)
-endif()
+    if(SQLITE3MC_WITH_ICU)
+        target_compile_definitions(${SQLIT3MC_SHELL_TARGET} PRIVATE
+            ${SQLITE3MC_ICU_DEFINITIONS}
+        )
+        target_include_directories(${SQLIT3MC_SHELL_TARGET} PRIVATE 
+            ${ICU_INCLUDE_DIRS}
+        )
+        target_link_libraries(${SQLIT3MC_SHELL_TARGET} PRIVATE
+            ${ICU_LIBRARIES}
+        )
+        message("Will build ${SQLIT3MC_SHELL_TARGET} with ICU")
+    endif()
 
-if(SQLITE3MC_WITH_ICU)
-target_compile_definitions(${SQLIT3MC_SHELL_TARGET} PRIVATE
-    ${SQLITE3MC_ICU_DEFINITIONS}
-)
-target_include_directories(${SQLIT3MC_SHELL_TARGET} PRIVATE 
-    ${ICU_INCLUDE_DIRS}
-)
-target_link_libraries(${SQLIT3MC_SHELL_TARGET} PRIVATE
-    ${ICU_LIBRARIES}
-)
-message("Will build ${SQLIT3MC_SHELL_TARGET} with ICU")
-endif()
-
-if(SQLITE3MC_RUNTIME_LINK)
-message("Will build ${SQLIT3MC_SHELL_TARGET} with static runtime")
-_Enable_MT(${SQLIT3MC_SHELL_TARGET})
-endif()
-message("Will build ${SQLIT3MC_SHELL_TARGET}")
+    if(SQLITE3MC_RUNTIME_LINK)
+        message("Will build ${SQLIT3MC_SHELL_TARGET} with static runtime")
+        _Enable_MT(${SQLIT3MC_SHELL_TARGET})
+    endif()
+    message("Will build ${SQLIT3MC_SHELL_TARGET}")
 endif()
