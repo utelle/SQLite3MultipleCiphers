@@ -62,7 +62,7 @@ OPTION(SQLITE3MC_USE_SQLEET_LEGACY "Use sqleet legacy mode as default" OFF)
 OPTION (SQLITE3MC_USE_SQLCIPHER_LEGACY "Use sqlcipher legacy mode as default" OFF)
 
 # TCL
-OPTION(SQLITE_ENABLE_TCL "Enable TCL interface" OFF)
+#OPTION(SQLITE_ENABLE_TCL "Enable TCL interface" OFF)
 
 set(SQLITE_MAX_ATTACHED "10" CACHE STRING "Max number of attached files (must be in the range 0..125)")
 
@@ -108,7 +108,7 @@ set(SQLITE3MC_BASE_DEFINITIONS
   $<$<BOOL:${SQLITE_USER_AUTHENTICATION}>:SQLITE_USER_AUTHENTICATION=1>
   $<$<BOOL:${SQLITE_ENABLE_PREUPDATE_HOOK}>:SQLITE_ENABLE_PREUPDATE_HOOK=1>
   $<$<BOOL:${SQLITE3MC_USE_MINIZ}>:SQLITE3MC_USE_MINIZ=1>
-  $<$<BOOL:${SQLITE_USE_TCL}>:SQLITE_USE_TCL=1>
+#  $<$<BOOL:${SQLITE_USE_TCL}>:SQLITE_USE_TCL=1>
 )
 
 set(SQLITE3MC_LIBONLY_DEFINITIONS 
@@ -229,6 +229,7 @@ if(MSVC)
 endif()
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    OR CMAKE_SYSTEM_NAME STREQUAL "Darwin")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse4.2 -maes")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -maes")
   set(SQLITE3MC_LINK_LIBRARIES
@@ -236,16 +237,11 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
     dl
     m
   )
-endif()
-
-if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse4.2 -maes")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -maes")
-  set(SQLITE3MC_LINK_LIBRARIES
-    pthread
-    dl
-    m
-  )
+else()
+  if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse4.2 -maes")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -maes")
+  endif()
 endif()
 
 set(_LIB_DIFINITIONS
