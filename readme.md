@@ -10,6 +10,10 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version history
 
+* 1.6.0 - *February 2023*
+  - Based on SQLite version 3.41.0
+  - Added automatic VFS shim instantiation (see issue #104)
+  - Added CMake build support (thanks to @lwttai and @jammerxd)
 * 1.5.5 - *December 2022*
   - Based on SQLite version 3.40.1
 * 1.5.4 - *November 2022*

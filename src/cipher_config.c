@@ -3,7 +3,7 @@
 ** Purpose:     Configuration of SQLite codecs
 ** Author:      Ulrich Telle
 ** Created:     2020-03-02
-** Copyright:   (c) 2006-2022 Ulrich Telle
+** Copyright:   (c) 2006-2023 Ulrich Telle
 ** License:     MIT
 */
 

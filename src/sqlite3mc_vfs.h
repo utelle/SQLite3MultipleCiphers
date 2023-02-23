@@ -3,7 +3,7 @@
 ** Purpose:     Header file for VFS of SQLite3 Multiple Ciphers support
 ** Author:      Ulrich Telle
 ** Created:     2020-03-01
-** Copyright:   (c) 2020 Ulrich Telle
+** Copyright:   (c) 2020-2023 Ulrich Telle
 ** License:     MIT
 */
 
@@ -12,6 +12,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+SQLITE_PRIVATE int sqlite3mcCheckVfs(const char* zVfs);
 
 SQLITE_API int sqlite3mc_vfs_create(const char* zVfsReal, int makeDefault);
 SQLITE_API void sqlite3mc_vfs_destroy(const char* zName);

@@ -120,6 +120,7 @@ sqlite3_global_recover
 sqlite3_hard_heap_limit64
 sqlite3_initialize
 sqlite3_interrupt
+sqlite3_is_interrupted
 sqlite3_key
 sqlite3_key_v2
 sqlite3_keyword_check

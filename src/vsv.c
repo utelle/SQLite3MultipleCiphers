@@ -7,6 +7,7 @@
 ** but subtly different.  VSV supports a number of extensions to the
 ** CSV format as well as more processing options.
 **
+** http:\\www.dessus.com\files\vsv.c
 **
 ** Usage:
 **
@@ -65,9 +66,10 @@
 **
 ** STRING means a quoted string.  The quote character may be either
 ** a single quote or a double quote.  Two quote characters in a row
-** will be replaced with a single quote character.  STRINGS do not
+** will be replaced with one quote character.  STRINGS do not
 ** need to be quoted if it is obvious where they begin and end
-** (that is, they do not contain a comma).  Leading and trailing
+** (that is, they do not contain a comma or other character that the
+** parser treats especially, such as : or \).  Leading and trailing
 ** spaces will be trimmed from unquoted strings.
 **
 **    filename =./this/filename.here, ...
@@ -111,7 +113,7 @@
 ** The nulls option will cause fields that do not contain anything
 ** to return NULL rather than an empty result.  Two separators
 ** side-by-each with no intervening characters at all will be
-** returned as NULL if nulls is true and if nulls is false or
+** returned as NULL if nulls is true; if nulls is false or
 ** the contents are explicity empty ("") then a 0 length blob
 ** (if affinity=blob) or 0 length text string.
 **
@@ -172,7 +174,7 @@
 ** The nulls option will cause fields that do not contain anything
 ** to return NULL rather than an empty result.  Two separators
 ** side-by-each with no intervening characters at all will be
-** returned as NULL if nulls is true and if nulls is false or
+** returned as NULL if nulls is true; if nulls is false or
 ** the contents are explicity empty ("") then a 0 length blob
 ** (if affinity=blob) or 0 length text string will be returned.
 **

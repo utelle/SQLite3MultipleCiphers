@@ -3,7 +3,7 @@
 ** Purpose:     Implementation of SQLite VFS for Multiple Ciphers
 ** Author:      Ulrich Telle
 ** Created:     2020-02-28
-** Copyright:   (c) 2020-2022 Ulrich Telle
+** Copyright:   (c) 2020-2023 Ulrich Telle
 ** License:     MIT
 */
 
@@ -1230,6 +1230,43 @@ static int mcIoFetch(sqlite3_file* pFile, sqlite3_int64 iOfst, int iAmt, void** 
 static int mcIoUnfetch( sqlite3_file* pFile, sqlite3_int64 iOfst, void* p)
 {
   return REALFILE(pFile)->pMethods->xUnfetch(REALFILE(pFile), iOfst, p);
+}
+
+/*
+** SQLite3 Multiple Ciphers internal API functions
+*/
+
+/*
+** Check the requested VFS
+*/
+SQLITE_PRIVATE int
+sqlite3mcCheckVfs(const char* zVfs)
+{
+  int rc = SQLITE_OK;
+  sqlite3_vfs* pVfs = sqlite3_vfs_find(zVfs);
+  if (pVfs == NULL)
+  {
+    /* VFS not found */
+    int prefixLen = strlen(SQLITE3MC_VFS_NAME);
+    if (strncmp(zVfs, SQLITE3MC_VFS_NAME, prefixLen) == 0)
+    {
+      /* VFS name starts with prefix. */
+      const char* zVfsNameEnd = zVfs + strlen(SQLITE3MC_VFS_NAME);
+      if (*zVfsNameEnd == '-')
+      {
+        /* Prefix separator found, determine the name of the real VFS. */
+        const char* zVfsReal = zVfsNameEnd + 1;
+        pVfs = sqlite3_vfs_find(zVfsReal);
+        if (pVfs != NULL)
+        {
+          /* Real VFS exists */
+          /* Create VFS with encryption support based on real VFS */
+          rc = sqlite3mc_vfs_create(zVfsReal, 0);
+        }
+      }
+    }
+  }
+  return rc;
 }
 
 /*
