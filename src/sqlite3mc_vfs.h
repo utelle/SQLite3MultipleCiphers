@@ -13,6 +13,9 @@
 extern "C" {
 #endif
 
+#ifndef SQLITE_PRIVATE
+#define SQLITE_PRIVATE
+#endif
 SQLITE_PRIVATE int sqlite3mcCheckVfs(const char* zVfs);
 
 SQLITE_API int sqlite3mc_vfs_create(const char* zVfsReal, int makeDefault);
