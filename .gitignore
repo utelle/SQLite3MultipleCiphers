@@ -50,3 +50,10 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+/x64/
+/x86/
+/build/.vs/
+/build/sqlite3mc_vc17_lib.vcxproj.user
+/.vs/
+/build/sqlite3mc_vc17_dll.vcxproj.user
+/.vscode/
