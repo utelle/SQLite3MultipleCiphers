@@ -1247,7 +1247,7 @@ sqlite3mcCheckVfs(const char* zVfs)
   if (pVfs == NULL)
   {
     /* VFS not found */
-    int prefixLen = strlen(SQLITE3MC_VFS_NAME);
+    int prefixLen = (int) strlen(SQLITE3MC_VFS_NAME);
     if (strncmp(zVfs, SQLITE3MC_VFS_NAME, prefixLen) == 0)
     {
       /* VFS name starts with prefix. */
