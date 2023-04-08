@@ -47,14 +47,14 @@ typedef unsigned short int u16;
 # define SHELL_STRINGIFY(f) SHELL_STRINGIFY_(f)
 #ifdef SQLITE_CUSTOM_INCLUDE
 # include SHELL_STRINGIFY(SQLITE_CUSTOM_INCLUDE)
-#if SQLITE3MC_USE_MINIZ != 0
+#endif
+
+#if SQLITE3MC_USE_MINIZ != 0 && !defined(SQLITE_ENABLE_COMPRESS)
 #include "miniz.c"
 #ifdef SQLITE_HAVE_ZLIB
 #undef SQLITE_HAVE_ZLIB
 #endif
 #define SQLITE_HAVE_ZLIB 1
-#endif
-
 #endif
 
 /*
