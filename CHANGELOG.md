@@ -390,3 +390,48 @@ The following ciphers are supported:
 - ChaCha20 - Poly1305 HMAC ([sqleet](https://github.com/resilar/sqleet), _default_)
 - AES 256 Bit CBC - SHA1/SHA256/SHA512 HMAC ([SQLCipher](https://www.zetetic.net/sqlcipher/), database versions 1, 2, 3, and 4)
 - RC4 - No HMAC ([System.Data.SQLite](http://system.data.sqlite.org))
+
+[Unreleased]: ../../compare/v1.6.3...HEAD
+[1.6.3]: ../../compare/v1.6.2...v1.6.3
+[1.6.2]: ../../compare/v1.6.1...v1.6.2
+[1.6.1]: ../../compare/v1.6.0...v1.6.1
+[1.6.0]: ../../compare/v1.5.5...v1.6.0
+[1.5.5]: ../../compare/v1.5.4...v1.5.5
+[1.5.4]: ../../compare/v1.5.3...v1.5.4
+[1.5.3]: ../../compare/v1.5.2...v1.5.3
+[1.5.2]: ../../compare/v1.5.1...v1.5.2
+[1.5.1]: ../../compare/v1.5.0...v1.5.1
+[1.5.0]: ../../compare/v1.4.8...v1.5.0
+[1.4.8]: ../../compare/v1.4.7...v1.4.8
+[1.4.7]: ../../compare/v1.4.6...v1.4.7
+[1.4.6]: ../../compare/v1.4.5...v1.4.6
+[1.4.5]: ../../compare/v1.4.4...v1.4.5
+[1.4.4]: ../../compare/v1.4.3...v1.4.4
+[1.4.3]: ../../compare/v1.4.2...v1.4.3
+[1.4.2]: ../../compare/v1.4.1...v1.4.2
+[1.4.1]: ../../compare/v1.4.0...v1.4.1
+[1.4.0]: ../../compare/v1.3.1...v1.4.0
+[1.3.10]: ../../compare/v1.3.9...v1.3.10
+[1.3.9]: ../../compare/v1.3.8...v1.3.9
+[1.3.8]: ../../compare/v1.3.7...v1.3.8
+[1.3.7]: ../../compare/v1.3.6...v1.3.7
+[1.3.6]: ../../compare/v1.3.5...v1.3.6
+[1.3.5]: ../../compare/v1.3.4...v1.3.5
+[1.3.4]: ../../compare/v1.3.3...v1.3.4
+[1.3.3]: ../../compare/v1.3.2...v1.3.3
+[1.3.2]: ../../compare/v1.3.1...v1.3.2
+[1.3.1]: ../../compare/v1.3.0...v1.3.1
+[1.3.0]: ../../compare/v1.2.5...v1.3.0
+[1.2.5]: ../../compare/v1.2.4...v1.2.5
+[1.2.4]: ../../compare/v1.2.3...v1.2.4
+[1.2.3]: ../../compare/v1.2.2...v1.2.3
+[1.2.2]: ../../compare/v1.2.1...v1.2.2
+[1.2.1]: ../../compare/v1.2.0...v1.2.1
+[1.2.0]: ../../compare/v1.1.4...v1.2.0
+[1.1.4]: ../../compare/v1.1.3...v1.1.4
+[1.1.3]: ../../compare/v1.1.2...v1.1.3
+[1.1.2]: ../../compare/v1.1.1...v1.1.2
+[1.1.1]: ../../compare/v1.1.0...v1.1.1
+[1.1.0]: ../../compare/v1.0.1...v1.1.0
+[1.0.1]: ../../compare/v1.0.0...v1.0.1
+[1.0.0]: ../../compare/v1.0.1...v1.0.0
