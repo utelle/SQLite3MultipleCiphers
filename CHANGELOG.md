@@ -29,18 +29,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Based on SQLite version 3.41.1
-- Symbol `MAX_PATHNAME` (used on Unix-like platforms) has a fixed value of **512** in the original SQLite source code. This can now be configured at compile time to use a higher value (like **4096** - which is supported by most Linux variants) (see issue #104). Use symbol `SQLITE3MC_MAX_PATHNAME` to define a higher value.
+- Symbol `MAX_PATHNAME` (used on Unix-like platforms) has a fixed value of **512** in the original SQLite source code. This can now be configured at compile time to use a higher value (like **4096** - which is supported by most Linux variants) (see issue [#104](../../issues/104)). Use symbol `SQLITE3MC_MAX_PATHNAME` to define a higher value.
 
 ## [1.6.0] - 2023-02-23
 
 ### Changed
 
 - Based on SQLite version 3.41.0
-- Added CMake build support (thanks to @lwttai and @jammerxd)
+- Added CMake build support (thanks to [@lwttai](https://github.com/lwttai) and [@jammerxd](https://github.com/jammerxd)
 
 ### Added
 
-- Added automatic VFS shim instantiation (see issue #104)
+- Added automatic VFS shim instantiation (see issue [#104](../../issues/104))
   To enable encryption support for a non-default VFS it is now enough to specify the name of the requested real VFS with the prefix **multipleciphers-**, either via the URI parameter `vfs` or via the 4th parameter of the SQLite API function `sqlite3_open_v2()`.
 
 ## [1.5.5] - 2022-12-29
@@ -57,8 +57,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Issue #91: Android NDK build error
-- Issue #92: iOS build error
+- Issue [#91](../../issues/91): Android NDK build error
+- Issue [#92](../../issues/92): iOS build error
 
 ## [1.5.3] - 2022-09-30
 
@@ -74,13 +74,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fixed retrieval of configuration parameter table (issue #90)
+- Fixed retrieval of configuration parameter table (issue [#90](../../issues/90))
 
 ## [1.5.1] - 2022-09-08
 
 :warning:️ **Important** :warning:️
 
-This version and version **1.5.0** have a bug in the code for retrieval of the cipher configuration parameter table, leading to a crash on activating encryption for a database connection (see issue #90). **Only builds that _omit_ some of the builtin cipher schemes are affected.**
+This version and version **1.5.0** have a bug in the code for retrieval of the cipher configuration parameter table, leading to a crash on activating encryption for a database connection (see issue [#90](../../issues/90)). **Only builds that _omit_ some of the builtin cipher schemes are affected.**
 
 ### Fixed
 
@@ -111,7 +111,7 @@ This version contains a bug in the shutdown code that leads to a crash on invoki
 
 ### Fixed
 
-- Issue #85: `PRAGMA rekey` could cause a crash
+- Issue [#85](../../issues/85): `PRAGMA rekey` could cause a crash
 
 ## [1.4.7] - 2022-07-21
 
@@ -159,7 +159,7 @@ This version contains a bug in the shutdown code that leads to a crash on invoki
 
 ### Fixed
 
-- Issue #74 (only debug builds are affected)
+- Issue [#74](../../issues/74) (only debug builds are affected)
 
 ## [1.4.0] - 2022-04-27
 
@@ -169,7 +169,7 @@ This version contains a bug in the shutdown code that leads to a crash on invoki
 
 ### Fixed
 
-- Removed global VFS structure to resolve issue #73
+- Removed global VFS structure to resolve issue [#73](../../issues/73)
 
 ## [1.3.10] - 2022-03-28
 
@@ -179,7 +179,7 @@ This version contains a bug in the shutdown code that leads to a crash on invoki
 
 ### Added
 
-- Added pragma hexkey/hexrekey (resolving issue #70)
+- Added pragma hexkey/hexrekey (resolving issue [#70](../../issues/70))
 
 ## [1.3.9] - 2022-03-15
 
@@ -222,9 +222,9 @@ This version contains a bug in the shutdown code that leads to a crash on invoki
 
 ### Fixed
 
-- Issue #55: Set pager error state on reporting decrypt error condition to avoid assertion when SQLITE_DEBUG is defined
-- Issue #54: Check definition of symbol `__QNX__` to support compilation for QNX
-- Issues #50 and #51: Numeric cipher ids are now handled correctly, if some of the cipher schemes are excluded from compilation
+- Issue [#55](../../issues/55): Set pager error state on reporting decrypt error condition to avoid assertion when SQLITE_DEBUG is defined
+- Issue [#54](../../issues/54): Check definition of symbol `__QNX__` to support compilation for QNX
+- Issues [#50](../../issues/50) and [#51](../../issues/51): Numeric cipher ids are now handled correctly, if some of the cipher schemes are excluded from compilation
 
 ## [1.3.4] - 2021-07-24
 
@@ -255,13 +255,13 @@ In principle, operating generally in WAL legacy mode is possible, but it is stro
 
 ### Fixed
 
-- Issue #39: Corrupted WAL journal due to referencing the wrong codec pointer
+- Issue [#39](../../issues/39): Corrupted WAL journal due to referencing the wrong codec pointer
 
 ## [1.3.1] - 2021-04-28
 
 :stop_sign: **Attention** :stop_sign:
 
-As described in issue #39 using SQLite in _WAL journal mode_ is broken in this version.
+As described in issue [#39](../../issues/39) using SQLite in _WAL journal mode_ is broken in this version.
 
 ### Changed
 
@@ -275,7 +275,7 @@ As described in issue #39 using SQLite in _WAL journal mode_ is broken in this v
 
 :stop_sign: **Attention** :stop_sign:
 
-As described in issue #39 using SQLite in _WAL journal mode_ is broken in this version.
+As described in issue [#39](../../issues/39) using SQLite in _WAL journal mode_ is broken in this version.
 
 ### Changed
 
@@ -285,9 +285,9 @@ As described in issue #39 using SQLite in _WAL journal mode_ is broken in this v
 
 ### Fixed
 
-- Issue #37: Allow concurrent access from legacy applications by establishing WAL journal mode compatibility
+- Issue [#37](../../issues/37): Allow concurrent access from legacy applications by establishing WAL journal mode compatibility
   This change allows concurrent use of applications still using SQLite versions (< 3.32.0) based on the `SQLITE_HAS_CODEC` encryption API and applications using the new _SQLite3 Multiple Ciphers_ implementation in WAL journal mode.
-- Issue #36: Clear pager cache after setting a new passphrase to force a reread of the database header
+- Issue [#36](../../issues/36): Clear pager cache after setting a new passphrase to force a reread of the database header
 
 ## [1.2.5] - 2021-04-20
 
@@ -332,7 +332,7 @@ As described in issue #39 using SQLite in _WAL journal mode_ is broken in this v
 
 ### Fixed
 
-- Fixed a bug in cipher selection via URI, if cipher schemes were excluded from build (issue #26)
+- Fixed a bug in cipher selection via URI, if cipher schemes were excluded from build (issue [#26](../../issues/26))
 
 ## [1.1.4] - 2021-01-23
 
