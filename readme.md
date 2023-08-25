@@ -10,10 +10,8 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version information
 
-* 1.6.3 - *May 2023*
-  - Based on SQLite version 3.42.0
-  - Enabled session extension
-  - Fixed incorrect patch of SQLite shell source
+* 1.6.4 - *August 2023*
+  - Based on SQLite version 3.43.0
   
 For further version information please consult the [CHANGELOG](CHANGELOG.md).
 
