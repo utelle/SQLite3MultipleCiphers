@@ -142,4 +142,9 @@ else
 # libtool complains about unknown "-no-install" option when targetting MSW, so
 # use it only in the "else" branch.
 sqlite3shell_LDFLAGS += -no-install
+
+if HOST_OSX
+sqlite3shell_LDFLAGS += -framework Security
+endif
+
 endif
