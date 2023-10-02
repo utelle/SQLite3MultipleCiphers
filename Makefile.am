@@ -35,6 +35,10 @@ else
 AM_CFLAGS += -DSQLIT3MC_USE_MINIZ=1
 endif
 
+if HOST_OSX
+AM_LDFLAGS += -framework Security
+endif
+
 LDADD = lib@SQLITE3MC_LIBNAME@.la
 
 if USE_MSW
