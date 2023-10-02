@@ -371,20 +371,13 @@ fail:
 }
 
 #if defined(__APPLE__)
-#include "TargetConditionals.h"
-#endif
-
-#if defined(__APPLE__) && defined(__MAC_10_12) && !defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
-#include <sys/random.h>
+#include <Security/SecRandom.h>
 #endif
 
 static size_t entropy(void* buf, size_t n)
 {
-#if defined(__APPLE__) && ((defined(__MAC_10_12) && __MAC_OS_X_VERSION_MAX_ALLOWED >= __MAC_10_12) || TARGET_OS_TV || TARGET_OS_WATCH)
-#if TARGET_OS_TV || TARGET_OS_WATCH
-  extern int getentropy(void* buffer, size_t buflen);
-#endif
-  if (getentropy(buf, n) == 0)
+#if defined(__APPLE__)
+  if (SecRandomCopyBytes(kSecRandomDefault, n, (uint8_t*) buf) == 0)
     return n;
 #elif defined(__linux__) && defined(SYS_getrandom)
   if (syscall(SYS_getrandom, buf, n, 0) == n)
