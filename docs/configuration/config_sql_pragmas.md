@@ -203,6 +203,23 @@ Note
 
 ---
 
+### PRAGMA *memory_security*
+
+The `PRAGMA memory_security` enables additional security measures by clearing memory allocations, before they are freed. This prevents leaking possibly sensitive information via unallocated memory.
+
+```sql
+PRAGMA memory_security = { 0 | NONE | 1 | FILL };
+```
+where the value `0` or `NONE` stands for `false` or `disabled`, and the value `1` or `FILL` stands for `true` or `enabled`.
+
+Note
+{: .label .label-red .ml-0 .mb-1 .mt-2 }
+- If this feature was not compiled in, this pragma will be simply a no-op.
+- Depending on the compile time option `SQLITE3MC_USE_RANDOM_FILL_MEMORY` the memory is cleared with zeros or random data.
+- Other SQLite libraries like the **SQLCipher** library additionally lock memory allocations, so that they are not swapped from main memory to disk by the operating system. The idea is to prevent leaking possibly sensitive information via swap files. **SQLite3 Multiple Ciphers** does not offer this feature, because it would feign security that is actually not there. Typically an operating system does not track locking for memory chunks smaller than a page, but SQLite's memory allocations are often significantly smaller than a page. Therefore it is not guaranteed that several memory allocations within a page are really locked. Even locked memory is tpically written to disk if the operating system switches to hibernate state. This can't be prevented, unless hibernate state is disabled.
+
+---
+
 ## PRAGMA statements for cipher configuration
 
 Each cipher scheme has certain parameters which can be configured. Usually, just selecting a cipher scheme for database encryption should be enough, but if compatibility with other applications matters, it may be necessary to adjust some or all of the cipher parameters.
