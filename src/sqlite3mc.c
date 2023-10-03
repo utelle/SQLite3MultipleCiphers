@@ -110,6 +110,31 @@ sqlite3mcVersion(sqlite3_context* context, int argc, sqlite3_value** argv)
   sqlite3_result_text(context, sqlite3mc_version(), -1, 0);
 }
 
+#ifndef SQLITE3MC_SECURE_MEMORY
+#define SQLITE3MC_SECURE_MEMORY 0
+#endif
+
+#if SQLITE3MC_SECURE_MEMORY
+
+#define SECURE_MEMORY_NONE 0
+#define SECURE_MEMORY_FILL 1
+#define SECURE_MEMORY_LOCK 2
+
+SQLITE_PRIVATE void sqlite3mcSetMemorySecurity(int value);
+SQLITE_PRIVATE int sqlite3mcGetMemorySecurity();
+
+#ifndef SQLITE3MC_USE_RANDOM_FILL_MEMORY
+#define SQLITE3MC_USE_RANDOM_FILL_MEMORY 0
+#endif
+
+/* Memory locking is currently not supported */
+#ifdef SQLITE3MC_ENABLE_MEMLOCK
+#undef SQLITE3MC_ENABLE_MEMLOCK
+#endif
+#define SQLITE3MC_ENABLE_MEMLOCK 0
+
+#endif
+
 /*
 ** Crypto algorithms
 */
@@ -156,6 +181,11 @@ mcRegisterCodecExtensions(sqlite3* db, char** pzErrMsg, const sqlite3_api_routin
 #include "cipher_config.c"
 
 #include "codecext.c"
+
+/*
+** Functions for securing allocated memory
+*/
+#include "memory_secure.c"
 
 /*
 ** Extension functions

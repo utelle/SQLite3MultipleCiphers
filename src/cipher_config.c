@@ -959,6 +959,54 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
         ((char**)pArg)[0] = sqlite3_mprintf("Malformed hex string");
       }
     }
+#if SQLITE3MC_SECURE_MEMORY
+    else if (sqlite3StrICmp(pragmaName, "memory_security") == 0)
+    {
+      if (pragmaValue)
+      {
+        int intValue = -1;
+        if (0 == sqlite3StrICmp(pragmaValue, "none"))
+        {
+          intValue = SECURE_MEMORY_NONE;
+        }
+        else if (0 == sqlite3StrICmp(pragmaValue, "fill") )
+        {
+          intValue = SECURE_MEMORY_FILL;
+        }
+#if SQLITE3MC_ENABLE_MEMLOCK
+        else if (0 == sqlite3StrICmp(pragmaValue, "lock") )
+        {
+          intValue = SECURE_MEMORY_LOCK;
+        }
+#endif
+        else
+        {
+          intValue = sqlite3Atoi(pragmaValue);
+#if SQLITE3MC_ENABLE_MEMLOCK
+          intValue = (intValue >=0 && intValue <= 2) ? intValue : -1;
+#else
+          intValue = (intValue >=0 && intValue <= 1) ? intValue : -1;
+#endif
+        }
+        if (intValue >= 0)
+        {
+          sqlite3mcSetMemorySecurity(intValue);
+          rc = SQLITE_OK;
+          ((char**)pArg)[0] = sqlite3_mprintf("%d", intValue);
+        }
+        else
+        {
+          rc = SQLITE_ERROR;
+          ((char**) pArg)[0] = sqlite3_mprintf("Secure memory option '%s' invalid.", pragmaValue);
+        }
+      }
+      else
+      {
+        rc = SQLITE_OK;
+        ((char**)pArg)[0] = sqlite3_mprintf("%d", sqlite3mcGetMemorySecurity());
+      }
+    }
+#endif /* SQLITE3MC_SECURE_MEMORY */
     else
     {
       int j;

@@ -123,6 +123,7 @@
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <ExternalWarningLevel>Level3</ExternalWarningLevel>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>_WINDOWS;WIN32;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;DEBUG;_DEBUG;SQLITE3MC_USE_MINIZ=$(SQLITE3MC_USE_MINIZ);SQLITE_SHELL_IS_UTF8=1;SQLITE_ENABLE_SESSION=1;SQLITE_ENABLE_DBPAGE_VTAB=1;SQLITE_USER_AUTHENTICATION=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -144,6 +145,7 @@
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <ExternalWarningLevel>Level3</ExternalWarningLevel>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>_WINDOWS;WIN32;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;DEBUG;_DEBUG;SQLITE3MC_USE_MINIZ=$(SQLITE3MC_USE_MINIZ);SQLITE_SHELL_IS_UTF8=1;SQLITE_ENABLE_SESSION=1;SQLITE_ENABLE_DBPAGE_VTAB=1;SQLITE_USER_AUTHENTICATION=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -168,6 +170,7 @@
       <MinimalRebuild>false</MinimalRebuild>
       <StringPooling>true</StringPooling>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <ExternalWarningLevel>Level3</ExternalWarningLevel>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>_WINDOWS;WIN32;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;NDEBUG;SQLITE3MC_USE_MINIZ=$(SQLITE3MC_USE_MINIZ);SQLITE_SHELL_IS_UTF8=1;SQLITE_ENABLE_SESSION=1;SQLITE_ENABLE_DBPAGE_VTAB=1;SQLITE_USER_AUTHENTICATION=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -193,6 +196,7 @@
       <MinimalRebuild>false</MinimalRebuild>
       <StringPooling>true</StringPooling>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <ExternalWarningLevel>Level3</ExternalWarningLevel>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>_WINDOWS;WIN32;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;NDEBUG;SQLITE3MC_USE_MINIZ=$(SQLITE3MC_USE_MINIZ);SQLITE_SHELL_IS_UTF8=1;SQLITE_ENABLE_SESSION=1;SQLITE_ENABLE_DBPAGE_VTAB=1;SQLITE_USER_AUTHENTICATION=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>

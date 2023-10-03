@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added `PRAGMA memory_security` to allow to clear memory before it is freed. This feature can have a considerable impact on performance and is therefore disabled by default.
+
+### Fixed
+
+- Fixed issue [#118](../../issues/118)) - tvOS/watchOS compilation errors. On Apple platforms the function `SecRandomCopyBytes()` will now be used instead of `getentropy()`.
+- Fixed issue [#119](../../issues/119)) - `PRAGMA mmap_size` conflicts with encrypted databases, a check has been added to allow this pragma for unencrypted databases.
+
 ## [1.6.5] - 2023-09-14
 
 ### Changed

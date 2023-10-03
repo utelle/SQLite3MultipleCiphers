@@ -10,8 +10,10 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version information
 
-* 1.6.5 - *September 2023*
+* 1.7.0 - *October 2023*
   - Based on SQLite version 3.43.1
+  - Fixed issues #118 and #119
+  - Added optional `PRAGMA memory_security`
   
 For further version information please consult the [CHANGELOG](CHANGELOG.md).
 

@@ -1269,6 +1269,37 @@ sqlite3mcCheckVfs(const char* zVfs)
   return rc;
 }
 
+SQLITE_PRIVATE int
+sqlite3mcPagerHasCodec(PagerMC* pPager)
+{
+  int hasCodec = 0;
+  sqlite3mc_vfs* pVfsMC = NULL;
+  sqlite3_vfs* pVfs = pPager->pVfs;
+
+  /* Check whether the VFS stack of the pager contains a Multiple Ciphers VFS */
+  for (; pVfs; pVfs = pVfs->pNext)
+  {
+    if (pVfs && pVfs->xOpen == mcVfsOpen)
+    {
+      /* Multiple Ciphers VFS found */
+      pVfsMC = (sqlite3mc_vfs*)(pVfs);
+      break;
+    }
+  }
+
+  /* Check whether codec is enabled for associated database file */
+  if (pVfsMC)
+  {
+    sqlite3mc_file* mcFile = mcFindDbMainFileName(pVfsMC, pPager->zFilename);
+    if (mcFile)
+    {
+      Codec* codec = mcFile->codec;
+      hasCodec = (codec != 0 && sqlite3mcIsEncrypted(codec));
+    }
+  }
+  return hasCodec;
+}
+
 /*
 ** SQLite3 Multiple Ciphers external API functions
 */
