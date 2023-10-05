@@ -55,7 +55,7 @@ BEGIN
       VALUE "FileDescription",  "SQLite3 Multiple Ciphers Database Library"
       VALUE "FileVersion",      SQLITE3MC_FILE_VERSION_NUM_DOT_STRING
       VALUE "InternalName",     "sqlite3mc.dll"
-      VALUE "LegalCopyright",   "Copyright (C) 2019-2022, Ulrich Telle"
+      VALUE "LegalCopyright",   "Copyright (C) 2019-2023, Ulrich Telle"
       VALUE "OriginalFilename", "sqlite3mc.dll"
       VALUE "ProductName",      "SQLite3 Multiple Ciphers"
       VALUE "ProductVersion",   SQLITE3MC_PROD_VERSION_NUM_DOT_STRING

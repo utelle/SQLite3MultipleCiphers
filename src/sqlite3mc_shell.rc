@@ -57,7 +57,7 @@ BEGIN
       VALUE "FileDescription",  "SQLite3 Multiple Ciphers Database Shell"
       VALUE "FileVersion",      SQLITE3MC_FILE_VERSION_NUM_DOT_STRING
       VALUE "InternalName",     "sqlite3mc_shell.exe"
-      VALUE "LegalCopyright",   "Copyright (C) 2019-2022, Ulrich Telle"
+      VALUE "LegalCopyright",   "Copyright (C) 2019-2023, Ulrich Telle"
       VALUE "OriginalFilename", "sqlite3mc_shell.exe"
       VALUE "ProductName",      "SQLite3 Multiple Ciphers"
       VALUE "ProductVersion",   SQLITE3MC_PROD_VERSION_NUM_DOT_STRING
