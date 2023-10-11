@@ -212,6 +212,7 @@ sqlite3_status
 sqlite3_status64
 sqlite3_step
 sqlite3_stmt_busy
+sqlite3_stmt_explain
 sqlite3_stmt_isexplain
 sqlite3_stmt_readonly
 sqlite3_stmt_status

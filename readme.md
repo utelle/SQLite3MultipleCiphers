@@ -10,10 +10,8 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version information
 
-* 1.7.1 - *October 2023*
-  - Based on SQLite version 3.43.1
-  - Added compile time option to omit AES hardware support
-  - Fixed autoconf/automake build files to be usable with msys/mingw
+* 1.7.2 - *October 2023*
+  - Based on SQLite version 3.43.2
   
 For further version information please consult the [CHANGELOG](CHANGELOG.md).
 
