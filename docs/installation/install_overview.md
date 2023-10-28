@@ -13,6 +13,11 @@ For regenerating the build files it is recommended to use **_Premake 5.0 alpha 1
 
 For Linux and OSX build files based on the _autoconf/automake_ toolchain are provided.
 
+Note
+{: .label .label-red .ml-0 .mb-1 .mt-2 }
+
+An archive with the _amalgamated source code_, pre-built binaries for Windows and Android (see [SQLite Android Bindings](https://www.sqlite.org/android/)) are usually provided with every [release](https://github.com/utelle/SQLite3MultipleCiphers/releases).
+
 ## Windows
 
 Ready to use project files are provided for Visual C++ 2010, 2012, 2013,
@@ -46,8 +51,6 @@ Microsoft Visual Studio solution files in the `build` folder.
 
 For Visual C++ the debugging properties are set up in such a way that
 debugging the sample applications should work right out of the box.
-
-
 
 ## Linux / OSX
 
