@@ -73,6 +73,18 @@ void sqlite3mc_shutdown(void);
 #define SQLITE_API
 #endif
 
+/*
+** We need to do the following check here BEFORE including <windows.h>,
+** because the header <arm_neon.h> is included from somewhere within
+** <windows.h>, and we need support for the new Neon intrinsics, if
+** AES hardware support is enabled.
+*/
+#if defined (_MSC_VER)
+#if defined _M_ARM
+#define _ARM_USE_NEW_NEON_INTRINSICS
+#endif
+#endif
+
 #include <windows.h>
 
 /* SQLite functions only needed on Win32 */
