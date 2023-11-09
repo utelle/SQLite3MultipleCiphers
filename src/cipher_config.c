@@ -54,6 +54,10 @@ sqlite3mc_config(sqlite3* db, const char* paramName, int newValue)
   int hasMaxPrefix = 0;
   CipherParams* param;
 
+#ifndef SQLITE_OMIT_AUTOINIT
+  if (sqlite3_initialize()) return value;
+#endif
+
   if (paramName == NULL || (db == NULL && newValue >= 0))
   {
     return value;
@@ -134,14 +138,22 @@ sqlite3mc_config(sqlite3* db, const char* paramName, int newValue)
 SQLITE_API int
 sqlite3mc_cipher_count()
 {
+#ifndef SQLITE_OMIT_AUTOINIT
+  if (sqlite3_initialize()) return 0;
+#endif
   return sqlite3mcGetGlobalCipherCount();
 }
 
 SQLITE_API int
 sqlite3mc_cipher_index(const char* cipherName)
 {
-  int count = sqlite3mcGetGlobalCipherCount();
-  int j = 0;
+  int count;
+  int j;
+#ifndef SQLITE_OMIT_AUTOINIT
+  if (sqlite3_initialize()) return -1;
+#endif
+  count = sqlite3mcGetGlobalCipherCount();
+  j = 0;
   for (j = 0; j < count && globalCodecDescriptorTable[j].m_name[0] != 0; ++j)
   {
     if (sqlite3_stricmp(cipherName, globalCodecDescriptorTable[j].m_name) == 0) break;
@@ -153,8 +165,13 @@ SQLITE_API const char*
 sqlite3mc_cipher_name(int cipherIndex)
 {
   static char cipherName[CIPHER_NAME_MAXLEN] = "";
-  int count = sqlite3mcGetGlobalCipherCount();
-  int j = 0;
+  int count;
+  int j;
+#ifndef SQLITE_OMIT_AUTOINIT
+  if( sqlite3_initialize() ) return cipherName;
+#endif
+  count = sqlite3mcGetGlobalCipherCount();
+  j = 0;
   cipherName[0] = '\0';
   if (cipherIndex > 0 && cipherIndex <= count)
   {
@@ -178,6 +195,10 @@ sqlite3mc_config_cipher(sqlite3* db, const char* cipherName, const char* paramNa
   CodecParameter* codecParams;
   CipherParams* cipherParamTable = NULL;
   int j = 0;
+
+#ifndef SQLITE_OMIT_AUTOINIT
+  if (sqlite3_initialize()) return value;
+#endif
 
   if (cipherName == NULL || paramName == NULL)
   {
@@ -246,7 +267,7 @@ sqlite3mc_config_cipher(sqlite3* db, const char* cipherName, const char* paramNa
         {
           sqlite3mcConfigureSQLCipherVersion(db, hasDefaultPrefix, newValue);
         }
-        else
+        else if (newValue != -1)
         {
           sqlite3_log(SQLITE_WARNING,
                       "sqlite3mc_config_cipher: SQLCipher legacy version %d out of range [%d..%d]",
@@ -282,7 +303,7 @@ sqlite3mc_config_cipher(sqlite3* db, const char* cipherName, const char* paramNa
           param->m_value = newValue;
           value = newValue;
         }
-        else
+        else if (newValue != -1)
         {
           sqlite3_log(SQLITE_WARNING,
                       "sqlite3mc_config_cipher: Value %d for parameter '%s' of cipher '%s' out of range [%d..%d]",
@@ -306,6 +327,9 @@ SQLITE_API unsigned char*
 sqlite3mc_codec_data(sqlite3* db, const char* zDbName, const char* paramName)
 {
   unsigned char* result = NULL;
+#ifndef SQLITE_OMIT_AUTOINIT
+  if (sqlite3_initialize()) return NULL;
+#endif
   if (db != NULL && paramName != NULL)
   {
     int iDb = (zDbName != NULL) ? sqlite3FindDbName(db, zDbName) : 0;
