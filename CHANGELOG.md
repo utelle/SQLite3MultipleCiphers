@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.4] - 2023-11-09
+
+### Changed
+
+- Based on SQLite version 3.44.0
+- Prevent crashes due to uninitialized cipher tables
+
 ## [1.7.3] - 2023-11-05
 
 ### Changed
