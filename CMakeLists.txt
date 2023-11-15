@@ -43,7 +43,7 @@ OPTION(SQLITE_ENABLE_REGEXP "Enable extension 'regexp'" ON)
 OPTION(SQLITE_ENABLE_SERIES "Enable extension 'series'" ON)
 OPTION(SQLITE_ENABLE_SHA3 "Enable extension 'sha3'" ON)
 
-# Options for shell only (compatibility with official SQLite shell
+# Options for shell only (compatibility with official SQLite shell)
 OPTION(SQLITE_ENABLE_EXPLAIN_COMMENTS "Insert comment text into the output of EXPLAIN (shell only)" ON)
 OPTION(SQLITE_ENABLE_DBPAGE_VTAB "Enable the SQLITE_DBPAGE virtual table (shell only)" ON)
 OPTION(SQLITE_ENABLE_DBSTAT_VTAB "Enable the dbstat virtual table (shell only)" ON)
@@ -226,7 +226,6 @@ set(SQLITE3MC_BASE_SRCS
   src/test_windirent.h
 )
 set(SQLITE3MC_DLLRES_SRCS
-  src/sqlite3mc.def
   src/sqlite3mc.rc
 )
 set(SQLITE3MC_SHELL_SRCS
@@ -260,11 +259,16 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Linux"
     dl
     m
   )
+  if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    list(APPEND SQLITE3MC_LINK_LIBRARIES "-framework Security")
+  endif()
+  set(SHARED_LIB_EXPORT_DEFINITION "__attribute__((visibility(\"default\")))")
 else()
   if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse4.2 -maes")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -maes")
   endif()
+  set(SHARED_LIB_EXPORT_DEFINITION "__declspec(dllexport)")
 endif()
 
 set(_LIB_DIFINITIONS
@@ -280,14 +284,15 @@ set(_DEFAULT_DEFINITIONS
   UNICODE
 )
 
-set(SQLITE3MC_TARGET "sqlite3mc")
 set(SQLITE3MC_SHELL_TARGET "sqlite3mc_shell")
-
-set(SQLITE3MC_LINK "SHARED")
 
 if(SQLITE3MC_STATIC)
   set(SQLITE3MC_LINK "STATIC")
   set(SQLITE3MC_TARGET "sqlite3mc_static")
+else()
+  set(SQLITE3MC_LINK "SHARED")
+  set(SQLITE3MC_TARGET "sqlite3mc")
+  list(APPEND SQLITE3MC_BASE_SRCS ${SQLITE3MC_DLLRES_SRCS})
 endif()
 
 # Lib Project
@@ -307,6 +312,12 @@ target_compile_definitions(${SQLITE3MC_TARGET} PRIVATE
 target_link_libraries(${SQLITE3MC_TARGET} PRIVATE
   ${SQLITE3MC_LINK_LIBRARIES}
 )
+
+if(NOT SQLITE3MC_STATIC)
+  target_compile_definitions(${SQLITE3MC_TARGET} PRIVATE
+    SQLITE_API=${SHARED_LIB_EXPORT_DEFINITION}
+  )
+endif()
 
 if(ZLIB_FOUND)
   target_include_directories(${SQLITE3MC_TARGET} PRIVATE
