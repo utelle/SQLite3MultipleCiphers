@@ -226,7 +226,6 @@ set(SQLITE3MC_BASE_SRCS
   src/test_windirent.h
 )
 set(SQLITE3MC_DLLRES_SRCS
-  src/sqlite3mc.def
   src/sqlite3mc.rc
 )
 set(SQLITE3MC_SHELL_SRCS
@@ -260,7 +259,10 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Linux"
     dl
     m
   )
-  set(SHARED_LIB_EXPORT_DEFINITION "__attribute__((visibility("default")))")
+  if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    list(APPEND SQLITE3MC_LINK_LIBRARIES "-framework Security")
+  endif()
+  set(SHARED_LIB_EXPORT_DEFINITION "__attribute__((visibility(\"default\")))")
 else()
   if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse4.2 -maes")
@@ -291,7 +293,6 @@ else()
   set(SQLITE3MC_LINK "SHARED")
   set(SQLITE3MC_TARGET "sqlite3mc")
   list(APPEND SQLITE3MC_BASE_SRCS ${SQLITE3MC_DLLRES_SRCS})
-  set_source_files_properties(src/sqlite3mc.def PROPERTIES HEADER_FILE_ONLY TRUE)
 endif()
 
 # Lib Project
