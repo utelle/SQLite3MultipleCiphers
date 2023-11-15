@@ -260,11 +260,13 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Linux"
     dl
     m
   )
+  set(SHARED_LIB_EXPORT_DEFINITION "__attribute__((visibility("default")))")
 else()
   if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse4.2 -maes")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -maes")
   endif()
+  set(SHARED_LIB_EXPORT_DEFINITION "__declspec(dllexport)")
 endif()
 
 set(_LIB_DIFINITIONS
@@ -312,7 +314,7 @@ target_link_libraries(${SQLITE3MC_TARGET} PRIVATE
 
 if(NOT SQLITE3MC_STATIC)
   target_compile_definitions(${SQLITE3MC_TARGET} PRIVATE
-    SQLITE_API=__declspec\(dllexport\)
+    SQLITE_API=${SHARED_LIB_EXPORT_DEFINITION}
   )
 endif()
 
