@@ -209,6 +209,14 @@ endif()
 # Only generate Debug and Release configuration types.
 set(CMAKE_CONFIGURATION_TYPES Debug Release)
 
+set(SQLITE3MC_PUBLIC_HEADERS
+  src/sqlite3.h
+  src/sqlite3ext.h
+  src/sqlite3mc.h
+  src/sqlite3mc_vfs.h
+  src/sqlite3userauth.h
+)
+
 set(SQLITE3MC_BASE_SRCS
   src/sqlite3mc.c
   src/cipher_common.h
@@ -218,12 +226,8 @@ set(SQLITE3MC_BASE_SRCS
   src/rijndael.h
   src/sha1.h
   src/sha2.h
-  src/sqlite3.h
-  src/sqlite3ext.h
-  src/sqlite3mc.h
-  src/sqlite3mc_vfs.h
-  src/sqlite3userauth.h
   src/test_windirent.h
+  ${SQLITE3MC_PUBLIC_HEADERS}
 )
 set(SQLITE3MC_DLLRES_SRCS
   src/sqlite3mc.rc
@@ -348,6 +352,14 @@ if(SQLITE3MC_STATIC_RUNTIME_LINK)
 endif()
 message("Will build ${SQLITE3MC_TARGET} as ${SQLITE3MC_LINK}")
 
+set_target_properties(${SQLITE3MC_TARGET} PROPERTIES PUBLIC_HEADER "${SQLITE3MC_PUBLIC_HEADERS}")
+INSTALL(TARGETS ${SQLITE3MC_TARGET}
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  PUBLIC_HEADER DESTINATION include/${CMAKE_PROJECT_NAME}
+  RUNTIME DESTINATION bin
+)
+
 # Shell Executable project
 if(SQLITE3MC_BUILD_SHELL)
   add_executable(${SQLITE3MC_SHELL_TARGET}
@@ -392,4 +404,11 @@ if(SQLITE3MC_BUILD_SHELL)
     _Enable_MT(${SQLIT3MC_SHELL_TARGET})
   endif()
   message("Will build ${SQLITE3MC_SHELL_TARGET}")
+
+  INSTALL(TARGETS ${SQLITE3MC_SHELL_TARGET}
+    ARCHIVE DESTINATION lib
+    LIBRARY DESTINATION lib
+    PUBLIC_HEADER DESTINATION include/${CMAKE_PROJECT_NAME}
+    RUNTIME DESTINATION bin
+  )
 endif()
