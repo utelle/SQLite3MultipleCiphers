@@ -1,0 +1,6 @@
+---
+sources:
+  "1.7.5":
+    url: "https://github.com/utelle/SQLite3MultipleCiphers/archive/refs/tags/v1.7.5.tar.gz"
+    sha256: ""
+    strip_root: true

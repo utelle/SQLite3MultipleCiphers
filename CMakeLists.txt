@@ -213,6 +213,7 @@ set(SQLITE3MC_PUBLIC_HEADERS
   src/sqlite3.h
   src/sqlite3ext.h
   src/sqlite3mc.h
+  src/sqlite3mc_version.h
   src/sqlite3mc_vfs.h
   src/sqlite3userauth.h
 )
