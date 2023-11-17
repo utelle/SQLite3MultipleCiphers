@@ -240,7 +240,7 @@ SQLITE_EXTENSION_INIT1
 
 #undef LONGDOUBLE_CONSTANT
 #undef LONGDOUBLE_TYPE
-#if defined(__GNUC__) && defined(_WIN64)
+#if defined(SQLITE_USE_QUADMATH) && defined(__GNUC__) && defined(_WIN64)
 #include <quadmath.h>
 #define LONGDOUBLE_TYPE __float128
 #define LONGDOUBLE_CONSTANT(x) x##Q
@@ -1765,7 +1765,7 @@ static int vsvtabColumn(
                     {
                         LONGDOUBLE_TYPE dv, fp, ip;
 
-#if defined(__GNUC__) && defined(_WIN64)
+#if defined(SQLITE_USE_QUADMATH) && defined(__GNUC__) && defined(_WIN64)
                         if (!hasExtended) hasExtended = 1;
 #else
                         if (!hasExtended) {
