@@ -3,7 +3,7 @@
 ** Purpose:     Header file for SQLite3 Multiple Ciphers support
 ** Author:      Ulrich Telle
 ** Created:     2020-03-01
-** Copyright:   (c) 2019-2022 Ulrich Telle
+** Copyright:   (c) 2019-2023 Ulrich Telle
 ** License:     MIT
 */
 
@@ -33,7 +33,8 @@
 #define CODEC_TYPE_CHACHA20    3
 #define CODEC_TYPE_SQLCIPHER   4
 #define CODEC_TYPE_RC4         5
-#define CODEC_TYPE_MAX_BUILTIN 5
+#define CODEC_TYPE_ASCON128    6
+#define CODEC_TYPE_MAX_BUILTIN 6
 
 /*
 ** Definition of API functions

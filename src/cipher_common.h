@@ -196,6 +196,8 @@ SQLITE_PRIVATE int sqlite3mcCodecAttach(sqlite3* db, int nDb, const char* zPath,
 
 SQLITE_PRIVATE void sqlite3mcCodecGetKey(sqlite3* db, int nDb, void** zKey, int* nKey);
 
+SQLITE_PRIVATE void sqlite3mcSecureZeroMemory(void* v, size_t n);
+
 /* Debugging */
 
 #if 0

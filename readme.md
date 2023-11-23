@@ -10,9 +10,9 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version information
 
-* 1.7.4 - *November 2023*
-  - Based on SQLite version 3.44.0
-  - Prevent crashes due to uninitialized cipher tables
+* 1.8.0 - *November 2023*
+  - Based on SQLite version 3.44.1
+  - Added new cipher scheme 'ascon128' based on Ascon, a family of lightweight cryptographic algorithms
   
 For further version information please consult the [CHANGELOG](CHANGELOG.md).
 

@@ -67,6 +67,13 @@ void sqlite3mc_shutdown(void);
 #if !defined(_CRT_RAND_S)
 #define _CRT_RAND_S
 #endif
+
+#else /* !WIN32 */
+
+/* Define this before <string.h> is included to */
+/* retrieve memset_s() declaration if available. */
+#define __STDC_WANT_LIB_EXT1__ 1
+
 #endif
 
 #ifndef SQLITE_API
@@ -189,6 +196,7 @@ mcRegisterCodecExtensions(sqlite3* db, char** pzErrMsg, const sqlite3_api_routin
 #include "cipher_chacha20.c"
 #include "cipher_sqlcipher.c"
 #include "cipher_sds_rc4.c"
+#include "cipher_ascon.c"
 #include "cipher_common.c"
 #include "cipher_config.c"
 
@@ -670,6 +678,12 @@ sqlite3mc_initialize(const char* arg)
   if (rc == SQLITE_OK)
   {
     rc = sqlite3mcRegisterCipher(&mcRC4Descriptor, mcRC4Params, (CODEC_TYPE_RC4 == CODEC_TYPE));
+  }
+#endif
+#if HAVE_CIPHER_ASCON128
+  if (rc == SQLITE_OK)
+  {
+    rc = sqlite3mcRegisterCipher(&mcAscon128Descriptor, mcAscon128Params, (CODEC_TYPE_ASCON128 == CODEC_TYPE));
   }
 #endif
 

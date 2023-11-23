@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added new cipher scheme Ascon-128
+
+### Changed
+
+- Based on SQLite version 3.44.1
+
 ## [1.7.4] - 2023-11-09
 
 ### Changed
@@ -444,6 +452,9 @@ The following ciphers are supported:
 - RC4 - No HMAC ([System.Data.SQLite](http://system.data.sqlite.org))
 
 [Unreleased]: ../../compare/v1.7.1...HEAD
+[1.7.4]: ../../compare/v1.7.3...v1.7.4
+[1.7.3]: ../../compare/v1.7.2...v1.7.3
+[1.7.2]: ../../compare/v1.7.1...v1.7.2
 [1.7.1]: ../../compare/v1.7.0...v1.7.1
 [1.7.0]: ../../compare/v1.6.5...v1.7.0
 [1.6.5]: ../../compare/v1.6.4...v1.6.5

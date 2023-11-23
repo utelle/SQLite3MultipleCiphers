@@ -7,6 +7,33 @@
 ** License:     MIT
 */
 
+/* For memset, memset_s */
+#include <string.h>
+
+#ifdef _WIN32
+/* For SecureZeroMemory */
+#include <windows.h>
+#include <winbase.h>
+#endif
+
+SQLITE_PRIVATE void sqlite3mcSecureZeroMemory(void* v, size_t n)
+{
+#ifdef _WIN32
+  SecureZeroMemory(v, n);
+#elif defined(__DARWIN__) || defined(__STDC_LIB_EXT1__)
+  /* memset_s() is available since OS X 10.9, */
+  /* and may be available on other platforms. */
+  memset_s(v, n, 0, n);
+#elif defined(__OpenBSD__) || (defined(__FreeBSD__) && __FreeBSD__ >= 11)
+  /* Non-standard function */
+  explicit_bzero(v, n);
+#else
+  /* Generic implementation based on volatile pointers */
+  static void* (* const volatile memset_sec)(void*, int, size_t) = &memset;
+  memset_sec(v, 0, n);
+#endif
+}
+
 #if SQLITE3MC_SECURE_MEMORY
 
 /* Flag indicating whether securing memory allocations is initialized */
@@ -77,7 +104,7 @@ static void mcMemoryFree(void* pPrior)
     mcRandomFill((char*) pPrior, nSize)
 #else
     int nSize = mcMemorySize(pPrior);
-    memset(pPrior, 0, nSize);
+    sqlite3mcSecureZeroMemory(pPrior, 0, nSize);
 #endif
   }
   mcDefaultMemoryMethods.xFree(pPrior);
