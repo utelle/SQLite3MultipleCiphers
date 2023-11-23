@@ -106,6 +106,7 @@ the following table:
 | `CODEC_TYPE_CHACHA20`  | [sqleet: ChaCha20]({{ site.baseurl }}{% link docs/ciphers/cipher_chacha20.md %}) |
 | `CODEC_TYPE_SQLCIPHER` | [SQLCipher: AES 256 Bit]({{ site.baseurl }}{% link docs/ciphers/cipher_sqlcipher.md %}) |
 | `CODEC_TYPE_RC4` | [System.Data.SQLite: RC4]({{ site.baseurl }}{% link docs/ciphers/cipher_sds_rc4.md %}) |
+| `CODEC_TYPE_ASCON128` | [Ascon: Ascon-128 v1.2]({{ site.baseurl }}{% link docs/ciphers/cipher_ascon.md %}) |
 
 Notes
 {: .label .label-red .ml-0 .mb-1 .mt-2 }

@@ -162,6 +162,7 @@ where `ciphername` is one of the following strings:
 - **_chacha20_** = [sqleet: ChaCha20]({{ site.baseurl }}{% link docs/ciphers/cipher_chacha20.md %}), 
 - **_sqlcipher_** = [SQLCipher: AES 256 Bit]({{ site.baseurl }}{% link docs/ciphers/cipher_sqlcipher.md %}), 
 - **_rc4_** = [System.Data.SQLite: RC4]({{ site.baseurl }}{% link docs/ciphers/cipher_sds_rc4.md %})
+- **_ascon128_** = [Ascon: Ascon-128 v1.2]({{ site.baseurl }}{% link docs/ciphers/cipher_ascon.md %})
 
 <span class="label label-green">Example:</span> _Select cipher wxSQLite3: AES 256 Bit_
 
@@ -280,6 +281,7 @@ Note
 [wxSQLite3: AES 256 Bit]({{ site.baseurl }}{% link docs/ciphers/cipher_aes256cbc.md %}), 
 [sqleet: ChaCha20]({{ site.baseurl }}{% link docs/ciphers/cipher_chacha20.md %}), 
 [SQLCipher: AES 256 Bit]({{ site.baseurl }}{% link docs/ciphers/cipher_sqlcipher.md %})
+[Ascon: Ascon-128 v1.2]({{ site.baseurl }}{% link docs/ciphers/cipher_ascon.md %})
 
 Most key derivation functions perform a certain number of iterations to strengthen the key and make it resistent to brute force and dictionary attacks. The `PRAGMA kdf_iter` statement can be used to increase or decrease the number of iterations used. It has the following syntax:
 

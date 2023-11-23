@@ -140,6 +140,7 @@ The following table lists the builtin cipher schemes:
 | `chacha20` | 3 | `CODEC_TYPE_CHACHA20`  | [sqleet: ChaCha20]({{ site.baseurl }}{% link docs/ciphers/cipher_chacha20.md %}) |
 | `sqlcipher` | 4 | `CODEC_TYPE_SQLCIPHER` | [SQLCipher: AES 256 Bit]({{ site.baseurl }}{% link docs/ciphers/cipher_sqlcipher.md %}) |
 | `rc4` | 5 | `CODEC_TYPE_RC4` | [System.Data.SQLite: RC4]({{ site.baseurl }}{% link docs/ciphers/cipher_sds_rc4.md %}) |
+| `ascon128` | 6 | `CODEC_TYPE_ASCON128` | [Ascon: Ascon-128 v1.2]({{ site.baseurl }}{% link docs/ciphers/cipher_ascon.md %}) |
 
 The return value always is the current parameter value on success, or **-1** on failure.
 
@@ -185,6 +186,7 @@ The following cipher names are used as the `cipherName` for the supported builti
 | `chacha20`  | [ChaCha20 - Poly1305 HMAC (sqleet)]({{ site.baseurl }}{% link docs/ciphers/cipher_chacha20.md %}) |
 | `sqlcipher` | [AES 256 Bit CBC - SHA1 HMAC (SQLCipher)]({{ site.baseurl }}{% link docs/ciphers/cipher_sqlcipher.md %}) |
 | `rc4`       | [RC4 (System.Data.SQLite)]({{ site.baseurl }}{% link docs/ciphers/cipher_sds_rc4.md %}) |
+| `ascon128`  | [Ascon: Ascon-128 v1.2]({{ site.baseurl }}{% link docs/ciphers/cipher_ascon.md %}) |
 
 The return value always is the current parameter value on success, or **-1** on failure.
 

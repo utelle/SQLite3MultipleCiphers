@@ -8,13 +8,14 @@ permalink: /
 # Overview
 The project **SQLite3 Multiple Ciphers** implements an encryption extension for [SQLite](https://www.sqlite.org) with support for multiple ciphers.
 
-**SQLite3 Multiple Ciphers** is an extension to the public domain version of SQLite that allows applications to read and write encrypted database files. Currently 5 different encryption cipher schemes are supported:
+**SQLite3 Multiple Ciphers** is an extension to the public domain version of SQLite that allows applications to read and write encrypted database files. Currently **6** different encryption cipher schemes are supported:
 
 - [wxSQLite3](https://github.com/utelle/wxsqlite3): AES 128 Bit CBC - No HMAC
 - [wxSQLite3](https://github.com/utelle/wxsqlite3): AES 256 Bit CBC - No HMAC
 - [sqleet](https://github.com/resilar/sqleet): ChaCha20 - Poly1305 HMAC
 - [SQLCipher](https://www.zetetic.net/sqlcipher/): AES 256 Bit CBC - SHA1/SHA256/SHA512 HMAC
 - [System.Data.SQLite](http://system.data.sqlite.org): RC4
+- [Ascon](https://ascon.iaik.tugraz.at/): Ascon-128 v1.2
 
 In addition to reading and writing encrypted database files **SQLite** with the **SQLite3 Multiple Ciphers** extension is able to read and write ordinary database files created using a public domain version of SQLite. Applications can use the `ATTACH` statement of SQLite to simultaneously connect to two or more encrypted and/or unencrypted database files. For each database file a different encryption cipher scheme can be used.
 
