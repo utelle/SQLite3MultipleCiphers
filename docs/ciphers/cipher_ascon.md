@@ -16,6 +16,6 @@ One-time keys per database page are derived from the encryption key, the page nu
 
 The following table lists all parameters related to this cipher that can be set before activating database encryption.
 
-| Parameter | Default | sqleet | Min | Max | Description |
+| Parameter | Default | Min | Max | Description |
 | :--- | :---: | :---: | :---: | :---: | :--- |
-| `kdf_iter` | 64007 | 12345 | 1 | | Number of iterations for the key derivation function |
+| `kdf_iter` | 64007 | 1 | | Number of iterations for the key derivation function |
