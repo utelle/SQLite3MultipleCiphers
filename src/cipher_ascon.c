@@ -22,6 +22,7 @@
 
 #define ASCON128_KDF_ITER_DEFAULT 64007
 
+#include "ascon/prolog.h"
 #include "ascon/aead.c"
 #include "ascon/hash.c"
 #include "ascon/pbkdf2.c"
@@ -181,7 +182,7 @@ GenerateKeyAscon128Cipher(void* cipher, BtShared* pBt, char* userPassword, int p
   if (!bypass)
   {
     ascon_pbkdf2(ascon128Cipher->m_key, KEYLENGTH_ASCON128,
-                 userPassword, passwordLength,
+                 (const uint8_t*) userPassword, passwordLength,
                  ascon128Cipher->m_salt, SALTLENGTH_ASCON128, ascon128Cipher->m_kdfIter);
   }
   SQLITE3MC_DEBUG_LOG("generate: codec=%p pFile=%p\n", ascon128Cipher, fd);

@@ -1,5 +1,5 @@
-#ifndef ROUND_H_
-#define ROUND_H_
+#ifndef ROUND32_H_
+#define ROUND32_H_
 
 #include "ascon.h"
 #include "constants.h"
@@ -47,4 +47,4 @@ forceinline void ASCON_PROUNDS(ascon_state_t* s, int nr) {
   } while (i != ASCON_END);
 }
 
-#endif /* ROUND_H_ */
+#endif /* ROUND32_H_ */

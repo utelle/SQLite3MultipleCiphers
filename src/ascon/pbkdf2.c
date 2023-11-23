@@ -35,7 +35,7 @@ void ascon_pbkdf2_init(ascon_state_t* state, const char* functionName,
   }
   else
   {
-    ascon_hash(initial, functionName, fnLength);
+    ascon_hash(initial, (const uint8_t*) functionName, fnLength);
   }
 
   state->x[0] = ASCON_HASH_IV;
