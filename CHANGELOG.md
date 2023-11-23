@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.0] - 2023-11-23
+
 ### Added
 
 - Added new cipher scheme Ascon-128
@@ -14,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Based on SQLite version 3.44.1
+- Updated CMake support
+
+### Fixed
+
+- Fixed issue [#126](../../issues/126)) - use of quadmath in VSV extension. Use of 128-bit floats for conversion purposes in the VSV extension could cause compilation problems due to the dependency on the GCC-specific quadmath library. This library will now only be used, if the preprocessor symbol `SQLITE_USE_QUADMATH` is defined. This symbol will not be defined by default.
 
 ## [1.7.4] - 2023-11-09
 
@@ -451,7 +458,8 @@ The following ciphers are supported:
 - AES 256 Bit CBC - SHA1/SHA256/SHA512 HMAC ([SQLCipher](https://www.zetetic.net/sqlcipher/), database versions 1, 2, 3, and 4)
 - RC4 - No HMAC ([System.Data.SQLite](http://system.data.sqlite.org))
 
-[Unreleased]: ../../compare/v1.7.1...HEAD
+[Unreleased]: ../../compare/v1.8.0...HEAD
+[1.8.0]: ../../compare/v1.7.4...v1.8.0
 [1.7.4]: ../../compare/v1.7.3...v1.7.4
 [1.7.3]: ../../compare/v1.7.2...v1.7.3
 [1.7.2]: ../../compare/v1.7.1...v1.7.2

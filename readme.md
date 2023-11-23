@@ -13,7 +13,9 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 * 1.8.0 - *November 2023*
   - Based on SQLite version 3.44.1
   - Added new cipher scheme 'ascon128' based on Ascon, a family of lightweight cryptographic algorithms
-  
+  - Updated CMake support
+  - Fixed issue #126 - use of quadmath library in VSV extension.
+
 For further version information please consult the [CHANGELOG](CHANGELOG.md).
 
 ## How to participate
