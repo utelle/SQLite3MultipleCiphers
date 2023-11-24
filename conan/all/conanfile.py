@@ -8,7 +8,7 @@ required_conan_version = ">=2.0"
 
 class sqlite3mc(ConanFile):
     name = "sqlite3mc"
-    version = "1.7.5"
+    version = "1.8.0"
     package_type = "library"
 
     license = "MIT"
