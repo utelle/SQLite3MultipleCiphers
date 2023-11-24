@@ -194,7 +194,7 @@ void sqlite3CryptFunc(
 ** If the SQLITE_USER table is not present in the database file, then
 ** this interface is a harmless no-op returnning SQLITE_OK.
 */
-int sqlite3_user_authenticate(
+SQLITE_API int sqlite3_user_authenticate(
   sqlite3 *db,           /* The database connection */
   const char *zUsername, /* Username */
   const char *zPW,       /* Password or credentials */
@@ -234,7 +234,7 @@ int sqlite3_user_authenticate(
 ** for any ATTACH-ed databases.  Any call to sqlite3_user_add() by a
 ** non-admin user results in an error.
 */
-int sqlite3_user_add(
+SQLITE_API int sqlite3_user_add(
   sqlite3 *db,           /* Database connection */
   const char *zUsername, /* Username to be added */
   const char *aPW,       /* Password or credentials */
@@ -281,7 +281,7 @@ int sqlite3_user_add(
 ** credentials or admin privilege setting.  No user may change their own 
 ** admin privilege setting.
 */
-int sqlite3_user_change(
+SQLITE_API int sqlite3_user_change(
   sqlite3 *db,           /* Database connection */
   const char *zUsername, /* Username to change */
   const char *aPW,       /* Modified password or credentials */
@@ -332,7 +332,7 @@ int sqlite3_user_change(
 ** the database cannot be converted into a no-authentication-required
 ** database.
 */
-int sqlite3_user_delete(
+SQLITE_API int sqlite3_user_delete(
   sqlite3 *db,           /* Database connection */
   const char *zUsername  /* Username to remove */
 ){
