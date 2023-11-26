@@ -138,13 +138,10 @@ project "sqlite3mc_dll"
     toolset("gcc")
     buildoptions { "-msse4.2", "-maes" }
 --    buildoptions { "-march=native" }
-    defines {
-      "SQLITE_API=__declspec(dllexport)"
-    }
   end
   makesettings { "include config.gcc" }
 
-  files { "src/sqlite3mc.c", "src/*.h", "src/sqlite3mc.def", "src/sqlite3mc.rc" }
+  files { "src/sqlite3mc.c", "src/*.h", "src/sqlite3mc.rc" }
   filter {}
   vpaths {
     ["Header Files"] = { "**.h" },
@@ -159,6 +156,7 @@ project "sqlite3mc_dll"
 
   defines {
     "_USRDLL",
+    "SQLITE_API=__declspec(dllexport)",
     "CODEC_TYPE=$(CODEC_TYPE)",
     "SQLITE_ENABLE_DEBUG=$(SQLITE_ENABLE_DEBUG)",
     "SQLITE_THREADSAFE=1",
@@ -390,13 +388,10 @@ project "sqlite3mc_dllicu"
     toolset("gcc")
     buildoptions { "-msse4.2", "-maes" }
 --    buildoptions { "-march=native" }
-    defines {
-      "SQLITE_API=__declspec(dllexport)"
-    }
   end
   makesettings { "include config.gcc" }
 
-  files { "src/sqlite3mc.c", "src/*.h", "src/sqlite3mc.def", "src/sqlite3mc.rc" }
+  files { "src/sqlite3mc.c", "src/*.h", "src/sqlite3mc.rc" }
   filter {}
   vpaths {
     ["Header Files"] = { "**.h" },
@@ -423,6 +418,7 @@ project "sqlite3mc_dllicu"
 
   defines {
     "_USRDLL",
+    "SQLITE_API=__declspec(dllexport)",
     "CODEC_TYPE=$(CODEC_TYPE)",
     "SQLITE_ENABLE_DEBUG=$(SQLITE_ENABLE_DEBUG)",
     "SQLITE_THREADSAFE=1",
