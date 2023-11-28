@@ -235,7 +235,16 @@ int poly1305_tagcmp(const uint8_t tag1[16], const uint8_t tag2[16])
 /*
  * Platform-specific entropy functions for seeding RNG
  */
-#if defined(_WIN32) || defined(__CYGWIN__)
+#if defined(__WASM__)
+
+extern size_t getentropy(void* buf, size_t n);
+
+static size_t entropy(void* buf, size_t n)
+{
+  return (getentropy(buf, n) == 0) ? n : 0;
+}
+
+#elif defined(_WIN32) || defined(__CYGWIN__)
 
 #if SQLITE3MC_USE_RAND_S
 
@@ -387,15 +396,6 @@ static size_t entropy(void* buf, size_t n)
     return n;
 #endif
   return read_urandom(buf, n);
-}
-
-#elif defined(__WASM__)
-
-extern size_t getentropy(void* buf, size_t n);
-
-static size_t entropy(void* buf, size_t n)
-{
-  return (getentropy(buf, n) == 0) ? n : 0;
 }
 
 #else
