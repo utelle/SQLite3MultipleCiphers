@@ -5,6 +5,15 @@ nav_order: 2
 has_children: false
 ---
 # Installation
+{: .no_toc }
+
+## Table of contents
+{: .no_toc .text-delta }
+
+- TOC
+{:toc}
+
+## Overview
 
 Build files for the supported platforms - Windows, Linux, and OSX - are provided.
 
@@ -74,6 +83,26 @@ Type `../configure --help` for more info.
 The autoconf-based system also supports a `make install` target which
 builds the library and then copies the headers of the component to
 `/usr/local/include` and the lib to `/usr/local/lib`.
+
+## WebAssembly
+
+Starting with version 3.40 the [SQLite project](https://sqlite.org) provides [WebAssembly- and JavaScript-related APIs](https://sqlite.org/wasm/), which enable the use of _SQLite3_ in modern WASM-capable browsers.
+
+**SQLite3 Multiple Ciphers** can add encryption support to WASM-based applications. In principle, [building JS/WASM support](https://sqlite.org/wasm/doc/trunk/building.md) for _SQLite3 Multiple Ciphers_ follows closely the [documentation given on the SQLite website](https://sqlite.org/wasm/doc/trunk/building.md).
+
+The build process is very similar to the description of [Building for SQLite Encryption Extension (SEE)](https://sqlite.org/wasm/doc/trunk/building.md#see), the official (commercial) [SQLite Encryption Extension](https://sqlite.org/see/).
+
+The following steps describe the preliminary actions:
+
+1. Generate or download the amalgamation source code of _SQLite3 Multiple Ciphers_, matching the SQLite version, you want to build WASM support for,
+2. Copy the file `sqlite3mc_amalgamation.c` to the top-most directory of the SQLite source tree,
+3. Rename `sqlite3mc_amalgamation.c` to `sqlite3-see.c`, or pass `sqlite3.c=/path/to/sqlite3mc_amalgamation.c` when running make or gmake from the `ext/wasm` directory,
+4. Adjust the file `ext/wasm/GNUmakefile` by adding the compile time flag `-D__WASM__` (2 places),
+5. (Optional) Add support for the _SQLite3 Multiple Ciphers_ C API:
+  - Add the _SQLite3 Multiple Ciphers_ API function names to file `ext/wasm/api/EXPORTED_FUNCTIONS.sqlite3-see`, prefixing them with an underscore character,
+  - Add the signatures of the _SQLite3 Multiple Ciphers_ API functions to `ext/wasm/api/sqlite3-api-glue.js` (search for `sqlite3_activate_see`).
+
+Thereafter WASM support can be built according to the [SQLite documentation](https://sqlite.org/wasm/doc/trunk/building.md).
 
 ## Support for ICU (_**I**nternational **C**omponents for **U**nicode_)
 
