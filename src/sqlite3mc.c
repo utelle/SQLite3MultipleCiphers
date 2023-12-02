@@ -8,8 +8,30 @@
 */
 
 /*
+** Force some options required for WASM builds
+*/
+
+#ifdef __WASM__
+
+/* Disable User Authentication Extension */
+#ifdef SQLITE_USER_AUTHENTICATION
+#undef SQLITE_USER_AUTHENTICATION
+#endif
+#define SQLITE_USER_AUTHENTICATION 0
+
+/* Disable AES hardware support */
+/* Note: this may be changed in the future depending on available support */
+#ifdef SQLITE3MC_OMIT_AES_HARDWARE_SUPPORT
+#undef SQLITE3MC_OMIT_AES_HARDWARE_SUPPORT
+#endif
+#define SQLITE3MC_OMIT_AES_HARDWARE_SUPPORT 1
+
+#endif
+
+/*
 ** Enable SQLite debug assertions if requested
 */
+
 #ifndef SQLITE_DEBUG
 #if defined(SQLITE_ENABLE_DEBUG) && (SQLITE_ENABLE_DEBUG == 1)
 #define SQLITE_DEBUG 1

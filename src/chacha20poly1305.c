@@ -237,7 +237,7 @@ int poly1305_tagcmp(const uint8_t tag1[16], const uint8_t tag2[16])
  */
 #if defined(__WASM__)
 
-extern size_t getentropy(void* buf, size_t n);
+extern int getentropy(void* buf, size_t n);
 
 static size_t entropy(void* buf, size_t n)
 {

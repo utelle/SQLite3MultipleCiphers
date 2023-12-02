@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.1] - 2023-12-02
+
+### Changed
+
+- Based on SQLite version 3.44.2
+- Applied several modifications to improve support for SQLite3 WASM
+
+### Fixed
+
+- Fixed issue [#133](../../issues/133)) - missing API symbols
+
 ## [1.8.0] - 2023-11-23
 
 ### Added

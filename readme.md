@@ -10,11 +10,10 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version information
 
-* 1.8.0 - *November 2023*
-  - Based on SQLite version 3.44.1
-  - Added new cipher scheme 'ascon128' based on Ascon, a family of lightweight cryptographic algorithms
-  - Updated CMake support
-  - Fixed issue #126 - use of quadmath library in VSV extension.
+* 1.8.1 - *December 2023*
+  - Based on SQLite version 3.44.2
+  - Fixed issue #133 - missing API symbols
+  - Applied several modifications to improve support for [SQLite3 WASM](https://sqlite.org/wasm/)
 
 For further version information please consult the [CHANGELOG](CHANGELOG.md).
 
@@ -24,6 +23,6 @@ For further version information please consult the [CHANGELOG](CHANGELOG.md).
 
 ## Documentation
 
-Documentation of the currently supported cipher schemes and the C and SQL interfaces is provided already on the [SQLite3MultipleCiphers website](https://utelle.github.io/SQLite3MultipleCiphers/).
+Documentation of the currently supported cipher schemes and the C and SQL interfaces is provided on the [SQLite3 Multiple Ciphers website](https://utelle.github.io/SQLite3MultipleCiphers/).
 
 Documentation on how to build the extension can be found on the page [SQLite3 Multiple Ciphers Installation](https://utelle.github.io/SQLite3MultipleCiphers/docs/installation/install_overview/).
