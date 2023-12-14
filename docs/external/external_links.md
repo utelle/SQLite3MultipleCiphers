@@ -23,4 +23,5 @@ Several tools, wrappers, and applications are using **SQLite3 Multiple Ciphers**
 
 ## Applications
 
-- [Goupile](https://goupile.org/en/)
+- [Goupile](https://goupile.org/en/), an open-source electronic data capture application
+- [LazLiteDB](https://sourceforge.net/projects/lazlitedb/), a SQLite DB editor and reporter application
