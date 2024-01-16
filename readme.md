@@ -10,10 +10,8 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version information
 
-* 1.8.1 - *December 2023*
-  - Based on SQLite version 3.44.2
-  - Fixed issue #133 - missing API symbols
-  - Applied several modifications to improve support for [SQLite3 WASM](https://sqlite.org/wasm/)
+* 1.8.2 - *January 2024*
+  - Based on SQLite version 3.45.0
 
 For further version information please consult the [CHANGELOG](CHANGELOG.md).
 
