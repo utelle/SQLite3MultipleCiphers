@@ -118,7 +118,7 @@
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
-      <PreprocessorDefinitions>_WINDOWS;WIN32;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;DEBUG;_DEBUG;SQLITE3MC_USE_MINIZ=$(SQLITE3MC_USE_MINIZ);SQLITE_SHELL_IS_UTF8=1;SQLITE_ENABLE_SESSION=1;SQLITE_ENABLE_DBPAGE_VTAB=1;SQLITE_USER_AUTHENTICATION=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WINDOWS;WIN32;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;DEBUG;_DEBUG;SQLITE3MC_USE_MINIZ=$(SQLITE3MC_USE_MINIZ);SQLITE_SHELL_IS_UTF8=1;SQLITE_ENABLE_SESSION=1;SQLITE_ENABLE_DBPAGE_VTAB=1;SQLITE_USER_AUTHENTICATION=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>..\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
@@ -126,7 +126,7 @@
       <ExternalWarningLevel>Level3</ExternalWarningLevel>
     </ClCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>_WINDOWS;WIN32;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;DEBUG;_DEBUG;SQLITE3MC_USE_MINIZ=$(SQLITE3MC_USE_MINIZ);SQLITE_SHELL_IS_UTF8=1;SQLITE_ENABLE_SESSION=1;SQLITE_ENABLE_DBPAGE_VTAB=1;SQLITE_USER_AUTHENTICATION=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WINDOWS;WIN32;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;DEBUG;_DEBUG;SQLITE3MC_USE_MINIZ=$(SQLITE3MC_USE_MINIZ);SQLITE_SHELL_IS_UTF8=1;SQLITE_ENABLE_SESSION=1;SQLITE_ENABLE_DBPAGE_VTAB=1;SQLITE_USER_AUTHENTICATION=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>..\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Link>
@@ -140,7 +140,7 @@
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
-      <PreprocessorDefinitions>_WINDOWS;WIN32;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;DEBUG;_DEBUG;SQLITE3MC_USE_MINIZ=$(SQLITE3MC_USE_MINIZ);SQLITE_SHELL_IS_UTF8=1;SQLITE_ENABLE_SESSION=1;SQLITE_ENABLE_DBPAGE_VTAB=1;SQLITE_USER_AUTHENTICATION=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WINDOWS;WIN32;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;DEBUG;_DEBUG;SQLITE3MC_USE_MINIZ=$(SQLITE3MC_USE_MINIZ);SQLITE_SHELL_IS_UTF8=1;SQLITE_ENABLE_SESSION=1;SQLITE_ENABLE_DBPAGE_VTAB=1;SQLITE_USER_AUTHENTICATION=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>..\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
@@ -148,7 +148,7 @@
       <ExternalWarningLevel>Level3</ExternalWarningLevel>
     </ClCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>_WINDOWS;WIN32;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;DEBUG;_DEBUG;SQLITE3MC_USE_MINIZ=$(SQLITE3MC_USE_MINIZ);SQLITE_SHELL_IS_UTF8=1;SQLITE_ENABLE_SESSION=1;SQLITE_ENABLE_DBPAGE_VTAB=1;SQLITE_USER_AUTHENTICATION=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WINDOWS;WIN32;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;DEBUG;_DEBUG;SQLITE3MC_USE_MINIZ=$(SQLITE3MC_USE_MINIZ);SQLITE_SHELL_IS_UTF8=1;SQLITE_ENABLE_SESSION=1;SQLITE_ENABLE_DBPAGE_VTAB=1;SQLITE_USER_AUTHENTICATION=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>..\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Link>
@@ -162,7 +162,7 @@
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
-      <PreprocessorDefinitions>_WINDOWS;WIN32;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;NDEBUG;SQLITE3MC_USE_MINIZ=$(SQLITE3MC_USE_MINIZ);SQLITE_SHELL_IS_UTF8=1;SQLITE_ENABLE_SESSION=1;SQLITE_ENABLE_DBPAGE_VTAB=1;SQLITE_USER_AUTHENTICATION=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WINDOWS;WIN32;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;NDEBUG;SQLITE3MC_USE_MINIZ=$(SQLITE3MC_USE_MINIZ);SQLITE_SHELL_IS_UTF8=1;SQLITE_ENABLE_SESSION=1;SQLITE_ENABLE_DBPAGE_VTAB=1;SQLITE_USER_AUTHENTICATION=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>..\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>Full</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -173,7 +173,7 @@
       <ExternalWarningLevel>Level3</ExternalWarningLevel>
     </ClCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>_WINDOWS;WIN32;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;NDEBUG;SQLITE3MC_USE_MINIZ=$(SQLITE3MC_USE_MINIZ);SQLITE_SHELL_IS_UTF8=1;SQLITE_ENABLE_SESSION=1;SQLITE_ENABLE_DBPAGE_VTAB=1;SQLITE_USER_AUTHENTICATION=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WINDOWS;WIN32;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;NDEBUG;SQLITE3MC_USE_MINIZ=$(SQLITE3MC_USE_MINIZ);SQLITE_SHELL_IS_UTF8=1;SQLITE_ENABLE_SESSION=1;SQLITE_ENABLE_DBPAGE_VTAB=1;SQLITE_USER_AUTHENTICATION=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>..\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Link>
@@ -188,7 +188,7 @@
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
-      <PreprocessorDefinitions>_WINDOWS;WIN32;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;NDEBUG;SQLITE3MC_USE_MINIZ=$(SQLITE3MC_USE_MINIZ);SQLITE_SHELL_IS_UTF8=1;SQLITE_ENABLE_SESSION=1;SQLITE_ENABLE_DBPAGE_VTAB=1;SQLITE_USER_AUTHENTICATION=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WINDOWS;WIN32;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;NDEBUG;SQLITE3MC_USE_MINIZ=$(SQLITE3MC_USE_MINIZ);SQLITE_SHELL_IS_UTF8=1;SQLITE_ENABLE_SESSION=1;SQLITE_ENABLE_DBPAGE_VTAB=1;SQLITE_USER_AUTHENTICATION=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>..\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>Full</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -199,7 +199,7 @@
       <ExternalWarningLevel>Level3</ExternalWarningLevel>
     </ClCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>_WINDOWS;WIN32;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;NDEBUG;SQLITE3MC_USE_MINIZ=$(SQLITE3MC_USE_MINIZ);SQLITE_SHELL_IS_UTF8=1;SQLITE_ENABLE_SESSION=1;SQLITE_ENABLE_DBPAGE_VTAB=1;SQLITE_USER_AUTHENTICATION=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WINDOWS;WIN32;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;NDEBUG;SQLITE3MC_USE_MINIZ=$(SQLITE3MC_USE_MINIZ);SQLITE_SHELL_IS_UTF8=1;SQLITE_ENABLE_SESSION=1;SQLITE_ENABLE_DBPAGE_VTAB=1;SQLITE_USER_AUTHENTICATION=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>..\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Link>

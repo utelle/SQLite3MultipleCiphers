@@ -10,8 +10,9 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version information
 
-* 1.8.3 - *January 2024*
-  - Based on SQLite version 3.45.1
+* 1.8.4 - *March 2024*
+  - Based on SQLite version 3.45.5
+  - Disable user authentication extension by default
 
 For further version information please consult the [CHANGELOG](CHANGELOG.md).
 
