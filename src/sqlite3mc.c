@@ -3,7 +3,7 @@
 ** Purpose:     Amalgamation of the SQLite3 Multiple Ciphers encryption extension for SQLite
 ** Author:      Ulrich Telle
 ** Created:     2020-02-28
-** Copyright:   (c) 2006-2022 Ulrich Telle
+** Copyright:   (c) 2006-2024 Ulrich Telle
 ** License:     MIT
 */
 
@@ -662,6 +662,7 @@ sqlite3mcTermCipherTables()
       sqlite3_free(globalCodecParameterTable[n].m_params);
     }
   }
+  globalCipherCount = 0;
 }
 
 int
