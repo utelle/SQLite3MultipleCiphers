@@ -98,7 +98,8 @@
     HAVE_CIPHER_AES_256_CBC == 0 &&  \
     HAVE_CIPHER_CHACHA20    == 0 &&  \
     HAVE_CIPHER_SQLCIPHER   == 0 &&  \
-    HAVE_CIPHER_RC4         == 0
+    HAVE_CIPHER_RC4         == 0 &&  \
+    HAVE_CIPHER_ASCON128    == 0
 #pragma message ("sqlite3mc_config.h: WARNING - No built-in cipher scheme enabled!")
 #endif
 

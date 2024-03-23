@@ -179,7 +179,7 @@ SQLITE_PRIVATE int sqlite3mcGetMemorySecurity();
 #include "sha1.c"
 #include "sha2.c"
 
-#if HAVE_CIPHER_CHACHA20 || HAVE_CIPHER_SQLCIPHER
+#if HAVE_CIPHER_CHACHA20 || HAVE_CIPHER_SQLCIPHER || HAVE_CIPHER_ASCON128
 #include "fastpbkdf2.c"
 
 /* Prototypes for several crypto functions to make pedantic compilers happy */
