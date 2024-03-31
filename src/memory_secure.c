@@ -101,7 +101,7 @@ static void mcMemoryFree(void* pPrior)
   {
 #if SQLITE3MC_USE_RANDOM_FILL_MEMORY
     int nSize = mcMemorySize(pPrior);
-    mcRandomFill((char*) pPrior, nSize)
+    mcRandomFill((char*) pPrior, nSize);
 #else
     int nSize = mcMemorySize(pPrior);
     sqlite3mcSecureZeroMemory(pPrior, 0, nSize);
