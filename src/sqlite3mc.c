@@ -160,10 +160,6 @@ sqlite3mcVersion(sqlite3_context* context, int argc, sqlite3_value** argv)
 SQLITE_PRIVATE void sqlite3mcSetMemorySecurity(int value);
 SQLITE_PRIVATE int sqlite3mcGetMemorySecurity();
 
-#ifndef SQLITE3MC_USE_RANDOM_FILL_MEMORY
-#define SQLITE3MC_USE_RANDOM_FILL_MEMORY 0
-#endif
-
 /* Memory locking is currently not supported */
 #ifdef SQLITE3MC_ENABLE_MEMLOCK
 #undef SQLITE3MC_ENABLE_MEMLOCK

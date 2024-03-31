@@ -27,7 +27,4 @@ SQLITE3MC_USE_MINIZ ?= 0
 # Set to 1 to enable the PRAGMA
 SQLITE3MC_SECURE_MEMORY ?= 0
 
-# Optionally fill freed memory with random data instead of zeros (Default: 0)
-#SQLITE3MC_USE_RANDOM_FILL_MEMORY ?= 0
-
 ### Configuration dependent settings

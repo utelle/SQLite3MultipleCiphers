@@ -64,7 +64,6 @@ OPTION(SQLITE3MC_USE_SQLCIPHER_LEGACY "Use sqlcipher legacy mode as default" OFF
 
 # Additional memory security (filling freed memory allocations with zeros or random data)
 OPTION(SQLITE3MC_SECURE_MEMORY "Enable pragma to secure freed memory" OFF)
-OPTION(SQLITE3MC_USE_RANDOM_FILL_MEMORY "Fill freed memory with random data" OFF)
 
 # Omit AES hardware support
 OPTION(SQLITE3MC_OMIT_AES_HARDWARE_SUPPORT "Omit AES hardware support" OFF)
@@ -161,12 +160,6 @@ if(SQLITE3MC_SECURE_MEMORY)
   set(SQLITE3MC_BASE_DEFINITIONS 
     ${SQLITE3MC_BASE_DEFINITIONS}
     SQLITE3MC_SECURE_MEMORY=1
-  )
-endif()
-if(SQLITE3MC_USE_RANDOM_FILL_MEMORY)
-  set(SQLITE3MC_BASE_DEFINITIONS 
-    ${SQLITE3MC_BASE_DEFINITIONS}
-    SQLITE3MC_USE_RANDOM_FILL_MEMORY=1
   )
 endif()
 
