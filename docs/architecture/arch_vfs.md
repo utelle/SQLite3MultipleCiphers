@@ -15,11 +15,13 @@ _SQLite's Virtual File System_ is used to access various types of database files
   - Transient database files (Open flag `SQLITE_OPEN_TRANSIENT_DB`)
   - **Main rollback journal files** (Open flag `) SQLITE_OPEN_MAIN_JOURNAL`)
   - Temporary rollback journal files (Open flag `SQLITE_OPEN_TEMP_JOURNAL`)
-  - **Subjournal files** (Open flag `SQLITE_OPEN_SUBJOURNAL`)
+  - _Subjournal files_ (Open flag `SQLITE_OPEN_SUBJOURNAL`)
   - Master journal files (Open flag `SQLITE_OPEN_MASTER_JOURNAL`)
   - **WAL journal files** (Open flag `SQLITE_OPEN_WAL`)
 
-In accordance with the previous implementation of the encryption extension only main database files and journal files (rollback as well as WAL) will be handled (marked in **bold** in the above list). Maybe support for handling encryption for temporary files will be added in the future, if there is a demand. However, based on _SQLite's Virtual File System_ encryption can be supported only for ordinary file based databases, not for memory based databases.
+In accordance with the previous implementation of the encryption extension only main database files and journal files (rollback as well as WAL) will be handled (marked in **bold** in the above list).
+
+Unfortunately, the encryption implementation based on _SQLite's Virtual File System_ can support only databases based on ordinary files, not memory based databases. _SQLite's Virtual File System_ API offers no means to detect the related main database file for temporary files. Therefore adding encryption support for temporary files will be difficult, if at all possible. It is strongly recommended to keep temporary data in memory using the compile time option `SQLITE_TEMP_STORE=2` (which is the default in the current build files) (or even `SQLITE_TEMP_STORE=3`, forcing temporary data to memory unconditionally). `PRAGMA temp_store=MEMORY;` should be used for encrypted databases, if the compile time option `SQLITE_TEMP_STORE` was **not** set to a value of `2` or `3`.
 
 Only the content of database pages will be encrypted. Just as in the previous implementation data structures used for housekeeping of journals will not be encrypted. Details of SQLite's file formats can be found [here](https://sqlite.org/fileformat.html).
 
@@ -34,6 +36,8 @@ On writing only full database pages are written. On reading there are a few spec
 ### Rollback journal files
 
 Rollback journal files mainly consist of a file header and page records. A page record consists of the page number, the page content, and a checksum. Page number, page content, and checksum are read and written separately in the given order. Therefore the page number can be deduced from the read or write operation preceeding the read or write operation for the page content.
+
+_Subjournal files_ are always temporary. Therefore the current implementation can't encrypt them. That is, it is really important to keep temporary data in memory (as mentioned above). 
 
 ### WAL journal files
 

@@ -28,7 +28,9 @@ Note
   1. `TEMP` tables are not encrypted.
   2. In-memory (`":memory:"`) databases are not encrypted.
   3. Bytes 16 through 23 of the database file contain header information that is usually **not** encrypted.
-    
+
+To not compromise security by leaking temporary data to disk, it is very important to keep **all** temporary data in memory. Therefore it is strongly recommended to use the compile time option `SQLITE_TEMP_STORE=2` (which is the default in the current build files) (or even `SQLITE_TEMP_STORE=3`, forcing temporary data to memory unconditionally). `PRAGMA temp_store=MEMORY;` should be used for encrypted databases, if the compile time option `SQLITE_TEMP_STORE` was **not** set to a value of `2` or `3`.
+
 ## Usage
 
 The _SQLite3 Multiple Ciphers_ encryption extension can be used via the C API as well as via SQL.
