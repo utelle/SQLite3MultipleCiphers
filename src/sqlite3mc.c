@@ -113,13 +113,13 @@ void sqlite3mc_shutdown(void);
 #include <windows.h>
 
 /* SQLite functions only needed on Win32 */
-extern SQLITE_API void sqlite3_win32_write_debug(const char*, int);
-extern SQLITE_API char *sqlite3_win32_unicode_to_utf8(LPCWSTR);
-extern SQLITE_API char *sqlite3_win32_mbcs_to_utf8(const char*);
-extern SQLITE_API char *sqlite3_win32_mbcs_to_utf8_v2(const char*, int);
-extern SQLITE_API char *sqlite3_win32_utf8_to_mbcs(const char*);
-extern SQLITE_API char *sqlite3_win32_utf8_to_mbcs_v2(const char*, int);
-extern SQLITE_API LPWSTR sqlite3_win32_utf8_to_unicode(const char*);
+SQLITE_API void sqlite3_win32_write_debug(const char*, int);
+SQLITE_API char *sqlite3_win32_unicode_to_utf8(LPCWSTR);
+SQLITE_API char *sqlite3_win32_mbcs_to_utf8(const char*);
+SQLITE_API char *sqlite3_win32_mbcs_to_utf8_v2(const char*, int);
+SQLITE_API char *sqlite3_win32_utf8_to_mbcs(const char*);
+SQLITE_API char *sqlite3_win32_utf8_to_mbcs_v2(const char*, int);
+SQLITE_API LPWSTR sqlite3_win32_utf8_to_unicode(const char*);
 #endif
 
 /*
