@@ -59,7 +59,7 @@ sqlite3_activate_see(const char *info)
 
 /*
 ** Free the encryption data structure associated with a pager instance.
-** (called from the modified code in pager.c) 
+** (called from the modified code in pager.c)
 */
 SQLITE_PRIVATE void
 sqlite3mcCodecFree(void *pCodecArg)
@@ -411,7 +411,7 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
     sqlite3ErrorWithMsg(db, rc, "Rekeying is not supported in WAL journal mode.");
     return rc;
   }
-  
+
   if ((zKey == NULL || nKey == 0) && (codec == NULL || !sqlite3mcIsEncrypted(codec)))
   {
     /* Database not encrypted and key not specified, therefore do nothing	*/

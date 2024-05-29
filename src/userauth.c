@@ -247,7 +247,7 @@ SQLITE_API int sqlite3_user_add(
   if( db->auth.authLevel<UAUTH_Admin ) return SQLITE_AUTH;
   if( !userTableExists(db, "main") ){
     if( !isAdmin ) return SQLITE_AUTH;
-    pStmt = sqlite3UserAuthPrepare(db, 
+    pStmt = sqlite3UserAuthPrepare(db,
               "CREATE TABLE sqlite_user(\n"
               "  uname TEXT PRIMARY KEY,\n"
               "  isAdmin BOOLEAN,\n"
@@ -258,7 +258,7 @@ SQLITE_API int sqlite3_user_add(
     rc = sqlite3_finalize(pStmt);
     if( rc ) return rc;
   }
-  pStmt = sqlite3UserAuthPrepare(db, 
+  pStmt = sqlite3UserAuthPrepare(db,
             "INSERT INTO sqlite_user(uname,isAdmin,pw)"
             " VALUES(%Q,%d,sqlite_crypt(?1,NULL))",
             zUsername, isAdmin!=0);
@@ -278,7 +278,7 @@ SQLITE_API int sqlite3_user_add(
 ** The sqlite3_user_change() interface can be used to change a users
 ** login credentials or admin privilege.  Any user can change their own
 ** login credentials.  Only an admin user can change another users login
-** credentials or admin privilege setting.  No user may change their own 
+** credentials or admin privilege setting.  No user may change their own
 ** admin privilege setting.
 */
 SQLITE_API int sqlite3_user_change(

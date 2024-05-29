@@ -610,7 +610,7 @@ sqlite3mcConfigureSQLCipherVersion(sqlite3* db, int configDefault, int legacyVer
   static char* defNames[] = { "default:legacy_page_size", "default:kdf_iter", "default:hmac_use", "default:kdf_algorithm", "default:hmac_algorithm", NULL };
   static int versionParams[SQLCIPHER_VERSION_MAX][5] =
   {
-    { 1024,   4000, 0, SQLCIPHER_KDF_ALGORITHM_SHA1,   SQLCIPHER_HMAC_ALGORITHM_SHA1   }, 
+    { 1024,   4000, 0, SQLCIPHER_KDF_ALGORITHM_SHA1,   SQLCIPHER_HMAC_ALGORITHM_SHA1   },
     { 1024,   4000, 1, SQLCIPHER_KDF_ALGORITHM_SHA1,   SQLCIPHER_HMAC_ALGORITHM_SHA1   },
     { 1024,  64000, 1, SQLCIPHER_KDF_ALGORITHM_SHA1,   SQLCIPHER_HMAC_ALGORITHM_SHA1   },
     { 4096, 256000, 1, SQLCIPHER_KDF_ALGORITHM_SHA512, SQLCIPHER_HMAC_ALGORITHM_SHA512 }

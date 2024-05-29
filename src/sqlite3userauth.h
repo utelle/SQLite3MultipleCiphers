@@ -66,7 +66,7 @@ SQLITE_API int sqlite3_user_add(
 ** The sqlite3_user_change() interface can be used to change a users
 ** login credentials or admin privilege.  Any user can change their own
 ** login credentials.  Only an admin user can change another users login
-** credentials or admin privilege setting.  No user may change their own 
+** credentials or admin privilege setting.  No user may change their own
 ** admin privilege setting.
 */
 SQLITE_API int sqlite3_user_change(

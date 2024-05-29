@@ -286,7 +286,7 @@ static size_t entropy(void* buf, size_t n)
 }
 
 #else
-  
+
 #include <windows.h>
 #define RtlGenRandom SystemFunction036
 BOOLEAN NTAPI RtlGenRandom(PVOID RandomBuffer, ULONG RandomBufferLength);

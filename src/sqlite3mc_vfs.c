@@ -213,7 +213,7 @@ static void mcMainListRemove(sqlite3mc_file* pFile)
 }
 
 /*
-** Given that zFileName points to a buffer containing a database file name passed to 
+** Given that zFileName points to a buffer containing a database file name passed to
 ** either the xOpen() or xAccess() VFS method, search the list of main database files
 ** for a file handle opened by the same database connection on the corresponding
 ** database file.
@@ -357,8 +357,8 @@ SQLITE_PRIVATE void* sqlite3mcPagerCodec(PgHdrMC* pPg)
 {
   sqlite3_file* pFile = sqlite3PagerFile(pPg->pPager);
   void* aData = 0;
-  if (pFile->pMethods == &mcIoMethodsGlobal1 || 
-      pFile->pMethods == &mcIoMethodsGlobal2 || 
+  if (pFile->pMethods == &mcIoMethodsGlobal1 ||
+      pFile->pMethods == &mcIoMethodsGlobal2 ||
       pFile->pMethods == &mcIoMethodsGlobal3)
   {
     sqlite3mc_file* mcFile = (sqlite3mc_file*) pFile;

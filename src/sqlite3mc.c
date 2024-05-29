@@ -128,7 +128,7 @@ SQLITE_API LPWSTR sqlite3_win32_utf8_to_unicode(const char*);
 #include "sqlite3patched.c"
 
 /*
-** Include SQLite3MultiCipher components 
+** Include SQLite3MultiCipher components
 */
 #include "sqlite3mc_config.h"
 #include "sqlite3mc.h"

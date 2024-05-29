@@ -55,7 +55,7 @@ typedef sqlite3_uint64 uint64;
   #define li_64(h) 0x##h##ui64
 #else
   #define li_64(h) 0x##h##ull
-#endif 
+#endif
 
 #if 0  /* Start of original int64 defines */
 

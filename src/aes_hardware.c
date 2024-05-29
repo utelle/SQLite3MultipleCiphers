@@ -198,7 +198,7 @@ aesGenKeyEncrypt(const unsigned char* userKey, const int bits, unsigned char* ke
 {
   int numberOfRounds = (bits == 128) ? 10 : (bits == 192) ? 12 : (bits == 256) ? 14 : 0;
   int rc = (!userKey || !keyData) ? -1 : (numberOfRounds > 0) ? 0 : -2;
-  
+
   if (rc == 0)
   {
     __m128i tempKey[_MAX_ROUNDS + 1];
@@ -347,7 +347,7 @@ aesDecryptCBC(const unsigned char* in,
     int offset;
     --numBlocks;
     offset = numBlocks * 16;
- 
+
     /* Decrypt the last plain block. */
     last_in = _mm_loadu_si128(&((__m128i*) in)[numBlocks]);
     data = _mm_xor_si128(last_in, key[numberOfRounds - 0]);
@@ -477,7 +477,7 @@ aesGenKeyEncryptInternal(const unsigned char* userKey, const int bits, uint8x16_
   int i;
   int j;
   int numberOfRounds = (bits == 128) ? 10 : (bits == 192) ? 12 : (bits == 256) ? 14 : 0;
-  int keyWords = bits / 32;  
+  int keyWords = bits / 32;
   int schedWords = (numberOfRounds + 1) * 4;
 
   /*
@@ -538,7 +538,7 @@ aesGenKeyEncrypt(const unsigned char* userKey, const int bits, unsigned char* ke
 {
   int numberOfRounds = (bits == 128) ? 10 : (bits == 192) ? 12 : (bits == 256) ? 14 : 0;
   int rc = (!userKey || !keyData) ? -1 : (numberOfRounds > 0) ? 0 : -2;
-  
+
   if (rc == 0)
   {
     uint8x16_t tempKey[_MAX_ROUNDS + 1];
@@ -648,7 +648,7 @@ aesEncryptCBC(const unsigned char* in,
     }
     feedback = vaeseq_u8(feedback, key[numberOfRounds-1]);
     feedback = veorq_u8(feedback, key[numberOfRounds]);                          \
-    
+
     vst1q_u8(&out[(numBlocks-1)*16], feedback);
 
     memcpy(&out[numBlocks*16], lastblock, lenFrag);
@@ -689,7 +689,7 @@ aesDecryptCBC(const unsigned char* in,
     int offset;
     --numBlocks;
     offset = numBlocks * 16;
- 
+
     /* Decrypt the last plain block. */
     last_in = vld1q_u8(&in[numBlocks*16]);
 

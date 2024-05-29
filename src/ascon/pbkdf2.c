@@ -73,7 +73,7 @@ static void ascon_pbkdf2_f(ascon_state_t* state,
   memset(temp, 0, ASCON_SALT_LEN);
   memcpy(temp, salt, asconSaltLen);
   STORE32_BE(temp+ASCON_SALT_LEN, blocknum);
-  
+
   /* Copy initial state */
   for (j = 0; j < 5; ++j) state2.x[j] = state->x[j];
 
