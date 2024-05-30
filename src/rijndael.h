@@ -116,13 +116,13 @@ typedef unsigned short UINT16;
 */
 
 typedef struct _Rijndael
-{	
-	int     m_state;
-	int     m_mode;
-	int     m_direction;
-	UINT8   m_initVector[MAX_IV_SIZE];
-	UINT32  m_uRounds;
-	UINT8   m_expandedKey[_MAX_ROUNDS+1][4][4];
+{  
+  int     m_state;
+  int     m_mode;
+  int     m_direction;
+  UINT8   m_initVector[MAX_IV_SIZE];
+  UINT32  m_uRounds;
+  UINT8   m_expandedKey[_MAX_ROUNDS+1][4][4];
 } Rijndael;
 
 void RijndaelCreate(Rijndael* rijndael);
@@ -190,5 +190,5 @@ void RijndaelKeySched(Rijndael* rijndael, UINT8 key[_MAX_KEY_COLUMNS][4]);
 void RijndaelKeyEncToDec(Rijndael* rijndael);
 void RijndaelEncrypt(Rijndael* rijndael, UINT8 a[16], UINT8 b[16]);
 void RijndaelDecrypt(Rijndael* rijndael, UINT8 a[16], UINT8 b[16]);
-	
+
 #endif /* _RIJNDAEL_H_ */

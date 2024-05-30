@@ -414,7 +414,7 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
 
   if ((zKey == NULL || nKey == 0) && (codec == NULL || !sqlite3mcIsEncrypted(codec)))
   {
-    /* Database not encrypted and key not specified, therefore do nothing	*/
+    /* Database not encrypted and key not specified, therefore do nothing */
     return SQLITE_OK;
   }
 
@@ -422,7 +422,7 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
 
   if (codec == NULL || !sqlite3mcIsEncrypted(codec))
   {
-    /* Database not encrypted, but key specified, therefore encrypt database	*/
+    /* Database not encrypted, but key specified, therefore encrypt database */
     if (codec == NULL)
     {
       codec = (Codec*) sqlite3_malloc(sizeof(Codec));

@@ -323,6 +323,7 @@ SQLITE_PRIVATE void sqlite3mcSetCodec(sqlite3* db, const char* zDbName, const ch
   {
     Codec* prevCodec = pDbMain->codec;
     Codec* msgCodec = (codec) ? codec : prevCodec;
+    pDbMain->codec = codec;
     if (msgCodec)
     {
       /* Reset error state of pager */
@@ -335,7 +336,6 @@ SQLITE_PRIVATE void sqlite3mcSetCodec(sqlite3* db, const char* zDbName, const ch
       */
       sqlite3mcCodecFree(prevCodec);
     }
-    pDbMain->codec = codec;
   }
   else
   {
