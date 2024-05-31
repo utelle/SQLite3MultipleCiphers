@@ -55,16 +55,17 @@ Step 1 is only required, if a non-default encryption scheme should be used. Step
 
 ---
 
-### PRAGMA *key*
+### PRAGMA *key* / *hexkey*
 
-For creating a new, encrypted database or accessing an already encrypted database it is necessary to specify at least the _encryption key_. This can be done with the `PRAGMA key` statement, which has the following syntax:
+For creating a new, encrypted database or accessing an already encrypted database it is necessary to specify at least the _encryption key_. This can be done with the `PRAGMA key` resp `PRAGMA hexkey` statement, which has the following syntax:
 
 ```sql
-PRAGMA key = { passphrase | 'passphrase' | "passphrase" };
+PRAGMA key = { passphrase | 'passphrase' };
+PRAGMA hexkey = { hex-passphrase | 'hex-passphrase' };
 ```
 Note
 {: .label .label-red .ml-0 .mb-1 .mt-2 }
-The unquoted variant for the _passphrase_ is only valid, if the passphrase does not contain any whitespace characters.
+The unquoted variant for the _passphrase_ is only valid, if the passphrase does not contain any whitespace characters. The key pragma only works with string keys. If you use a binary key, use the hexkey pragma instead.
 
 <span class="label label-green">Example 1:</span> _Passphrase with key derivation_
 
@@ -72,6 +73,7 @@ Typically the key value is a passphrase, from which the actual encryption key is
 
 ```sql
 PRAGMA key = 'My very secret passphrase';
+PRAGMA hexkey='796f75722d7365637265742d6b6579';
 ```
 <span class="label label-green">Example 2:</span> _Raw key data (without key derivation)_
 
@@ -105,18 +107,19 @@ Currently only the cipher schemes [sqleet: ChaCha20]({{ site.baseurl }}{% link d
 
 ---
 
-### PRAGMA *rekey*
+### PRAGMA *rekey* / *hexrekey*
 
-The `PRAGMA rekey` statement has 3 use cases:
+The `PRAGMA rekey` resp `PRAGMA hexrekey` statement has 3 use cases:
 
 1. Encrypt an existing unencrypted database
 2. Change the encryption key of an existing encrypted database
 3. Remove encryption from an existing encrypted database
 
-The `PRAGMA rekey` statement has the following syntax:
+The `PRAGMA rekey` resp `PRAGMA hexrekey` statement has the following syntax:
 
 ```sql
-PRAGMA rekey = { passphrase | 'passphrase' | "passphrase" };
+PRAGMA rekey = { passphrase | 'passphrase' };
+PRAGMA hexrekey = { hex-passphrase | 'hex-passphrase' };
 ```
 Note
 {: .label .label-red .ml-0 .mb-1 .mt-2 }
@@ -128,6 +131,7 @@ To change the passphrase of an encrypted database the `PRAGMA rekey` statement i
 
 ```sql
 PRAGMA rekey = 'My changed secret passphrase';
+PRAGMA hexrekey='796f75722d7365637265742d6b6579';
 ```
 
 <span class="label label-green">Example 2:</span> _Remove encryption_
