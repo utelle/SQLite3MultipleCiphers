@@ -65,7 +65,7 @@ PRAGMA hexkey = { hex-passphrase | 'hex-passphrase' };
 ```
 Note
 {: .label .label-red .ml-0 .mb-1 .mt-2 }
-The unquoted variant for the _passphrase_ is only valid, if the passphrase does not contain any whitespace characters. The key pragma only works with string keys. If you use a binary key, use the hexkey pragma instead.
+The unquoted variant for the _passphrase_ is only valid, if the passphrase does not contain any whitespace characters. The _key_ pragma only works with string keys. If you use a binary key, use the _hexkey_ pragma instead.
 
 <span class="label label-green">Example 1:</span> _Passphrase with key derivation_
 
@@ -123,7 +123,7 @@ PRAGMA hexrekey = { hex-passphrase | 'hex-passphrase' };
 ```
 Note
 {: .label .label-red .ml-0 .mb-1 .mt-2 }
-The unquoted variant for the _passphrase_ is only valid, if the passphrase does not contain any whitespace characters.
+The unquoted variant for the _passphrase_ is only valid, if the passphrase does not contain any whitespace characters. The _rekey_ pragma only works with string keys. If you use a binary key, use the _hexrekey_ pragma instead.
 
 <span class="label label-green">Example 1:</span> _Change passphrase_
 
