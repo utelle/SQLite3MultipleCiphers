@@ -67,6 +67,11 @@ Note
 {: .label .label-red .ml-0 .mb-1 .mt-2 }
 The unquoted variant for the _passphrase_ is only valid, if the passphrase does not contain any whitespace characters. The _key_ pragma only works with string keys. If you use a binary key, use the _hexkey_ pragma instead.
 
+Notes
+{: .label .label-red .ml-0 .mb-1 .mt-2 }
+- These pragmas return `ok` even if the provided key isn't correct. This is because the key isn't actually used until a subsequent attempt to read or write the database is made. To check whether the provided key was actually correct, you must execute a simple query like e.g. `SELECT * FROM sqlite_master;` and check whether that succeeds.
+- When setting a new key on an empty database (that is, a database with zero bytes length), you have to make a subsequent write access so that the database will actually be encrypted. You'd usually want to write to a new database anyway, but if not, you can execute the [VACUUM](https://www.sqlite.org/lang_vacuum.html) statement instead to force SQLite to write to the empty database.
+
 <span class="label label-green">Example 1:</span> _Passphrase with key derivation_
 
 Typically the key value is a passphrase, from which the actual encryption key is derived.
