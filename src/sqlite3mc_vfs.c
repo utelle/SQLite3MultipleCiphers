@@ -301,6 +301,29 @@ SQLITE_PRIVATE Codec* sqlite3mcGetMainCodec(sqlite3* db)
   return sqlite3mcGetCodec(db, "main");
 }
 
+SQLITE_PRIVATE int sqlite3mcIsBackupSupported(sqlite3* pSrc, const char* zSrc, sqlite3* pDest, const char* zDest)
+{
+  int ok = 1;
+  if (pSrc != pDest)
+  {
+    Codec* codecSrc = sqlite3mcGetCodec(pSrc, zSrc);
+    Codec* codecDest = sqlite3mcGetCodec(pDest, zDest);
+    if (codecSrc && codecDest)
+    {
+      /* Both databases have a codec */
+      ok = sqlite3mcIsEncrypted(codecSrc) && sqlite3mcIsEncrypted(codecDest) &&
+           (sqlite3mcGetReadReserved(codecSrc) == sqlite3mcGetWriteReserved(codecDest));
+    }
+    else
+    {
+      /* At least one database has no codec */
+      /* Backup supported if both databases are plain databases */
+      ok = !codecSrc && !codecDest;
+    }
+  }
+  return ok;
+}
+
 /*
 ** Set the codec of the database file with the given database file name.
 **
