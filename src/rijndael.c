@@ -1003,11 +1003,13 @@ static UINT32 rcon[30]=
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 */
 
+SQLITE_PRIVATE
 void RijndaelCreate(Rijndael* rijndael)
 {
    rijndael->m_state = RIJNDAEL_State_Invalid;
 }
 
+SQLITE_PRIVATE
 int RijndaelInit(Rijndael* rijndael, int mode, int dir, UINT8* key, int keyLen, UINT8* initVector)
 {
   UINT32 uKeyLenInBytes;
@@ -1252,6 +1254,7 @@ int RijndaelBlockEncrypt(Rijndael* rijndael, UINT8* input, int inputLen, UINT8* 
   return 128 * numBlocks;
 }
 
+SQLITE_PRIVATE
 int RijndaelPadEncrypt(Rijndael* rijndael, UINT8 *input, int inputOctets, UINT8 *outBuffer)
 {
   int i, numBlocks, padLen;
@@ -1310,6 +1313,7 @@ int RijndaelPadEncrypt(Rijndael* rijndael, UINT8 *input, int inputOctets, UINT8 
   return 16*(numBlocks + 1);
 }
 
+SQLITE_PRIVATE
 int RijndaelBlockDecrypt(Rijndael* rijndael, UINT8* input, int inputLen, UINT8* outBuffer)
 {
   int i, k, numBlocks, lenFrag;
@@ -1471,6 +1475,7 @@ int RijndaelBlockDecrypt(Rijndael* rijndael, UINT8* input, int inputLen, UINT8* 
   return 128*numBlocks;
 }
 
+SQLITE_PRIVATE
 int RijndaelPadDecrypt(Rijndael* rijndael, UINT8 *input, int inputOctets, UINT8 *outBuffer)
 {
   int i, numBlocks, padLen;
@@ -1549,6 +1554,7 @@ int RijndaelPadDecrypt(Rijndael* rijndael, UINT8 *input, int inputOctets, UINT8 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 */
 
+SQLITE_PRIVATE
 void RijndaelKeySched(Rijndael* rijndael, UINT8 key[_MAX_KEY_COLUMNS][4])
 {
   int j,rconpointer = 0;
@@ -1629,6 +1635,7 @@ void RijndaelKeySched(Rijndael* rijndael, UINT8 key[_MAX_KEY_COLUMNS][4])
   }
 }
 
+SQLITE_PRIVATE
 void RijndaelKeyEncToDec(Rijndael* rijndael)
 {
   UINT32 r;
@@ -1647,6 +1654,7 @@ void RijndaelKeyEncToDec(Rijndael* rijndael)
   }
 }
 
+SQLITE_PRIVATE
 void RijndaelEncrypt(Rijndael* rijndael, UINT8 a[16], UINT8 b[16])
 {
   UINT32 r;
@@ -1722,6 +1730,7 @@ void RijndaelEncrypt(Rijndael* rijndael, UINT8 a[16], UINT8 b[16])
   *((UINT32*)(b+12)) ^= *((UINT32*)rijndael->m_expandedKey[rijndael->m_uRounds][3]);
 }
 
+SQLITE_PRIVATE
 void RijndaelDecrypt(Rijndael* rijndael, UINT8 a[16], UINT8 b[16])
 {
   int r;
@@ -1798,6 +1807,7 @@ void RijndaelDecrypt(Rijndael* rijndael, UINT8 a[16], UINT8 b[16])
   *((UINT32*)(b+12)) ^= *((UINT32*)rijndael->m_expandedKey[0][3]);
 }
 
+SQLITE_PRIVATE
 void RijndaelInvalidate(Rijndael* rijndael)
 {
   rijndael->m_state = RIJNDAEL_State_Invalid;

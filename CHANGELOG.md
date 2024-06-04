@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Removed extern keyword in function declarations
+- Cleaned up white space
+- Added SQLITE_PRIVATE for several internal functions
+- The cipher configuration parameter `legacy_page_size` now accepts only valid page sizes
+
+### Fixed
+
+- Fixed issue [#156](../../issues/156)) - corrupted database if MMAP_SIZE > 0 was used
+- Fixed issue [#158](../../issues/158)) - add check to verify compatibility of source and target database in backup operation
+- Fixed issue [#160](../../issues/160)) - fix accessing memory out of array bounds
+- Fixed issue [#162](../../issues/162)) - fix loading/storing misaligned data
+- Fixed issue [#166](../../issues/166)) - missing attribute SQLITE_PRIVATE for several internal functions
+
 ## [1.8.5] - 2024-05-24
 
 ### Changed

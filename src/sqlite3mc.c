@@ -51,8 +51,15 @@
 #define SQLITE_EXTRA_INIT sqlite3mc_initialize
 #define SQLITE_EXTRA_SHUTDOWN sqlite3mc_shutdown
 
-int sqlite3mc_initialize(const char* arg);
-void sqlite3mc_shutdown(void);
+/*
+** Declare all internal functions as 'static' unless told otherwise
+*/
+#ifndef SQLITE_PRIVATE
+#define SQLITE_PRIVATE static
+#endif
+
+SQLITE_PRIVATE int sqlite3mc_initialize(const char* arg);
+SQLITE_PRIVATE void sqlite3mc_shutdown(void);
 
 /*
 ** To enable the extension functions define SQLITE_ENABLE_EXTFUNC on compiling this module
@@ -179,10 +186,10 @@ SQLITE_PRIVATE int sqlite3mcGetMemorySecurity();
 #include "fastpbkdf2.c"
 
 /* Prototypes for several crypto functions to make pedantic compilers happy */
-void chacha20_xor(void* data, size_t n, const uint8_t key[32], const uint8_t nonce[12], uint32_t counter);
-void poly1305(const uint8_t* msg, size_t n, const uint8_t key[32], uint8_t tag[16]);
-int poly1305_tagcmp(const uint8_t tag1[16], const uint8_t tag2[16]);
-void chacha20_rng(void* out, size_t n);
+SQLITE_PRIVATE void chacha20_xor(void* data, size_t n, const uint8_t key[32], const uint8_t nonce[12], uint32_t counter);
+SQLITE_PRIVATE void poly1305(const uint8_t* msg, size_t n, const uint8_t key[32], uint8_t tag[16]);
+SQLITE_PRIVATE int poly1305_tagcmp(const uint8_t tag1[16], const uint8_t tag2[16]);
+SQLITE_PRIVATE void chacha20_rng(void* out, size_t n);
 
 #include "chacha20poly1305.c"
 #endif
@@ -661,7 +668,7 @@ sqlite3mcTermCipherTables()
   globalCipherCount = 0;
 }
 
-int
+SQLITE_PRIVATE int
 sqlite3mc_initialize(const char* arg)
 {
   int rc = sqlite3mcInitCipherTables();
@@ -793,7 +800,7 @@ sqlite3mc_initialize(const char* arg)
   return rc;
 }
 
-void
+SQLITE_PRIVATE void
 sqlite3mc_shutdown(void)
 {
   sqlite3mc_vfs_shutdown();

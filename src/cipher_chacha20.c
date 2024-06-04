@@ -274,7 +274,8 @@ EncryptPageChaCha20Cipher(void* cipher, int page, unsigned char* data, int len, 
   return rc;
 }
 
-int chacha20_ismemset(const void* v, unsigned char value, int len)
+static int
+chacha20_ismemset(const void* v, unsigned char value, int len)
 {
   const unsigned char* a = v;
   int i = 0, result = 0;

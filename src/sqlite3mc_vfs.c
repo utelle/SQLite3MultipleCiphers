@@ -310,8 +310,9 @@ SQLITE_PRIVATE int sqlite3mcIsBackupSupported(sqlite3* pSrc, const char* zSrc, s
     Codec* codecDest = sqlite3mcGetCodec(pDest, zDest);
     if (codecSrc && codecDest)
     {
-      /* Both databases have a codec */
+      /* Both databases have a codec, are encrypted, and have the same page size */
       ok = sqlite3mcIsEncrypted(codecSrc) && sqlite3mcIsEncrypted(codecDest) &&
+           (sqlite3mcGetPageSizeReadCipher(codecSrc) == sqlite3mcGetPageSizeWriteCipher(codecDest)) &&
            (sqlite3mcGetReadReserved(codecSrc) == sqlite3mcGetWriteReserved(codecDest));
     }
     else
