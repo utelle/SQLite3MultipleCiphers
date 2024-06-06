@@ -378,6 +378,7 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
   int nReserved;
   Pager* pPager;
   Codec* codec;
+  int codecAllocated = 0;
   int rc = SQLITE_ERROR;
   if (zKey != NULL && nKey < 0)
   {
@@ -425,6 +426,7 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
     /* Database not encrypted, but key specified, therefore encrypt database */
     if (codec == NULL)
     {
+      codecAllocated = 1;
       codec = (Codec*) sqlite3_malloc(sizeof(Codec));
       rc = (codec != NULL) ? sqlite3mcCodecInit(codec) : SQLITE_NOMEM;
     }
@@ -469,6 +471,11 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
     }
     else
     {
+      sqlite3_mutex_leave(db->mutex);
+      if (codecAllocated)
+      {
+        sqlite3mcCodecFree(codec);
+      }
       return rc;
     }
   }
@@ -578,13 +585,21 @@ leave_rekey:
     /* Set read key equal to write key if necessary */
     if (sqlite3mcHasWriteCipher(codec))
     {
+      /* Set Read cipher equal to Write cipher */
       sqlite3mcCopyCipher(codec, 0);
       sqlite3mcSetHasReadCipher(codec, 1);
+
+      /* Enforce page size and number of reserved bytes per page */
+      int pageSize = sqlite3mcGetPageSizeWriteCipher(codec);
+      int reserved = sqlite3mcGetReservedWriteCipher(codec);
+      mcAdjustBtree(pBt, pageSize, reserved, sqlite3mcGetLegacyWriteCipher(codec));
+      sqlite3mcCodecSizeChange(codec, pageSize, reserved);
     }
     else
     {
       sqlite3mcSetIsEncrypted(codec, 0);
     }
+    mcReportCodecError(sqlite3mcGetBtShared(codec), rc);
   }
   else
   {

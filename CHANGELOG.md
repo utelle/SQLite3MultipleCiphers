@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed issue [#158](../../issues/158)) - add check to verify compatibility of source and target database in backup operation
 - Fixed issue [#160](../../issues/160)) - fix accessing memory out of array bounds
 - Fixed issue [#162](../../issues/162)) - fix loading/storing misaligned data
+- Fixed issue [#165](../../issues/165)) - fix rekey function by enforcing page size and number of reserved bytes per page
 - Fixed issue [#166](../../issues/166)) - missing attribute SQLITE_PRIVATE for several internal functions
 
 ## [1.8.5] - 2024-05-24
