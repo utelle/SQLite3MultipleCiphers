@@ -341,7 +341,7 @@ SQLITE_PRIVATE void sqlite3mcSetCodec(sqlite3* db, const char* zDbName, const ch
   sqlite3mc_vfs* pVfsMC = mcFindVfs(db, zDbName);
   if (pVfsMC)
   {
-    pDbMain = mcFindDbMainFileName((sqlite3mc_vfs*)(db->pVfs), zFileName);
+    pDbMain = mcFindDbMainFileName(pVfsMC, zFileName);
   }
   if (pDbMain)
   {
