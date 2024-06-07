@@ -338,6 +338,8 @@ GetHmacSizeSQLCipherCipher(int algorithm)
       hmacSize = SHA1_DIGEST_SIZE;
       break;
     case SQLCIPHER_HMAC_ALGORITHM_SHA256:
+      hmacSize = SHA256_DIGEST_SIZE;
+      break;
     case SQLCIPHER_HMAC_ALGORITHM_SHA512:
     default:
       hmacSize = SHA512_DIGEST_SIZE;

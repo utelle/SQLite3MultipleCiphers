@@ -189,12 +189,16 @@ sqlite3mc_cipher_name(int cipherIndex)
 }
 
 static
-int checkLegacyPageSize(const char* paramName, int pageSize)
+int checkParameterValue(const char* paramName, int value)
 {
   int ok = 1;
-  if (sqlite3_stricmp(paramName, "legacy_page_size") == 0 && pageSize > 0)
+  if (sqlite3_stricmp(paramName, "legacy_page_size") == 0 && value > 0)
   {
-    ok = pageSize >= 512 && pageSize <= SQLITE_MAX_PAGE_SIZE && ((pageSize - 1) & pageSize) == 0;
+    ok = value >= 512 && value <= SQLITE_MAX_PAGE_SIZE && ((value - 1) & value) == 0;
+  }
+  if (ok && sqlite3_stricmp(paramName, "plaintext_header_size") == 0 && value > 0)
+  {
+    ok = value % 16 == 0;
   }
   return ok;
 }
@@ -306,7 +310,7 @@ sqlite3mc_config_cipher(sqlite3* db, const char* cipherName, const char* paramNa
       if (!hasMinPrefix && !hasMaxPrefix)
       {
         if (newValue >= 0 && newValue >= param->m_minValue && newValue <= param->m_maxValue &&
-            checkLegacyPageSize(paramName, newValue))
+            checkParameterValue(paramName, newValue))
         {
           if (hasDefaultPrefix)
           {

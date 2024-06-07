@@ -428,22 +428,22 @@ sqlite3mcGetPageSizeWriteCipher(Codec* codec)
 SQLITE_PRIVATE int
 sqlite3mcGetReservedReadCipher(Codec* codec)
 {
-  int reserved = (codec->m_hasReadCipher  && codec->m_readCipher != NULL) ? globalCodecDescriptorTable[codec->m_readCipherType-1].m_getReserved(codec->m_readCipher) : -1;
+  int reserved = (codec->m_hasReadCipher  && codec->m_readCipher != NULL) ? globalCodecDescriptorTable[codec->m_readCipherType-1].m_getReserved(codec->m_readCipher) : 0;
   return reserved;
 }
 
 SQLITE_PRIVATE int
 sqlite3mcGetReservedWriteCipher(Codec* codec)
 {
-  int reserved = (codec->m_hasWriteCipher && codec->m_writeCipher != NULL) ? globalCodecDescriptorTable[codec->m_writeCipherType-1].m_getReserved(codec->m_writeCipher) : -1;
+  int reserved = (codec->m_hasWriteCipher && codec->m_writeCipher != NULL) ? globalCodecDescriptorTable[codec->m_writeCipherType-1].m_getReserved(codec->m_writeCipher) : 0;
   return reserved;
 }
 
 SQLITE_PRIVATE int
 sqlite3mcReservedEqual(Codec* codec)
 {
-  int readReserved  = (codec->m_hasReadCipher  && codec->m_readCipher  != NULL) ? globalCodecDescriptorTable[codec->m_readCipherType-1].m_getReserved(codec->m_readCipher)   : -1;
-  int writeReserved = (codec->m_hasWriteCipher && codec->m_writeCipher != NULL) ? globalCodecDescriptorTable[codec->m_writeCipherType-1].m_getReserved(codec->m_writeCipher) : -1;
+  int readReserved  = (codec->m_hasReadCipher  && codec->m_readCipher  != NULL) ? globalCodecDescriptorTable[codec->m_readCipherType-1].m_getReserved(codec->m_readCipher)   : 0;
+  int writeReserved = (codec->m_hasWriteCipher && codec->m_writeCipher != NULL) ? globalCodecDescriptorTable[codec->m_writeCipherType-1].m_getReserved(codec->m_writeCipher) : 0;
   return (readReserved == writeReserved);
 }
 

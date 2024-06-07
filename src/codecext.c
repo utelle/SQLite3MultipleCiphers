@@ -380,6 +380,8 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
   Codec* codec;
   int codecAllocated = 0;
   int rc = SQLITE_ERROR;
+  char* err = NULL;
+
   if (zKey != NULL && nKey < 0)
   {
     /* Key is zero-terminated string */
@@ -450,14 +452,9 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
         if (nReserved != nReservedWriteCipher)
         {
           /* Use VACUUM to change the number of reserved bytes */
-          char* err = NULL;
           sqlite3mcSetReadReserved(codec, nReserved);
           sqlite3mcSetWriteReserved(codec, nReservedWriteCipher);
           rc = sqlite3mcRunVacuumForRekey(&err, db, dbIndex, NULL, nReservedWriteCipher);
-          if (rc != SQLITE_OK && err != NULL)
-          {
-            sqlite3ErrorWithMsg(db, rc, err);
-          }
           goto leave_rekey;
         }
       }
@@ -465,7 +462,7 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
       {
         /* Pagesize cannot be changed for an encrypted database */
         rc = SQLITE_ERROR;
-        sqlite3ErrorWithMsg(db, rc, "Rekeying failed. Pagesize cannot be changed for an encrypted database.");
+        err = "Rekeying failed. Pagesize cannot be changed for an encrypted database.";
         goto leave_rekey;
       }
     }
@@ -491,10 +488,6 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
       sqlite3mcSetReadReserved(codec, nReserved);
       sqlite3mcSetWriteReserved(codec, 0);
       rc = sqlite3mcRunVacuumForRekey(&err, db, dbIndex, NULL, 0);
-      if (rc != SQLITE_OK && err != NULL)
-      {
-        sqlite3ErrorWithMsg(db, rc, err);
-      }
       goto leave_rekey;
     }
   }
@@ -516,10 +509,6 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
           sqlite3mcSetReadReserved(codec, nReserved);
           sqlite3mcSetWriteReserved(codec, nReservedWriteCipher);
           rc = sqlite3mcRunVacuumForRekey(&err, db, dbIndex, NULL, nReservedWriteCipher);
-          if (rc != SQLITE_OK && err != NULL)
-          {
-            sqlite3ErrorWithMsg(db, rc, err);
-          }
           goto leave_rekey;
         }
       }
@@ -527,14 +516,14 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
       {
         /* Pagesize cannot be changed for an encrypted database */
         rc = SQLITE_ERROR;
-        sqlite3ErrorWithMsg(db, rc, "Rekeying failed. Pagesize cannot be changed for an encrypted database.");
+        err = "Rekeying failed. Pagesize cannot be changed for an encrypted database.";
         goto leave_rekey;
       }
     }
     else
     {
       /* Setup of write cipher failed */
-      sqlite3ErrorWithMsg(db, rc, "Rekeying failed. Setup of write cipher failed.");
+      err = "Rekeying failed. Setup of write cipher failed.";
       goto leave_rekey;
     }
   }
@@ -599,7 +588,6 @@ leave_rekey:
     {
       sqlite3mcSetIsEncrypted(codec, 0);
     }
-    mcReportCodecError(sqlite3mcGetBtShared(codec), rc);
   }
   else
   {
@@ -621,6 +609,10 @@ leave_rekey:
   {
     /* Remove codec for unencrypted database */
     sqlite3mcSetCodec(db, zDbName, dbFileName, NULL);
+  }
+  if (rc != SQLITE_OK && err != NULL)
+  {
+    sqlite3ErrorWithMsg(db, rc, err);
   }
   return rc;
 }
