@@ -560,7 +560,7 @@ static int seriesBestIndex(
     return SQLITE_CONSTRAINT;
   }
   if( (idxNum & 0x03)==0x03 ){
-    /* Both start= and stop= boundaries are available.  This is the 
+    /* Both start= and stop= boundaries are available.  This is the
     ** the preferred case */
     pIdxInfo->estimatedCost = (double)(2 - ((idxNum&4)!=0));
     pIdxInfo->estimatedRows = 1000;
@@ -586,7 +586,7 @@ static int seriesBestIndex(
 }
 
 /*
-** This following structure defines all the methods for the 
+** This following structure defines all the methods for the
 ** generate_series virtual table.
 */
 static sqlite3_module seriesModule = {
@@ -623,8 +623,8 @@ static sqlite3_module seriesModule = {
 __declspec(dllexport)
 #endif
 int sqlite3_series_init(
-  sqlite3 *db, 
-  char **pzErrMsg, 
+  sqlite3 *db,
+  char **pzErrMsg,
   const sqlite3_api_routines *pApi
 ){
   int rc = SQLITE_OK;

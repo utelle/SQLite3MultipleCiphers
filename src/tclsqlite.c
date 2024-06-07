@@ -1057,7 +1057,7 @@ static void tclSqlFunc(sqlite3_context *context, int argc, sqlite3_value**argv){
         eType = SQLITE_BLOB;
       }else if( (c=='b' && strcmp(zType,"boolean")==0)
              || (c=='w' && strcmp(zType,"wideInt")==0)
-             || (c=='i' && strcmp(zType,"int")==0) 
+             || (c=='i' && strcmp(zType,"int")==0)
       ){
         eType = SQLITE_INTEGER;
       }else if( c=='d' && strcmp(zType,"double")==0 ){
@@ -1857,9 +1857,9 @@ static int SQLITE_TCLAPI DbEvalNextCmd(
       if( pArray==0 ){
         Tcl_ObjSetVar2(interp, apColName[i], 0, dbEvalColumnValue(p,i), 0);
       }else if( (p->evalFlags & SQLITE_EVAL_WITHOUTNULLS)!=0
-             && sqlite3_column_type(p->pPreStmt->pStmt, i)==SQLITE_NULL 
+             && sqlite3_column_type(p->pPreStmt->pStmt, i)==SQLITE_NULL
       ){
-        Tcl_UnsetVar2(interp, Tcl_GetString(pArray), 
+        Tcl_UnsetVar2(interp, Tcl_GetString(pArray),
                       Tcl_GetString(apColName[i]), 0);
       }else{
         Tcl_ObjSetVar2(interp, pArray, apColName[i], dbEvalColumnValue(p,i), 0);
@@ -1971,7 +1971,7 @@ static int SQLITE_TCLAPI DbObjCmd(
     "timeout",                "total_changes",         "trace",
     "trace_v2",               "transaction",           "unlock_notify",
     "update_hook",            "version",               "wal_hook",
-    0                        
+    0
   };
   enum DB_enum {
     DB_AUTHORIZER,            DB_BACKUP,               DB_BIND_FALLBACK,
@@ -2117,7 +2117,7 @@ static int SQLITE_TCLAPI DbObjCmd(
   ** value of the CALLBACK as the binding.  If CALLBACK returns something
   ** other than TCL_OK or TCL_ERROR then bind a NULL.
   **
-  ** If CALLBACK is an empty string, then revert to the default behavior 
+  ** If CALLBACK is an empty string, then revert to the default behavior
   ** which is to set the binding to NULL.
   **
   ** If CALLBACK returns an error, that causes the statement execution to
@@ -2711,7 +2711,7 @@ static int SQLITE_TCLAPI DbObjCmd(
     }
 deserialize_error:
 #endif
-    break; 
+    break;
   }
 
   /*
@@ -2821,7 +2821,7 @@ deserialize_error:
       objv++;
     }
     if( objc<3 || objc>5 ){
-      Tcl_WrongNumArgs(interp, 2, objv, 
+      Tcl_WrongNumArgs(interp, 2, objv,
           "?OPTIONS? SQL ?ARRAY-NAME? ?SCRIPT?");
       return TCL_ERROR;
     }
@@ -3224,7 +3224,7 @@ deserialize_error:
   /*
   **     $db serialize ?DATABASE?
   **
-  ** Return a serialization of a database.  
+  ** Return a serialization of a database.
   */
   case DB_SERIALIZE: {
 #ifdef SQLITE_OMIT_DESERIALIZE
@@ -3550,7 +3550,7 @@ deserialize_error:
   */
   case DB_PREUPDATE: {
 #ifndef SQLITE_ENABLE_PREUPDATE_HOOK
-    Tcl_AppendResult(interp, "preupdate_hook was omitted at compile-time", 
+    Tcl_AppendResult(interp, "preupdate_hook was omitted at compile-time",
                      (char*)0);
     rc = TCL_ERROR;
 #else
@@ -3689,7 +3689,7 @@ deserialize_error:
         return TCL_ERROR;
       }
     }
-    if( i==2 ){   
+    if( i==2 ){
       Tcl_SetResult(interp, (char *)sqlite3_libversion(), TCL_STATIC);
     }
     break;

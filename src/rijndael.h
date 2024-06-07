@@ -120,7 +120,7 @@ typedef unsigned short UINT16;
 */
 
 typedef struct _Rijndael
-{  
+{
   int     m_state;
   int     m_mode;
   int     m_direction;
