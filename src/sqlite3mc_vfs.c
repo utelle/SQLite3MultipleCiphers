@@ -656,6 +656,7 @@ static int mcReadMainDb(sqlite3_file* pFile, void* buffer, int count, sqlite3_in
       */
       pageNo = prevOffset / pageSize + 1;
       bufferDecrypted = sqlite3mcCodec(mcFile->codec, pageBuffer, pageNo, 3);
+      rc = sqlite3mcGetCodecLastError(mcFile->codec);
 
       /*
       ** Return the requested content
@@ -684,6 +685,7 @@ static int mcReadMainDb(sqlite3_file* pFile, void* buffer, int count, sqlite3_in
       for (iPage = 0; iPage < nPages; ++iPage)
       {
         void* bufferDecrypted = sqlite3mcCodec(mcFile->codec, data, pageNo, 3);
+        rc = sqlite3mcGetCodecLastError(mcFile->codec);
         data += pageSize;
         offset += pageSize;
         ++pageNo;
@@ -712,6 +714,7 @@ static int mcReadMainJournal(sqlite3_file* pFile, const void* buffer, int count,
       ** Decrypt the page buffer, but only if the page number is valid
       */
       void* bufferDecrypted = sqlite3mcCodec(codec, (char*) buffer, mcFile->pageNo, 3);
+      rc = sqlite3mcGetCodecLastError(codec);
       mcFile->pageNo = 0;
     }
     else if (count == 4)
@@ -745,6 +748,7 @@ static int mcReadSubJournal(sqlite3_file* pFile, const void* buffer, int count, 
       ** Decrypt the page buffer, but only if the page number is valid
       */
       void* bufferDecrypted = sqlite3mcCodec(codec, (char*) buffer, mcFile->pageNo, 3);
+      rc = sqlite3mcGetCodecLastError(codec);
     }
     else if (count == 4)
     {
@@ -793,6 +797,7 @@ static int mcReadWal(sqlite3_file* pFile, const void* buffer, int count, sqlite3
       if (pageNo != 0)
       {
         void* bufferDecrypted = sqlite3mcCodec(codec, (char*)buffer, pageNo, 3);
+        rc = sqlite3mcGetCodecLastError(codec);
       }
     }
     else if (codec->m_walLegacy != 0 && count == pageSize + walFrameHeaderSize)
@@ -805,6 +810,7 @@ static int mcReadWal(sqlite3_file* pFile, const void* buffer, int count, sqlite3
       if (pageNo != 0)
       {
         void* bufferDecrypted = sqlite3mcCodec(codec, (char*)buffer+walFrameHeaderSize, pageNo, 3);
+        rc = sqlite3mcGetCodecLastError(codec);
       }
     }
   }

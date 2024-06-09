@@ -207,6 +207,7 @@ sqlite3mcCodecInit(Codec* codec)
     memset(codec->m_page, 0, sizeof(codec->m_page));
     codec->m_pageSize = 0;
     codec->m_reserved = 0;
+    codec->m_lastError = SQLITE_OK;
     codec->m_hasKeySalt = 0;
     memset(codec->m_keySalt, 0, sizeof(codec->m_keySalt));
   }
@@ -428,23 +429,38 @@ sqlite3mcGetPageSizeWriteCipher(Codec* codec)
 SQLITE_PRIVATE int
 sqlite3mcGetReservedReadCipher(Codec* codec)
 {
-  int reserved = (codec->m_hasReadCipher  && codec->m_readCipher != NULL) ? globalCodecDescriptorTable[codec->m_readCipherType-1].m_getReserved(codec->m_readCipher) : 0;
+  int reserved = (codec->m_hasReadCipher  && codec->m_readCipher != NULL) ? globalCodecDescriptorTable[codec->m_readCipherType-1].m_getReserved(codec->m_readCipher) : -1;
   return reserved;
 }
 
 SQLITE_PRIVATE int
 sqlite3mcGetReservedWriteCipher(Codec* codec)
 {
-  int reserved = (codec->m_hasWriteCipher && codec->m_writeCipher != NULL) ? globalCodecDescriptorTable[codec->m_writeCipherType-1].m_getReserved(codec->m_writeCipher) : 0;
+  int reserved = (codec->m_hasWriteCipher && codec->m_writeCipher != NULL) ? globalCodecDescriptorTable[codec->m_writeCipherType-1].m_getReserved(codec->m_writeCipher) : -1;
   return reserved;
 }
 
 SQLITE_PRIVATE int
 sqlite3mcReservedEqual(Codec* codec)
 {
-  int readReserved  = (codec->m_hasReadCipher  && codec->m_readCipher  != NULL) ? globalCodecDescriptorTable[codec->m_readCipherType-1].m_getReserved(codec->m_readCipher)   : 0;
-  int writeReserved = (codec->m_hasWriteCipher && codec->m_writeCipher != NULL) ? globalCodecDescriptorTable[codec->m_writeCipherType-1].m_getReserved(codec->m_writeCipher) : 0;
+  int readReserved  = (codec->m_hasReadCipher  && codec->m_readCipher  != NULL) ? globalCodecDescriptorTable[codec->m_readCipherType-1].m_getReserved(codec->m_readCipher)   : -1;
+  int writeReserved = (codec->m_hasWriteCipher && codec->m_writeCipher != NULL) ? globalCodecDescriptorTable[codec->m_writeCipherType-1].m_getReserved(codec->m_writeCipher) : -1;
   return (readReserved == writeReserved);
+}
+
+SQLITE_PRIVATE void
+sqlite3mcSetCodecLastError(Codec* codec, int error)
+{
+  if (codec)
+  {
+    codec->m_lastError = error;
+  }
+}
+
+SQLITE_PRIVATE int
+sqlite3mcGetCodecLastError(Codec* codec)
+{
+  return codec ? codec->m_lastError : SQLITE_OK;
 }
 
 SQLITE_PRIVATE unsigned char*
@@ -500,6 +516,9 @@ sqlite3mcCodecCopy(Codec* codec, Codec* other)
   codec->m_bt = other->m_bt;
 #endif
   codec->m_btShared = other->m_btShared;
+
+  codec->m_lastError = SQLITE_OK;
+
   return rc;
 }
 

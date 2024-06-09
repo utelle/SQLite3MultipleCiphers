@@ -89,12 +89,15 @@ mcReportCodecError(BtShared* pBt, int error)
   {
     pBt->pPager->eState = PAGER_ERROR;
   }
-  setGetterMethod(pBt->pPager);
   if (error == SQLITE_OK)
   {
     /* Clear cache to force reread of database after a new passphrase has been set */
     sqlite3PagerClearCache(pBt->pPager);
+    /* unlock required?
+    pager_unlock(pBt->pPager);
+    */
   }
+  setGetterMethod(pBt->pPager);
 }
 
 /*
@@ -113,6 +116,7 @@ sqlite3mcCodec(void* pCodecArg, void* data, Pgno nPageNum, int nMode)
   codec = (Codec*) pCodecArg;
   if (!sqlite3mcIsEncrypted(codec))
   {
+    sqlite3mcSetCodecLastError(codec, rc);
     return data;
   }
 
@@ -126,7 +130,11 @@ sqlite3mcCodec(void* pCodecArg, void* data, Pgno nPageNum, int nMode)
       if (sqlite3mcHasReadCipher(codec))
       {
         rc = sqlite3mcDecrypt(codec, nPageNum, (unsigned char*) data, pageSize);
-        if (rc != SQLITE_OK) mcReportCodecError(sqlite3mcGetBtShared(codec), rc);
+        if (rc != SQLITE_OK)
+        {
+          mcReportCodecError(sqlite3mcGetBtShared(codec), rc);
+          memset(data, 0, pageSize);
+        }
       }
       break;
 
@@ -160,6 +168,7 @@ sqlite3mcCodec(void* pCodecArg, void* data, Pgno nPageNum, int nMode)
       }
       break;
   }
+  sqlite3mcSetCodecLastError(codec, rc);
   return data;
 }
 
@@ -184,11 +193,12 @@ mcAdjustBtree(Btree* pBt, int nPageSize, int nReserved, int isLegacy)
   /* Adjust the page size and the reserved area */
   if (pager->pageSize != pagesize || pager->nReserve != nReserved)
   {
+    int reserved = (nReserved >= 0) ? nReserved : 0;
     if (isLegacy != 0)
     {
       pBt->pBt->btsFlags &= ~BTS_PAGESIZE_FIXED;
     }
-    rc = sqlite3BtreeSetPageSize(pBt, pagesize, nReserved, 0);
+    rc = sqlite3BtreeSetPageSize(pBt, pagesize, reserved, 0);
   }
   return rc;
 }
