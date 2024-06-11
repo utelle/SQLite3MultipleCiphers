@@ -273,6 +273,16 @@ static sqlite3mc_vfs* mcFindVfs(sqlite3* db, const char* zDbName)
 }
 
 /*
+** Check whether the VFS of the database file corresponding
+** to the database schema name supports encryption.
+*/
+SQLITE_PRIVATE int sqlite3mcIsEncryptionSupported(sqlite3* db, const char* zDbName)
+{
+  sqlite3mc_vfs* pVfsMC = mcFindVfs(db, zDbName);
+  return (pVfsMC != NULL);
+}
+
+/*
 ** Find the codec of the database file
 ** corresponding to the database schema name.
 */

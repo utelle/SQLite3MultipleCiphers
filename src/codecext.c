@@ -178,6 +178,9 @@ sqlite3mcGetMainCodec(sqlite3* db);
 SQLITE_PRIVATE void
 sqlite3mcSetCodec(sqlite3* db, const char* zDbName, const char* zFileName, Codec* codec);
 
+SQLITE_PRIVATE int
+sqlite3mcIsEncryptionSupported(sqlite3* db, const char* zDbName);
+
 static int
 mcAdjustBtree(Btree* pBt, int nPageSize, int nReserved, int isLegacy)
 {
@@ -336,6 +339,11 @@ SQLITE_API int
 sqlite3_key_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
 {
   int rc = SQLITE_ERROR;
+  if (!sqlite3mcIsEncryptionSupported(db, zDbName))
+  {
+    sqlite3ErrorWithMsg(db, rc, "Setting key failed. Encryption is not supported by the VFS.");
+    return rc;
+  }
   if (zKey != NULL && nKey < 0)
   {
     /* Key is zero-terminated string */
@@ -392,6 +400,11 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
   int rc = SQLITE_ERROR;
   char* err = NULL;
 
+  if (!sqlite3mcIsEncryptionSupported(db, zDbName))
+  {
+    sqlite3ErrorWithMsg(db, rc, "Rekeying failed. Encryption is not supported by the VFS.");
+    return rc;
+  }
   if (zKey != NULL && nKey < 0)
   {
     /* Key is zero-terminated string */

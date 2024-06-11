@@ -415,7 +415,7 @@ sqlite3mcGetLegacyWriteCipher(Codec* codec)
 SQLITE_PRIVATE int
 sqlite3mcGetPageSizeReadCipher(Codec* codec)
 {
-  int pageSize = (codec->m_hasReadCipher  && codec->m_readCipher != NULL) ? globalCodecDescriptorTable[codec->m_readCipherType - 1].m_getPageSize(codec->m_readCipher) : 0;
+  int pageSize = (codec->m_hasReadCipher  && codec->m_readCipher != NULL) ? globalCodecDescriptorTable[codec->m_readCipherType - 1].m_getPageSize(codec->m_readCipher) : -1;
   return pageSize;
 }
 
