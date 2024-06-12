@@ -98,6 +98,8 @@ static int mcIoUnfetch(sqlite3_file* pFile, sqlite3_int64 iOfst, void* p);
 
 #define SQLITE3MC_VFS_NAME ("multipleciphers")
 
+#define SQLITE3MC_FCNTL_PVFS 0x3f98c078
+
 /*
 ** Header sizes of WAL journal files
 */
@@ -242,31 +244,14 @@ static sqlite3mc_vfs* mcFindVfs(sqlite3* db, const char* zDbName)
   {
     /*
     ** The top level VFS is not a Multiple Ciphers VFS.
-    ** Retrieve the VFS names stack.
+    ** Retrieve the Multiple Ciphers VFS via file control function,
+    ** if it is included in the VFS stack.
     */
-    char* zVfsNameStack = 0;
-    if ((sqlite3_file_control(db, zDbName, SQLITE_FCNTL_VFSNAME, &zVfsNameStack) == SQLITE_OK) && (zVfsNameStack != NULL))
+    sqlite3mc_vfs* pVfs = NULL;
+    if ((sqlite3_file_control(db, zDbName, SQLITE3MC_FCNTL_PVFS, &pVfs) == SQLITE_OK) &&
+        (pVfs && pVfs->base.xOpen == mcVfsOpen))
     {
-      /* Search for the name prefix of a Multiple Ciphers VFS. */
-      char* zVfsName = strstr(zVfsNameStack, SQLITE3MC_VFS_NAME);
-      if (zVfsName != NULL)
-      {
-        /* The prefix was found, now determine the full VFS name. */
-        char* zVfsNameEnd = zVfsName + strlen(SQLITE3MC_VFS_NAME);
-        if (*zVfsNameEnd == '-')
-        {
-          for (++zVfsNameEnd; *zVfsNameEnd != '/'  && *zVfsNameEnd != 0; ++zVfsNameEnd);
-          if (*zVfsNameEnd == '/') *zVfsNameEnd = 0;
-
-          /* Find a pointer to the VFS with the determined name. */
-          sqlite3_vfs* pVfs = sqlite3_vfs_find(zVfsName);
-          if (pVfs && pVfs->xOpen == mcVfsOpen)
-          {
-            pVfsMC = (sqlite3mc_vfs*) pVfs;
-          }
-        }
-      }
-      sqlite3_free(zVfsNameStack);
+      pVfsMC = pVfs;
     }
   }
   return pVfsMC;
@@ -1232,6 +1217,12 @@ static int mcIoFileControl(sqlite3_file* pFile, int op, void* pArg)
 
   switch (op)
   {
+    case SQLITE3MC_FCNTL_PVFS:
+      {
+        *(sqlite3mc_vfs**) pArg = p->pVfsMC;
+        doReal = 0;
+      }
+      break;
     case SQLITE_FCNTL_PDB:
       {
 #if 0
@@ -1248,7 +1239,7 @@ static int mcIoFileControl(sqlite3_file* pFile, int op, void* pArg)
         */
         sqlite3* db = *((sqlite3**) pArg);
 #endif
-    }
+      }
       break;
     case SQLITE_FCNTL_PRAGMA:
       {
