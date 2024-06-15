@@ -65,7 +65,7 @@ PRAGMA hexkey = { hex-passphrase | 'hex-passphrase' };
 ```
 Note
 {: .label .label-red .ml-0 .mb-1 .mt-2 }
-The unquoted variant for the _passphrase_ is only valid, if the passphrase does not contain any whitespace characters. The _key_ pragma only works with string keys. If you use a binary key, use the _hexkey_ pragma instead.
+The unquoted variant for the _passphrase_ is only valid, if the passphrase does not contain any whitespace characters. The _key_ pragma only works with string keys. The encoding of the passphrase should be UTF-8, unless a wrapper is used that implicitly performs conversion to UTF-8 internally. If you use a binary key, use the _hexkey_ pragma instead.
 
 Notes
 {: .label .label-red .ml-0 .mb-1 .mt-2 }
@@ -128,7 +128,7 @@ PRAGMA hexrekey = { hex-passphrase | 'hex-passphrase' };
 ```
 Note
 {: .label .label-red .ml-0 .mb-1 .mt-2 }
-The unquoted variant for the _passphrase_ is only valid, if the passphrase does not contain any whitespace characters. The _rekey_ pragma only works with string keys. If you use a binary key, use the _hexrekey_ pragma instead.
+The unquoted variant for the _passphrase_ is only valid, if the passphrase does not contain any whitespace characters. The _rekey_ pragma only works with string keys. The encoding of the passphrase should be UTF-8, unless a wrapper is used that implicitly performs conversion to UTF-8 internally. If you use a binary key, use the _hexrekey_ pragma instead.
 
 <span class="label label-green">Example 1:</span> _Change passphrase_
 

@@ -23,3 +23,4 @@ The following table lists all parameters related to this cipher that can be set 
 {: .label .label-red .ml-0 .mb-1 .mt-2 }
 - Currently only the [_legacy_ mode]({{ site.baseurl }}{% link docs/ciphers/cipher_legacy_mode.md %}) is implemented; it is not intended to implement a _non-legacy_ mode in the future, because RC4 encryption has known weaknesses (for example, the use of RC4 in TLS was prohibited by RFC 7465 published in February 2015).
 - **The use of this cipher scheme for new applications is strongly discouraged.**
+- Only _page size_ values corresponding to a power of 2 (i.e. 0, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536) are allowed.

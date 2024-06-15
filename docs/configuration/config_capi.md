@@ -40,18 +40,20 @@ The functions `sqlite3_key()`, `sqlite3_key_v2()`, `sqlite3_rekey()`, and `sqlit
 
 ## <a name="config_key" />Functions `sqlite3_key()` and `sqlite3_key_v2()`
 
-`sqlite3_key()` and `sqlite3_key_v2()` set the database key to use when accessing an encrypted database, and should usually be called immediately after `sqlite3_open()`.
+`sqlite3_key()` and `sqlite3_key_v2()` set the database key to use when accessing an encrypted database, and should usually be called **_immediately_** after `sqlite3_open()`.
 
 ```c
 SQLITE_API int sqlite3_key(
   sqlite3* db,                   /* Database to set the key on */
-  const void* pKey, int nKey     /* The key */
+  const void* pKey,              /* The key */
+  int nKey                       /* Number of bytes in the key */
 );
 
 SQLITE_API int sqlite3_key_v2(
   sqlite3* db,                   /* Database to set the key on */
   const char* zDbName,           /* Database schema name */
-  const void* pKey, int nKey     /* The key */
+  const void* pKey,              /* The key */
+  int nKey                       /* Number of bytes in the key */
 );
 ```
 
@@ -59,6 +61,7 @@ SQLITE_API int sqlite3_key_v2(
 
 Notes
 {: .label .label-red .ml-0 .mb-1 .mt-2 }
+- For _plaintext_ passphrases (keys) it is strongly recommended to use UTF-8 encoding.
 - These functions return `SQLITE_OK` even if the provided key isn't correct. This is because the key isn't actually used until a subsequent attempt to read or write the database is made. To check whether the provided key was actually correct, you must execute a simple query like e.g. `SELECT * FROM sqlite_master;` and check whether that succeeds.
 - When setting a new key on an empty database (that is, a database with zero bytes length), you have to make a subsequent write access so that the database will actually be encrypted. You'd usually want to write to a new database anyway, but if not, you can execute the [VACUUM](https://www.sqlite.org/lang_vacuum.html) statement instead to force SQLite to write to the empty database.
 
@@ -71,13 +74,15 @@ Notes
 ```c
 SQLITE_API int sqlite3_rekey(
   sqlite3* db,                   /* Database to be rekeyed */
-  const void* pKey, int nKey     /* The new key */
+  const void* pKey,              /* The new key */
+  int nKey                       /* Number of bytes in the new key  */
 );
 
 SQLITE_API int sqlite3_rekey_v2(
   sqlite3* db,                   /* Database to be rekeyed */
   const char* zDbName,           /* Database schema name */
-  const void* pKey, int nKey     /* The new key */
+  const void* pKey,              /* The new key */
+  int nKey                       /* Number of bytes in the new key  */
 );
 ```
 
@@ -87,9 +92,10 @@ Changing the key includes encrypting the database for the first time, decrypting
 
 Notes
 {: .label .label-red .ml-0 .mb-1 .mt-2 }
+- For _plaintext_ passphrases (keys) it is strongly recommended to use UTF-8 encoding.
 - If the number of reserved bytes per database page differs between the current and the new encryption scheme, then `sqlite3_rekey()` performs a [VACUUM](https://www.sqlite.org/lang_vacuum.html) statement to encrypt/decrypt all pages of the database. Thus, the total disk space requirement for re-encrypting can be up to 3 times of the database size. If possible, re-encrypting is done in-place.
 - On decrypting a database all reserved bytes per database page are released.
-- On changing the database encryption key it is not possible to change the page size of the database at the same time. This affects mainly _legacy_ modes with a non-default page size (like legacy **SQLCipher**, which has a page size of 1024 bytes). In such cases it is necessary to adjust the legacy page size to the default page size or to adjust the page size in a separate step by executing the following SQL statements:
+- On changing the database encryption key it is **not** possible to _change the page size_ of the database at the same time. This affects mainly _legacy_ modes with a non-default page size (like legacy **SQLCipher**, which has a page size of 1024 bytes). In such cases it is necessary to adjust the legacy page size to the default page size or to adjust the page size in a separate step by executing the following SQL statements:
 
 ```sql
 PRAGMA page_size=4096;
@@ -133,21 +139,21 @@ The following parameter names are supported for `paramName`:
 
 The following table lists the builtin cipher schemes:
 
-| Cipher Name | Cipher ID | Preprocessor Symbol | Cipher |
+| Cipher Name | Preprocessor Symbol | Cipher |
 | :--- | :---: | :--- | :--- |
-| `aes128cbc` | 1 | `CODEC_TYPE_AES128` | [wxSQLite3: AES 128 Bit]({{ site.baseurl }}{% link docs/ciphers/cipher_aes128cbc.md %}) |
-| `aes256cbc` | 2 | `CODEC_TYPE_AES256` | [wxSQLite3: AES 256 Bit]({{ site.baseurl }}{% link docs/ciphers/cipher_aes256cbc.md %}) |
-| `chacha20` | 3 | `CODEC_TYPE_CHACHA20`  | [sqleet: ChaCha20]({{ site.baseurl }}{% link docs/ciphers/cipher_chacha20.md %}) |
-| `sqlcipher` | 4 | `CODEC_TYPE_SQLCIPHER` | [SQLCipher: AES 256 Bit]({{ site.baseurl }}{% link docs/ciphers/cipher_sqlcipher.md %}) |
-| `rc4` | 5 | `CODEC_TYPE_RC4` | [System.Data.SQLite: RC4]({{ site.baseurl }}{% link docs/ciphers/cipher_sds_rc4.md %}) |
-| `ascon128` | 6 | `CODEC_TYPE_ASCON128` | [Ascon: Ascon-128 v1.2]({{ site.baseurl }}{% link docs/ciphers/cipher_ascon.md %}) |
+| `aes128cbc` | `CODEC_TYPE_AES128`    | [wxSQLite3: AES 128 Bit]({{ site.baseurl }}{% link docs/ciphers/cipher_aes128cbc.md %}) |
+| `aes256cbc` | `CODEC_TYPE_AES256`    | [wxSQLite3: AES 256 Bit]({{ site.baseurl }}{% link docs/ciphers/cipher_aes256cbc.md %}) |
+| `chacha20`  | `CODEC_TYPE_CHACHA20`  | [sqleet: ChaCha20]({{ site.baseurl }}{% link docs/ciphers/cipher_chacha20.md %}) |
+| `sqlcipher` | `CODEC_TYPE_SQLCIPHER` | [SQLCipher: AES 256 Bit]({{ site.baseurl }}{% link docs/ciphers/cipher_sqlcipher.md %}) |
+| `rc4`       | `CODEC_TYPE_RC4`       | [System.Data.SQLite: RC4]({{ site.baseurl }}{% link docs/ciphers/cipher_sds_rc4.md %}) |
+| `ascon128`  | `CODEC_TYPE_ASCON128`  | [Ascon: Ascon-128 v1.2]({{ site.baseurl }}{% link docs/ciphers/cipher_ascon.md %}) |
 
 The return value always is the current parameter value on success, or **-1** on failure.
 
 Notes
 {: .label .label-red .ml-0 .mb-1 .mt-2 }
-- When configuring the `cipher` scheme with function `sqlite3mc_config()`, the _cipher ID_ has to be used. However, the _cipher IDs_ depend on the order of cipher scheme registrations. Therefore it is strongly recommended to use function [`sqlite3mc_cipher_index()`](#cipher_index) to determine the _cipher ID_ of the requested cipher scheme via the _cipher name_.
-- Checking the HMAC on read operations is active by default. With the parameter `hmac_check` the HMAC check can be disabled in case of trying to recover a corrupted database. It is not recommended to deactivate the HMAC check for regular database operation. Therefore the default can not be changed.
+- When configuring the `cipher` scheme with function `sqlite3mc_config()`, the **cipher ID** has to be used. However, the _cipher IDs_ depend on the order of cipher scheme registrations. Therefore it is strongly recommended to use function [`sqlite3mc_cipher_index()`](#cipher_index) to retrieve the _cipher ID_ of the requested cipher scheme via the _cipher name_, instead of using fixed _cipher IDs_.
+- Checking the HMAC on read operations is enabled by default. With the parameter `hmac_check` the HMAC check can be disabled in case of trying to recover a corrupted database. It is not recommended to deactivate the HMAC check for regular database operation. Therefore the default can not be changed.
 - The _legacy_ mode for WAL journal encryption is off by default. The encryption mode used by all versions up to 1.2.5 is called _legacy_ mode, version 1.3.0 introduced a new encryption mode that provides  compatibility with legacy encryption implementations and is less vulnerable to changes in SQLite. It should only be enabled to recover WAL journal files left behind by applications using versions up to 1.2.5.
 
 <span class="label label-green">Examples</span>
@@ -262,7 +268,7 @@ SQLITE_API const char* sqlite3mc_cipher_name(
 );
 ```
 
-`sqlite3mc_cipher_name()` retrieves the name of the cipher scheme for the given relative 1-based index in the list of registered cipher schemes. This index can be used in function [`sqlite3mc_config_cipher()`](#config_general).
+`sqlite3mc_cipher_name()` retrieves the name of the cipher scheme for the given relative 1-based index in the list of registered cipher schemes. This index can be used in function [`sqlite3mc_config()`](#config_general).
 
 Notes
 {: .label .label-red .ml-0 .mb-1 .mt-2 }
@@ -279,3 +285,4 @@ SQLITE_API int sqlite3mc_register_cipher(
 );
 ```
 
+`sqlite3mc_register_cipher` allows to register cipher schemes dynamically. Further information can be found in the section about [Dynamic cipher schemes]({{ site.baseurl }}{% link docs/ciphers/cipher_dynamic.md %}).

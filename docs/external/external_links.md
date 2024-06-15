@@ -1,7 +1,7 @@
 ---
 layout: default
 title: External Links
-nav_order: 6
+nav_order: 7
 has_children: false
 ---
 # External Links
@@ -13,6 +13,7 @@ Several tools, wrappers, and applications are using **SQLite3 Multiple Ciphers**
 - [SQLiteStudio](https://sqlitestudio.pl), ([GitHub](https://github.com/pawelsalawa/sqlitestudio))
 - [sqlite-gui](https://github.com/little-brother/sqlite-gui)
 - [SQLMaestro](https://www.sqlmaestro.com), (commercial)
+- [HeidiSQL](https://www.heidisql.com), ([GitHub](https://github.com/HeidiSQL/HeidiSQL)); it is expected that version 12.8 will have support for SQLite encryption officially (see [HeidiSQL issue 1248](https://github.com/HeidiSQL/HeidiSQL/issues/1284)).
 
 ## SQLite Wrapper
 
@@ -20,6 +21,7 @@ Several tools, wrappers, and applications are using **SQLite3 Multiple Ciphers**
 - [SQLite JDBC Driver](https://github.com/Willena/sqlite-jdbc-crypt)
 - [SQLDelight driver](https://github.com/toxicity-io/sqlite-mc)
 - **.NET NuGet** package [SQLitePCLRaw.bundle_e_sqlite3mc](https://www.nuget.org/packages/SQLitePCLRaw.bundle_e_sqlite3mc)
+- **Python3** package [APSW-sqlite3mc](), ([GitHub](https://github.com/utelle/apsw-sqlite3mc)); not yet officially released
 
 ## Applications
 

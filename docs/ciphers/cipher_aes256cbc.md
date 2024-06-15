@@ -25,3 +25,4 @@ The following table lists all parameters related to this cipher that can be set 
 **Note**
 {: .label .label-red .ml-0 .mb-1 .mt-2 }
 - It is not recommended to use [_legacy_ mode]({{ site.baseurl }}{% link docs/ciphers/cipher_legacy_mode.md %}) for encrypting new databases. It is supported for compatibility reasons only, so that databases that were encrypted in _legacy_ mode can be accessed.
+- Only _page size_ values corresponding to a power of 2 (i.e. 0, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536) are allowed.
