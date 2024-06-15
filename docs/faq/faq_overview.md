@@ -27,7 +27,7 @@ Usually SQLite allows to change the page size of a database by requesting the ne
 
 Unfortunately, this method does not work for encrypted databases. If you need to change the page size of an encrypted database, apply the following procedure:
 
-```SQL
+```sql
 -- Decrypt database
 PRAGMA rekey='';
 -- Set requested page size
@@ -40,31 +40,11 @@ PRAGMA rekey='passphrase';
 
 An alternative would be to create a copy of the database with the new page size:
 
-```SQL
+```sql
 PRAGMA page_size=32768;
 VACUUM INTO 'file:databasefile?key=passphrase'
 ```
 
-> [!IMPORTANT]
-> The database must not be in WAL journal mode.
-
-<!--
-<details>
-
-<summary></summary>
-
-</details>
-
-<details>
-
-<summary></summary>
-
-</details>
-
-<details>
-
-<summary></summary>
-
-</details>
-
--->
+Important
+{: .label .label-purple .ml-0 .mb-1 .mt-2 }
+The database must not be in WAL journal mode.
