@@ -17,11 +17,11 @@ Several tools, wrappers, and applications are using **SQLite3 Multiple Ciphers**
 
 ## SQLite Wrapper
 
-- **Node.js.** wrapper [better-sqlite3-multiple-ciphers](https://www.npmjs.com/package/better-sqlite3-multiple-ciphers), ([GitHub](https://github.com/m4heshd/better-sqlite3-multiple-ciphers))
+- _Node.js._ wrapper [better-sqlite3-multiple-ciphers](https://www.npmjs.com/package/better-sqlite3-multiple-ciphers), ([GitHub](https://github.com/m4heshd/better-sqlite3-multiple-ciphers))
 - [SQLite JDBC Driver](https://github.com/Willena/sqlite-jdbc-crypt)
 - [SQLDelight driver](https://github.com/toxicity-io/sqlite-mc)
-- **.NET NuGet** package [SQLitePCLRaw.bundle_e_sqlite3mc](https://www.nuget.org/packages/SQLitePCLRaw.bundle_e_sqlite3mc)
-- **Python3** package [APSW-sqlite3mc](), ([GitHub](https://github.com/utelle/apsw-sqlite3mc)); not yet officially released
+- _.NET NuGet_ package [SQLitePCLRaw.bundle_e_sqlite3mc](https://www.nuget.org/packages/SQLitePCLRaw.bundle_e_sqlite3mc)
+- _Python3_ package [apsw-sqlite3mc](https://pypi.org/project/apsw-sqlite3mc), ([GitHub](https://github.com/utelle/apsw-sqlite3mc))
 
 ## Applications
 
