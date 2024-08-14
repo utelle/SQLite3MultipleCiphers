@@ -10,12 +10,8 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version information
 
-* 1.8.6 - *June 2024*
-  - Based on SQLite version 3.46.0
-  - The cipher configuration parameter `legacy_page_size` now accepts only valid page sizes
-  - The cipher configuration parameter `plaintext_header_size` now accepts only values that are multiples of 16
-  - Cleaned up code (removed trailing white space, removed extern keyword in function declarations, added SQLITE_PRIVATE for several internal functions)
-  - Fixed issues #156, #158, #160, #162, #164, #165, #166, #167, #168
+* 1.8.7 - *August 2024*
+  - Based on SQLite version 3.46.1
 
 For further version information please consult the [CHANGELOG](CHANGELOG.md).
 
