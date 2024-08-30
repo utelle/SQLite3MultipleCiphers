@@ -22,6 +22,7 @@ Several tools, wrappers, and applications are using **SQLite3 Multiple Ciphers**
 - [SQLDelight driver](https://github.com/toxicity-io/sqlite-mc)
 - _.NET NuGet_ package [SQLitePCLRaw.bundle_e_sqlite3mc](https://www.nuget.org/packages/SQLitePCLRaw.bundle_e_sqlite3mc)
 - _Python3_ package [apsw-sqlite3mc](https://pypi.org/project/apsw-sqlite3mc), ([GitHub](https://github.com/utelle/apsw-sqlite3mc))
+- Qt plugin for SQLite [QtCipherSqlitePlugin](https://github.com/devbean/QtCipherSqlitePlugin) or [QSQLite3MultipleCiphers](https://github.com/FalsinSoft/QSQLite3MultipleCiphers)
 
 ## Applications
 

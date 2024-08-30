@@ -36,6 +36,7 @@ Several language bindings for _SQLite3 Multiple Ciphers_ exist in separate proje
 - _.NET NuGet_ package [SQLitePCLRaw.bundle_e_sqlite3mc](https://www.nuget.org/packages/SQLitePCLRaw.bundle_e_sqlite3mc) via [Eric Sink's](https://github.com/ericsink) project [SQLitePCL.raw](https://github.com/ericsink/SQLitePCL.raw)
 - _Python3_ package [apsw-sqlite3mc](https://pypi.org/project/apsw-sqlite3mc), ([GitHub](https://github.com/utelle/apsw-sqlite3mc)) based on [Roger Binns'](https://github.com/rogerbinns) project [apsw](https://github.com/rogerbinns/apsw)
 - [Jonathan Giannuzzi's](https://github.com/jgiannuzzi) fork of [go-sqlite3](https://github.com/jgiannuzzi/go-sqlite3/tree/sqlite3mc) for the _Go_ language. Integration into [mattn/go-sqlite3](https://github.com/mattn/go-sqlite3) is discussed in [PR 1109](https://github.com/mattn/go-sqlite3/pull/1109), but it is unclear, if and when this will happen.
+- Qt plugin for SQLite [QtCipherSqlitePlugin](https://github.com/devbean/QtCipherSqlitePlugin) or [QSQLite3MultipleCiphers](https://github.com/FalsinSoft/QSQLite3MultipleCiphers)
 
 Note
 {: .label .label-red .ml-0 .mb-1 .mt-2 }
