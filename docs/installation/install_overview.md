@@ -22,15 +22,38 @@ For regenerating the build files it is recommended to use **_Premake 5.0 alpha 1
 
 For Linux and OSX build files based on the _autoconf/automake_ toolchain are provided.
 
+### Releases and Binaries
+
+[Releases](https://github.com/utelle/SQLite3MultipleCiphers/releases) of _SQLite3 Multiple Ciphers_ are typically made available shortly after releases of [SQLite](https://sqlite.org). Usually, an archive with the _amalgamated source code_, pre-built binaries for Windows and Android (see [SQLite Android Bindings](https://www.sqlite.org/android/)) are provided with every [release](https://github.com/utelle/SQLite3MultipleCiphers/releases).
+
+### Language Bindings
+
+Several language bindings for _SQLite3 Multiple Ciphers_ exist in separate projects:
+
+- _Node.js._ wrapper [better-sqlite3-multiple-ciphers](https://www.npmjs.com/package/better-sqlite3-multiple-ciphers), ([GitHub](https://github.com/m4heshd/better-sqlite3-multiple-ciphers))
+- [SQLite JDBC Driver](https://github.com/Willena/sqlite-jdbc-crypt) for _Java_
+- [SQLDelight driver](https://github.com/toxicity-io/sqlite-mc) for _Kotlin_
+- _.NET NuGet_ package [SQLitePCLRaw.bundle_e_sqlite3mc](https://www.nuget.org/packages/SQLitePCLRaw.bundle_e_sqlite3mc) via [Eric Sink's](https://github.com/ericsink) project [SQLitePCL.raw](https://github.com/ericsink/SQLitePCL.raw)
+- _Python3_ package [apsw-sqlite3mc](https://pypi.org/project/apsw-sqlite3mc), ([GitHub](https://github.com/utelle/apsw-sqlite3mc)) based on [Roger Binns'](https://github.com/rogerbinns) project [apsw](https://github.com/rogerbinns/apsw)
+- [Jonathan Giannuzzi's](https://github.com/jgiannuzzi) fork of [go-sqlite3](https://github.com/jgiannuzzi/go-sqlite3/tree/sqlite3mc) for the _Go_ language. Integration into [mattn/go-sqlite3](https://github.com/mattn/go-sqlite3) is discussed in [PR 1109](https://github.com/mattn/go-sqlite3/pull/1109), but it is unclear, if and when this will happen.
+
 Note
 {: .label .label-red .ml-0 .mb-1 .mt-2 }
 
-An archive with the _amalgamated source code_, pre-built binaries for Windows and Android (see [SQLite Android Bindings](https://www.sqlite.org/android/)) are usually provided with every [release](https://github.com/utelle/SQLite3MultipleCiphers/releases).
+If you know about further language bindings, please drop a note (for example, via a [GitHub discussion](https://github.com/utelle/SQLite3MultipleCiphers/discussions)).
 
-## Windows
+### Drop-in replacement for SQLite
+
+In principle, the _SQLite3 Multiple Ciphers_ source code or binaries can be used as a drop-in replacement for _SQLite_.
+
+If your project uses the _SQLite_ amalgamation source file `sqlite3.c`, this file could be replaced by the _SQLite3 Multiple Ciphers_ amalgamation source file `sqlite3mc_amalgamation.c` (as distributed with the releases).
+
+If your project references _SQLite's_ shared library (for example, `sqlite3.dll` on Windows), _SQLite3 Multiple Ciphers'_ shared library could be referenced instead by renaming the shared library and making it available on the library search path.
+
+## Windows builds
 
 Ready to use project files are provided for Visual C++ 2010, 2012, 2013,
-2015, 2017, and 2019. Additionally, GNU Makefiles are provided supporting GCC
+2015, 2017, 2019, and 2022. Additionally, GNU Makefiles are provided supporting GCC
 (for example, [Mingw-w64](http://mingw-w64.org) or recent versions of
 [tdm-gcc](https://jmeubank.github.io/tdm-gcc/)).
 
@@ -61,7 +84,7 @@ Microsoft Visual Studio solution files in the `build` folder.
 For Visual C++ the debugging properties are set up in such a way that
 debugging the sample applications should work right out of the box.
 
-## Linux / OSX
+## Linux / OSX builds
 
 When building on Linux or OSX, the first setup is to recreate the configure script doing:
 

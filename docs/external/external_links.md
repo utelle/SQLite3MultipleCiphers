@@ -13,7 +13,7 @@ Several tools, wrappers, and applications are using **SQLite3 Multiple Ciphers**
 - [SQLiteStudio](https://sqlitestudio.pl), ([GitHub](https://github.com/pawelsalawa/sqlitestudio))
 - [sqlite-gui](https://github.com/little-brother/sqlite-gui)
 - [SQLMaestro](https://www.sqlmaestro.com), (commercial)
-- [HeidiSQL](https://www.heidisql.com), ([GitHub](https://github.com/HeidiSQL/HeidiSQL)); it is expected that version 12.8 will have support for SQLite encryption officially (see [HeidiSQL issue 1248](https://github.com/HeidiSQL/HeidiSQL/issues/1284)).
+- [HeidiSQL](https://www.heidisql.com), ([GitHub](https://github.com/HeidiSQL/HeidiSQL)); starting with version 12.8 support for SQLite encryption is  officially available (see release of [HeidiSQL version 12.8](https://github.com/HeidiSQL/HeidiSQL/releases/tag/12.8)).
 
 ## SQLite Wrapper
 
