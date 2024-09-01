@@ -219,11 +219,11 @@ GetReservedSQLCipherCipher(void* cipher)
   {
     switch (sqlCipherCipher->m_hmacAlgorithm)
     {
-      case SQLCIPHER_HMAC_ALGORITHM_SHA1:
-      case SQLCIPHER_HMAC_ALGORITHM_SHA256:
+      case SQLCIPHER_ALGORITHM_SHA1:
+      case SQLCIPHER_ALGORITHM_SHA256:
         reserved += SHA256_DIGEST_SIZE;
         break;
-      case SQLCIPHER_HMAC_ALGORITHM_SHA512:
+      case SQLCIPHER_ALGORITHM_SHA512:
       default:
         reserved += SHA512_DIGEST_SIZE;
         break;
@@ -337,13 +337,13 @@ GetHmacSizeSQLCipherCipher(int algorithm)
   int hmacSize = SHA512_DIGEST_SIZE;
   switch (algorithm)
   {
-    case SQLCIPHER_HMAC_ALGORITHM_SHA1:
+    case SQLCIPHER_ALGORITHM_SHA1:
       hmacSize = SHA1_DIGEST_SIZE;
       break;
-    case SQLCIPHER_HMAC_ALGORITHM_SHA256:
+    case SQLCIPHER_ALGORITHM_SHA256:
       hmacSize = SHA256_DIGEST_SIZE;
       break;
-    case SQLCIPHER_HMAC_ALGORITHM_SHA512:
+    case SQLCIPHER_ALGORITHM_SHA512:
     default:
       hmacSize = SHA512_DIGEST_SIZE;
       break;
