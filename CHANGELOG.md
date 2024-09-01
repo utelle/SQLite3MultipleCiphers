@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Using differing KDF and HMAC algorithms resulted in databases incompatible with the original SQLCipher library. Setting the parameter `hmac_algorithm_compat` to 0 restores the (incompatible) behaviour.
+
 ## [1.8.7] - 2024-08-14
 
 ### Changed
