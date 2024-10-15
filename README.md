@@ -12,12 +12,22 @@ The project **SQLite3 Multiple Ciphers** implements an encryption extension for 
 
 - [wxSQLite3](https://github.com/utelle/wxsqlite3): AES 128 Bit CBC - No HMAC
 - [wxSQLite3](https://github.com/utelle/wxsqlite3): AES 256 Bit CBC - No HMAC
-- [sqleet](https://github.com/resilar/sqleet): ChaCha20 - Poly1305 HMAC
+- [sqleet](https://github.com/resilar/sqleet): **ChaCha20 - Poly1305 HMAC** (Default cipher scheme)
 - [SQLCipher](https://www.zetetic.net/sqlcipher/): AES 256 Bit CBC - SHA1/SHA256/SHA512 HMAC
 - [System.Data.SQLite](http://system.data.sqlite.org): RC4
 - [Ascon](https://ascon.iaik.tugraz.at/): Ascon-128 v1.2
 
-In addition to reading and writing encrypted database files **SQLite** with the **SQLite3 Multiple Ciphers** extension is able to read and write ordinary database files created using a public domain version of SQLite. Applications can use the `ATTACH` statement of SQLite to simultaneously connect to two or more encrypted and/or unencrypted database files. For each database file a different encryption cipher scheme can be used.
+The cipher scheme **ChaCha20 - Poly1305 HMAC** is currently the **recommended** _default cipher scheme_, because it meets the following important criteria:
+
+- Encryption and tamper detection is a modern [Internet Engineering Task Force](https://www.ietf.org) standard, also used for secure web communication (TLS/SSL) - see [RFC 7905](https://datatracker.ietf.org/doc/html/rfc7905). 
+- A key derivation function ([PBKDF2](https://en.wikipedia.org/wiki/PBKDF2)) is used to reduce vulnerability to brute force attacks. 
+- Per database and per page random bytes ([cryptographic nonce](https://en.wikipedia.org/wiki/Cryptographic_nonce)) are used to ensure that the same unencrypted database content does not result in the same encrypted content when the same encryption key is used.
+
+Technically, the cipher schemes [SQLCipher](https://www.zetetic.net/sqlcipher/) and [Ascon](https://ascon.iaik.tugraz.at/) are almost equivalent with respect to cryptographic security. However, **SQLCipher** uses [AES](https://en.wikipedia.org/wiki/Advanced_Encryption_Standard), which has usually lower runtime performance than **ChaCha20 - Poly1305 HMAC**. And [Ascon](https://ascon.iaik.tugraz.at/) is a relatively new player supporting _authenticated encryption schemes with associated data_ ([AEAD](https://www.ietf.org/archive/id/draft-irtf-cfrg-aead-properties-03.html)), selected as [new standard for lightweight cryptography](https://www.nist.gov/news-events/news/2023/02/nist-selects-lightweight-cryptography-algorithms-protect-small-devices) in the [NIST Lightweight Cryptography competition (2019–2023)](https://csrc.nist.gov/projects/lightweight-cryptography/finalists).
+
+The cipher schemes **AES 128/256 Bit CBC** and **RC4** ([System.Data.SQLite](http://system.data.sqlite.org)) do **not** meet the above criteria and are included for compatibility with older existing applications only. They should not be used for new development. Developers using one of these cipher schemes should consider to update their applications to use one of the more modern and secure cipher schemes.
+
+## Technical functionality
 
 **SQLite3 Multiple Ciphers** encrypts the entire database file, so that an encrypted SQLite database file appears to be white noise to an outside observer. Not only the database files themselves, but also journal files are encrypted.
 
@@ -30,6 +40,8 @@ Note
   3. Bytes 16 through 23 of the database file contain header information that is usually **not** encrypted.
 
 To not compromise security by leaking temporary data to disk, it is very important to keep **all** temporary data in memory. Therefore it is strongly recommended to use the compile time option `SQLITE_TEMP_STORE=2` (which is the default in the current build files) (or even `SQLITE_TEMP_STORE=3`, forcing temporary data to memory unconditionally). `PRAGMA temp_store=MEMORY;` should be used for encrypted databases, if the compile time option `SQLITE_TEMP_STORE` was **not** set to a value of `2` or `3`.
+
+In addition to reading and writing encrypted database files **SQLite** with the **SQLite3 Multiple Ciphers** extension is able to read and write ordinary database files created using a public domain version of SQLite. Applications can use the `ATTACH` statement of SQLite to simultaneously connect to two or more encrypted and/or unencrypted database files. For each database file a different encryption cipher scheme can be used.
 
 ## Usage
 
