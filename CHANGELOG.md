@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Based on SQLite version 3.47.0
+- Changed signature of cipher scheme method `GenerateKey` (affects only developers of dynamic cipher schemes)
+
 ### Fixed
 
 - Using differing KDF and HMAC algorithms resulted in databases incompatible with the original SQLCipher library. Setting the parameter `hmac_algorithm_compat` to 0 restores the (incompatible) behaviour.

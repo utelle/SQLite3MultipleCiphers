@@ -3,7 +3,7 @@
 ** Purpose:     Implementation of SQLite codecs
 ** Author:      Ulrich Telle
 ** Created:     2020-02-02
-** Copyright:   (c) 2006-2022 Ulrich Telle
+** Copyright:   (c) 2006-2024 Ulrich Telle
 ** License:     MIT
 */
 
@@ -144,7 +144,7 @@ sqlite3mcGetCipherType(sqlite3* db)
 {
   CodecParameter* codecParams = (db != NULL) ? sqlite3mcGetCodecParams(db) : globalCodecParameterTable;
   CipherParams* cipherParamTable = (codecParams != NULL) ? codecParams[0].m_params : commonParams;
-  int cipherType = CODEC_TYPE;
+  int cipherType = CODEC_TYPE_UNKNOWN;
   CipherParams* cipher = cipherParamTable;
   for (; cipher->m_name[0] != 0; ++cipher)
   {
@@ -246,6 +246,10 @@ sqlite3mcCodecSetup(Codec* codec, int cipherType, char* userPassword, int passwo
 {
   int rc = SQLITE_OK;
   CipherParams* globalParams = sqlite3mcGetCipherParams(codec->m_db, CIPHER_NAME_GLOBAL);
+  if (cipherType <= CODEC_TYPE_UNKNOWN)
+  {
+    return SQLITE_ERROR;
+  }
   codec->m_isEncrypted = 1;
   codec->m_hmacCheck = sqlite3mcGetCipherParameter(globalParams, "hmac_check");
   codec->m_walLegacy = sqlite3mcGetCipherParameter(globalParams, "mc_legacy_wal");
@@ -271,6 +275,10 @@ sqlite3mcSetupWriteCipher(Codec* codec, int cipherType, char* userPassword, int 
 {
   int rc = SQLITE_OK;
   CipherParams* globalParams = sqlite3mcGetCipherParams(codec->m_db, CIPHER_NAME_GLOBAL);
+  if (cipherType <= CODEC_TYPE_UNKNOWN)
+  {
+    return SQLITE_ERROR;
+  }
   if (codec->m_writeCipher != NULL)
   {
     globalCodecDescriptorTable[codec->m_writeCipherType-1].m_freeCipher(codec->m_writeCipher);
@@ -589,16 +597,30 @@ sqlite3mcPadPassword(char* password, int pswdlen, unsigned char pswd[32])
   }
 }
 
+SQLITE_PRIVATE unsigned char* mcReadDatabaseHeader(Codec* codec, unsigned char* dbHeader)
+{
+  Pager* pPager = codec->m_btShared->pPager;
+  sqlite3_file* fd = (isOpen(pPager->fd)) ? pPager->fd : NULL;
+  if (fd == NULL || sqlite3OsRead(fd, dbHeader, KEYSALT_LENGTH, 0) != SQLITE_OK)
+    return NULL;
+  else
+    return dbHeader;
+}
+
 SQLITE_PRIVATE void
 sqlite3mcGenerateReadKey(Codec* codec, char* userPassword, int passwordLength, unsigned char* cipherSalt)
 {
-  globalCodecDescriptorTable[codec->m_readCipherType-1].m_generateKey(codec->m_readCipher, codec->m_btShared, userPassword, passwordLength, 0, cipherSalt);
+  unsigned char dbHeader[KEYSALT_LENGTH];
+  unsigned char* pDbHeader = (cipherSalt == NULL) ? mcReadDatabaseHeader(codec, dbHeader) : cipherSalt;
+  globalCodecDescriptorTable[codec->m_readCipherType-1].m_generateKey(codec->m_readCipher, userPassword, passwordLength, 0, pDbHeader);
 }
 
 SQLITE_PRIVATE void
 sqlite3mcGenerateWriteKey(Codec* codec, char* userPassword, int passwordLength, unsigned char* cipherSalt)
 {
-  globalCodecDescriptorTable[codec->m_writeCipherType-1].m_generateKey(codec->m_writeCipher, codec->m_btShared, userPassword, passwordLength, 1, cipherSalt);
+  unsigned char dbHeader[KEYSALT_LENGTH];
+  unsigned char* pDbHeader = (cipherSalt == NULL) ? mcReadDatabaseHeader(codec, dbHeader) : cipherSalt;
+  globalCodecDescriptorTable[codec->m_writeCipherType-1].m_generateKey(codec->m_writeCipher, userPassword, passwordLength, 1, pDbHeader);
 }
 
 SQLITE_PRIVATE int

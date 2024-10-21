@@ -3,7 +3,7 @@
 ** Purpose:     Configuration of SQLite codecs
 ** Author:      Ulrich Telle
 ** Created:     2020-03-02
-** Copyright:   (c) 2006-2023 Ulrich Telle
+** Copyright:   (c) 2006-2024 Ulrich Telle
 ** License:     MIT
 */
 
@@ -788,11 +788,11 @@ sqlite3mcConfigureFromUri(sqlite3* db, const char *zDbName, int configDefault)
           if (value >= 0)
           {
             /* Configure cipher parameter if it was given in the URI */
-            char* param = (configDefault) ? sqlite3_mprintf("default:%s", cipherParams[j].m_name) : cipherParams[j].m_name;
+            const char* param = (configDefault) ? sqlite3_mprintf("default:%s", cipherParams[j].m_name) : cipherParams[j].m_name;
             sqlite3mc_config_cipher(db, cipherName, param, value);
             if (configDefault)
             {
-              sqlite3_free(param);
+              sqlite3_free((char*) param);
             }
           }
         }

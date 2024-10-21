@@ -455,7 +455,7 @@ sqlite3_extfunc_init(sqlite3 *db, char **pzErrMsg, const sqlite3_api_routines *p
 #endif
 
 static int
-mcCheckValidName(char* name)
+mcCheckValidName(const char* name)
 {
   size_t nl;
   if (!name)
@@ -575,9 +575,10 @@ sqlite3mcRegisterCipher(const CipherDescriptor* desc, const CipherParams* params
     /* Copy parameters */
     for (n = 0; n < np; ++n)
     {
+      char* paramName = (char*) sqlite3_malloc((int)strlen(params[n].m_name) + 1);
+      strcpy(paramName, params[n].m_name);
       cipherParams[n] = params[n];
-      cipherParams[n].m_name = (char*) sqlite3_malloc((int) strlen(params[n].m_name) + 1);
-      strcpy(cipherParams[n].m_name, params[n].m_name);
+      cipherParams[n].m_name = paramName;
     }
     /* Add sentinel */
     cipherParams[n] = params[n];
@@ -660,7 +661,7 @@ sqlite3mcTermCipherTables()
       CipherParams* params = globalCodecParameterTable[n].m_params;
       for (k = 0; params[k].m_name[0] != 0; ++k)
       {
-        sqlite3_free(params[k].m_name);
+        sqlite3_free((char*) params[k].m_name);
       }
       sqlite3_free(globalCodecParameterTable[n].m_params);
     }

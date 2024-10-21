@@ -3,7 +3,7 @@
 ** Purpose:     Header file for SQLite3 Multiple Ciphers compile-time configuration
 ** Author:      Ulrich Telle
 ** Created:     2021-09-27
-** Copyright:   (c) 2019-2023 Ulrich Telle
+** Copyright:   (c) 2019-2024 Ulrich Telle
 ** License:     MIT
 */
 
@@ -69,6 +69,14 @@
 #endif
 
 /*
+** Define whether dynamic ciphers will be used
+*/
+
+#ifndef SQLITE3MC_HAVE_DYNAMIC_CIPHERS
+#define SQLITE3MC_HAVE_DYNAMIC_CIPHERS 0
+#endif
+
+/*
 ** Disable all built-in ciphers on request
 */
 
@@ -94,7 +102,8 @@
 /*
 ** Check that at least one cipher is be supported
 */
-#if HAVE_CIPHER_AES_128_CBC == 0 &&  \
+#if SQLITE3MC_HAVE_DYNAMIC_CIPHERS == 0 && \
+    HAVE_CIPHER_AES_128_CBC == 0 &&  \
     HAVE_CIPHER_AES_256_CBC == 0 &&  \
     HAVE_CIPHER_CHACHA20    == 0 &&  \
     HAVE_CIPHER_SQLCIPHER   == 0 &&  \

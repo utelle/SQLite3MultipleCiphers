@@ -240,18 +240,15 @@ GetSaltSQLCipherCipher(void* cipher)
 }
 
 static void
-GenerateKeySQLCipherCipher(void* cipher, BtShared* pBt, char* userPassword, int passwordLength, int rekey, unsigned char* cipherSalt)
+GenerateKeySQLCipherCipher(void* cipher, char* userPassword, int passwordLength, int rekey, unsigned char* cipherSalt)
 {
   SQLCipherCipher* sqlCipherCipher = (SQLCipherCipher*) cipher;
 
-  Pager *pPager = pBt->pPager;
-  sqlite3_file* fd = (isOpen(pPager->fd)) ? pPager->fd : NULL;
-
-  if (rekey || fd == NULL || sqlite3OsRead(fd, sqlCipherCipher->m_salt, SALTLENGTH_SQLCIPHER, 0) != SQLITE_OK)
+  if (rekey || cipherSalt == NULL)
   {
     chacha20_rng(sqlCipherCipher->m_salt, SALTLENGTH_SQLCIPHER);
   }
-  else if (cipherSalt != NULL)
+  else
   {
     memcpy(sqlCipherCipher->m_salt, cipherSalt, SALTLENGTH_SQLCIPHER);
   }
