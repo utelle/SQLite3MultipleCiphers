@@ -104,6 +104,37 @@ toUint32FromLE(const void* buffer)
 #if HAS_AES_HARDWARE == AES_HARDWARE_NI
 /* --- Implementation for AES-NI --- */
 
+/* Define SQLITE3MC_COMPILER_HAS_ATTRIBUTE */
+#if defined(__has_attribute)
+  #define SQLITE3MC_COMPILER_HAS_ATTRIBUTE(x) __has_attribute(x)
+  #define SQLITE3MC_COMPILER_ATTRIBUTE(x) __attribute__((x))
+#else
+  #define SQLITE3MC_COMPILER_HAS_ATTRIBUTE(x) 0
+  #define SQLITE3MC_COMPILER_ATTRIBUTE(x) /**/
+#endif
+
+/* Define SQLITE3MC_FORCE_INLINE */
+#if !defined(SQLITE3MC_FORCE_INLINE)
+  #if SQLITE3MC_COMPILER_HAS_ATTRIBUTE(always_inline)
+    #define SQLITE3MC_FORCE_INLINE inline SQLITE3MC_COMPILER_ATTRIBUTE(always_inline)
+  #elif defined(_MSC_VER)
+    #define SQLITE3MC_FORCE_INLINE __forceinline
+  #else
+    #define SQLITE3MC_FORCE_INLINE inline
+  #endif
+#endif
+
+/* Define SQLITE3MC_FUNC_ISA */
+#if SQLITE3MC_COMPILER_HAS_ATTRIBUTE(target)
+   #define SQLITE3MC_FUNC_ISA(isa) SQLITE3MC_COMPILER_ATTRIBUTE(target(isa))
+#else
+   #define SQLITE3MC_FUNC_ISA(isa)
+#endif
+
+/* Define SQLITE3MC_FUNC_ISA_INLINE */
+#define SQLITE3MC_FUNC_ISA_INLINE(isa) SQLITE3MC_FUNC_ISA(isa) SQLITE3MC_FORCE_INLINE
+
+
 /*
 ** Define function for detecting hardware AES support at runtime
 */
@@ -140,6 +171,7 @@ aesHardwareCheck()
 #include <wmmintrin.h>
 #include <smmintrin.h>
 
+SQLITE3MC_FUNC_ISA("sse4.2,aes")
 static int
 aesGenKeyEncryptInternal(const unsigned char* userKey, const int bits, __m128i* keyData)
 {
@@ -193,6 +225,7 @@ aesGenKeyEncryptInternal(const unsigned char* userKey, const int bits, __m128i* 
   return rc;
 }
 
+SQLITE3MC_FUNC_ISA("sse4.2,aes")
 static int
 aesGenKeyEncrypt(const unsigned char* userKey, const int bits, unsigned char* keyData)
 {
@@ -215,6 +248,7 @@ aesGenKeyEncrypt(const unsigned char* userKey, const int bits, unsigned char* ke
   return rc;
 }
 
+SQLITE3MC_FUNC_ISA("sse4.2,aes")
 static int
 aesGenKeyDecrypt(const unsigned char* userKey, const int bits, unsigned char* keyData)
 {
@@ -249,6 +283,7 @@ aesGenKeyDecrypt(const unsigned char* userKey, const int bits, unsigned char* ke
 ** AES CBC CTS Encryption
 */
 
+SQLITE3MC_FUNC_ISA("sse4.2,aes")
 static void
 aesEncryptCBC(const unsigned char* in,
               unsigned char* out,
@@ -316,6 +351,7 @@ aesEncryptCBC(const unsigned char* in,
 /*
 ** AES CBC CTS decryption
 */
+SQLITE3MC_FUNC_ISA("sse4.2,aes")
 static void
 aesDecryptCBC(const unsigned char* in,
               unsigned char* out,
