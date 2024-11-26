@@ -659,7 +659,7 @@ static int seriesBestIndex(
       continue;
     }
     if( pConstraint->iColumn<SERIES_COLUMN_START ){
-      if( pConstraint->iColumn==SERIES_COLUMN_VALUE ){
+      if( pConstraint->iColumn==SERIES_COLUMN_VALUE && pConstraint->usable ){
         switch( op ){
           case SQLITE_INDEX_CONSTRAINT_EQ:
           case SQLITE_INDEX_CONSTRAINT_IS: {
@@ -667,7 +667,9 @@ static int seriesBestIndex(
             idxNum &= ~0x3300;
             aIdx[5] = i;
             aIdx[6] = -1;
+#ifndef ZERO_ARGUMENT_GENERATE_SERIES
             bStartSeen = 1;
+#endif
             break;
           }
           case SQLITE_INDEX_CONSTRAINT_GE: {
@@ -675,7 +677,9 @@ static int seriesBestIndex(
             idxNum |=  0x0100;
             idxNum &= ~0x0200;
             aIdx[5] = i;
+#ifndef ZERO_ARGUMENT_GENERATE_SERIES
             bStartSeen = 1;
+#endif
             break;
           }
           case SQLITE_INDEX_CONSTRAINT_GT: {
@@ -683,7 +687,9 @@ static int seriesBestIndex(
             idxNum |=  0x0200;
             idxNum &= ~0x0100;
             aIdx[5] = i;
+#ifndef ZERO_ARGUMENT_GENERATE_SERIES
             bStartSeen = 1;
+#endif
             break;
           }
           case SQLITE_INDEX_CONSTRAINT_LE: {
@@ -751,7 +757,7 @@ static int seriesBestIndex(
     return SQLITE_CONSTRAINT;
   }
   if( (idxNum & 0x03)==0x03 ){
-    /* Both start= and stop= boundaries are available.  This is the
+    /* Both start= and stop= boundaries are available.  This is the 
     ** the preferred case */
     pIdxInfo->estimatedCost = (double)(2 - ((idxNum&4)!=0));
     pIdxInfo->estimatedRows = 1000;
@@ -780,7 +786,7 @@ static int seriesBestIndex(
 }
 
 /*
-** This following structure defines all the methods for the
+** This following structure defines all the methods for the 
 ** generate_series virtual table.
 */
 static sqlite3_module seriesModule = {
@@ -817,8 +823,8 @@ static sqlite3_module seriesModule = {
 __declspec(dllexport)
 #endif
 int sqlite3_series_init(
-  sqlite3 *db,
-  char **pzErrMsg,
+  sqlite3 *db, 
+  char **pzErrMsg, 
   const sqlite3_api_routines *pApi
 ){
   int rc = SQLITE_OK;

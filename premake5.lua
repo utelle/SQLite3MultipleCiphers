@@ -39,7 +39,7 @@ project "sqlite3mc_lib"
     end
   else
     toolset("gcc")
-    buildoptions { "-msse4.2", "-maes" }
+--    buildoptions { "-msse4.2", "-maes" }
 --    buildoptions { "-march=native" }
   end
   makesettings { "include config.gcc" }
@@ -135,7 +135,7 @@ project "sqlite3mc_dll"
     end
   else
     toolset("gcc")
-    buildoptions { "-msse4.2", "-maes" }
+--    buildoptions { "-msse4.2", "-maes" }
 --    buildoptions { "-march=native" }
   end
   makesettings { "include config.gcc" }
@@ -227,7 +227,7 @@ project "sqlite3mc_shell"
     end
   else
     toolset("gcc")
-    buildoptions { "-msse4.2", "-maes" }
+--    buildoptions { "-msse4.2", "-maes" }
 --    buildoptions { "-march=native" }
   end
   makesettings { "include config.gcc" }
@@ -286,7 +286,7 @@ project "sqlite3mc_libicu"
     end
   else
     toolset("gcc")
-    buildoptions { "-msse4.2", "-maes" }
+--    buildoptions { "-msse4.2", "-maes" }
 --    buildoptions { "-march=native" }
   end
   makesettings { "include config.gcc" }
@@ -383,7 +383,7 @@ project "sqlite3mc_dllicu"
     end
   else
     toolset("gcc")
-    buildoptions { "-msse4.2", "-maes" }
+--    buildoptions { "-msse4.2", "-maes" }
 --    buildoptions { "-march=native" }
   end
   makesettings { "include config.gcc" }
@@ -488,7 +488,7 @@ project "sqlite3mc_shellicu"
     end
   else
     toolset("gcc")
-    buildoptions { "-msse4.2", "-maes" }
+--    buildoptions { "-msse4.2", "-maes" }
 --    buildoptions { "-march=native" }
   end
   makesettings { "include config.gcc" }

@@ -1,14 +1,14 @@
 # Process this file with automake to create Makefile.in for sqlite3mc library
 #
-# Copyright (C) 2019-2023 Ulrich Telle <ulrich@telle-online.de>
+# Copyright (C) 2019-2024 Ulrich Telle <ulrich@telle-online.de>
 #
 # This file is covered by the same licence as the entire SQLite3 Multiple Ciphers package.
 
-if HOST_X86
-X86_FLAGS = -msse4.2 -maes 
-else
+#if HOST_X86
+#X86_FLAGS = -msse4.2 -maes 
+#else
 X86_FLAGS =
-endif
+#endif
 
 if HOST_ARM
 #ARM_FLAGS = -march=native 
