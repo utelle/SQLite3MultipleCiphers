@@ -541,7 +541,7 @@ The following ciphers are supported:
 - RC4 - No HMAC ([System.Data.SQLite](http://system.data.sqlite.org))
 
 [Unreleased]: ../../compare/v1.9.1...HEAD
-[1.9.1]: ../../compare/v1.8.7...v1.9.1
+[1.9.1]: ../../compare/v1.9.0...v1.9.1
 [1.9.0]: ../../compare/v1.8.7...v1.9.0
 [1.8.7]: ../../compare/v1.8.6...v1.8.7
 [1.8.6]: ../../compare/v1.8.5...v1.8.6
