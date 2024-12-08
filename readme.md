@@ -10,9 +10,9 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version information
 
-* 1.9.1 - *November 2024*
-  - Based on SQLite version 3.47.1
-  - Remove need to specify AES hw compile time options
+* 1.9.2 - *December 2024*
+  - Based on SQLite version 3.47.2
+  - Fixed issue with page size change request for encrypted databases
 
 For further version information please consult the [CHANGELOG](CHANGELOG.md).
 
