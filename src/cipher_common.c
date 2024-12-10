@@ -116,8 +116,9 @@ sqlite3mcCloneCodecParameterTable()
 }
 
 SQLITE_PRIVATE void
-sqlite3mcFreeCodecParameterTable(CodecParameter* codecParams)
+sqlite3mcFreeCodecParameterTable(void* ptr)
 {
+  CodecParameter* codecParams = (CodecParameter*)ptr;
   sqlite3_free(codecParams[0].m_params);
   sqlite3_free(codecParams);
 }

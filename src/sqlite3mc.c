@@ -409,7 +409,7 @@ mcRegisterCodecExtensions(sqlite3* db, char** pzErrMsg, const sqlite3_api_routin
   if (rc == SQLITE_OK)
   {
     rc = sqlite3_create_function_v2(db, "sqlite3mc_config_table", 0, SQLITE_UTF8 | SQLITE_DETERMINISTIC,
-                                    codecParameterTable, sqlite3mcConfigTable, 0, 0, (void(*)(void*)) sqlite3mcFreeCodecParameterTable);
+                                    codecParameterTable, sqlite3mcConfigTable, 0, 0, sqlite3mcFreeCodecParameterTable);
   }
 
   rc = (codecParameterTable != NULL) ? SQLITE_OK : SQLITE_NOMEM;
