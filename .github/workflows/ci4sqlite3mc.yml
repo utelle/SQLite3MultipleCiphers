@@ -3,6 +3,7 @@ on:
   push:
     branches:
     - main
+    - aegis
     - register-dynamic-cipher
   pull_request:
     branches:
