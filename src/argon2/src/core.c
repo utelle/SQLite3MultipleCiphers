@@ -46,8 +46,10 @@
 #define NOT_OPTIMIZED __attribute__((optnone))
 #endif
 #elif defined(__GNUC__)
+#ifndef GCC_VERSION
 #define GCC_VERSION                                                            \
     (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
+#endif
 #if GCC_VERSION >= 40400
 #define NOT_OPTIMIZED __attribute__((optimize("O0")))
 #endif
