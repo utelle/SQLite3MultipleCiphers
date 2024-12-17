@@ -6,6 +6,10 @@
 #define ARGON2_PRIVATE static
 #endif
 
+#ifndef ARGON2_LOCAL
+#define ARGON2_LOCAL static
+#endif
+
 #ifndef BLAKE2B_API
 #define BLAKE2B_API static
 #endif
