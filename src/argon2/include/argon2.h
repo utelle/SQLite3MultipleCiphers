@@ -31,11 +31,19 @@ extern "C" {
 #define ARGON2_PUBLIC __attribute__((visibility("default")))
 #define ARGON2_LOCAL __attribute__ ((visibility ("hidden")))
 #elif defined(_MSC_VER)
+#ifndef ARGON2_PUBLIC
 #define ARGON2_PUBLIC __declspec(dllexport)
+#endif
+#ifndef ARGON2_LOCAL
 #define ARGON2_LOCAL
+#endif
 #else
+#ifndef ARGON2_PUBLIC
 #define ARGON2_PUBLIC
+#endif
+#ifndef ARGON2_LOCAL
 #define ARGON2_LOCAL
+#endif
 #endif
 
 /*
