@@ -51,7 +51,7 @@ project "sqlite3mc_lib"
   }
   characterset ("Unicode")
   staticruntime "On"
-  includedirs { "src" }
+  includedirs { "src", "src/aegis/include", "src/argon2/include" }
 
   location( BUILDDIR )
   targetname "sqlite3mc"
@@ -148,7 +148,7 @@ project "sqlite3mc_dll"
   }
   characterset ("Unicode")
   staticruntime "On"
-  includedirs { "src" }
+  includedirs { "src", "src/aegis/include", "src/argon2/include" }
 
   location( BUILDDIR )
   targetname "sqlite3mc"
@@ -298,7 +298,7 @@ project "sqlite3mc_libicu"
   }
   characterset ("Unicode")
   staticruntime "On"
-  includedirs { "src", "$(LIBICU_PATH)/include" }
+  includedirs { "src", "src/aegis/include", "src/argon2/include", "$(LIBICU_PATH)/include" }
 
   location( BUILDDIR )
   targetname "sqlite3mc_icu"
@@ -396,7 +396,7 @@ project "sqlite3mc_dllicu"
   }
   characterset ("Unicode")
   staticruntime "On"
-  includedirs { "src", "$(LIBICU_PATH)/include" }
+  includedirs { "src", "src/aegis/include", "src/argon2/include", "$(LIBICU_PATH)/include" }
 
   filter { "platforms:Win32" }
     libdirs { "$(LIBICU_PATH)/lib" }

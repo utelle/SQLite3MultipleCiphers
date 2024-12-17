@@ -206,8 +206,10 @@ static void sqlite3UuidBlobFunc(
   sqlite3_result_blob(context, pBlob, 16, SQLITE_TRANSIENT);
 }
 
+#if 0
 #ifdef _WIN32
 __declspec(dllexport)
+#endif
 #endif
 int sqlite3_uuid_init(
   sqlite3 *db,

@@ -19,7 +19,7 @@ endif
 # #############################################
 
 RESCOMP = windres
-INCLUDES += -I../src -I"$(LIBICU_PATH)/include"
+INCLUDES += -I../src -I../src/aegis/include -I../src/argon2/include -I"$(LIBICU_PATH)/include"
 FORCE_INCLUDE +=
 ALL_CPPFLAGS += $(CPPFLAGS) -MD -MP $(DEFINES) $(INCLUDES)
 ALL_RESFLAGS += $(RESFLAGS) $(DEFINES) $(INCLUDES)

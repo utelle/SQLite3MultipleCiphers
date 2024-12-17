@@ -34,7 +34,8 @@
 #define CODEC_TYPE_SQLCIPHER   4
 #define CODEC_TYPE_RC4         5
 #define CODEC_TYPE_ASCON128    6
-#define CODEC_TYPE_MAX_BUILTIN 6
+#define CODEC_TYPE_AEGIS       7
+#define CODEC_TYPE_MAX_BUILTIN 7
 
 /*
 ** Definition of API functions

@@ -944,9 +944,10 @@ static sqlite3_module CsvModuleFauxWrite = {
 
 #endif /* !defined(SQLITE_OMIT_VIRTUALTABLE) */
 
-
+#if 0
 #ifdef _WIN32
 __declspec(dllexport)
+#endif
 #endif
 /*
 ** This routine is called when the extension is loaded.  The new

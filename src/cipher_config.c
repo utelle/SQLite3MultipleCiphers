@@ -779,12 +779,45 @@ sqlite3mcConfigureFromUri(sqlite3* db, const char *zDbName, int configDefault)
         }
 #endif
 
+#if HAVE_CIPHER_AEGIS
+        int hasAegisAlgorithm = 0;
+        int aegisAlgorithm = 0;
+        if (sqlite3_stricmp(cipherName, "aegis") == 0)
+        {
+          const char* algorithm = sqlite3_uri_parameter(dbFileName, "algorithm");
+          if (algorithm != NULL && *algorithm != 0)
+          {
+            int intValue = -1;
+            int isIntValue = sqlite3GetInt32(algorithm, &intValue) != 0;
+            if (!isIntValue)
+            {
+              intValue = sqlite3mcAegisAlgorithmToIndex(algorithm);
+            }
+            if (intValue > 0)
+            {
+              hasAegisAlgorithm = 1;
+              aegisAlgorithm = intValue;
+            }
+          }
+        }
+#endif
+
         /* Check all cipher specific parameters */
         for (j = 0; cipherParams[j].m_name[0] != 0; ++j)
         {
+          int value = -1;
           if (skipLegacy && sqlite3_stricmp(cipherParams[j].m_name, "legacy") == 0) continue;
 
-          int value = (int) sqlite3_uri_int64(dbFileName, cipherParams[j].m_name, -1);
+#if HAVE_CIPHER_AEGIS
+          if (hasAegisAlgorithm && sqlite3_stricmp(cipherParams[j].m_name, "algorithm") == 0)
+          {
+            value = aegisAlgorithm;
+          }
+          else
+#endif
+          {
+            value = (int)sqlite3_uri_int64(dbFileName, cipherParams[j].m_name, -1);
+          }
           if (value >= 0)
           {
             /* Configure cipher parameter if it was given in the URI */
@@ -1068,6 +1101,19 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
       if (cipherParams != NULL)
       {
         const char* cipherName = globalCodecParameterTable[j].m_name;
+#if HAVE_CIPHER_AEGIS
+        int isAegisAlgorithm = 0;
+        if (sqlite3_stricmp(cipherName, "aegis") == 0 &&
+            sqlite3_stricmp(pragmaName, "algorithm") == 0)
+        {
+          if (!isIntValue)
+          {
+            intValue = sqlite3mcAegisAlgorithmToIndex(pragmaValue);
+            isIntValue = 1;
+          }
+          isAegisAlgorithm = 1;
+        }
+#endif
         for (j = 0; cipherParams[j].m_name[0] != 0; ++j)
         {
           if (sqlite3_stricmp(pragmaName, cipherParams[j].m_name) == 0) break;
@@ -1078,7 +1124,16 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
           if (isIntValue)
           {
             int value = sqlite3mc_config_cipher(db, cipherName, param, intValue);
-            ((char**)pArg)[0] = sqlite3_mprintf("%d", value);
+#if HAVE_CIPHER_AEGIS
+            if (isAegisAlgorithm)
+            {
+              ((char**)pArg)[0] = sqlite3_mprintf("%s", sqlite3mcAegisAlgorithmToString(value));
+            }
+            else
+#endif
+            {
+              ((char**)pArg)[0] = sqlite3_mprintf("%d", value);
+            }
             rc = SQLITE_OK;
           }
           else

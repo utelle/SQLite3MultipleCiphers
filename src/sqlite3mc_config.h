@@ -41,6 +41,10 @@
 #define HAVE_CIPHER_ASCON128 WXSQLITE3_HAVE_CIPHER_ASCON128
 #endif
 
+#ifdef WXSQLITE3_HAVE_CIPHER_AEGIS
+#define HAVE_CIPHER_AEGIS WXSQLITE3_HAVE_CIPHER_AEGIS
+#endif
+
 /*
 ** Actual definitions of supported ciphers
 */
@@ -68,6 +72,10 @@
 #define HAVE_CIPHER_ASCON128 1
 #endif
 
+#ifndef HAVE_CIPHER_AEGIS
+#define HAVE_CIPHER_AEGIS 1
+#endif
+
 /*
 ** Define whether dynamic ciphers will be used
 */
@@ -91,12 +99,14 @@
 #undef HAVE_CIPHER_SQLCIPHER
 #undef HAVE_CIPHER_RC4
 #undef HAVE_CIPHER_ASCON128
+#undef HAVE_CIPHER_AEGIS
 #define HAVE_CIPHER_AES_128_CBC 0
 #define HAVE_CIPHER_AES_256_CBC 0
 #define HAVE_CIPHER_CHACHA20    0
 #define HAVE_CIPHER_SQLCIPHER   0
 #define HAVE_CIPHER_RC4         0
 #define HAVE_CIPHER_ASCON128    0
+#define HAVE_CIPHER_AEGIS       0
 #endif
 
 /*
@@ -108,7 +118,8 @@
     HAVE_CIPHER_CHACHA20    == 0 &&  \
     HAVE_CIPHER_SQLCIPHER   == 0 &&  \
     HAVE_CIPHER_RC4         == 0 &&  \
-    HAVE_CIPHER_ASCON128    == 0
+    HAVE_CIPHER_ASCON128    == 0 &&  \
+    HAVE_CIPHER_AEGIS       == 0
 #pragma message ("sqlite3mc_config.h: WARNING - No built-in cipher scheme enabled!")
 #endif
 
