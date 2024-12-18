@@ -22,8 +22,5 @@
 #include "src/argon2.c"
 #include "src/core.c"
 #include "src/encoding.c"
-#if 0
-#include "src/opt.c"
-#endif
 #include "src/ref.c"
 #include "src/thread.c"
