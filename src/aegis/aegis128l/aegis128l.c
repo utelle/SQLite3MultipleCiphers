@@ -266,21 +266,21 @@ aegis128l_pick_best_implementation(void)
 {
     implementation_128l = &aegis128l_soft_implementation;
 
-#if defined(__aarch64__) || defined(_M_ARM64)
+#if HAS_AEGIS_AES_HARDWARE == AEGIS_AES_HARDWARE_NEON
     if (aegis_runtime_has_armcrypto()) {
         implementation_128l = &aegis128l_armcrypto_implementation;
         return 0;
     }
 #endif
 
-#if defined(__x86_64__) || defined(_M_AMD64) || defined(__i386__) || defined(_M_IX86)
+#if HAS_AEGIS_AES_HARDWARE == AEGIS_AES_HARDWARE_NI
     if (aegis_runtime_has_aesni() && aegis_runtime_has_avx()) {
         implementation_128l = &aegis128l_aesni_implementation;
         return 0;
     }
 #endif
 
-#if defined(__ALTIVEC__) && defined(__CRYPTO__)
+#if HAS_AEGIS_AES_HARDWARE == AEGIS_AES_HARDWARE_ALTIVEC
     if (aegis_runtime_has_altivec()) {
         implementation_128l = &aegis128l_altivec_implementation;
         return 0;

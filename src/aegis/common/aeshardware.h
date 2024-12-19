@@ -36,6 +36,8 @@
 
 #if (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 4)) && (defined(__x86_64__) || defined(__i386))
 #define HAS_AEGIS_AES_HARDWARE AEGIS_AES_HARDWARE_NI
+#elif defined(__aarch64__) || (defined(__arm__) && defined(__ARM_NEON))
+#define HAS_AEGIS_AES_HARDWARE AEGIS_AES_HARDWARE_NEON
 #endif
 
 
