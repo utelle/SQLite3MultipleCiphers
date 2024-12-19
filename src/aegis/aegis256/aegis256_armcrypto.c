@@ -5,7 +5,9 @@
 ** SPDX-License-Identifier: MIT
 */
 
-#if defined(__aarch64__) || defined(_M_ARM64)
+#include "../common/aeshardware.h"
+
+#if HAS_AEGIS_AES_HARDWARE == AEGIS_AES_HARDWARE_NEON
 
 #include <errno.h>
 #include <stddef.h>
@@ -24,7 +26,11 @@
 #  define __ARM_FEATURE_AES 1
 #endif
 
+#ifdef USE_ARM64_NEON_H
+#include <arm64_neon.h>
+#else
 #include <arm_neon.h>
+#endif
 
 #ifdef __clang__
 #  pragma clang attribute push(__attribute__((target("neon,crypto,aes"))), \

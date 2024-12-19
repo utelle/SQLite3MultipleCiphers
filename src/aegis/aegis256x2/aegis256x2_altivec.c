@@ -22,7 +22,7 @@
 #ifdef __clang__
 #  pragma clang attribute push(__attribute__((target("altivec,crypto"))), apply_to = function)
 #elif defined(__GNUC__)
-#  pragma GCC target("+altivec+crypto")
+#  pragma GCC target("altivec,crypto")
 #endif
 
 #define AES_BLOCK_LENGTH 32
@@ -63,7 +63,7 @@ static inline AEGIS_AES_BLOCK_T
 AEGIS_AES_BLOCK_LOAD_64x2(uint64_t a, uint64_t b)
 {
     const vector unsigned char t =
-        vec_revb(vec_insert(a, vec_promote((unsigned long long) (b), 1), 0));
+        (vector unsigned char) vec_revb(vec_insert(a, vec_promote((unsigned long long) (b), 1), 0));
     return (AEGIS_AES_BLOCK_T) { t, t };
 }
 

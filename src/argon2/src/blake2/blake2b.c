@@ -43,115 +43,115 @@ static const unsigned int blake2b_sigma[12][16] = {
     {14, 10, 4, 8, 9, 15, 13, 6, 1, 12, 0, 2, 11, 7, 5, 3},
 };
 
-static BLAKE2_INLINE void blake2b_set_lastnode(blake2b_state *S) {
-    S->f[1] = (uint64_t)-1;
+static BLAKE2_INLINE void blake2b_set_lastnode(blake2b_state *BS) {
+    BS->f[1] = (uint64_t)-1;
 }
 
-static BLAKE2_INLINE void blake2b_set_lastblock(blake2b_state *S) {
-    if (S->last_node) {
-        blake2b_set_lastnode(S);
+static BLAKE2_INLINE void blake2b_set_lastblock(blake2b_state *BS) {
+    if (BS->last_node) {
+        blake2b_set_lastnode(BS);
     }
-    S->f[0] = (uint64_t)-1;
+    BS->f[0] = (uint64_t)-1;
 }
 
-static BLAKE2_INLINE void blake2b_increment_counter(blake2b_state *S,
+static BLAKE2_INLINE void blake2b_increment_counter(blake2b_state *BS,
                                                     uint64_t inc) {
-    S->t[0] += inc;
-    S->t[1] += (S->t[0] < inc);
+    BS->t[0] += inc;
+    BS->t[1] += (BS->t[0] < inc);
 }
 
-static BLAKE2_INLINE void blake2b_invalidate_state(blake2b_state *S) {
-    _argon2_clear_internal_memory(S, sizeof(*S));      /* wipe */
-    blake2b_set_lastblock(S); /* invalidate for further use */
+static BLAKE2_INLINE void blake2b_invalidate_state(blake2b_state *BS) {
+    _argon2_clear_internal_memory(BS, sizeof(*BS));      /* wipe */
+    blake2b_set_lastblock(BS); /* invalidate for further use */
 }
 
-static BLAKE2_INLINE void blake2b_init0(blake2b_state *S) {
-    memset(S, 0, sizeof(*S));
-    memcpy(S->h, blake2b_IV, sizeof(S->h));
+static BLAKE2_INLINE void blake2b_init0(blake2b_state *BS) {
+    memset(BS, 0, sizeof(*BS));
+    memcpy(BS->h, blake2b_IV, sizeof(BS->h));
 }
 
 BLAKE2B_API
-int blake2b_init_param(blake2b_state *S, const blake2b_param *P) {
-    const unsigned char *p = (const unsigned char *)P;
+int blake2b_init_param(blake2b_state *BS, const blake2b_param *BP) {
+    const unsigned char *p = (const unsigned char *)BP;
     unsigned int i;
 
-    if (NULL == P || NULL == S) {
+    if (NULL == BP || NULL == BS) {
         return -1;
     }
 
-    blake2b_init0(S);
+    blake2b_init0(BS);
     /* IV XOR Parameter Block */
     for (i = 0; i < 8; ++i) {
-        S->h[i] ^= _blake2b_load64(&p[i * sizeof(S->h[i])]);
+        BS->h[i] ^= _blake2b_load64(&p[i * sizeof(BS->h[i])]);
     }
-    S->outlen = P->digest_length;
+    BS->outlen = BP->digest_length;
     return 0;
 }
 
 /* Sequential blake2b initialization */
 BLAKE2B_API
-int blake2b_init(blake2b_state *S, size_t outlen) {
-    blake2b_param P;
+int blake2b_init(blake2b_state *BS, size_t outlen) {
+    blake2b_param BP;
 
-    if (S == NULL) {
+    if (BS == NULL) {
         return -1;
     }
 
     if ((outlen == 0) || (outlen > BLAKE2B_OUTBYTES)) {
-        blake2b_invalidate_state(S);
+        blake2b_invalidate_state(BS);
         return -1;
     }
 
     /* Setup Parameter Block for unkeyed BLAKE2 */
-    P.digest_length = (uint8_t)outlen;
-    P.key_length = 0;
-    P.fanout = 1;
-    P.depth = 1;
-    P.leaf_length = 0;
-    P.node_offset = 0;
-    P.node_depth = 0;
-    P.inner_length = 0;
-    memset(P.reserved, 0, sizeof(P.reserved));
-    memset(P.salt, 0, sizeof(P.salt));
-    memset(P.personal, 0, sizeof(P.personal));
+    BP.digest_length = (uint8_t)outlen;
+    BP.key_length = 0;
+    BP.fanout = 1;
+    BP.depth = 1;
+    BP.leaf_length = 0;
+    BP.node_offset = 0;
+    BP.node_depth = 0;
+    BP.inner_length = 0;
+    memset(BP.reserved, 0, sizeof(BP.reserved));
+    memset(BP.salt, 0, sizeof(BP.salt));
+    memset(BP.personal, 0, sizeof(BP.personal));
 
-    return blake2b_init_param(S, &P);
+    return blake2b_init_param(BS, &BP);
 }
 
 BLAKE2B_API
-int blake2b_init_key(blake2b_state *S, size_t outlen, const void *key,
+int blake2b_init_key(blake2b_state *BS, size_t outlen, const void *key,
                      size_t keylen) {
-    blake2b_param P;
+    blake2b_param BP;
 
-    if (S == NULL) {
+    if (BS == NULL) {
         return -1;
     }
 
     if ((outlen == 0) || (outlen > BLAKE2B_OUTBYTES)) {
-        blake2b_invalidate_state(S);
+        blake2b_invalidate_state(BS);
         return -1;
     }
 
     if ((key == 0) || (keylen == 0) || (keylen > BLAKE2B_KEYBYTES)) {
-        blake2b_invalidate_state(S);
+        blake2b_invalidate_state(BS);
         return -1;
     }
 
     /* Setup Parameter Block for keyed BLAKE2 */
-    P.digest_length = (uint8_t)outlen;
-    P.key_length = (uint8_t)keylen;
-    P.fanout = 1;
-    P.depth = 1;
-    P.leaf_length = 0;
-    P.node_offset = 0;
-    P.node_depth = 0;
-    P.inner_length = 0;
-    memset(P.reserved, 0, sizeof(P.reserved));
-    memset(P.salt, 0, sizeof(P.salt));
-    memset(P.personal, 0, sizeof(P.personal));
+    BP.digest_length = (uint8_t)outlen;
+    BP.key_length = (uint8_t)keylen;
+    BP.fanout = 1;
+    BP.depth = 1;
+    BP.leaf_length = 0;
+    BP.node_offset = 0;
+    BP.node_depth = 0;
+    BP.inner_length = 0;
+    memset(BP.reserved, 0, sizeof(BP.reserved));
+    memset(BP.salt, 0, sizeof(BP.salt));
+    memset(BP.personal, 0, sizeof(BP.personal));
 
-    if (blake2b_init_param(S, &P) < 0) {
-        blake2b_invalidate_state(S);
+    if (blake2b_init_param(BS, &BP) < 0) {
+        blake2b_invalidate_state(BS);
         return -1;
     }
 
@@ -159,14 +159,14 @@ int blake2b_init_key(blake2b_state *S, size_t outlen, const void *key,
         uint8_t block[BLAKE2B_BLOCKBYTES];
         memset(block, 0, BLAKE2B_BLOCKBYTES);
         memcpy(block, key, keylen);
-        blake2b_update(S, block, BLAKE2B_BLOCKBYTES);
+        blake2b_update(BS, block, BLAKE2B_BLOCKBYTES);
         /* Burn the key from stack */
         _argon2_clear_internal_memory(block, BLAKE2B_BLOCKBYTES);
     }
     return 0;
 }
 
-static void blake2b_compress(blake2b_state *S, const uint8_t *block) {
+static void blake2b_compress(blake2b_state *BS, const uint8_t *block) {
     uint64_t m[16];
     uint64_t v[16];
     unsigned int i, r;
@@ -176,17 +176,17 @@ static void blake2b_compress(blake2b_state *S, const uint8_t *block) {
     }
 
     for (i = 0; i < 8; ++i) {
-        v[i] = S->h[i];
+        v[i] = BS->h[i];
     }
 
     v[8] = blake2b_IV[0];
     v[9] = blake2b_IV[1];
     v[10] = blake2b_IV[2];
     v[11] = blake2b_IV[3];
-    v[12] = blake2b_IV[4] ^ S->t[0];
-    v[13] = blake2b_IV[5] ^ S->t[1];
-    v[14] = blake2b_IV[6] ^ S->f[0];
-    v[15] = blake2b_IV[7] ^ S->f[1];
+    v[12] = blake2b_IV[4] ^ BS->t[0];
+    v[13] = blake2b_IV[5] ^ BS->t[1];
+    v[14] = blake2b_IV[6] ^ BS->f[0];
+    v[15] = blake2b_IV[7] ^ BS->f[1];
 
 #define BLAKE2B_G(r, i, a, b, c, d)                                                    \
     do {                                                                       \
@@ -217,7 +217,7 @@ static void blake2b_compress(blake2b_state *S, const uint8_t *block) {
     }
 
     for (i = 0; i < 8; ++i) {
-        S->h[i] = S->h[i] ^ v[i] ^ v[i + 8];
+        BS->h[i] = BS->h[i] ^ v[i] ^ v[i + 8];
     }
 
 #undef BLAKE2B_G
@@ -225,7 +225,7 @@ static void blake2b_compress(blake2b_state *S, const uint8_t *block) {
 }
 
 BLAKE2B_API
-int blake2b_update(blake2b_state *S, const void *in, size_t inlen) {
+int blake2b_update(blake2b_state *BS, const void *in, size_t inlen) {
     const uint8_t *pin = (const uint8_t *)in;
 
     if (inlen == 0) {
@@ -233,73 +233,73 @@ int blake2b_update(blake2b_state *S, const void *in, size_t inlen) {
     }
 
     /* Sanity check */
-    if (S == NULL || in == NULL) {
+    if (BS == NULL || in == NULL) {
         return -1;
     }
 
     /* Is this a reused state? */
-    if (S->f[0] != 0) {
+    if (BS->f[0] != 0) {
         return -1;
     }
 
-    if (S->buflen + inlen > BLAKE2B_BLOCKBYTES) {
+    if (BS->buflen + inlen > BLAKE2B_BLOCKBYTES) {
         /* Complete current block */
-        size_t left = S->buflen;
+        size_t left = BS->buflen;
         size_t fill = BLAKE2B_BLOCKBYTES - left;
-        memcpy(&S->buf[left], pin, fill);
-        blake2b_increment_counter(S, BLAKE2B_BLOCKBYTES);
-        blake2b_compress(S, S->buf);
-        S->buflen = 0;
+        memcpy(&BS->buf[left], pin, fill);
+        blake2b_increment_counter(BS, BLAKE2B_BLOCKBYTES);
+        blake2b_compress(BS, BS->buf);
+        BS->buflen = 0;
         inlen -= fill;
         pin += fill;
         /* Avoid buffer copies when possible */
         while (inlen > BLAKE2B_BLOCKBYTES) {
-            blake2b_increment_counter(S, BLAKE2B_BLOCKBYTES);
-            blake2b_compress(S, pin);
+            blake2b_increment_counter(BS, BLAKE2B_BLOCKBYTES);
+            blake2b_compress(BS, pin);
             inlen -= BLAKE2B_BLOCKBYTES;
             pin += BLAKE2B_BLOCKBYTES;
         }
     }
-    memcpy(&S->buf[S->buflen], pin, inlen);
-    S->buflen += (unsigned int)inlen;
+    memcpy(&BS->buf[BS->buflen], pin, inlen);
+    BS->buflen += (unsigned int)inlen;
     return 0;
 }
 
 BLAKE2B_API
-int blake2b_final(blake2b_state *S, void *out, size_t outlen) {
+int blake2b_final(blake2b_state *BS, void *out, size_t outlen) {
     uint8_t buffer[BLAKE2B_OUTBYTES] = {0};
     unsigned int i;
 
     /* Sanity checks */
-    if (S == NULL || out == NULL || outlen < S->outlen) {
+    if (BS == NULL || out == NULL || outlen < BS->outlen) {
         return -1;
     }
 
     /* Is this a reused state? */
-    if (S->f[0] != 0) {
+    if (BS->f[0] != 0) {
         return -1;
     }
 
-    blake2b_increment_counter(S, S->buflen);
-    blake2b_set_lastblock(S);
-    memset(&S->buf[S->buflen], 0, BLAKE2B_BLOCKBYTES - S->buflen); /* Padding */
-    blake2b_compress(S, S->buf);
+    blake2b_increment_counter(BS, BS->buflen);
+    blake2b_set_lastblock(BS);
+    memset(&BS->buf[BS->buflen], 0, BLAKE2B_BLOCKBYTES - BS->buflen); /* Padding */
+    blake2b_compress(BS, BS->buf);
 
     for (i = 0; i < 8; ++i) { /* Output full hash to temp buffer */
-      _blake2b_store64(buffer + sizeof(S->h[i]) * i, S->h[i]);
+      _blake2b_store64(buffer + sizeof(BS->h[i]) * i, BS->h[i]);
     }
 
-    memcpy(out, buffer, S->outlen);
+    memcpy(out, buffer, BS->outlen);
     _argon2_clear_internal_memory(buffer, sizeof(buffer));
-    _argon2_clear_internal_memory(S->buf, sizeof(S->buf));
-    _argon2_clear_internal_memory(S->h, sizeof(S->h));
+    _argon2_clear_internal_memory(BS->buf, sizeof(BS->buf));
+    _argon2_clear_internal_memory(BS->h, sizeof(BS->h));
     return 0;
 }
 
 BLAKE2B_API
 int blake2b(void *out, size_t outlen, const void *in, size_t inlen,
             const void *key, size_t keylen) {
-    blake2b_state S;
+    blake2b_state BS;
     int ret = -1;
 
     /* Verify parameters */
@@ -316,22 +316,22 @@ int blake2b(void *out, size_t outlen, const void *in, size_t inlen,
     }
 
     if (keylen > 0) {
-        if (blake2b_init_key(&S, outlen, key, keylen) < 0) {
+        if (blake2b_init_key(&BS, outlen, key, keylen) < 0) {
             goto fail;
         }
     } else {
-        if (blake2b_init(&S, outlen) < 0) {
+        if (blake2b_init(&BS, outlen) < 0) {
             goto fail;
         }
     }
 
-    if (blake2b_update(&S, in, inlen) < 0) {
+    if (blake2b_update(&BS, in, inlen) < 0) {
         goto fail;
     }
-    ret = blake2b_final(&S, out, outlen);
+    ret = blake2b_final(&BS, out, outlen);
 
 fail:
-    _argon2_clear_internal_memory(&S, sizeof(S));
+    _argon2_clear_internal_memory(&BS, sizeof(BS));
     return ret;
 }
 

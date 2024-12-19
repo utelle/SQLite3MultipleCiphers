@@ -507,7 +507,7 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
     if (nReserved > 0)
     {
       /* Use VACUUM to change the number of reserved bytes */
-      char* err = NULL;
+      err = NULL;
       sqlite3mcSetReadReserved(codec, nReserved);
       sqlite3mcSetWriteReserved(codec, 0);
       rc = sqlite3mcRunVacuumForRekey(&err, db, dbIndex, NULL, 0);
@@ -528,7 +528,7 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
         if (nReserved != nReservedWriteCipher)
         {
           /* Use VACUUM to change the number of reserved bytes */
-          char* err = NULL;
+          err = NULL;
           sqlite3mcSetReadReserved(codec, nReserved);
           sqlite3mcSetWriteReserved(codec, nReservedWriteCipher);
           rc = sqlite3mcRunVacuumForRekey(&err, db, dbIndex, NULL, nReservedWriteCipher);
