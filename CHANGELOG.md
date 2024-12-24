@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added new cipher scheme AEGIS
+
+### Changed
+
+- Removed User Authentication extension
+- Cleaned up some extensions to use SQLITE_API
+
+### Fixed
+
+- Fixed undefined behavior related to function pointer cast
+
 ## [1.9.2] - 2024-12-08
 
 ### Changed

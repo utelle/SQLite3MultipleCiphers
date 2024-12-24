@@ -17,7 +17,6 @@
 #ifdef SQLITE_USER_AUTHENTICATION
 #undef SQLITE_USER_AUTHENTICATION
 #endif
-#define SQLITE_USER_AUTHENTICATION 0
 
 /* Disable AES hardware support */
 /* Note: this may be changed in the future depending on available support */
@@ -75,10 +74,8 @@ SQLITE_PRIVATE void sqlite3mc_shutdown(void);
 ** Disable the user authentication feature by default
 */
 #ifdef SQLITE_USER_AUTHENTICATION
-#if !SQLITE_USER_AUTHENTICATION
 /* Option defined and disabled, therefore undefine option */
 #undef SQLITE_USER_AUTHENTICATION
-#endif
 #endif
 
 #if defined(_WIN32) || defined(WIN32)
@@ -194,10 +191,6 @@ SQLITE_PRIVATE void chacha20_rng(void* out, size_t n);
 #include "chacha20poly1305.c"
 #endif
 
-#ifdef SQLITE_USER_AUTHENTICATION
-#include "userauth.c"
-#endif
-
 /*
 ** Declare function prototype for registering the codec extension functions
 */
@@ -212,6 +205,12 @@ mcRegisterCodecExtensions(sqlite3* db, char** pzErrMsg, const sqlite3_api_routin
 #endif
 
 #if HAVE_CIPHER_AEGIS
+
+/* Incremental encryption/decryption not needed */
+#define AEGIS_OMIT_INCREMENTAL
+/* API for generating MAC not needed */
+#define AEGIS_OMIT_MAC_API
+
 #include "aegis/libaegis.c"
 #include "argon2/libargon2.c"
 #endif
@@ -249,11 +248,7 @@ int RegisterExtensionFunctions(sqlite3* db);
 */
 #ifdef SQLITE_ENABLE_CSV
 /* Prototype for initialization function of CSV extension */
-#if 0
-#ifdef _WIN32
-__declspec(dllexport)
-#endif
-#endif
+SQLITE_API
 int sqlite3_csv_init(sqlite3* db, char** pzErrMsg, const sqlite3_api_routines* pApi);
 #include "csv.c"
 #endif
@@ -263,11 +258,7 @@ int sqlite3_csv_init(sqlite3* db, char** pzErrMsg, const sqlite3_api_routines* p
 */
 #ifdef SQLITE_ENABLE_VSV
 /* Prototype for initialization function of VSV extension */
-#if 0
-#ifdef _WIN32
-__declspec(dllexport)
-#endif
-#endif
+SQLITE_API
 int sqlite3_vsv_init(sqlite3* db, char** pzErrMsg, const sqlite3_api_routines* pApi);
 #include "vsv.c"
 #endif
@@ -277,11 +268,7 @@ int sqlite3_vsv_init(sqlite3* db, char** pzErrMsg, const sqlite3_api_routines* p
 */
 #ifdef SQLITE_ENABLE_SHA3
 /* Prototype for initialization function of SHA3 extension */
-#if 0
-#ifdef _WIN32
-__declspec(dllexport)
-#endif
-#endif
+SQLITE_API
 int sqlite3_shathree_init(sqlite3* db, char** pzErrMsg, const sqlite3_api_routines* pApi);
 #include "shathree.c"
 #endif
@@ -291,11 +278,7 @@ int sqlite3_shathree_init(sqlite3* db, char** pzErrMsg, const sqlite3_api_routin
 */
 #ifdef SQLITE_ENABLE_CARRAY
 /* Prototype for initialization function of CARRAY extension */
-#if 0
-#ifdef _WIN32
-__declspec(dllexport)
-#endif
-#endif
+SQLITE_API
 int sqlite3_carray_init(sqlite3* db, char** pzErrMsg, const sqlite3_api_routines* pApi);
 #include "carray.c"
 #endif
@@ -305,11 +288,7 @@ int sqlite3_carray_init(sqlite3* db, char** pzErrMsg, const sqlite3_api_routines
 */
 #ifdef SQLITE_ENABLE_FILEIO
 /* Prototype for initialization function of FILEIO extension */
-#if 0
-#ifdef _WIN32
-__declspec(dllexport)
-#endif
-#endif
+SQLITE_API
 int sqlite3_fileio_init(sqlite3* db, char** pzErrMsg, const sqlite3_api_routines* pApi);
 
 /* MinGW specifics */
@@ -333,11 +312,7 @@ int sqlite3_fileio_init(sqlite3* db, char** pzErrMsg, const sqlite3_api_routines
 */
 #ifdef SQLITE_ENABLE_SERIES
 /* Prototype for initialization function of SERIES extension */
-#if 0
-#ifdef _WIN32
-__declspec(dllexport)
-#endif
-#endif
+SQLITE_API
 int sqlite3_series_init(sqlite3* db, char** pzErrMsg, const sqlite3_api_routines* pApi);
 #include "series.c"
 #endif
@@ -347,11 +322,7 @@ int sqlite3_series_init(sqlite3* db, char** pzErrMsg, const sqlite3_api_routines
 */
 #ifdef SQLITE_ENABLE_UUID
 /* Prototype for initialization function of UUID extension */
-#if 0
-#ifdef _WIN32
-__declspec(dllexport)
-#endif
-#endif
+SQLITE_API
 int sqlite3_uuid_init(sqlite3* db, char** pzErrMsg, const sqlite3_api_routines* pApi);
 #include "uuid.c"
 #endif
@@ -361,11 +332,7 @@ int sqlite3_uuid_init(sqlite3* db, char** pzErrMsg, const sqlite3_api_routines* 
 */
 #ifdef SQLITE_ENABLE_REGEXP
 /* Prototype for initialization function of REGEXP extension */
-#if 0
-#ifdef _WIN32
-__declspec(dllexport)
-#endif
-#endif
+SQLITE_API
 int sqlite3_regexp_init(sqlite3* db, char** pzErrMsg, const sqlite3_api_routines* pApi);
 #include "regexp.c"
 #endif
@@ -380,11 +347,7 @@ int sqlite3_regexp_init(sqlite3* db, char** pzErrMsg, const sqlite3_api_routines
 ** COMPRESS
 */
 #ifdef SQLITE_ENABLE_COMPRESS
-#if 0
-#ifdef _WIN32
-__declspec(dllexport)
-#endif
-#endif
+SQLITE_API
 int sqlite3_compress_init(sqlite3 *db, char **pzErrMsg, const sqlite3_api_routines *pApi);
 #include "compress.c"
 #endif
@@ -393,11 +356,7 @@ int sqlite3_compress_init(sqlite3 *db, char **pzErrMsg, const sqlite3_api_routin
 ** SQLAR
 */
 #ifdef SQLITE_ENABLE_SQLAR
-#if 0
-#ifdef _WIN32
-__declspec(dllexport)
-#endif
-#endif
+SQLITE_API
 int sqlite3_sqlar_init(sqlite3 *db, char **pzErrMsg, const sqlite3_api_routines *pApi);
 #include "sqlar.c"
 #endif
@@ -406,11 +365,7 @@ int sqlite3_sqlar_init(sqlite3 *db, char **pzErrMsg, const sqlite3_api_routines 
 ** ZIPFILE
 */
 #ifdef SQLITE_ENABLE_ZIPFILE
-#if 0
-#ifdef _WIN32
-__declspec(dllexport)
-#endif
-#endif
+SQLITE_API
 int sqlite3_zipfile_init(sqlite3 *db, char **pzErrMsg, const sqlite3_api_routines *pApi);
 #include "zipfile.c"
 #endif

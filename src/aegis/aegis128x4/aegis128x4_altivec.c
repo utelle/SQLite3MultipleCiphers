@@ -106,7 +106,7 @@ AEGIS_update(AEGIS_AES_BLOCK_T *const state, const AEGIS_AES_BLOCK_T d1, const A
 #include "aegis128x4_common.h"
 
 struct aegis128x4_implementation aegis128x4_altivec_implementation = {
-    AEGIS_API_IMPL_LIST
+#include "../common/func_table.h"
 };
 
 #include "../common/type_names_undefine.h"

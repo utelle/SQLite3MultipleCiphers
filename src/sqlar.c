@@ -103,9 +103,10 @@ static void sqlarUncompressFunc(
   }
 }
 
-#ifdef _WIN32
-__declspec(dllexport)
+#ifndef SQLITE_API
+#define SQLITE_API
 #endif
+SQLITE_API
 int sqlite3_sqlar_init(
   sqlite3 *db,
   char **pzErrMsg,

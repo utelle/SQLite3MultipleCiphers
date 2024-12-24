@@ -21,7 +21,7 @@
 #include "sqlite3.h"
 
 #ifdef SQLITE_USER_AUTHENTICATION
-#include "sqlite3userauth.h"
+#undef SQLITE_USER_AUTHENTICATION
 #endif
 
 /*

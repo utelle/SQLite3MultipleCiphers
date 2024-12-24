@@ -429,6 +429,8 @@ typedef struct AEGIS_MAC_STATE {
     size_t       pos;
 } AEGIS_MAC_STATE;
 
+#ifndef AEGIS_OMIT_INCREMENTAL
+
 static void
 AEGIS_state_init(aegis128x2_state *st_, const uint8_t *ad, size_t adlen, const uint8_t *npub,
                  const uint8_t *k)
@@ -697,6 +699,10 @@ AEGIS_state_decrypt_detached_final(aegis128x2_state *st_, uint8_t *m, size_t mle
     return ret;
 }
 
+#endif /* AEGIS_OMIT_INCREMENTAL */
+
+#ifndef AEGIS_OMIT_MAC_API
+
 static void
 AEGIS_state_mac_init(aegis128x2_mac_state *st_, const uint8_t *npub, const uint8_t *k)
 {
@@ -812,6 +818,8 @@ AEGIS_state_mac_clone(aegis128x2_mac_state *dst, const aegis128x2_mac_state *src
                                      ~(uintptr_t) (AEGIS_ALIGNMENT - 1));
     *dst_ = *src_;
 }
+
+#endif /* AEGIS_OMIT_MAC_API */
 
 #undef AEGIS_RATE
 #undef AEGIS_ALIGNMENT

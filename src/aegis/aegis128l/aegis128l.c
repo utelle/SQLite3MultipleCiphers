@@ -115,6 +115,8 @@ aegis128l_decrypt(uint8_t *m, const uint8_t *c, size_t clen, size_t maclen, cons
     return ret;
 }
 
+#ifndef AEGIS_OMIT_INCREMENTAL
+
 AEGIS_API
 void
 aegis128l_state_init(aegis128l_state *st_, const uint8_t *ad, size_t adlen, const uint8_t *npub,
@@ -176,6 +178,8 @@ aegis128l_state_decrypt_detached_final(aegis128l_state *st_, uint8_t *m, size_t 
     return implementation_128l->state_decrypt_detached_final(st_, m, mlen_max, written, mac, maclen);
 }
 
+#endif /* AEGIS_OMIT_INCREMENTAL */
+
 AEGIS_API
 void
 aegis128l_stream(uint8_t *out, size_t len, const uint8_t *npub, const uint8_t *k)
@@ -198,6 +202,8 @@ aegis128l_decrypt_unauthenticated(uint8_t *m, const uint8_t *c, size_t clen, con
 {
     implementation_128l->decrypt_unauthenticated(m, c, clen, npub, k);
 }
+
+#ifndef AEGIS_OMIT_MAC_API
 
 AEGIS_API
 void
@@ -259,6 +265,8 @@ aegis128l_mac_state_clone(aegis128l_mac_state *dst, const aegis128l_mac_state *s
 {
     implementation_128l->state_mac_clone(dst, src);
 }
+
+#endif /* AEGIS_OMIT_MAC_API */
 
 AEGIS_PRIVATE
 int

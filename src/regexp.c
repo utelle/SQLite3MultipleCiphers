@@ -844,14 +844,14 @@ re_bytecode_func_err:
 
 #endif /* SQLITE_DEBUG */
 
-
 /*
 ** Invoke this routine to register the regexp() function with the
 ** SQLite database connection.
 */
-#ifdef _WIN32
-__declspec(dllexport)
+#ifndef SQLITE_API
+#define SQLITE_API
 #endif
+SQLITE_API
 int sqlite3_regexp_init(
   sqlite3 *db,
   char **pzErrMsg,

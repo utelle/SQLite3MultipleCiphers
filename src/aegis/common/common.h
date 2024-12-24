@@ -114,6 +114,27 @@ aegis_rotl32(const uint32_t x, const int b)
 #define AEGIS_CONCAT_(A,B) A##B
 #define AEGIS_FUNC(name) AEGIS_CONCAT(AEGIS_FUNC_PREFIX,AEGIS_CONCAT(_,name))
 
+#define AEGIS_API_IMPL_LIST_STD                                           \
+    .encrypt_detached              = AEGIS_encrypt_detached,              \
+    .decrypt_detached              = AEGIS_decrypt_detached,              \
+    .encrypt_unauthenticated       = AEGIS_encrypt_unauthenticated,       \
+    .decrypt_unauthenticated       = AEGIS_decrypt_unauthenticated,       \
+    .stream                        = AEGIS_stream,
+#define AEGIS_API_IMPL_LIST_INC                                           \
+    .state_init                    = AEGIS_state_init,                    \
+    .state_encrypt_update          = AEGIS_state_encrypt_update,          \
+    .state_encrypt_detached_final  = AEGIS_state_encrypt_detached_final,  \
+    .state_encrypt_final           = AEGIS_state_encrypt_final,           \
+    .state_decrypt_detached_update = AEGIS_state_decrypt_detached_update, \
+    .state_decrypt_detached_final  = AEGIS_state_decrypt_detached_final,
+#define AEGIS_API_IMPL_LIST_MAC                                           \
+    .state_mac_init                = AEGIS_state_mac_init,                \
+    .state_mac_update              = AEGIS_state_mac_update,              \
+    .state_mac_final               = AEGIS_state_mac_final,               \
+    .state_mac_reset               = AEGIS_state_mac_reset,               \
+    .state_mac_clone               = AEGIS_state_mac_clone,
+
+#if 0
 #define AEGIS_API_IMPL_LIST                                               \
     .encrypt_detached              = AEGIS_encrypt_detached,              \
     .decrypt_detached              = AEGIS_decrypt_detached,              \
@@ -131,5 +152,6 @@ aegis_rotl32(const uint32_t x, const int b)
     .state_mac_final               = AEGIS_state_mac_final,               \
     .state_mac_reset               = AEGIS_state_mac_reset,               \
     .state_mac_clone               = AEGIS_state_mac_clone,
+#endif
 
 #endif /* AEGIS_COMMON_H */

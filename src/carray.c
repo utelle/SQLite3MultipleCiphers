@@ -76,14 +76,6 @@ SQLITE_EXTENSION_INIT1
 # define CARRAY_BLOB      4      /* Data is struct iovec* */
 #endif
 
-#ifndef SQLITE_API
-# ifdef _WIN32
-#  define SQLITE_API __declspec(dllexport)
-# else
-#  define SQLITE_API
-# endif
-#endif
-
 #ifndef SQLITE_OMIT_VIRTUALTABLE
 
 /*
@@ -541,7 +533,11 @@ static void inttoptrFunc(
 
 #endif /* SQLITE_OMIT_VIRTUALTABLE */
 
-SQLITE_API int sqlite3_carray_init(
+#ifndef SQLITE_API
+#define SQLITE_API
+#endif
+SQLITE_API
+int sqlite3_carray_init(
   sqlite3 *db,
   char **pzErrMsg,
   const sqlite3_api_routines *pApi

@@ -5,7 +5,19 @@
 		"sqlite3mc.c"
 	],
 	"include_paths": [
-		"src", "."
+		"aegis/include", "argon2/include", "."
+	],
+	"force_include": [
+		"aegis/common/func_names_define.h",
+		"aegis/common/func_names_undefine.h",
+		"aegis/common/type_names_undefine.h",
+		"aegis/common/func_table.h",
+		"aegis/aegis128l/aegis128l_common.h",
+		"aegis/aegis128x2/aegis128x2_common.h",
+		"aegis/aegis128x4/aegis128x4_common.h",
+		"aegis/aegis256/aegis256_common.h",
+		"aegis/aegis256x2/aegis256x2_common.h",
+		"aegis/aegis256x4/aegis256x4_common.h"
 	]
 }
 

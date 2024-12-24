@@ -809,11 +809,10 @@ static void sha3AggFinal(sqlite3_context *context){
   }
 }
 
-
-
-#ifdef _WIN32
-__declspec(dllexport)
+#ifndef SQLITE_API
+#define SQLITE_API
 #endif
+SQLITE_API
 int sqlite3_shathree_init(
   sqlite3 *db,
   char **pzErrMsg,

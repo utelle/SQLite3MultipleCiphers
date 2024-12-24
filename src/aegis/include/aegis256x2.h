@@ -139,6 +139,8 @@ int aegis256x2_decrypt(uint8_t *m, const uint8_t *c, size_t clen, size_t maclen,
                        size_t adlen, const uint8_t *npub, const uint8_t *k)
     __attribute__((warn_unused_result));
 
+#ifndef AEGIS_OMIT_INCREMENTAL
+
 /*
  * Initialize a state for incremental encryption or decryption.
  *
@@ -237,6 +239,8 @@ int aegis256x2_state_decrypt_detached_final(aegis256x2_state *st_, uint8_t *m, s
                                             size_t *written, const uint8_t *mac, size_t maclen)
     __attribute__((warn_unused_result));
 
+#endif /* AEGIS_OMIT_INCREMENTAL */
+
 /*
  * Return a deterministic pseudo-random byte sequence.
  *
@@ -280,6 +284,8 @@ void aegis256x2_encrypt_unauthenticated(uint8_t *c, const uint8_t *m, size_t mle
 AEGIS_API
 void aegis256x2_decrypt_unauthenticated(uint8_t *m, const uint8_t *c, size_t clen,
                                         const uint8_t *npub, const uint8_t *k);
+
+#ifndef AEGIS_OMIT_MAC_API
 
 /*
  * Initialize a state for generating a MAC.
@@ -354,6 +360,8 @@ void aegis256x2_mac_reset(aegis256x2_mac_state *st_);
  */
 AEGIS_API
 void aegis256x2_mac_state_clone(aegis256x2_mac_state *dst, const aegis256x2_mac_state *src);
+
+#endif /* AEGIS_OMIT_MAC_API */
 
 #ifdef __cplusplus
 }

@@ -21,7 +21,7 @@
 #if !defined(ARGON2_NO_THREADS)
 
 /*
-        Here we implement an abstraction layer for the simpĺe requirements
+        Here we implement an abstraction layer for the simple requirements
         of the Argon2 code. We only require 3 primitives---thread creation,
         joining, and termination---so full emulation of the pthreads API
         is unwarranted. Currently we wrap pthreads and Win32 threads.

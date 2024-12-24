@@ -1008,9 +1008,10 @@ static int fsdirRegister(sqlite3 *db){
 # define fsdirRegister(x) SQLITE_OK
 #endif
 
-#ifdef _WIN32
-__declspec(dllexport)
+#ifndef SQLITE_API
+#define SQLITE_API
 #endif
+SQLITE_API
 int sqlite3_fileio_init(
   sqlite3 *db,
   char **pzErrMsg,

@@ -116,6 +116,8 @@ aegis256x2_decrypt(uint8_t *m, const uint8_t *c, size_t clen, size_t maclen, con
     return ret;
 }
 
+#ifndef AEGIS_OMIT_INCREMENTAL
+
 AEGIS_API
 void
 aegis256x2_state_init(aegis256x2_state *st_, const uint8_t *ad, size_t adlen, const uint8_t *npub,
@@ -177,6 +179,8 @@ aegis256x2_state_decrypt_detached_final(aegis256x2_state *st_, uint8_t *m, size_
     return implementation_256x2->state_decrypt_detached_final(st_, m, mlen_max, written, mac, maclen);
 }
 
+#endif /* AEGIS_OMIT_INCREMENTAL */
+
 AEGIS_API
 void
 aegis256x2_stream(uint8_t *out, size_t len, const uint8_t *npub, const uint8_t *k)
@@ -199,6 +203,8 @@ aegis256x2_decrypt_unauthenticated(uint8_t *m, const uint8_t *c, size_t clen, co
 {
     implementation_256x2->decrypt_unauthenticated(m, c, clen, npub, k);
 }
+
+#ifndef AEGIS_OMIT_MAC_API
 
 AEGIS_API
 void
@@ -258,20 +264,22 @@ aegis256x2_mac_state_clone(aegis256x2_mac_state *dst, const aegis256x2_mac_state
     implementation_256x2->state_mac_clone(dst, src);
 }
 
+#endif /* AEGIS_OMIT_MAC_API */
+
 AEGIS_PRIVATE
 int
 aegis256x2_pick_best_implementation(void)
 {
     implementation_256x2 = &aegis256x2_soft_implementation;
 
-#if defined(__aarch64__) || defined(_M_ARM64)
+#if HAS_AEGIS_AES_HARDWARE == AEGIS_AES_HARDWARE_NEON
     if (aegis_runtime_has_armcrypto()) {
         implementation_256x2 = &aegis256x2_armcrypto_implementation;
         return 0;
     }
 #endif
 
-#if defined(__x86_64__) || defined(_M_AMD64) || defined(__i386__) || defined(_M_IX86)
+#if HAS_AEGIS_AES_HARDWARE == AEGIS_AES_HARDWARE_NI
 #    ifdef HAVE_VAESINTRIN_H
     if (aegis_runtime_has_vaes() && aegis_runtime_has_avx2()) {
         implementation_256x2 = &aegis256x2_avx2_implementation;
@@ -284,7 +292,7 @@ aegis256x2_pick_best_implementation(void)
     }
 #endif
 
-#if defined(__ALTIVEC__) && defined(__CRYPTO__)
+#if HAS_AEGIS_AES_HARDWARE == AEGIS_AES_HARDWARE_ALTIVEC
     if (aegis_runtime_has_altivec()) {
         implementation_256x2 = &aegis256x2_altivec_implementation;
         return 0;
