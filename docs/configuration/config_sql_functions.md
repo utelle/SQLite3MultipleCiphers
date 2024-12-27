@@ -54,6 +54,7 @@ The following table lists the supported cipher identifiers:
 | `sqlcipher` | [SQLCipher: AES 256 Bit]({{ site.baseurl }}{% link docs/ciphers/cipher_sqlcipher.md %}) |
 | `rc4`       | [System.Data.SQLite: RC4]({{ site.baseurl }}{% link docs/ciphers/cipher_sds_rc4.md %}) |
 | `ascon128`  | [Ascon: Ascon-128 v1.2]({{ site.baseurl }}{% link docs/ciphers/cipher_ascon.md %}) |
+| `aegis`     | [AEGIS: AEGIS family]({{ site.baseurl }}{% link docs/ciphers/cipher_aegis.md %}) |
 
 Note
 {: .label .label-red .ml-0 .mb-1 .mt-2 }

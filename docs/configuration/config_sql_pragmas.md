@@ -430,3 +430,68 @@ Notes
 {: .label .label-red .ml-0 .mb-1 .mt-2 }
 - The offset recommended by **SQLCipher** is currently 32. This value ensures that the important [SQLite header](https://www.sqlite.org/fileformat.html) segments are readable by iOS, i.e. the magic string "SQLite Format 3\0" and the database read/write version numbers indicating a database is operating in WAL journal mode (bytes at offsets 18 and 19). This will allow iOS to identify the file and will permit an application to background correctly without being killed.
 - The drawback of this approach is that the cipher salt used for the key derivation can't be stored in the database header any longer. Therefore it is necessary to retrieve the cipher salt on creating a new database, and to specify the salt on opening an existing database. The cipher salt can be retrieved with the function wxsqlite3_codec_data using parameter cipher_salt, and has to be supplied on opening a database via the database URI parameter `cipher_salt`.
+
+---
+
+### PRAGMA *tcost*
+
+**Applicable to:** 
+[AEGIS]({{ site.baseurl }}{% link docs/ciphers/cipher_aegis.md %})
+
+The `PRAGMA tcost` statement allows to specify the _number of iterations_ used to derive the key material with the _Argon2id_ function. It has the following syntax:
+
+```sql
+PRAGMA tcost = { 1 | 2 ... };
+```
+
+---
+
+### PRAGMA *mcost*
+
+**Applicable to:** 
+[AEGIS]({{ site.baseurl }}{% link docs/ciphers/cipher_aegis.md %})
+
+The `PRAGMA mcost` statement allows to specify the _amount of memory_ used to derive the key material with the _Argon2id_ function. The amount is specified as the _number of **kB** memory blocks_. It has the following syntax:
+
+```sql
+PRAGMA mcost = { 1 | 2 ... };
+```
+For example, specifying a value of `1024x1024` = `1048576` requests _1 GB_ of memory to be used for deriving the key material.
+
+---
+
+### PRAGMA *pcost*
+
+**Applicable to:** 
+[AEGIS]({{ site.baseurl }}{% link docs/ciphers/cipher_aegis.md %})
+
+The `PRAGMA pcost` statement allows to modify the _parallelism_ aka _the number of threads_ used to derive the key material with the _Argon2id_ function. It has the following syntax:
+
+```sql
+PRAGMA pcost = { 1 | 2 ... };
+```
+where the value corresponds to the hash algoritm for HMAC calculation:
+- 0 = SHA1
+- 1 = SHA256
+- 2 = SHA512
+
+---
+
+### PRAGMA *algorithm*
+
+**Applicable to:** 
+[AEGIS]({{ site.baseurl }}{% link docs/ciphers/cipher_aegis.md %})
+
+The `PRAGMA algorithm` statement allows to modify the _AEGIS_ algorithm variant used for encryption. It has the following syntax:
+
+```sql
+PRAGMA algorithm = { 1 | `aegis-128l` | 2 | `aegis-128x2` | 3 | `aegis-128x4`|
+                     4 | `aegis-256`  | 5 | `aegis-256x2` | 6 | `aegis-256x4` };
+```
+where the value corresponds to the _AEGIS_ algorithm:
+- 1 = `aegis-128l`
+- 2 = `aegis-128x2`
+- 3 = `aegis-128x4`
+- 4 = `aegis-256`
+- 5 = `aegis-256x2`
+- 6 = `aegis-256x4`

@@ -2,7 +2,7 @@
 layout: default
 title: Legacy cipher modes
 parent: Supported Ciphers
-nav_order: 6
+nav_order: 8
 ---
 ## <a name="legacy" /> Legacy cipher modes
 
