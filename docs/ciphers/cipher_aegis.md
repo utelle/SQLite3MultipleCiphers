@@ -12,7 +12,7 @@ The _AEGIS_ implementation used in _SQLite3 Multiple Ciphers_ is based on the [P
 
 The _AEGIS_ cipher scheme supports the selection of all available _AEGIS_ variants: _AEGIS-128L_, _AEGIS-128X2_, _AEGIS-128X4_, _AEGIS-256_, _AEGIS-256X2_, and _AEGIS-256X4_, the default being _AEGIS-256_.
 
-The encryption key is derived from the passphrase using a random salt (stored in the first 16 bytes of the database file) and the _key derivation_ algorithm [Argon2](https://en.wikipedia.org/wiki/Argon2). The _Argon2_ implementation used in _SQLite3 Multiple Ciphers_ is based on the [reference C implementation of Argon2](https://github.com/p-h-c/phc-winner-argon2), that won the [Password Hashing Competition (PHC)](https://password-hashing.net/).
+The encryption key is derived from the passphrase using a random salt (stored in the first 16 bytes of the database file) and the _key derivation_ algorithm [Argon2id](https://en.wikipedia.org/wiki/Argon2). The _Argon2_ implementation used in _SQLite3 Multiple Ciphers_ is based on the [reference C implementation of Argon2](https://github.com/p-h-c/phc-winner-argon2), that won the [Password Hashing Competition (PHC)](https://password-hashing.net/).
 
 One-time keys per database page are derived from the encryption key, the page number, and a 16 or 32 bytes nonce - depending on the _AEGIS_ variant. Additionally, the _AEGIS_ cipher provides a 32 bytes authentication tag per database page. Therefore this cipher requires 48 or 64 reserved bytes per database page.
 
@@ -34,7 +34,7 @@ The following table lists all parameters related to this cipher that can be set 
 **Note**
 {: .label .label-red .ml-0 .mb-1 .mt-2 }
 
-When specifying the `algorithm` via `PRAGMA` or as an URI parameter, the value can be specified as a _number_ or as a _string _ according to the following table:
+When specifying the `algorithm` via `PRAGMA` or as an URI parameter, the value can be specified as a _number_ or as a _string_ according to the following table:
 
 | Index | Name          | Description |
 | :---: | :---          | :--- |
