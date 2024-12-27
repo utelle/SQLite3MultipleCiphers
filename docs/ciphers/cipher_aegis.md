@@ -1,6 +1,6 @@
 ---
 layout: default
-title: "AEGIS: Family of Authenticated Encryption Algorithms"
+title: "AEGIS: AEGIS Family"
 parent: Supported Ciphers
 nav_order: 7
 ---
