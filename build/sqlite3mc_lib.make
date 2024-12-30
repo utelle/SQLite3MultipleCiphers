@@ -18,6 +18,15 @@ endif
 # Configurations
 # #############################################
 
+ifeq ($(origin CC), default)
+  CC = gcc
+endif
+ifeq ($(origin CXX), default)
+  CXX = g++
+endif
+ifeq ($(origin AR), default)
+  AR = ar
+endif
 RESCOMP = windres
 INCLUDES += -I../src -I../src/aegis/include -I../src/argon2/include
 FORCE_INCLUDE +=

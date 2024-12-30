@@ -18,6 +18,15 @@ endif
 # Configurations
 # #############################################
 
+ifeq ($(origin CC), default)
+  CC = gcc
+endif
+ifeq ($(origin CXX), default)
+  CXX = g++
+endif
+ifeq ($(origin AR), default)
+  AR = ar
+endif
 RESCOMP = windres
 INCLUDES += -I../src
 FORCE_INCLUDE +=
@@ -86,14 +95,14 @@ endif
 # File sets
 # #############################################
 
-CUSTOM :=
 GENERATED :=
 OBJECTS :=
+RESOURCES :=
 
-CUSTOM += $(OBJDIR)/sqlite3mc_shell.res
 GENERATED += $(OBJDIR)/shell.o
 GENERATED += $(OBJDIR)/sqlite3mc_shell.res
 OBJECTS += $(OBJDIR)/shell.o
+RESOURCES += $(OBJDIR)/sqlite3mc_shell.res
 
 # Rules
 # #############################################
@@ -101,7 +110,7 @@ OBJECTS += $(OBJDIR)/shell.o
 all: $(TARGET)
 	@:
 
-$(TARGET): $(CUSTOM) $(GENERATED) $(OBJECTS) $(LDDEPS) | $(TARGETDIR)
+$(TARGET): $(GENERATED) $(OBJECTS) $(LDDEPS) $(RESOURCES) | $(TARGETDIR)
 	$(PRELINKCMDS)
 	@echo Linking sqlite3mc_shellicu
 	$(SILENT) $(LINKCMD)
@@ -138,7 +147,6 @@ endif
 prebuild: | $(OBJDIR)
 	$(PREBUILDCMDS)
 
-$(CUSTOM): | prebuild
 ifneq (,$(PCH))
 $(OBJECTS): $(GCH) | $(PCH_PLACEHOLDER)
 $(GCH): $(PCH) | prebuild

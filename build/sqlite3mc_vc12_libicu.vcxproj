@@ -194,7 +194,6 @@
     <ClInclude Include="..\src\sqlite3mc_config.h" />
     <ClInclude Include="..\src\sqlite3mc_version.h" />
     <ClInclude Include="..\src\sqlite3mc_vfs.h" />
-    <ClInclude Include="..\src\sqlite3userauth.h" />
     <ClInclude Include="..\src\test_windirent.h" />
     <ClInclude Include="..\src\zlibwrap.h" />
   </ItemGroup>
