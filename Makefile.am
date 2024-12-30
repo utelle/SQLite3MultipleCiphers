@@ -79,7 +79,6 @@ endif
 
 includemc_HEADERS = \
     src/sqlite3.h \
-    src/sqlite3userauth.h \
     src/sqlite3ext.h \
     src/sqlite3mc_version.h \
     src/sqlite3mc_vfs.h \
@@ -111,7 +110,6 @@ noinst_HEADERS = \
     src/sqlite3.c \
     src/sqlite3mc_vfs.c \
     src/test_windirent.c \
-    src/userauth.c \
     src/uuid.c \
     src/cipher_common.h \
     src/fastpbkdf2.h \
@@ -120,7 +118,6 @@ noinst_HEADERS = \
     src/sha1.h \
     src/sha2.h \
     src/sqlite3mc_vfs.h \
-    src/sqlite3userauth.h \
     src/test_windirent.h
 
 lib@SQLITE3MC_LIBNAME@_la_LDFLAGS = -no-undefined $(AM_LDFLAGS)
