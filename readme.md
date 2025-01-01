@@ -10,9 +10,12 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version information
 
-* 1.9.2 - *December 2024*
+* 2.0.0 - *December 2024*
   - Based on SQLite version 3.47.2
-  - Fixed issue with page size change request for encrypted databases
+  - Added new cipher scheme AEGIS
+  - Removed User Authentication extension
+  - Cleaned up some extensions to use SQLITE_API
+  - Fixed undefined behavior related to function pointer cast
 
 For further version information please consult the [CHANGELOG](CHANGELOG.md).
 
