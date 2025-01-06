@@ -470,10 +470,6 @@ The `PRAGMA pcost` statement allows to modify the _parallelism_ aka _the number 
 ```sql
 PRAGMA pcost = { 1 | 2 ... };
 ```
-where the value corresponds to the hash algoritm for HMAC calculation:
-- 0 = SHA1
-- 1 = SHA256
-- 2 = SHA512
 
 ---
 
