@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.1] - 2025-01-06
+
+### Fixed
+
+- Fixed issue [#186](../../issues/186)) - crashes due to _illegal instruction_ exception on some Linux systems
+- Fixed issue [#185](../../issues/185)) - missing header file and include path in CMake build file
+
 ## [2.0.0] - 2024-12-31
 
 ### Added
@@ -565,7 +572,8 @@ The following ciphers are supported:
 - AES 256 Bit CBC - SHA1/SHA256/SHA512 HMAC ([SQLCipher](https://www.zetetic.net/sqlcipher/), database versions 1, 2, 3, and 4)
 - RC4 - No HMAC ([System.Data.SQLite](http://system.data.sqlite.org))
 
-[Unreleased]: ../../compare/v2.0.0...HEAD
+[Unreleased]: ../../compare/v2.0.1...HEAD
+[2.0.1]: ../../compare/v2.0.0...v2.0.1
 [2.0.0]: ../../compare/v1.9.2...v2.0.0
 [1.9.2]: ../../compare/v1.9.1...v1.9.2
 [1.9.1]: ../../compare/v1.9.0...v1.9.1
