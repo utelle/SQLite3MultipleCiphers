@@ -696,6 +696,7 @@ sqlite3mc_initialize(const char* arg)
 #if HAVE_CIPHER_AEGIS
   if (rc == SQLITE_OK)
   {
+    aegis_init();
     rc = sqlite3mcRegisterCipher(&mcAegisDescriptor, mcAegisParams, (CODEC_TYPE_AEGIS == CODEC_TYPE));
   }
 #endif

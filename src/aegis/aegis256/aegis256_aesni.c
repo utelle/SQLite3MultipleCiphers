@@ -20,6 +20,7 @@
 #ifdef __clang__
 #  pragma clang attribute push(__attribute__((target("aes,avx"))), apply_to = function)
 #elif defined(__GNUC__)
+#  pragma GCC push_options
 #  pragma GCC target("aes,avx")
 #endif
 
@@ -101,6 +102,8 @@ struct aegis256_implementation aegis256_aesni_implementation = {
 
 #ifdef __clang__
 #  pragma clang attribute pop
+#elif defined(__GNUC__)
+#  pragma GCC pop_options
 #endif
 
 #endif

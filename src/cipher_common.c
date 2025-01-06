@@ -125,12 +125,12 @@ sqlite3mcFreeCodecParameterTable(void* ptr)
 
 static const CipherDescriptor mcSentinelDescriptor =
 {
-  "", NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+  "", NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
 };
 
 static const CipherDescriptor mcDummyDescriptor =
 {
-  "@dummy@", NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+  "@dummy@", NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
 };
 
 static CipherDescriptor globalCodecDescriptorTable[CODEC_COUNT_MAX + 1];

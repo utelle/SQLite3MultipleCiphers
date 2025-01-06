@@ -76,6 +76,7 @@ aegis_init(void)
     return 0;
 }
 
+#if 0
 #if defined(_MSC_VER)
 #    pragma section(".CRT$XCU", read)
 static void __cdecl _do_aegis_init(void);
@@ -89,3 +90,4 @@ _do_aegis_init(void)
 {
     (void) aegis_init();
 }
+#endif

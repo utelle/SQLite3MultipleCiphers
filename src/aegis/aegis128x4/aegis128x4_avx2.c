@@ -22,6 +22,7 @@
 #ifdef __clang__
 #  pragma clang attribute push(__attribute__((target("vaes,avx2"))), apply_to = function)
 #elif defined(__GNUC__)
+#  pragma GCC push_options
 #  pragma GCC target("vaes,avx2")
 #endif
 
@@ -112,6 +113,8 @@ struct aegis128x4_implementation aegis128x4_avx2_implementation = {
 
 #ifdef __clang__
 #  pragma clang attribute pop
+#elif defined(__GNUC__)
+#  pragma GCC pop_options
 #endif
 
 #endif /* HAVE_VAESINTRIN_H */
