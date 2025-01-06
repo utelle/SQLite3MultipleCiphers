@@ -36,7 +36,6 @@
 #  pragma clang attribute push(__attribute__((target("neon,crypto,aes"))), \
                                      apply_to = function)
 #elif defined(__GNUC__)
-#  pragma GCC push_options
 #  pragma GCC target("+simd+crypto")
 #endif
 
@@ -127,8 +126,6 @@ struct aegis256x4_implementation aegis256x4_armcrypto_implementation = {
 
 #ifdef __clang__
 #  pragma clang attribute pop
-#elif defined(__GNUC__)
-#  pragma GCC pop_options
 #endif
 
 #endif

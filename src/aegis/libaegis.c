@@ -23,6 +23,10 @@
 #include "common/cpu.c"
 #include "common/softaes.c"
 
+#if defined(__GNUC__)
+#  pragma GCC push_options
+#endif
+
 /* AEGIS 128 L */
 #include "aegis128l/implementations.h"
 #include "aegis128l/aegis128l_aesni.c"
@@ -76,3 +80,7 @@
 #include "aegis256x4/aegis256x4_avx512.c"
 #include "aegis256x4/aegis256x4_soft.c"
 #include "aegis256x4/aegis256x4.c"
+
+#if defined(__GNUC__)
+#  pragma GCC pop_options
+#endif
