@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.2] - 2025-01-15
+
+### Changed
+
+- Based on SQLite version 3.48.0
+
 ## [2.0.1] - 2025-01-06
 
 ### Fixed
@@ -572,7 +578,8 @@ The following ciphers are supported:
 - AES 256 Bit CBC - SHA1/SHA256/SHA512 HMAC ([SQLCipher](https://www.zetetic.net/sqlcipher/), database versions 1, 2, 3, and 4)
 - RC4 - No HMAC ([System.Data.SQLite](http://system.data.sqlite.org))
 
-[Unreleased]: ../../compare/v2.0.1...HEAD
+[Unreleased]: ../../compare/v2.0.2...HEAD
+[2.0.2]: ../../compare/v2.0.1...v2.0.2
 [2.0.1]: ../../compare/v2.0.0...v2.0.1
 [2.0.0]: ../../compare/v1.9.2...v2.0.0
 [1.9.2]: ../../compare/v1.9.1...v1.9.2

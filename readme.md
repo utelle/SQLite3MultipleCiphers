@@ -10,10 +10,8 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version information
 
-* 2.0.1 - *January 2025*
-  - Based on SQLite version 3.47.2
-  - Fixed issue #186 - crashes due to _illegal instruction_ exception on some Linux systems
-  - Fixed issue #185 - missing header file and include path in CMake build file
+* 2.0.2 - *January 2025*
+  - Based on SQLite version 3.48.0
 
 For further version information please consult the [CHANGELOG](CHANGELOG.md).
 

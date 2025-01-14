@@ -47,7 +47,7 @@
 /* Compatability between Tcl8.6 and Tcl9.0 */
 #if TCL_MAJOR_VERSION==9
 # define CONST const
-#else
+#elif !defined(Tcl_Size)
   typedef int Tcl_Size;
 #endif
 /**** End copy of tclsqlite.h ****/
@@ -341,7 +341,7 @@ static int SQLITE_TCLAPI incrblobInput(
 */
 static int SQLITE_TCLAPI incrblobOutput(
   ClientData instanceData,
-  CONST char *buf,
+  const char *buf,
   int toWrite,
   int *errorCodePtr
 ){
@@ -1097,9 +1097,10 @@ static void tclSqlFunc(sqlite3_context *context, int argc, sqlite3_value**argv){
         /* Only return a BLOB type if the Tcl variable is a bytearray and
         ** has no string representation. */
         eType = SQLITE_BLOB;
-      }else if( (c=='b' && strcmp(zType,"boolean")==0)
+      }else if( (c=='b' && pVar->bytes==0 && strcmp(zType,"boolean")==0 )
+             || (c=='b' && pVar->bytes==0 && strcmp(zType,"booleanString")==0 )
              || (c=='w' && strcmp(zType,"wideInt")==0)
-             || (c=='i' && strcmp(zType,"int")==0) 
+             || (c=='i' && strcmp(zType,"int")==0)
       ){
         eType = SQLITE_INTEGER;
       }else if( c=='d' && strcmp(zType,"double")==0 ){
@@ -1133,7 +1134,8 @@ static void tclSqlFunc(sqlite3_context *context, int argc, sqlite3_value**argv){
       }
       default: {
         data = (unsigned char *)Tcl_GetStringFromObj(pVar, &n);
-        sqlite3_result_text(context, (char *)data, n, SQLITE_TRANSIENT);
+        sqlite3_result_text64(context, (char *)data, n, SQLITE_TRANSIENT,
+                              SQLITE_UTF8);
         break;
       }
     }
@@ -1155,9 +1157,6 @@ static int auth_callback(
   const char *zArg2,
   const char *zArg3,
   const char *zArg4
-#ifdef SQLITE_USER_AUTHENTICATION
-  ,const char *zArg5
-#endif
 ){
   const char *zCode;
   Tcl_DString str;
@@ -1217,9 +1216,6 @@ static int auth_callback(
   Tcl_DStringAppendElement(&str, zArg2 ? zArg2 : "");
   Tcl_DStringAppendElement(&str, zArg3 ? zArg3 : "");
   Tcl_DStringAppendElement(&str, zArg4 ? zArg4 : "");
-#ifdef SQLITE_USER_AUTHENTICATION
-  Tcl_DStringAppendElement(&str, zArg5 ? zArg5 : "");
-#endif
   rc = Tcl_GlobalEval(pDb->interp, Tcl_DStringValue(&str));
   Tcl_DStringFree(&str);
   zReply = rc==TCL_OK ? Tcl_GetStringResult(pDb->interp) : "SQLITE_DENY";
@@ -1510,9 +1506,12 @@ static int dbPrepareAndBind(
           sqlite3_bind_blob(pStmt, i, data, n, SQLITE_STATIC);
           Tcl_IncrRefCount(pVar);
           pPreStmt->apParm[iParm++] = pVar;
-        }else if( c=='b' && strcmp(zType,"boolean")==0 ){
+        }else if( c=='b' && pVar->bytes==0
+               && (strcmp(zType,"booleanString")==0
+                   || strcmp(zType,"boolean")==0)
+        ){
           int nn;
-          Tcl_GetIntFromObj(interp, pVar, &nn);
+          Tcl_GetBooleanFromObj(interp, pVar, &nn);
           sqlite3_bind_int(pStmt, i, nn);
         }else if( c=='d' && strcmp(zType,"double")==0 ){
           double r;
@@ -1525,7 +1524,8 @@ static int dbPrepareAndBind(
           sqlite3_bind_int64(pStmt, i, v);
         }else{
           data = (unsigned char *)Tcl_GetStringFromObj(pVar, &n);
-          sqlite3_bind_text(pStmt, i, (char *)data, n, SQLITE_STATIC);
+          sqlite3_bind_text64(pStmt, i, (char *)data, n, SQLITE_STATIC,
+                              SQLITE_UTF8);
           Tcl_IncrRefCount(pVar);
           pPreStmt->apParm[iParm++] = pVar;
         }
@@ -1847,7 +1847,8 @@ static Tcl_Obj *dbEvalColumnValue(DbEvalContext *p, int iCol){
 ** are 8.6 or newer, the code still tests the Tcl version at runtime.
 ** This allows stubs-enabled builds to be used with older Tcl libraries.
 */
-#if TCL_MAJOR_VERSION>8 || (TCL_MAJOR_VERSION==8 && TCL_MINOR_VERSION>=6)
+#if TCL_MAJOR_VERSION>8 || !defined(TCL_MINOR_VERSION) \
+                        || TCL_MINOR_VERSION>=6
 # define SQLITE_TCL_NRE 1
 static int DbUseNre(void){
   int major, minor;
@@ -1900,9 +1901,9 @@ static int SQLITE_TCLAPI DbEvalNextCmd(
       if( pArray==0 ){
         Tcl_ObjSetVar2(interp, apColName[i], 0, dbEvalColumnValue(p,i), 0);
       }else if( (p->evalFlags & SQLITE_EVAL_WITHOUTNULLS)!=0
-             && sqlite3_column_type(p->pPreStmt->pStmt, i)==SQLITE_NULL 
+             && sqlite3_column_type(p->pPreStmt->pStmt, i)==SQLITE_NULL
       ){
-        Tcl_UnsetVar2(interp, Tcl_GetString(pArray), 
+        Tcl_UnsetVar2(interp, Tcl_GetString(pArray),
                       Tcl_GetString(apColName[i]), 0);
       }else{
         Tcl_ObjSetVar2(interp, pArray, apColName[i], dbEvalColumnValue(p,i), 0);
@@ -2014,7 +2015,7 @@ static int SQLITE_TCLAPI DbObjCmd(
     "timeout",                "total_changes",         "trace",
     "trace_v2",               "transaction",           "unlock_notify",
     "update_hook",            "version",               "wal_hook",
-    0                        
+    0
   };
   enum DB_enum {
     DB_AUTHORIZER,            DB_BACKUP,               DB_BIND_FALLBACK,
@@ -2160,7 +2161,7 @@ static int SQLITE_TCLAPI DbObjCmd(
   ** value of the CALLBACK as the binding.  If CALLBACK returns something
   ** other than TCL_OK or TCL_ERROR then bind a NULL.
   **
-  ** If CALLBACK is an empty string, then revert to the default behavior 
+  ** If CALLBACK is an empty string, then revert to the default behavior
   ** which is to set the binding to NULL.
   **
   ** If CALLBACK returns an error, that causes the statement execution to
@@ -2755,7 +2756,7 @@ static int SQLITE_TCLAPI DbObjCmd(
     }
 deserialize_error:
 #endif
-    break; 
+    break;
   }
 
   /*
@@ -2865,7 +2866,7 @@ deserialize_error:
       objv++;
     }
     if( objc<3 || objc>5 ){
-      Tcl_WrongNumArgs(interp, 2, objv, 
+      Tcl_WrongNumArgs(interp, 2, objv,
           "?OPTIONS? SQL ?ARRAY-NAME? ?SCRIPT?");
       return TCL_ERROR;
     }
@@ -3268,7 +3269,7 @@ deserialize_error:
   /*
   **     $db serialize ?DATABASE?
   **
-  ** Return a serialization of a database.  
+  ** Return a serialization of a database.
   */
   case DB_SERIALIZE: {
 #ifdef SQLITE_OMIT_DESERIALIZE
@@ -3428,7 +3429,7 @@ deserialize_error:
         enum TTYPE_enum {
           TTYPE_STMT, TTYPE_PROFILE, TTYPE_ROW, TTYPE_CLOSE
         };
-        int i;
+        Tcl_Size i;
         if( TCL_OK!=Tcl_ListObjLength(interp, objv[3], &len) ){
           return TCL_ERROR;
         }
@@ -3594,7 +3595,7 @@ deserialize_error:
   */
   case DB_PREUPDATE: {
 #ifndef SQLITE_ENABLE_PREUPDATE_HOOK
-    Tcl_AppendResult(interp, "preupdate_hook was omitted at compile-time", 
+    Tcl_AppendResult(interp, "preupdate_hook was omitted at compile-time",
                      (char*)0);
     rc = TCL_ERROR;
 #else
@@ -3733,7 +3734,7 @@ deserialize_error:
         return TCL_ERROR;
       }
     }
-    if( i==2 ){   
+    if( i==2 ){
       Tcl_SetResult(interp, (char *)sqlite3_libversion(), TCL_STATIC);
     }
     break;
