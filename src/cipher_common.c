@@ -55,6 +55,7 @@ typedef struct _CipherName
   char m_name[CIPHER_NAME_MAXLEN];
 } CipherName;
 
+static char globalConfigTableName[CIPHER_NAME_MAXLEN] = "";
 static int globalCipherCount = 0;
 static char* globalSentinelName = "";
 static CipherName globalCipherNameTable[CODEC_COUNT_LIMIT + 2] = { 0 };

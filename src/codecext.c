@@ -360,7 +360,8 @@ sqlite3_key_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
       return rc;
     }
     /* Configure cipher from URI parameters if requested */
-    if (sqlite3FindFunction(db, "sqlite3mc_config_table", 0, SQLITE_UTF8, 0) == NULL)
+    void* codecParamTable = sqlite3_get_clientdata(db, globalConfigTableName);
+    if (codecParamTable == NULL)
     {
       /*
       ** Encryption extension of database connection not yet initialized;

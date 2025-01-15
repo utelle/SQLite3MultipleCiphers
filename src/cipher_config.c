@@ -29,18 +29,7 @@ sqlite3mcConfigTable(sqlite3_context* context, int argc, sqlite3_value** argv)
 SQLITE_PRIVATE CodecParameter*
 sqlite3mcGetCodecParams(sqlite3* db)
 {
-  CodecParameter* codecParams = NULL;
-  sqlite3_stmt* pStmt = 0;
-  int rc = sqlite3_prepare_v2(db, "SELECT sqlite3mc_config_table();", -1, &pStmt, 0);
-  if (rc == SQLITE_OK)
-  {
-    if (SQLITE_ROW == sqlite3_step(pStmt))
-    {
-      sqlite3_value* ptrValue = sqlite3_column_value(pStmt, 0);
-      codecParams = (CodecParameter*) sqlite3_value_pointer(ptrValue, "sqlite3mc_codec_params");
-    }
-    sqlite3_finalize(pStmt);
-  }
+  CodecParameter* codecParams = (CodecParameter*) sqlite3_get_clientdata(db, globalConfigTableName);
   return codecParams;
 }
 
@@ -909,8 +898,16 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
         {
           value = sqlite3mc_config(db, "cipher", cipherId);
         }
-        rc = SQLITE_OK;
-        ((char**)pArg)[0] = sqlite3_mprintf("%s", globalCodecDescriptorTable[value - 1].m_name);
+        if (value > 0)
+        {
+          ((char**)pArg)[0] = sqlite3_mprintf("%s", globalCodecDescriptorTable[value - 1].m_name);
+          rc = SQLITE_OK;
+        }
+        else
+        {
+          ((char**)pArg)[0] = sqlite3_mprintf("Cipher '%s' could not be located.", pragmaValue);
+          rc = SQLITE_ERROR;
+        }
       }
       else
       {

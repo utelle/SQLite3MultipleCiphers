@@ -381,7 +381,8 @@ mcRegisterCodecExtensions(sqlite3* db, char** pzErrMsg, const sqlite3_api_routin
   int rc = SQLITE_OK;
   CodecParameter* codecParameterTable = NULL;
 
-  if (sqlite3FindFunction(db, "sqlite3mc_config_table", 1, SQLITE_UTF8, 0) != NULL)
+  void* codecParamTable = sqlite3_get_clientdata(db, globalConfigTableName);
+  if (codecParamTable)
   {
     /* Return if codec extension functions are already defined */
     return rc;
@@ -392,8 +393,7 @@ mcRegisterCodecExtensions(sqlite3* db, char** pzErrMsg, const sqlite3_api_routin
   rc = (codecParameterTable != NULL) ? SQLITE_OK : SQLITE_NOMEM;
   if (rc == SQLITE_OK)
   {
-    rc = sqlite3_create_function_v2(db, "sqlite3mc_config_table", 0, SQLITE_UTF8 | SQLITE_DETERMINISTIC,
-                                    codecParameterTable, sqlite3mcConfigTable, 0, 0, sqlite3mcFreeCodecParameterTable);
+    sqlite3_set_clientdata(db, globalConfigTableName, codecParameterTable, sqlite3mcFreeCodecParameterTable);
   }
 
   rc = (codecParameterTable != NULL) ? SQLITE_OK : SQLITE_NOMEM;
@@ -609,6 +609,15 @@ SQLITE_PRIVATE int
 sqlite3mcInitCipherTables()
 {
   size_t n;
+
+  /* Initialize global configuration table name */
+  sqlite3_randomness(CIPHER_NAME_MAXLEN, globalConfigTableName);
+  for (n = 0; n < CIPHER_NAME_MAXLEN-1; ++n)
+  {
+    if (globalConfigTableName[n] == 0)
+      globalConfigTableName[n] = '@';
+  }
+  globalConfigTableName[CIPHER_NAME_MAXLEN-1] = 0;
 
   /* Initialize cipher name table */
   strcpy(globalCipherNameTable[0].m_name, "global");
