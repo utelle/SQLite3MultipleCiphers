@@ -10,6 +10,17 @@ nav_order: 2
 
 **SQLite3 Multiple Ciphers** defines several SQL functions, which can be used to configure global encryption parameters or specific cipher parameters. They offer the same functionality as the [PRAGMA]({{ site.baseurl }}{% link docs/configuration/config_sql_pragmas.md %}) statements, but can be called from any SQL statement expression.
 
+Important
+{: .label .label-purple .ml-0 .mb-1 .mt-2 }
+
+Starting with **SQLite 3.48.0** executing a `SELECT` statement will now always access the underlying database file, even if the query is schema-independent. For encrypted databases this will fail, because the cipher scheme is not yet activated. Therefore the SQL configuration functions described in this chapter can't be used any longer for configuring the cipher scheme for the `main` database _before_ issuing the `PRAGMA key` statement.
+
+However, after the cipher scheme was activated successfully with `PRAGMA key` the SQL configuration functions can be used, for example, to configure a cipher scheme for attaching encrypted databases.
+
+The SQL functions for configuring the cipher scheme exist mostly for historical reasons. For _SQLite_ versions _below **3.32.0**_ the SQLite code contained stubs for the encryption API - no need to patch the SQLite code, but also no way to handle own PRAGMA statements. Back then using SELECT with user-defined SQL functions was the only way to configure the cipher scheme without having to patch the SQLite code.
+
+It is strongly recommended to use [PRAGMA]({{ site.baseurl }}{% link docs/configuration/config_sql_pragmas.md %}) statements to configure the cipher scheme, or to specify the cipher configuration via [URI]({{ site.baseurl }}{% link docs/configuration/config_uri.md %}) parameters.
+
 ## Table of contents
 {: .no_toc .text-delta }
 
