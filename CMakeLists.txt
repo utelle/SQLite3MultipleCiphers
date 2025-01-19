@@ -303,7 +303,7 @@ endif()
 add_library(${SQLITE3MC_TARGET} ${SQLITE3MC_LINK}
   ${SQLITE3MC_BASE_SRCS}
 )
-target_include_directories(${SQLITE3MC_TARGET} PRIVATE
+target_include_directories(${SQLITE3MC_TARGET} PUBLIC
   ${SQLITE3MC_INCLUDEDIRS}
 )
 target_compile_definitions(${SQLITE3MC_TARGET} PRIVATE
