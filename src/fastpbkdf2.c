@@ -24,7 +24,7 @@
 #include "sha2.h"
 
 /* --- MSVC doesn't support C99 --- */
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
 #define restrict
 #define inline __inline
 #define _Pragma __pragma
