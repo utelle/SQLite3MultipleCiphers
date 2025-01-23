@@ -24,3 +24,11 @@ For further version information please consult the [CHANGELOG](CHANGELOG.md).
 Documentation of the currently supported cipher schemes and the C and SQL interfaces is provided on the [SQLite3 Multiple Ciphers website](https://utelle.github.io/SQLite3MultipleCiphers/).
 
 Documentation on how to build the extension can be found on the page [SQLite3 Multiple Ciphers Installation](https://utelle.github.io/SQLite3MultipleCiphers/docs/installation/install_overview/).
+
+## Supporters
+
+[![JetBrains logo.](https://resources.jetbrains.com/storage/products/company/brand/logos/jetbrains.svg)](https://jb.gg/OpenSourceSupport) supports this project (and directly dependent projects like [wxSQLite3](https://github.com/utelle/wxsqlite3), [apsw-sqlite3mc](https://github.com/utelle/apsw-sqlite3mc), and [SQLite3MultipleCiphers-NuGet](https://github.com/utelle/SQLite3MultipleCiphers-NuGet)) by providing free [CLion](https://www.jetbrains.com/clion/) licenses. This helps to better maintain the project for different platforms.
+
+## Support further development
+
+[![Donate for SQLite3 Multiple Ciphers via PayPal](https://www.paypalobjects.com/de_DE/i/btn/x-click-but04.gif)](https://www.paypal.com/donate/?hosted_button_id=3JC9PMMH8X7UN) If you find **SQLite3 Multiple Ciphers** useful and would like to support the further development of this project, you may make a **donation** by clicking on the button on the left.
