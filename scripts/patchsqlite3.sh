@@ -27,7 +27,5 @@ sed 's/sqlite3_file_control\(.*SQLITE_FCNTL_PRAGMA\)/sqlite3mcFileControlPragma\
     | sed '/^  if( sqlite3PCacheIsDirty(pPager->pPCache) ) return 0;/a \  if( sqlite3mcPagerHasCodec(pPager) != 0 ) return 0;' \
     | sed '/^  }else if( USEFETCH(pPager) ){/c \  }else if( USEFETCH(pPager) && sqlite3mcPagerHasCodec(pPager) == 0 ){' \
     | sed '/^  if( rc!=SQLITE_OK ) memset(&mem0, 0, sizeof(mem0));/a \\n  \/\* Initialize wrapper for memory management.\*\/\n  if( rc==SQLITE_OK ) {\n    sqlite3mcInitMemoryMethods();\n  }\n' \
-    | sed '/^      sqlite3GlobalConfig.isInit = 1;/i \ \n      int sqlite3mc_initialize(const char*);\n      rc = sqlite3mc_initialize(0);\n' \
-    | sed '/^    sqlite3_os_end();/i \ \n    void sqlite3mc_shutdown(void);\n    sqlite3mc_shutdown();\n' \
     | sed '/Lock the source database handle./i \  \/\* Check whether databases are compatible with backup \*\/\n  if (!sqlite3mcIsBackupSupported(pSrcDb, zSrcDb, pDestDb, zDestDb)){\n    sqlite3ErrorWithMsg(pDestDb, SQLITE_ERROR, \"backup is not supported with incompatible source and target databases\");\n    return NULL;\n  }\n' \
     | sed '/nRes = sqlite3BtreeGetRequestedReserve(pMain)/a \\n  \/\* A VACUUM cannot change the pagesize of an encrypted database. \*\/\n  if( db->nextPagesize ){\n    extern void sqlite3mcCodecGetKey(sqlite3*, int, void**, int*);\n    int nKey;\n    char *zKey;\n    sqlite3mcCodecGetKey(db, iDb, (void**)&zKey, &nKey);\n    if( nKey ) db->nextPagesize = 0;\n  }' \

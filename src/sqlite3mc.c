@@ -38,6 +38,19 @@
 #endif
 
 /*
+** Define function for extra initialization and extra shutdown
+**
+** The extra initialization function registers an extension function
+** which will be automatically executed for each new database connection.
+**
+** The extra shutdown function will be executed on the invocation of sqlite3_shutdown.
+** All created multiple ciphers VFSs will be unregistered and destroyed.
+*/
+
+#define SQLITE_EXTRA_INIT sqlite3mc_initialize
+#define SQLITE_EXTRA_SHUTDOWN sqlite3mc_shutdown
+
+/*
 ** Declare all internal functions as 'static' unless told otherwise
 */
 #ifndef SQLITE_PRIVATE
