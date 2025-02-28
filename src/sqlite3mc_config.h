@@ -3,7 +3,7 @@
 ** Purpose:     Header file for SQLite3 Multiple Ciphers compile-time configuration
 ** Author:      Ulrich Telle
 ** Created:     2021-09-27
-** Copyright:   (c) 2019-2024 Ulrich Telle
+** Copyright:   (c) 2019-2025 Ulrich Telle
 ** License:     MIT
 */
 
@@ -70,6 +70,18 @@
 
 #ifndef HAVE_CIPHER_ASCON128
 #define HAVE_CIPHER_ASCON128 1
+#endif
+
+/*
+** Disable AEGIS cipher scheme for MSVC 2015 and below
+** MSVC versions below MSVC 2017 can't compile the AEGIS cipher code
+** due to not supporting to pass aligned parameters by value
+*/
+#if defined(_MSC_VER) && _MSC_VER < 1910
+#ifdef HAVE_CIPHER_AEGIS
+#undef HAVE_CIPHER_AEGIS
+#endif
+#define HAVE_CIPHER_AEGIS 0
 #endif
 
 #ifndef HAVE_CIPHER_AEGIS
