@@ -3,7 +3,7 @@
 ** Purpose:     Amalgamation of the SQLite3 Multiple Ciphers encryption extension for SQLite
 ** Author:      Ulrich Telle
 ** Created:     2020-02-28
-** Copyright:   (c) 2006-2024 Ulrich Telle
+** Copyright:   (c) 2006-2025 Ulrich Telle
 ** License:     MIT
 */
 
@@ -36,19 +36,6 @@
 #define SQLITE_DEBUG 1
 #endif
 #endif
-
-/*
-** Define function for extra initialization and extra shutdown
-**
-** The extra initialization function registers an extension function
-** which will be automatically executed for each new database connection.
-**
-** The extra shutdown function will be executed on the invocation of sqlite3_shutdown.
-** All created multiple ciphers VFSs will be unregistered and destroyed.
-*/
-
-#define SQLITE_EXTRA_INIT sqlite3mc_initialize
-#define SQLITE_EXTRA_SHUTDOWN sqlite3mc_shutdown
 
 /*
 ** Declare all internal functions as 'static' unless told otherwise
@@ -538,8 +525,6 @@ sqlite3mcRegisterCipher(const CipherDescriptor* desc, const CipherParams* params
   if (!cipherParams)
     return SQLITE_NOMEM;
 
-  sqlite3_mutex_enter(sqlite3_mutex_alloc(SQLITE_MUTEX_STATIC_MAIN));
-
   /* Check for */
   if (globalCipherCount < CODEC_COUNT_MAX)
   {
@@ -589,8 +574,6 @@ sqlite3mcRegisterCipher(const CipherDescriptor* desc, const CipherParams* params
     rc = SQLITE_NOMEM;
   }
 
-  sqlite3_mutex_leave(sqlite3_mutex_alloc(SQLITE_MUTEX_STATIC_MAIN));
-
   return rc;
 }
 
@@ -602,7 +585,10 @@ sqlite3mc_register_cipher(const CipherDescriptor* desc, const CipherParams* para
   rc = sqlite3_initialize();
   if (rc) return rc;
 #endif
-  return sqlite3mcRegisterCipher(desc, params, makeDefault);
+  sqlite3_mutex_enter(sqlite3_mutex_alloc(SQLITE_MUTEX_STATIC_MAIN));
+  rc = sqlite3mcRegisterCipher(desc, params, makeDefault);
+  sqlite3_mutex_leave(sqlite3_mutex_alloc(SQLITE_MUTEX_STATIC_MAIN));
+  return rc;
 }
 
 SQLITE_PRIVATE int
@@ -718,84 +704,92 @@ sqlite3mc_initialize(const char* arg)
   {
     rc = sqlite3mc_vfs_create(NULL, 1);
   }
+  return rc;
+}
+
+SQLITE_PRIVATE int
+sqlite3mc_builtin_extensions(sqlite3* db)
+{
+  char* errmsg = NULL;
+  int rc = SQLITE_OK;
 
   /*
   ** Register Multi Cipher extension
   */
   if (rc == SQLITE_OK)
   {
-    rc = sqlite3_auto_extension((void(*)(void)) mcRegisterCodecExtensions);
+    rc = mcRegisterCodecExtensions(db, &errmsg, NULL);
   }
 #ifdef SQLITE_ENABLE_EXTFUNC
   if (rc == SQLITE_OK)
   {
-    rc = sqlite3_auto_extension((void(*)(void)) sqlite3_extfunc_init);
+    rc = sqlite3_extfunc_init(db, &errmsg, NULL);
   }
 #endif
 #ifdef SQLITE_ENABLE_CSV
   if (rc == SQLITE_OK)
   {
-    rc = sqlite3_auto_extension((void(*)(void)) sqlite3_csv_init);
+    rc = sqlite3_csv_init(db, &errmsg, NULL);
   }
 #endif
 #ifdef SQLITE_ENABLE_VSV
   if (rc == SQLITE_OK)
   {
-    rc = sqlite3_auto_extension((void(*)(void)) sqlite3_vsv_init);
+    rc = sqlite3_vsv_init(db, &errmsg, NULL);
   }
 #endif
 #ifdef SQLITE_ENABLE_SHA3
   if (rc == SQLITE_OK)
   {
-    rc = sqlite3_auto_extension((void(*)(void)) sqlite3_shathree_init);
+    rc = sqlite3_shathree_init(db, &errmsg, NULL);
   }
 #endif
 #ifdef SQLITE_ENABLE_CARRAY
   if (rc == SQLITE_OK)
   {
-    rc = sqlite3_auto_extension((void(*)(void)) sqlite3_carray_init);
+    rc = sqlite3_carray_init(db, &errmsg, NULL);
   }
 #endif
 #ifdef SQLITE_ENABLE_FILEIO
   if (rc == SQLITE_OK)
   {
-    rc = sqlite3_auto_extension((void(*)(void)) sqlite3_fileio_init);
+    rc = sqlite3_fileio_init(db, &errmsg, NULL);
   }
 #endif
 #ifdef SQLITE_ENABLE_SERIES
   if (rc == SQLITE_OK)
   {
-    rc = sqlite3_auto_extension((void(*)(void)) sqlite3_series_init);
+    rc = sqlite3_series_init(db, &errmsg, NULL);
   }
 #endif
 #ifdef SQLITE_ENABLE_UUID
   if (rc == SQLITE_OK)
   {
-    rc = sqlite3_auto_extension((void(*)(void)) sqlite3_uuid_init);
+    rc = sqlite3_uuid_init(db, &errmsg, NULL);
   }
 #endif
 #ifdef SQLITE_ENABLE_REGEXP
   if (rc == SQLITE_OK)
   {
-    rc = sqlite3_auto_extension((void(*)(void)) sqlite3_regexp_init);
+    rc = sqlite3_regexp_init(db, &errmsg, NULL);
   }
 #endif
 #ifdef SQLITE_ENABLE_COMPRESS
   if (rc == SQLITE_OK)
   {
-    rc = sqlite3_auto_extension((void(*)(void)) sqlite3_compress_init);
+    rc = sqlite3_compress_init(db, &errmsg, NULL);
   }
 #endif
 #ifdef SQLITE_ENABLE_SQLAR
   if (rc == SQLITE_OK)
   {
-    rc = sqlite3_auto_extension((void(*)(void)) sqlite3_sqlar_init);
+    rc = sqlite3_sqlar_init(db, &errmsg, NULL);
   }
 #endif
 #ifdef SQLITE_ENABLE_ZIPFILE
   if (rc == SQLITE_OK)
   {
-    rc = sqlite3_auto_extension((void(*)(void)) sqlite3_zipfile_init);
+    rc = sqlite3_zipfile_init(db, &errmsg, NULL);
   }
 #endif
   return rc;
