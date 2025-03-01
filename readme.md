@@ -10,8 +10,11 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version information
 
-* 2.0.4 - *February 2025*
+* 2.1.0 - *March 2025*
   - Based on SQLite version 3.49.1
+  - Remove use of `SQLITE_EXTRA_INIT` and `SQLITE_EXTRA_SHUTDOWN`
+  - Disable cipher scheme AEGIS for MSVC 2015 and below - workaround for issue #195
+  - Fixed issue #194 - race condition when registering VFS
 
 For further version information please consult the [CHANGELOG](CHANGELOG.md).
 

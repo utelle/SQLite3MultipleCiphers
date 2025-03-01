@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2025-03-01
+
+### Changed
+
+- Remove use of `SQLITE_EXTRA_INIT` and `SQLITE_EXTRA_SHUTDOWN`. Application can now use these precompiler symbols for their own purposes.
+- Split function `sqlite3mc_initialize()` into 2 parts:
+  1) initialization of cipher schemes,
+  2) loading builtin extensions automatically on opening a database
+- Disable cipher scheme AEGIS for MSVC 2015 and below - workaround for issue [#195](../../issues/195))
+
+### Fixed
+
+- Fixed issue [#194](../../issues/194)) - race condition when registering VFS
+
 ## [2.0.4] - 2025-02-18
 
 ### Changed
@@ -18,6 +32,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Based on SQLite version 3.49.0
+
+### Fixed
+
+- Fixed issue [#190](../../issues/190)) - build with clang compiler fails
 
 ## [2.0.2] - 2025-01-15
 
@@ -590,7 +608,8 @@ The following ciphers are supported:
 - AES 256 Bit CBC - SHA1/SHA256/SHA512 HMAC ([SQLCipher](https://www.zetetic.net/sqlcipher/), database versions 1, 2, 3, and 4)
 - RC4 - No HMAC ([System.Data.SQLite](http://system.data.sqlite.org))
 
-[Unreleased]: ../../compare/v2.0.4...HEAD
+[Unreleased]: ../../compare/v2.1.0...HEAD
+[2.1.0]: ../../compare/v2.0.4...v2.1.0
 [2.0.4]: ../../compare/v2.0.3...v2.0.4
 [2.0.3]: ../../compare/v2.0.2...v2.0.3
 [2.0.2]: ../../compare/v2.0.1...v2.0.2

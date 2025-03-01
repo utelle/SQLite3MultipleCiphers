@@ -216,7 +216,8 @@ AEGIS_mac_nr(uint8_t *mac, size_t maclen, uint64_t adlen, AEGIS_AES_BLOCK_T*stat
         tmp = AEGIS_AES_BLOCK_XOR(tmp, AEGIS_AES_BLOCK_XOR(state[1], state[0]));
         AEGIS_AES_BLOCK_STORE(t, tmp);
         for (i = 0; i < d / 2; i++) {
-            memcpy(r, t + i * 32, 32);
+            memcpy(r, t + i * 32, 16);
+            memcpy(r + AEGIS_RATE / 2, t + i * 32 + 16, 16);
             AEGIS_absorb(r, state);
         }
         tmp = AEGIS_AES_BLOCK_LOAD_64x2(maclen << 3, d);
@@ -240,7 +241,7 @@ AEGIS_mac_nr(uint8_t *mac, size_t maclen, uint64_t adlen, AEGIS_AES_BLOCK_T*stat
         AEGIS_AES_BLOCK_STORE(t + AES_BLOCK_LENGTH, tmp);
         for (i = 1; i < d; i++) {
             memcpy(r, t + i * 16, 16);
-            memcpy(r + 16, t + AES_BLOCK_LENGTH + i * 16, 16);
+            memcpy(r + AEGIS_RATE / 2, t + AES_BLOCK_LENGTH + i * 16, 16);
             AEGIS_absorb(r, state);
         }
         tmp = AEGIS_AES_BLOCK_LOAD_64x2(maclen << 3, d);
