@@ -22,7 +22,7 @@ jobs:
       run: brew install automake
       if: matrix.os == 'macos-latest'
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
     - name: Configure
       run: |
         autoreconf
@@ -37,21 +37,21 @@ jobs:
         ./sqlite3shell dummy.db3 ".read test/sqlciphertest.sql"
 
   host_arm:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         arch: [armv7, aarch64]
         cc_compiler: [gcc, clang]
     steps:
       - name: Checkout
-        uses: actions/checkout@v2.4.0
+        uses: actions/checkout@v4
       - name: Build artifact
         # The Github Action for non-x86 CPU
         # https://github.com/uraimo/run-on-arch-action
-        uses: uraimo/run-on-arch-action@v2.8.1
+        uses: uraimo/run-on-arch-action@v3
         with:
           arch: ${{ matrix.arch }}
-          distro: ubuntu20.04
+          distro: ubuntu24.04
           env: |
             CC: ${{ matrix.cc_compiler }}
           install: |
