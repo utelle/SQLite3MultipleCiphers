@@ -139,7 +139,7 @@ static sqlite3_int64 genSeqMember(
     smBase += (mxI64 - mxI64/2) * smStep;
   }
   /* Under UBSAN (or on 1's complement machines), must do this last term
-   * in steps to avoid the dreaded (and harmless) signed multiply overlow. */
+   * in steps to avoid the dreaded (and harmless) signed multiply overflow. */
   if( ix>=2 ){
     sqlite3_int64 ix2 = (sqlite3_int64)ix/2;
     smBase += ix2*smStep;
@@ -580,7 +580,7 @@ static int seriesFilter(
   for(i=0; i<argc; i++){
     if( sqlite3_value_type(argv[i])==SQLITE_NULL ){
       /* If any of the constraints have a NULL value, then return no rows.
-      ** See ticket https://www.sqlite.org/src/info/fac496b61722daf2 */
+      ** See ticket https://sqlite.org/src/info/fac496b61722daf2 */
       returnNoRows = 1;
       break;
     }
