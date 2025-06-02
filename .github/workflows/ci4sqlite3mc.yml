@@ -10,13 +10,15 @@ on:
     - main
 
 jobs:
-  host_x86:
+  host_unix:
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, ubuntu-24.04-arm]
+        cc_compiler: [gcc, clang]
 
     runs-on: ${{ matrix.os }}
-
+    env:
+      CC: ${{ matrix.cc_compiler }}
     steps:
     - name: Install dependencies (macOS)
       run: brew install automake
@@ -36,12 +38,12 @@ jobs:
         ./sqlite3shell test2.db3 ".read test/test2.sql"
         ./sqlite3shell dummy.db3 ".read test/sqlciphertest.sql"
 
-  host_arm:
+  host_qemu:
     runs-on: ubuntu-24.04
     strategy:
       matrix:
         arch: [armv7, aarch64]
-        cc_compiler: [gcc, clang]
+        cc_compiler: [gcc]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
