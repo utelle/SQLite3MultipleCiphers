@@ -383,12 +383,15 @@ fail:
 }
 
 #if defined(__APPLE__)
+#include <AvailabilityMacros.h>
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
 #include <Security/SecRandom.h>
+#endif
 #endif
 
 static size_t entropy(void* buf, size_t n)
 {
-#if defined(__APPLE__)
+#if defined(__APPLE__) && MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
   if (SecRandomCopyBytes(kSecRandomDefault, n, (uint8_t*) buf) == 0)
     return n;
 #elif defined(__linux__) && defined(SYS_getrandom)
