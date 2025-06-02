@@ -16,9 +16,6 @@
 
 #include <assert.h>
 #include <string.h>
-#if defined(__GNUC__) && !defined(__MINGW32__) && !defined(__clang__) && !defined(__QNX__)
-#include <endian.h>
-#endif
 
 #include "sha1.h"
 #include "sha2.h"
@@ -37,23 +34,41 @@
 
 static inline void write32_be(uint32_t n, uint8_t out[4])
 {
-#if defined(__GNUC__) && __GNUC__ >= 4 && __BYTE_ORDER == __LITTLE_ENDIAN
-  *(uint32_t *)(out) = __builtin_bswap32(n);
+#if SQLITE_BYTEORDER==4321
+  memcpy(out, &n, 4);
+#elif SQLITE_BYTEORDER==1234 && GCC_VERSION>=4003000
+  u32 x = __builtin_bswap32(n);
+  memcpy(out, &x, 4);
+#elif SQLITE_BYTEORDER==1234 && MSVC_VERSION>=1300
+  u32 x = _byteswap_ulong(n);
+  memcpy(out, &x, 4);
 #else
-  out[0] = (n >> 24) & 0xff;
-  out[1] = (n >> 16) & 0xff;
-  out[2] = (n >> 8) & 0xff;
-  out[3] = n & 0xff;
+  out[0] = (n >> 24) & 0xFF;
+  out[1] = (n >> 16) & 0xFF;
+  out[2] = (n >> 8) & 0xFF;
+  out[3] = (n >> 0) & 0xFF;
 #endif
 }
 
 static inline void write64_be(uint64_t n, uint8_t out[8])
 {
-#if defined(__GNUC__) &&  __GNUC__ >= 4 && __BYTE_ORDER == __LITTLE_ENDIAN
-  *(uint64_t *)(out) = __builtin_bswap64(n);
+#if SQLITE_BYTEORDER==1234 && GCC_VERSION>=4003000
+  n = __builtin_bswap64(n);
+  memcpy(out, &n, 8);
+#elif SQLITE_BYTEORDER==1234 && MSVC_VERSION>=1300
+  n = _byteswap_uint64(n);
+  memcpy(out, &n, 8);
+#elif SQLITE_BYTEORDER==4321
+  memcpy(out, &n, 8);
 #else
-  write32_be((n >> 32) & 0xffffffff, out);
-  write32_be(n & 0xffffffff, out + 4);
+  out[0] = (n >> 56) & 0xFF;
+  out[1] = (n >> 48) & 0xFF;
+  out[2] = (n >> 40) & 0xFF;
+  out[3] = (n >> 32) & 0xFF;
+  out[4] = (n >> 24) & 0xFF;
+  out[5] = (n >> 16) & 0xFF;
+  out[6] = (n >> 8) & 0xFF;
+  out[7] = (n >> 0) & 0xFF;
 #endif
 }
 
