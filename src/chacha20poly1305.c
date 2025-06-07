@@ -384,9 +384,35 @@ fail:
 
 #if defined(__APPLE__)
 #include <AvailabilityMacros.h>
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
+#include <TargetConditionals.h>
+
+/* Define version macros if needed */
+#ifndef MAC_OS_X_VERSION_MIN_REQUIRED
+#define MAC_OS_X_VERSION_MIN_REQUIRED 0
+#endif
+#ifndef __IPHONE_OS_VERSION_MIN_REQUIRED
+#define __IPHONE_OS_VERSION_MIN_REQUIRED 0
+#endif
+#ifndef __TV_OS_VERSION_MIN_REQUIRED
+#define __TV_OS_VERSION_MIN_REQUIRED 0
+#endif
+#ifndef __WATCH_OS_VERSION_MIN_REQUIRED
+#define __WATCH_OS_VERSION_MIN_REQUIRED 0
+#endif
+
+#define CAN_USE_SECRANDOM() ( \
+    (TARGET_OS_OSX && MAC_OS_X_VERSION_MIN_REQUIRED >= 1070) || \
+    (TARGET_OS_IOS && __IPHONE_OS_VERSION_MIN_REQUIRED >= 80000) || \
+    (TARGET_OS_TV && __TV_OS_VERSION_MIN_REQUIRED >= 90000) || \
+    (TARGET_OS_WATCH && __WATCH_OS_VERSION_MIN_REQUIRED >= 20000) \
+  )
+
+#if CAN_USE_SECRANDOM()
 #include <Security/SecRandom.h>
 #endif
+
+#else /* !__APPLE__ */
+#define CAN_USE_SECRANDOM() 0
 #endif
 
 static size_t entropy(void* buf, size_t n)
@@ -397,7 +423,7 @@ static size_t entropy(void* buf, size_t n)
 #elif defined(__linux__) && defined(SYS_getrandom)
   if (syscall(SYS_getrandom, buf, n, 0) == n)
     return n;
-#elif defined(SYS_getentropy)
+#elif defined(__linux__) && defined(SYS_getentropy)
   if (syscall(SYS_getentropy, buf, n) == 0)
     return n;
 #endif
