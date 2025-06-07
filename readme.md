@@ -10,8 +10,8 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version information
 
-* 2.1.2 - *May 2025*
-  - Based on SQLite version 3.50.0
+* 2.1.3 - *June 2025*
+  - Based on SQLite version 3.50.1
 
 For further version information please consult the [CHANGELOG](CHANGELOG.md).
 
