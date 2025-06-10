@@ -417,7 +417,7 @@ fail:
 
 static size_t entropy(void* buf, size_t n)
 {
-#if defined(__APPLE__) && MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
+#if defined(__APPLE__) && CAN_USE_SECRANDOM()
   if (SecRandomCopyBytes(kSecRandomDefault, n, (uint8_t*) buf) == 0)
     return n;
 #elif defined(__linux__) && defined(SYS_getrandom)
