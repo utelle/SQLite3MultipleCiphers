@@ -8,6 +8,8 @@
 		"src", "."
 	],
 	"force_include": [
+	],
+	"exclude_files": [
 	]
 }
 

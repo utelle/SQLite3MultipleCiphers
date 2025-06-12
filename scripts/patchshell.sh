@@ -17,7 +17,7 @@ die() {
 sed -e '/^      sputf(stdout, "SQLite version/{n;N;d}' "$INPUT" \
   | sed '/#ifdef SQLITE_CUSTOM_INCLUDE/!{p;d;};n;n;n;a #if SQLITE3MC_USE_MINIZ != 0 && !defined(SQLITE_ENABLE_COMPRESS)\n#include "miniz.c"\n#ifdef SQLITE_HAVE_ZLIB\n#undef SQLITE_HAVE_ZLIB\n#endif\n#define SQLITE_HAVE_ZLIB 1\n#endif\n' \
   | sed '/#include <zlib.h>/c #include "zlibwrap.h"' \
-  | sed '/^      sqlite3_fprintf(stdout,$/c \      extern char* sqlite3mc_version();\n      sqlite3_fprintf(stdout,' \
+  | sed '/^      sqlite3_fprintf(stdout,$/c \      extern const char* sqlite3mc_version();\n      sqlite3_fprintf(stdout,' \
   | sed '/^            "SQLite version/c \            "SQLite version \%s \%.19s" \/\*extra-version-info\*\/\n            " (\%s)\\n" \/\*SQLite3-Multiple-Ciphers-version-info\*\/' \
   | sed '/^            sqlite3_libversion(), sqlite3_sourceid());/c \            sqlite3_libversion(), sqlite3_sourceid(), sqlite3mc_version());' \
-  | sed '/^          sqlite3_libversion(), sqlite3_sourceid());/a \    extern char* sqlite3mc_version();\n    sqlite3_fprintf(p->out, "\%s\\n", sqlite3mc_version());'
+  | sed '/^          sqlite3_libversion(), sqlite3_sourceid());/a \    extern const char* sqlite3mc_version();\n    sqlite3_fprintf(p->out, "\%s\\n", sqlite3mc_version());'

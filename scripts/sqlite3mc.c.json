@@ -18,6 +18,8 @@
 		"aegis/aegis256/aegis256_common.h",
 		"aegis/aegis256x2/aegis256x2_common.h",
 		"aegis/aegis256x4/aegis256x4_common.h"
+	],
+	"exclude_files": [
 	]
 }
 

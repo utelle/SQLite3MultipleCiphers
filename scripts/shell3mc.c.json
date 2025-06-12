@@ -1,0 +1,18 @@
+{
+	"project": "shell3mc.c",
+	"target": "shell3mc_amalgamation.c",
+	"sources": [
+		"shell.c"
+	],
+	"include_paths": [
+		"src", "."
+	],
+	"force_include": [
+	],
+	"exclude_files": [
+		"test_windirent.c",
+		"test_windirent.h",
+		"sqlite3.h"
+	]
+}
+

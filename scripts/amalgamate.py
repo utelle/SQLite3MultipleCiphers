@@ -64,6 +64,14 @@ class Amalgamation(object):
 
         return None
 
+    def add_excluded_files(self):
+        search_files = self.exclude_files[:]
+        for search_file in search_files:
+            found_excluded_path = self.find_included_file(search_file, None)
+            if found_excluded_path:
+                norm_excluded_path = os.path.normpath(found_excluded_path)
+                self.excluded_files.append(os.path.normpath(norm_excluded_path))
+
     def __init__(self, args):
         with open(args.config, 'r') as f:
             config = json.loads(f.read())
@@ -74,6 +82,8 @@ class Amalgamation(object):
             self.prologue = args.prologue
             self.source_path = args.source_path
             self.included_files = []
+            self.excluded_files = []
+            self.add_excluded_files()
 
     # Generate the amalgamation and write it to the target file.
     def generate(self):
@@ -89,6 +99,7 @@ class Amalgamation(object):
             print(" working_dir   = {0}".format(os.getcwd()))
             print(" include_paths = {0}".format(self.include_paths))
             print(" force_include = {0}".format(self.force_include))
+            print(" exclude_files = {0}".format(self.exclude_files))
         print("Creating amalgamation:")
         for file_path in self.sources:
             # Do not check the include paths while processing the source
@@ -239,9 +250,10 @@ class TranslationUnit(object):
                 found_included_path = self.amalgamation.find_included_file(
                     include_path, self.file_dir if search_same_dir else None)
                 if found_included_path:
-                    includes.append((include_match, found_included_path))
-                    #if self.amalgamation.verbose:
-                    #    print(" #include = {0}".format(include_path))
+                    if not os.path.normpath(found_included_path) in self.amalgamation.excluded_files:
+                        includes.append((include_match, found_included_path))
+                        #if self.amalgamation.verbose:
+                        #    print(" #include = {0}".format(include_path))
             include_match = self.include_pattern.search(self.content,
                 include_match.end())
 

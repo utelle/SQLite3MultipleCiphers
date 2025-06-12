@@ -32358,7 +32358,7 @@ static int do_meta_command(char *zLine, ShellState *p){
     char *zPtrSz = sizeof(void*)==8 ? "64-bit" : "32-bit";
     sqlite3_fprintf(p->out, "SQLite %s %s\n" /*extra-version-info*/,
           sqlite3_libversion(), sqlite3_sourceid());
-    extern char* sqlite3mc_version();
+    extern const char* sqlite3mc_version();
     sqlite3_fprintf(p->out, "%s\n", sqlite3mc_version());
 #if SQLITE_HAVE_ZLIB
     sqlite3_fprintf(p->out, "zlib version %s\n", zlibVersion());
@@ -33803,7 +33803,7 @@ int SQLITE_CDECL wmain(int argc, wchar_t **wargv){
       char *zHome;
       char *zHistory;
       int nHistory;
-      extern char* sqlite3mc_version();
+      extern const char* sqlite3mc_version();
       sqlite3_fprintf(stdout,
             "SQLite version %s %.19s" /*extra-version-info*/
             " (%s)\n" /*SQLite3-Multiple-Ciphers-version-info*/
