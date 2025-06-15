@@ -40,9 +40,9 @@ else
 AM_CFLAGS += -DSQLIT3MC_USE_MINIZ=1
 endif
 
-if HOST_OSX
-AM_LDFLAGS += -framework Security
-endif
+#if HOST_OSX
+#AM_LDFLAGS += -framework Security
+#endif
 
 LDADD = lib@SQLITE3MC_LIBNAME@.la
 
@@ -159,8 +159,8 @@ else
 # use it only in the "else" branch.
 sqlite3shell_LDFLAGS += -no-install
 
-if HOST_OSX
-sqlite3shell_LDFLAGS += -framework Security
-endif
+#if HOST_OSX
+#sqlite3shell_LDFLAGS += -framework Security
+#endif
 
 endif
