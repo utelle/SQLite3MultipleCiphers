@@ -48,3 +48,11 @@ VACUUM INTO 'file:databasefile?key=passphrase'
 Important
 {: .label .label-purple .ml-0 .mb-1 .mt-2 }
 The database must not be in WAL journal mode.
+
+## Why do I get an error on executing schema-independent selects or dynamically loading extensions?
+
+The reason is that starting with [SQLite 3.48.0](https://sqlite.org/releaselog/3_48_0.html) executing a `SELECT` statement will now always access the underlying database file. For encrypted databases this will fail, as long as the cipher scheme has not yet been set up, that is, the `PRAGMA key` statement was not yet executed.
+
+Therefore the SQL configuration functions can't be used any longer for configuring the cipher scheme before issuing the `PRAGMA key` statement. Please use `PRAGMA` statements or URI parameters for configuring the cipher scheme.
+
+Dynamically loading certain SQLite extensions may also fail, if done before`PRAGMA key` was executed. Namely FTS5 extensions (like [sqlite-better-trigram](https://github.com/streetwriters/sqlite-better-trigram) or [sqlite3-fts5-html](https://github.com/streetwriters/sqlite3-fts5-html)) are affected, because they retrieve the FTS5 API pointer via a `SELECT` statement (see [issue #208](https://github.com/utelle/SQLite3MultipleCiphers/issues/208)).
