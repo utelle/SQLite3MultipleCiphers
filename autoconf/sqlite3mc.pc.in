@@ -1,0 +1,13 @@
+# Package Information for pkg-config
+
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: SQLite3MC
+Description: SQL database engine with encryption support
+Version: @PACKAGE_VERSION@
+Libs: -L${libdir} -lsqlite3mc
+Libs.private: @LDFLAGS_MATH@ @LDFLAGS_ZLIB@ @LDFLAGS_ICU@
+Cflags: -I${includedir}/sqlite3mc
