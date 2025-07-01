@@ -10,8 +10,12 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version information
 
-* 2.1.3 - *June 2025*
-  - Based on SQLite version 3.50.1
+* 2.2.0 - *July 2025*
+  - Based on SQLite version 3.50.2
+  - Removed dependency on security framework for Apple platforms
+  - Regenerated build files using premake5 5.0.0-beta7
+  - Added some patches for the SQLite shell source to handle extension inclusion
+  - Added source code amalgamation release package including "configure" based on _autosetup_
 
 For further version information please consult the [CHANGELOG](CHANGELOG.md).
 

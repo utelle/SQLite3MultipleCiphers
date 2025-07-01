@@ -87,29 +87,29 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <OutDir>..\bin\vc10\dll\debug\</OutDir>
-    <IntDir>obj\vc10\Win32\Debug\sqlite3mc_dllicu\</IntDir>
+    <OutDir>$(ProjectDir)..\bin\vc10\dll\debug\</OutDir>
+    <IntDir>$(ProjectDir)obj\vc10\Win32\Debug\sqlite3mc_dllicu\</IntDir>
     <TargetName>sqlite3mc_icu</TargetName>
     <TargetExt>.dll</TargetExt>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug Win64|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <OutDir>..\bin\vc10\dll\debug\</OutDir>
-    <IntDir>obj\vc10\Win64\Debug\sqlite3mc_dllicu\</IntDir>
+    <OutDir>$(ProjectDir)..\bin\vc10\dll\debug\</OutDir>
+    <IntDir>$(ProjectDir)obj\vc10\Win64\Debug\sqlite3mc_dllicu\</IntDir>
     <TargetName>sqlite3mc_icu_x64</TargetName>
     <TargetExt>.dll</TargetExt>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <OutDir>..\bin\vc10\dll\release\</OutDir>
-    <IntDir>obj\vc10\Win32\Release\sqlite3mc_dllicu\</IntDir>
+    <OutDir>$(ProjectDir)..\bin\vc10\dll\release\</OutDir>
+    <IntDir>$(ProjectDir)obj\vc10\Win32\Release\sqlite3mc_dllicu\</IntDir>
     <TargetName>sqlite3mc_icu</TargetName>
     <TargetExt>.dll</TargetExt>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release Win64|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <OutDir>..\bin\vc10\dll\release\</OutDir>
-    <IntDir>obj\vc10\Win64\Release\sqlite3mc_dllicu\</IntDir>
+    <OutDir>$(ProjectDir)..\bin\vc10\dll\release\</OutDir>
+    <IntDir>$(ProjectDir)obj\vc10\Win64\Release\sqlite3mc_dllicu\</IntDir>
     <TargetName>sqlite3mc_icu_x64</TargetName>
     <TargetExt>.dll</TargetExt>
   </PropertyGroup>

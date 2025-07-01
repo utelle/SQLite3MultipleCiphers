@@ -1,5 +1,5 @@
 require('vstudio')
-require('gmake2')
+require('gmake')
 
 premake.api.register {
   name = "wxUseProps",
@@ -28,13 +28,13 @@ premake.override(premake.vstudio.vc2010.elements, "project", function(base, prj)
 	return calls
 end)
 
-premake.override(premake.modules.gmake2, "target", function(base, cfg, toolset)
+premake.override(premake.modules.gmake, "target", function(base, cfg, toolset)
   local targetpath = string.gsub(premake.project.getrelative(cfg.project, cfg.buildtarget.directory), ' ', '_')
   premake.outln('TARGETDIR = ' .. targetpath)
   premake.outln('TARGET = $(TARGETDIR)/' .. cfg.buildtarget.name)
 end)
   
-premake.override(premake.modules.gmake2, "objdir", function(base, cfg, toolset)
+premake.override(premake.modules.gmake, "objdir", function(base, cfg, toolset)
   local objpath = string.gsub(premake.project.getrelative(cfg.project, cfg.objdir), ' ', '_')
   premake.outln('OBJDIR = ' .. objpath)
 end)

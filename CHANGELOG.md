@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0] - 2025-07-01
+
+### Changed
+
+- Based on SQLite version 3.50.2
+- Removed dependency on security framework for Apple platforms
+- Regenerated build files using premake5 5.0.0-beta7
+- Added some patches for the SQLite shell source to handle extension inclusion
+- Added source code amalgamation release package including "configure" based on _autosetup_
+
+### Fixed
+
+- Adjusted preprocessor instructions to select correct code branch for Apple platforms (issue [#207](../../issues/207))
+
 ## [2.1.3] - 2025-06-07
 
 ### Changed
@@ -626,7 +640,8 @@ The following ciphers are supported:
 - AES 256 Bit CBC - SHA1/SHA256/SHA512 HMAC ([SQLCipher](https://www.zetetic.net/sqlcipher/), database versions 1, 2, 3, and 4)
 - RC4 - No HMAC ([System.Data.SQLite](http://system.data.sqlite.org))
 
-[Unreleased]: ../../compare/v2.1.3...HEAD
+[Unreleased]: ../../compare/v2.2.0...HEAD
+[2.2.0]: ../../compare/v2.1.3...v2.2.0
 [2.1.3]: ../../compare/v2.1.2...v2.1.3
 [2.1.2]: ../../compare/v2.1.1...v2.1.2
 [2.1.1]: ../../compare/v2.1.0...v2.1.1

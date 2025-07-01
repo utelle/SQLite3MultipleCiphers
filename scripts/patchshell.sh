@@ -20,4 +20,16 @@ sed -e '/^      sputf(stdout, "SQLite version/{n;N;d}' "$INPUT" \
   | sed '/^      sqlite3_fprintf(stdout,$/c \      extern const char* sqlite3mc_version();\n      sqlite3_fprintf(stdout,' \
   | sed '/^            "SQLite version/c \            "SQLite version \%s \%.19s" \/\*extra-version-info\*\/\n            " (\%s)\\n" \/\*SQLite3-Multiple-Ciphers-version-info\*\/' \
   | sed '/^            sqlite3_libversion(), sqlite3_sourceid());/c \            sqlite3_libversion(), sqlite3_sourceid(), sqlite3mc_version());' \
-  | sed '/^          sqlite3_libversion(), sqlite3_sourceid());/a \    extern const char* sqlite3mc_version();\n    sqlite3_fprintf(p->out, "\%s\\n", sqlite3mc_version());'
+  | sed '/^          sqlite3_libversion(), sqlite3_sourceid());/a \    extern const char* sqlite3mc_version();\n    sqlite3_fprintf(p->out, "\%s\\n", sqlite3mc_version());' \
+  | sed '/Begin ..\/ext\/misc\/shathree.c/i #ifndef SQLITE_OMIT_SHELL_SHATHREE' \
+  | sed '/End ..\/ext\/misc\/shathree.c/a #endif' \
+  | sed '/Begin ..\/ext\/misc\/series.c/i #ifndef SQLITE_OMIT_SHELL_SERIES' \
+  | sed '/End ..\/ext\/misc\/series.c/a #endif' \
+  | sed '/Begin ..\/ext\/misc\/regexp.c/i #ifndef SQLITE_OMIT_SHELL_REGEXP' \
+  | sed '/End ..\/ext\/misc\/regexp.c/a #endif' \
+  | sed '/sqlite3_shathree_init(p->db, 0, 0);/i #ifndef SQLITE_OMIT_SHELL_SHATHREE' \
+  | sed '/sqlite3_shathree_init(p->db, 0, 0);/a #endif' \
+  | sed '/sqlite3_series_init(p->db, 0, 0);/i #ifndef SQLITE_OMIT_SHELL_SERIES' \
+  | sed '/sqlite3_series_init(p->db, 0, 0);/a #endif' \
+  | sed '/sqlite3_regexp_init(p->db, 0, 0);/i #ifndef SQLITE_OMIT_SHELL_REGEXP' \
+  | sed '/sqlite3_regexp_init(p->db, 0, 0);/a #endif'

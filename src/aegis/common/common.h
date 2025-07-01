@@ -114,6 +114,14 @@ aegis_rotl32(const uint32_t x, const int b)
 #    define EINVAL 22
 #endif
 
+#if defined(_MSC_VER)
+    #define FORCEINLINE __forceinline
+#elif defined(__GNUC__) || defined(__clang__)
+    #define FORCEINLINE static inline __attribute__((always_inline))
+#else
+    #define FORCEINLINE inline  // Fallback
+#endif
+
 #define AEGIS_CONCAT(A,B) AEGIS_CONCAT_(A,B)
 #define AEGIS_CONCAT_(A,B) A##B
 #define AEGIS_FUNC(name) AEGIS_CONCAT(AEGIS_FUNC_PREFIX,AEGIS_CONCAT(_,name))
