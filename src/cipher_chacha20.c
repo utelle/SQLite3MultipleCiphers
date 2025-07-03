@@ -35,9 +35,10 @@
 
 SQLITE_PRIVATE CipherParams mcChaCha20Params[] =
 {
-  { "legacy",            CHACHA20_LEGACY_DEFAULT,   CHACHA20_LEGACY_DEFAULT,   0, 1 },
-  { "legacy_page_size",  CHACHA20_LEGACY_PAGE_SIZE, CHACHA20_LEGACY_PAGE_SIZE, 0, SQLITE_MAX_PAGE_SIZE },
-  { "kdf_iter",          CHACHA20_KDF_ITER_DEFAULT, CHACHA20_KDF_ITER_DEFAULT, 1, 0x7fffffff },
+  { "legacy",                CHACHA20_LEGACY_DEFAULT,   CHACHA20_LEGACY_DEFAULT,   0, 1 },
+  { "legacy_page_size",      CHACHA20_LEGACY_PAGE_SIZE, CHACHA20_LEGACY_PAGE_SIZE, 0, SQLITE_MAX_PAGE_SIZE },
+  { "kdf_iter",              CHACHA20_KDF_ITER_DEFAULT, CHACHA20_KDF_ITER_DEFAULT, 1, 0x7fffffff },
+  { "plaintext_header_size", 0,                         0,                         0, 100 /* restrict to db header size */ },
   CIPHER_PARAMS_SENTINEL
 };
 
@@ -52,6 +53,7 @@ typedef struct _chacha20Cipher
   int     m_legacy;
   int     m_legacyPageSize;
   int     m_kdfIter;
+  int     m_plaintextHeaderSize;
   int     m_keyLength;
   uint8_t m_key[KEYLENGTH_CHACHA20];
   uint8_t m_salt[SALTLENGTH_CHACHA20];
@@ -78,6 +80,8 @@ AllocateChaCha20Cipher(sqlite3* db)
     {
       chacha20Cipher->m_kdfIter = SQLEET_KDF_ITER;
     }
+    int plaintextHeaderSize = sqlite3mcGetCipherParameter(cipherParams, "plaintext_header_size");
+    chacha20Cipher->m_plaintextHeaderSize = (plaintextHeaderSize >=0 && plaintextHeaderSize <= 100 && plaintextHeaderSize % 16 == 0) ? plaintextHeaderSize : 0;
   }
   return chacha20Cipher;
 }
@@ -98,6 +102,7 @@ CloneChaCha20Cipher(void* cipherTo, void* cipherFrom)
   chacha20CipherTo->m_legacy = chacha20CipherFrom->m_legacy;
   chacha20CipherTo->m_legacyPageSize = chacha20CipherFrom->m_legacyPageSize;
   chacha20CipherTo->m_kdfIter = chacha20CipherFrom->m_kdfIter;
+  chacha20CipherTo->m_plaintextHeaderSize = chacha20CipherFrom->m_plaintextHeaderSize;
   chacha20CipherTo->m_keyLength = chacha20CipherFrom->m_keyLength;
   memcpy(chacha20CipherTo->m_key, chacha20CipherFrom->m_key, KEYLENGTH_CHACHA20);
   memcpy(chacha20CipherTo->m_salt, chacha20CipherFrom->m_salt, SALTLENGTH_CHACHA20);
@@ -222,11 +227,27 @@ EncryptPageChaCha20Cipher(void* cipher, int page, unsigned char* data, int len, 
   int legacy = chacha20Cipher->m_legacy;
   int nReserved = (reserved == 0 && legacy == 0) ? 0 : GetReservedChaCha20Cipher(cipher);
   int n = len - nReserved;
+  int usePlaintextHeader = 0;
 
   /* Generate one-time keys */
   uint8_t otk[64];
   uint32_t counter;
-  int offset;
+  int offset = 0;
+
+  /* Check whether a plaintext header should be used */
+  if (page == 1)
+  {
+    int plaintextHeaderSize = chacha20Cipher->m_plaintextHeaderSize;
+    if (plaintextHeaderSize > 0)
+    {
+      usePlaintextHeader = 1;
+      offset = (plaintextHeaderSize > CIPHER_PAGE1_OFFSET) ? plaintextHeaderSize : CIPHER_PAGE1_OFFSET;
+    }
+    else
+    {
+      offset = (chacha20Cipher->m_legacy != 0) ? 0 : CIPHER_PAGE1_OFFSET;
+    }
+  }
 
   /* Check whether number of required reserved bytes and actually reserved bytes match */
   if ((legacy == 0 && nReserved > reserved) || ((legacy != 0 && nReserved != reserved)))
@@ -242,9 +263,8 @@ EncryptPageChaCha20Cipher(void* cipher, int page, unsigned char* data, int len, 
     counter = LOAD32_LE(data + n + PAGE_NONCE_LEN_CHACHA20 - 4) ^ page;
     chacha20_xor(otk, 64, chacha20Cipher->m_key, data + n, counter);
 
-    offset = (page == 1) ? (chacha20Cipher->m_legacy != 0) ? 0 : CIPHER_PAGE1_OFFSET : 0;
     chacha20_xor(data + offset, n - offset, otk + 32, data + n, counter + 1);
-    if (page == 1)
+    if (page == 1 && usePlaintextHeader == 0)
     {
       memcpy(data, chacha20Cipher->m_salt, SALTLENGTH_CHACHA20);
     }
@@ -260,9 +280,8 @@ EncryptPageChaCha20Cipher(void* cipher, int page, unsigned char* data, int len, 
     chacha20_xor(otk, 64, chacha20Cipher->m_key, nonce, counter);
 
     /* Encrypt */
-    offset = (page == 1) ? (chacha20Cipher->m_legacy != 0) ? 0 : CIPHER_PAGE1_OFFSET : 0;
     chacha20_xor(data + offset, n - offset, otk + 32, nonce, counter + 1);
-    if (page == 1)
+    if (page == 1 && usePlaintextHeader == 0)
     {
       memcpy(data, chacha20Cipher->m_salt, SALTLENGTH_CHACHA20);
     }
@@ -292,12 +311,28 @@ DecryptPageChaCha20Cipher(void* cipher, int page, unsigned char* data, int len, 
   int legacy = chacha20Cipher->m_legacy;
   int nReserved = (reserved == 0 && legacy == 0) ? 0 : GetReservedChaCha20Cipher(cipher);
   int n = len - nReserved;
+  int usePlaintextHeader = 0;
 
   /* Generate one-time keys */
   uint8_t otk[64];
   uint32_t counter;
   uint8_t tag[16];
-  int offset;
+  int offset = 0;
+
+  /* Check whether a plaintext header should be used */
+  if (page == 1)
+  {
+    int plaintextHeaderSize = chacha20Cipher->m_plaintextHeaderSize;
+    if (plaintextHeaderSize > 0)
+    {
+      usePlaintextHeader = 1;
+      offset = (plaintextHeaderSize > CIPHER_PAGE1_OFFSET) ? plaintextHeaderSize : CIPHER_PAGE1_OFFSET;
+    }
+    else
+    {
+      offset = (chacha20Cipher->m_legacy != 0) ? 0 : CIPHER_PAGE1_OFFSET;
+    }
+  }
 
   /* Check whether number of required reserved bytes and actually reserved bytes match */
   if ((legacy == 0 && nReserved > reserved) || ((legacy != 0 && nReserved != reserved)))
@@ -316,7 +351,6 @@ DecryptPageChaCha20Cipher(void* cipher, int page, unsigned char* data, int len, 
     /* Determine MAC and decrypt */
     allzero = chacha20_ismemset(data, 0, n);
     poly1305(data, n + PAGE_NONCE_LEN_CHACHA20, otk, tag);
-    offset = (page == 1) ? (chacha20Cipher->m_legacy != 0) ? 0 : CIPHER_PAGE1_OFFSET : 0;
     chacha20_xor(data + offset, n - offset, otk + 32, data + n, counter + 1);
 
     if (hmacCheck != 0)
@@ -336,7 +370,7 @@ DecryptPageChaCha20Cipher(void* cipher, int page, unsigned char* data, int len, 
         rc = (page == 1) ? SQLITE_NOTADB : SQLITE_CORRUPT;
       }
     }
-    if (page == 1 && rc == SQLITE_OK)
+    if (page == 1 && usePlaintextHeader == 0 && rc == SQLITE_OK)
     {
       memcpy(data, SQLITE_FILE_HEADER, 16);
     }
@@ -351,9 +385,8 @@ DecryptPageChaCha20Cipher(void* cipher, int page, unsigned char* data, int len, 
     chacha20_xor(otk, 64, chacha20Cipher->m_key, nonce, counter);
 
     /* Decrypt */
-    offset = (page == 1) ? (chacha20Cipher->m_legacy != 0) ? 0 : CIPHER_PAGE1_OFFSET : 0;
     chacha20_xor(data + offset, n - offset, otk + 32, nonce, counter + 1);
-    if (page == 1)
+    if (page == 1 && usePlaintextHeader == 0)
     {
       memcpy(data, SQLITE_FILE_HEADER, 16);
     }

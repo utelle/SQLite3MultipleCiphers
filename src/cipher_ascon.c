@@ -29,7 +29,8 @@
 
 SQLITE_PRIVATE CipherParams mcAscon128Params[] =
 {
-  { "kdf_iter",          ASCON128_KDF_ITER_DEFAULT, ASCON128_KDF_ITER_DEFAULT, 1, 0x7fffffff },
+  { "kdf_iter",              ASCON128_KDF_ITER_DEFAULT, ASCON128_KDF_ITER_DEFAULT, 1, 0x7fffffff },
+  { "plaintext_header_size", 0,                         0,                         0, 100 /* restrict to db header size */ },
   CIPHER_PARAMS_SENTINEL
 };
 
@@ -42,6 +43,7 @@ SQLITE_PRIVATE CipherParams mcAscon128Params[] =
 typedef struct _ascon128Cipher
 {
   int     m_kdfIter;
+  int     m_plaintextHeaderSize;
   int     m_keyLength;
   uint8_t m_key[KEYLENGTH_ASCON128];
   uint8_t m_salt[SALTLENGTH_ASCON128];
@@ -62,6 +64,8 @@ AllocateAscon128Cipher(sqlite3* db)
   {
     CipherParams* cipherParams = sqlite3mcGetCipherParams(db, CIPHER_NAME_ASCON128);
     ascon128Cipher->m_kdfIter = sqlite3mcGetCipherParameter(cipherParams, "kdf_iter");
+    int plaintextHeaderSize = sqlite3mcGetCipherParameter(cipherParams, "plaintext_header_size");
+    ascon128Cipher->m_plaintextHeaderSize = (plaintextHeaderSize >=0 && plaintextHeaderSize <= 100 && plaintextHeaderSize % 16 == 0) ? plaintextHeaderSize : 0;
   }
   return ascon128Cipher;
 }
@@ -80,6 +84,7 @@ CloneAscon128Cipher(void* cipherTo, void* cipherFrom)
   Ascon128Cipher* ascon128CipherTo = (Ascon128Cipher*) cipherTo;
   Ascon128Cipher* ascon128CipherFrom = (Ascon128Cipher*) cipherFrom;
   ascon128CipherTo->m_kdfIter = ascon128CipherFrom->m_kdfIter;
+  ascon128CipherTo->m_plaintextHeaderSize = ascon128CipherFrom->m_plaintextHeaderSize;
   ascon128CipherTo->m_keyLength = ascon128CipherFrom->m_keyLength;
   memcpy(ascon128CipherTo->m_key, ascon128CipherFrom->m_key, KEYLENGTH_ASCON128);
   memcpy(ascon128CipherTo->m_salt, ascon128CipherFrom->m_salt, SALTLENGTH_ASCON128);
@@ -210,10 +215,26 @@ EncryptPageAscon128Cipher(void* cipher, int page, unsigned char* data, int len, 
   int nReserved = (reserved == 0) ? 0 : GetReservedAscon128Cipher(cipher);
   int n = len - nReserved;
   uint64_t mlen = n;
+  int usePlaintextHeader = 0;
 
   /* Generate one-time keys */
   uint8_t otk[ASCON_HASH_BYTES];
-  int offset;
+  int offset = 0;
+
+  /* Check whether a plaintext header should be used */
+  if (page == 1)
+  {
+    int plaintextHeaderSize = ascon128Cipher->m_plaintextHeaderSize;
+    if (plaintextHeaderSize > 0)
+    {
+      usePlaintextHeader = 1;
+      offset = (plaintextHeaderSize > CIPHER_PAGE1_OFFSET) ? plaintextHeaderSize : CIPHER_PAGE1_OFFSET;
+    }
+    else
+    {
+      offset = CIPHER_PAGE1_OFFSET;
+    }
+  }
 
   /* Check whether number of required reserved bytes and actually reserved bytes match */
   if (nReserved > reserved)
@@ -229,11 +250,10 @@ EncryptPageAscon128Cipher(void* cipher, int page, unsigned char* data, int len, 
     chacha20_rng(data + n + PAGE_TAG_LEN_ASCON128, PAGE_NONCE_LEN_ASCON128);
     AsconGenOtk(otk, ascon128Cipher->m_key, data + n + PAGE_TAG_LEN_ASCON128, page);
 
-    offset = (page == 1) ? CIPHER_PAGE1_OFFSET : 0;
     ascon_aead_encrypt(data + offset, data + n, data + offset, mlen - offset,
                        NULL /* ad */, 0 /* adlen*/,
                        data + n + PAGE_TAG_LEN_ASCON128, otk);
-    if (page == 1)
+    if (page == 1 && usePlaintextHeader == 0)
     {
       memcpy(data, ascon128Cipher->m_salt, SALTLENGTH_ASCON128);
     }
@@ -249,11 +269,10 @@ EncryptPageAscon128Cipher(void* cipher, int page, unsigned char* data, int len, 
     AsconGenOtk(otk, ascon128Cipher->m_key, nonce, page);
 
     /* Encrypt */
-    offset = (page == 1) ? CIPHER_PAGE1_OFFSET : 0;
     ascon_aead_encrypt(data + offset, dummyTag, data + offset, mlen - offset,
                        NULL /* ad */, 0 /* adlen*/,
                        nonce, otk);
-      if (page == 1)
+      if (page == 1 && usePlaintextHeader == 0)
     {
       memcpy(data, ascon128Cipher->m_salt, SALTLENGTH_ASCON128);
     }
@@ -271,10 +290,26 @@ DecryptPageAscon128Cipher(void* cipher, int page, unsigned char* data, int len, 
   int n = len - nReserved;
   uint64_t clen = n;
   int tagOk;
+  int usePlaintextHeader = 0;
 
   /* Generate one-time keys */
   uint8_t otk[ASCON_HASH_BYTES];
-  int offset;
+  int offset = 0;
+
+  /* Check whether a plaintext header should be used */
+  if (page == 1)
+  {
+    int plaintextHeaderSize = ascon128Cipher->m_plaintextHeaderSize;
+    if (plaintextHeaderSize > 0)
+    {
+      usePlaintextHeader = 1;
+      offset = (plaintextHeaderSize > CIPHER_PAGE1_OFFSET) ? plaintextHeaderSize : CIPHER_PAGE1_OFFSET;
+    }
+    else
+    {
+      offset = CIPHER_PAGE1_OFFSET;
+    }
+  }
 
   /* Check whether number of required reserved bytes and actually reserved bytes match */
   if (nReserved > reserved)
@@ -289,7 +324,6 @@ DecryptPageAscon128Cipher(void* cipher, int page, unsigned char* data, int len, 
     AsconGenOtk(otk, ascon128Cipher->m_key, data + n + PAGE_TAG_LEN_ASCON128, page);
 
     /* Determine MAC and decrypt */
-    offset = (page == 1) ? CIPHER_PAGE1_OFFSET : 0;
     tagOk = ascon_aead_decrypt(data + offset, data + offset, clen - offset,
                                NULL /* ad */, 0 /* adlen */,
                                data + n, data + n + PAGE_TAG_LEN_ASCON128, otk);
@@ -310,7 +344,7 @@ DecryptPageAscon128Cipher(void* cipher, int page, unsigned char* data, int len, 
         rc = (page == 1) ? SQLITE_NOTADB : SQLITE_CORRUPT;
       }
     }
-    if (page == 1 && rc == SQLITE_OK)
+    if (page == 1 && usePlaintextHeader == 0 && rc == SQLITE_OK)
     {
       memcpy(data, SQLITE_FILE_HEADER, 16);
     }
@@ -326,11 +360,10 @@ DecryptPageAscon128Cipher(void* cipher, int page, unsigned char* data, int len, 
     AsconGenOtk(otk, ascon128Cipher->m_key, nonce, page);
 
     /* Decrypt */
-    offset = (page == 1) ? CIPHER_PAGE1_OFFSET : 0;
     tagOk = ascon_aead_decrypt(data + offset, data + offset, clen - offset,
                                NULL /* ad */, 0 /* adlen */,
                                dummyTag, nonce, otk);
-    if (page == 1)
+    if (page == 1 && usePlaintextHeader == 0)
     {
       memcpy(data, SQLITE_FILE_HEADER, 16);
     }
