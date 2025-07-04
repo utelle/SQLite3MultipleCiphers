@@ -253,7 +253,6 @@ static void
 GenerateKeyAegisCipher(void* cipher, char* userPassword, int passwordLength, int rekey, unsigned char* cipherSalt)
 {
   AegisCipher* aegisCipher = (AegisCipher*) cipher;
-  int bypass = 0;
 
   int keyOnly = 1;
   if (rekey || cipherSalt == NULL)
@@ -266,51 +265,10 @@ GenerateKeyAegisCipher(void* cipher, char* userPassword, int passwordLength, int
     memcpy(aegisCipher->m_salt, cipherSalt, SALTLENGTH_AEGIS);
   }
 
-  /* Bypass key derivation if the key string starts with "raw:" */
-  if (passwordLength > 4 && !memcmp(userPassword, "raw:", 4))
-  {
-    const int nRaw = passwordLength - 4;
-    const unsigned char* zRaw = (const unsigned char*) userPassword + 4;
-    if (nRaw == aegisCipher->m_keyLength)
-    {
-      /* Binary key */
-      memcpy(aegisCipher->m_key, zRaw, aegisCipher->m_keyLength);
-      bypass = 1;
-    }
-    else if (nRaw == aegisCipher->m_keyLength + SALTLENGTH_AEGIS)
-    {
-      /* Binary key and salt) */
-      if (!keyOnly)
-      {
-        memcpy(aegisCipher->m_salt, zRaw + aegisCipher->m_keyLength, SALTLENGTH_AEGIS);
-      }
-      memcpy(aegisCipher->m_key, zRaw, aegisCipher->m_keyLength);
-      bypass = 1;
-    }
-    else if (nRaw == 2 * aegisCipher->m_keyLength)
-    {
-      /* Hex-encoded key */
-      if (sqlite3mcIsHexKey(zRaw, nRaw) != 0)
-      {
-        sqlite3mcConvertHex2Bin(zRaw, nRaw, aegisCipher->m_key);
-        bypass = 1;
-      }
-    }
-    else if (nRaw == 2 * (aegisCipher->m_keyLength + SALTLENGTH_AEGIS))
-    {
-      /* Hex-encoded key and salt */
-      if (sqlite3mcIsHexKey(zRaw, nRaw) != 0)
-      {
-        sqlite3mcConvertHex2Bin(zRaw, 2 * aegisCipher->m_keyLength, aegisCipher->m_key);
-        if (!keyOnly)
-        {
-          sqlite3mcConvertHex2Bin(zRaw + 2 * aegisCipher->m_keyLength, 2 * SALTLENGTH_AEGIS, aegisCipher->m_salt);
-        }
-        bypass = 1;
-      }
-    }
-  }
-
+  /* Bypass key derivation, if raw key (and optionally salt) are given */
+  int bypass = sqlite3mcExtractRawKey(userPassword, passwordLength,
+                                      keyOnly, aegisCipher->m_keyLength, SALTLENGTH_AEGIS,
+                                      aegisCipher->m_key, aegisCipher->m_salt);
   if (!bypass)
   {
     int rc = argon2id_hash_raw((uint32_t) aegisCipher->m_argon2Tcost,

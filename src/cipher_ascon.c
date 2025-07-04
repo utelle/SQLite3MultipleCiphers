@@ -122,7 +122,6 @@ static void
 GenerateKeyAscon128Cipher(void* cipher, char* userPassword, int passwordLength, int rekey, unsigned char* cipherSalt)
 {
   Ascon128Cipher* ascon128Cipher = (Ascon128Cipher*) cipher;
-  int bypass = 0;
 
   int keyOnly = 1;
   if (rekey || cipherSalt == NULL)
@@ -135,52 +134,10 @@ GenerateKeyAscon128Cipher(void* cipher, char* userPassword, int passwordLength, 
     memcpy(ascon128Cipher->m_salt, cipherSalt, SALTLENGTH_ASCON128);
   }
 
-  /* Bypass key derivation if the key string starts with "raw:" */
-  if (passwordLength > 4 && !memcmp(userPassword, "raw:", 4))
-  {
-    const int nRaw = passwordLength - 4;
-    const unsigned char* zRaw = (const unsigned char*) userPassword + 4;
-    switch (nRaw)
-    {
-      /* Binary key (and salt) */
-      case KEYLENGTH_ASCON128 + SALTLENGTH_ASCON128:
-        if (!keyOnly)
-        {
-          memcpy(ascon128Cipher->m_salt, zRaw + KEYLENGTH_ASCON128, SALTLENGTH_ASCON128);
-        }
-        /* fall-through */
-      case KEYLENGTH_ASCON128:
-        memcpy(ascon128Cipher->m_key, zRaw, KEYLENGTH_ASCON128);
-        bypass = 1;
-        break;
-
-      /* Hex-encoded key */
-      case 2 * KEYLENGTH_ASCON128:
-        if (sqlite3mcIsHexKey(zRaw, nRaw) != 0)
-        {
-          sqlite3mcConvertHex2Bin(zRaw, nRaw, ascon128Cipher->m_key);
-          bypass = 1;
-        }
-        break;
-
-      /* Hex-encoded key and salt */
-      case 2 * (KEYLENGTH_ASCON128 + SALTLENGTH_ASCON128):
-        if (sqlite3mcIsHexKey(zRaw, nRaw) != 0)
-        {
-          sqlite3mcConvertHex2Bin(zRaw, 2 * KEYLENGTH_ASCON128, ascon128Cipher->m_key);
-          if (!keyOnly)
-          {
-            sqlite3mcConvertHex2Bin(zRaw + 2 * KEYLENGTH_ASCON128, 2 * SALTLENGTH_ASCON128, ascon128Cipher->m_salt);
-          }
-          bypass = 1;
-        }
-        break;
-
-      default:
-        break;
-    }
-  }
-
+  /* Bypass key derivation, if raw key (and optionally salt) are given */
+  int bypass = sqlite3mcExtractRawKey(userPassword, passwordLength,
+                                      keyOnly, KEYLENGTH_ASCON128, SALTLENGTH_ASCON128,
+                                      ascon128Cipher->m_key, ascon128Cipher->m_salt);
   if (!bypass)
   {
     ascon_pbkdf2(ascon128Cipher->m_key, KEYLENGTH_ASCON128,

@@ -244,29 +244,22 @@ GenerateKeySQLCipherCipher(void* cipher, char* userPassword, int passwordLength,
 {
   SQLCipherCipher* sqlCipherCipher = (SQLCipherCipher*) cipher;
 
+  int keyOnly = 1;
   if (rekey || cipherSalt == NULL)
   {
     chacha20_rng(sqlCipherCipher->m_salt, SALTLENGTH_SQLCIPHER);
+    keyOnly = 0;
   }
   else
   {
     memcpy(sqlCipherCipher->m_salt, cipherSalt, SALTLENGTH_SQLCIPHER);
   }
 
-  if (passwordLength == ((KEYLENGTH_SQLCIPHER * 2) + 3) &&
-      sqlite3_strnicmp(userPassword, "x'", 2) == 0 &&
-    sqlite3mcIsHexKey((unsigned char*) (userPassword + 2), KEYLENGTH_SQLCIPHER * 2) != 0)
-  {
-    sqlite3mcConvertHex2Bin((unsigned char*) (userPassword + 2), passwordLength - 3, sqlCipherCipher->m_key);
-  }
-  else if (passwordLength == (((KEYLENGTH_SQLCIPHER + SALTLENGTH_SQLCIPHER) * 2) + 3) &&
-           sqlite3_strnicmp(userPassword, "x'", 2) == 0 &&
-           sqlite3mcIsHexKey((unsigned char*) (userPassword + 2), (KEYLENGTH_SQLCIPHER + SALTLENGTH_SQLCIPHER) * 2) != 0)
-  {
-    sqlite3mcConvertHex2Bin((unsigned char*) (userPassword + 2), KEYLENGTH_SQLCIPHER * 2, sqlCipherCipher->m_key);
-    sqlite3mcConvertHex2Bin((unsigned char*) (userPassword + 2 + KEYLENGTH_SQLCIPHER * 2), SALTLENGTH_SQLCIPHER * 2, sqlCipherCipher->m_salt);
-  }
-  else
+  /* Bypass key derivation, if raw key (and optionally salt) are given */
+  int bypass = sqlite3mcExtractRawKey(userPassword, passwordLength,
+                                      keyOnly, KEYLENGTH_SQLCIPHER, SALTLENGTH_SQLCIPHER,
+                                      sqlCipherCipher->m_key, sqlCipherCipher->m_salt);
+  if (!bypass)
   {
     switch (sqlCipherCipher->m_kdfAlgorithm)
     {

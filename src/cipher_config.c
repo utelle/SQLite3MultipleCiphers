@@ -707,7 +707,7 @@ sqlite3mcConfigParams(sqlite3_context* context, int argc, sqlite3_value** argv)
 }
 
 SQLITE_PRIVATE int
-sqlite3mcConfigureFromUri(sqlite3* db, const char *zDbName, int configDefault)
+sqlite3mcConfigureFromUri(sqlite3* db, const char* zDbName, int configDefault)
 {
   int rc = SQLITE_OK;
 
@@ -717,6 +717,15 @@ sqlite3mcConfigureFromUri(sqlite3* db, const char *zDbName, int configDefault)
   {
     /* Check whether cipher is specified */
     const char* cipherName = sqlite3_uri_parameter(dbFileName, "cipher");
+    if (cipherName == NULL)
+    {
+      int defaultCipherIndex = sqlite3mc_config(db, "cipher", -1);
+      if (defaultCipherIndex > 0)
+      {
+        cipherName = sqlite3mc_cipher_name(defaultCipherIndex);
+        sqlite3mc_config(db, "cipher", defaultCipherIndex);
+      }
+    }
     if (cipherName != NULL)
     {
       int j = 0;
@@ -928,6 +937,69 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
       int value = sqlite3mc_config(db, "mc_legacy_wal", walLegacy);
       ((char**)pArg)[0] = sqlite3_mprintf("%d", value);
       rc = SQLITE_OK;
+    }
+    else if (sqlite3StrICmp(pragmaName, "cipher_salt") == 0)
+    {
+      Codec* codec = sqlite3mcGetCodec(db, (zDbName) ? zDbName : "main");
+      if (codec == NULL)
+      {
+        /* Codec not yet set up */
+        if (pragmaValue && *pragmaValue != 0)
+        {
+          /* Save given cipher salt */
+          if (sqlite3Strlen30(pragmaValue) >= 2 * KEYSALT_LENGTH &&
+              sqlite3mcIsHexKey(pragmaValue, 2 * KEYSALT_LENGTH))
+          {
+            char* cipherSalt = sqlite3_mprintf("%s", pragmaValue);
+            if (sqlite3_set_clientdata(db, "sqlite3mc_cipher_salt", cipherSalt, sqlite3_free) != SQLITE_OK)
+            {
+              ((char**)pArg)[0] = sqlite3_mprintf("Out of memory. Cipher salt not saved.");
+              rc = SQLITE_ERROR;
+            }
+            else
+            {
+              ((char**)pArg)[0] = sqlite3_mprintf("ok");
+              rc = SQLITE_OK;
+            }
+          }
+          else
+          {
+            ((char**)pArg)[0] = sqlite3_mprintf("Invalid cipher salt. Length < %d or invalid hex digits.", 2 * KEYSALT_LENGTH);
+            rc = SQLITE_ERROR;
+          }
+        }
+        else
+        {
+          char* cipherSalt = sqlite3_get_clientdata(db, "sqlite3mc_cipher_salt");
+          if (cipherSalt)
+          {
+            ((char**)pArg)[0] = sqlite3_mprintf("%s", cipherSalt);
+          }
+        }
+      }
+      else if (sqlite3mcIsEncrypted(codec) && sqlite3mcHasWriteCipher(codec))
+      {
+        /* Database encrypted */
+        if (pragmaValue && *pragmaValue != 0)
+        {
+          ((char**)pArg)[0] = sqlite3_mprintf("Cipher salt can't be changed.");
+          rc = SQLITE_ERROR;
+        }
+        else
+        {
+          char* cipherSalt = (char*) sqlite3mc_codec_data(db, (zDbName) ? zDbName : "main", "cipher_salt");
+          if (cipherSalt)
+          {
+            ((char**)pArg)[0] = cipherSalt;
+          }
+          rc = SQLITE_OK;
+        }
+      }
+      else
+      {
+        ((char**)pArg)[0] = sqlite3_mprintf("Database not encrypted.");
+        rc = SQLITE_ERROR;
+      }
     }
     else if (sqlite3StrICmp(pragmaName, "key") == 0)
     {

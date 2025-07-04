@@ -271,8 +271,12 @@ sqlite3mcCodecAttach(sqlite3* db, int nDb, const char* zPath, const void* zKey, 
   {
     if (dbFileName != NULL)
     {
-      /* Check whether key salt is provided in URI */
-      const unsigned char* cipherSalt = (const unsigned char*)sqlite3_uri_parameter(dbFileName, "cipher_salt");
+      /* Check whether key salt is provided via pragma or via URI */
+      const unsigned char* cipherSalt = (const unsigned char*) sqlite3_get_clientdata(db, "sqlite3mc_cipher_salt");
+      if (cipherSalt == NULL)
+      {
+        cipherSalt = (const unsigned char*) sqlite3_uri_parameter(dbFileName, "cipher_salt");
+      }
       if ((cipherSalt != NULL) && (strlen((const char*)cipherSalt) >= 2 * KEYSALT_LENGTH) && sqlite3mcIsHexKey(cipherSalt, 2 * KEYSALT_LENGTH))
       {
         codec->m_hasKeySalt = 1;

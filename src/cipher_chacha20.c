@@ -148,7 +148,6 @@ static void
 GenerateKeyChaCha20Cipher(void* cipher, char* userPassword, int passwordLength, int rekey, unsigned char* cipherSalt)
 {
   ChaCha20Cipher* chacha20Cipher = (ChaCha20Cipher*) cipher;
-  int bypass = 0;
 
   int keyOnly = 1;
   if (rekey || cipherSalt == NULL)
@@ -161,52 +160,10 @@ GenerateKeyChaCha20Cipher(void* cipher, char* userPassword, int passwordLength, 
     memcpy(chacha20Cipher->m_salt, cipherSalt, SALTLENGTH_CHACHA20);
   }
 
-  /* Bypass key derivation if the key string starts with "raw:" */
-  if (passwordLength > 4 && !memcmp(userPassword, "raw:", 4))
-  {
-    const int nRaw = passwordLength - 4;
-    const unsigned char* zRaw = (const unsigned char*) userPassword + 4;
-    switch (nRaw)
-    {
-      /* Binary key (and salt) */
-      case KEYLENGTH_CHACHA20 + SALTLENGTH_CHACHA20:
-        if (!keyOnly)
-        {
-          memcpy(chacha20Cipher->m_salt, zRaw + KEYLENGTH_CHACHA20, SALTLENGTH_CHACHA20);
-        }
-        /* fall-through */
-      case KEYLENGTH_CHACHA20:
-        memcpy(chacha20Cipher->m_key, zRaw, KEYLENGTH_CHACHA20);
-        bypass = 1;
-        break;
-
-      /* Hex-encoded key */
-      case 2 * KEYLENGTH_CHACHA20:
-        if (sqlite3mcIsHexKey(zRaw, nRaw) != 0)
-        {
-          sqlite3mcConvertHex2Bin(zRaw, nRaw, chacha20Cipher->m_key);
-          bypass = 1;
-        }
-        break;
-
-      /* Hex-encoded key and salt */
-      case 2 * (KEYLENGTH_CHACHA20 + SALTLENGTH_CHACHA20):
-        if (sqlite3mcIsHexKey(zRaw, nRaw) != 0)
-        {
-          sqlite3mcConvertHex2Bin(zRaw, 2 * KEYLENGTH_CHACHA20, chacha20Cipher->m_key);
-          if (!keyOnly)
-          {
-            sqlite3mcConvertHex2Bin(zRaw + 2 * KEYLENGTH_CHACHA20, 2 * SALTLENGTH_CHACHA20, chacha20Cipher->m_salt);
-          }
-          bypass = 1;
-        }
-        break;
-
-      default:
-        break;
-    }
-  }
-
+  /* Bypass key derivation, if raw key (and optionally salt) are given */
+  int bypass = sqlite3mcExtractRawKey(userPassword, passwordLength,
+                                      keyOnly, KEYLENGTH_CHACHA20, SALTLENGTH_CHACHA20,
+                                      chacha20Cipher->m_key, chacha20Cipher->m_salt);
   if (!bypass)
   {
     fastpbkdf2_hmac_sha256((unsigned char*)userPassword, passwordLength,

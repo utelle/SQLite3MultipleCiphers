@@ -56,6 +56,9 @@
 
 #define CODEC_SHA_ITER 4001
 
+/* Restrict possible plaintext header size to db header size */
+#define PLAINTEXT_HEADER_MAX 100
+
 typedef struct _CodecParameter
 {
   char* m_name;
@@ -191,6 +194,10 @@ SQLITE_PRIVATE int sqlite3mcIsHexKey(const unsigned char* hex, int len);
 SQLITE_PRIVATE int sqlite3mcConvertHex2Int(char c);
 
 SQLITE_PRIVATE void sqlite3mcConvertHex2Bin(const unsigned char* hex, int len, unsigned char* bin);
+
+SQLITE_PRIVATE int sqlite3mcExtractRawKey(const char* password, int passwordLength,
+                                          int keyOnly, int keyLength, int saltLength,
+                                          char* key, char* salt);
 
 SQLITE_PRIVATE int sqlite3mcConfigureFromUri(sqlite3* db, const char *zDbName, int configDefault);
 
