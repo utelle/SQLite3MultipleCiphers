@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added plaintext header option to some ciphers (issue [#209](../../issues/209))
+  This option, added to ciphers _chacha20_, _ascon128_, and _aegis_, keeps the database header partially unencrypted and works in the same way as for the cipher scheme _sqlcipher_.
+
+### Changed
+
+- Simplified and unified raw key and salt specification
+  - raw keys (and optionally salt) can be given in both formats, _SQLCipher_ or _sqleet_, for all cipher schemes supporting raw key specification (_chacha20_, _sqlcipher_, _ascon128_, _aegis_)
+  - the cipher salt can now also be specified via "pragma cipher_salt" - pragma takes precedence over URI parameter
+  - the "cipher" URI parameter is no longer mandatory for the default cipher scheme
+
 ## [2.2.0] - 2025-07-01
 
 ### Changed
