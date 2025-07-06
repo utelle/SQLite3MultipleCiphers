@@ -23,6 +23,7 @@ The following table lists all parameters related to this cipher that can be set 
 | `kdf_iter` | 64007 | 12345 | 1 | | Number of iterations for the key derivation function |
 | `legacy` | 0 | 1 | 0 | 1 | Boolean flag whether the legacy mode should be used |
 | `legacy_page_size` | 4096 | 4096 | 0 | 65536 | Page size to use in legacy mode, 0 = default SQLite page size |
+| `plaintext_header_size` | 0 | 0 | 100 | Size of plaintext database header<br/>must be a multiple of 16, i.e. 32 |
 
 **Note**
 {: .label .label-red .ml-0 .mb-1 .mt-2 }

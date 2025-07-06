@@ -19,3 +19,4 @@ The following table lists all parameters related to this cipher that can be set 
 | Parameter | Default | Min | Max | Description |
 | :--- | :---: | :---: | :---: | :---: | :--- |
 | `kdf_iter` | 64007 | 1 | | Number of iterations for the key derivation function |
+| `plaintext_header_size` | 0 | 0 | 100 | Size of plaintext database header<br/>must be a multiple of 16, i.e. 32 |

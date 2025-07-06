@@ -24,6 +24,7 @@ The following table lists all parameters related to this cipher that can be set 
 | `mcost`     | 19456   | 1     |       | Amount of memory in kB for key derivation with Argon2id |
 | `pcost`     | 1       | 1     |       | Parallelism, number of threads for key derivation with Argon2 |
 | `algorithm` | 4       | 1     | 6     | AEGIS variant to be used for page encryption |
+| `plaintext_header_size` | 0 | 0 | 100 | Size of plaintext database header<br/>must be a multiple of 16, i.e. 32 |
 
 **Notes**
 {: .label .label-red .ml-0 .mb-1 .mt-2 }
