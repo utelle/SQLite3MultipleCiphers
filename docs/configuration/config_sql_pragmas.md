@@ -111,7 +111,7 @@ PRAGMA key = 'raw:54686973206973206D792076657279207365637265742070617373776F7264
 Note
 {: .label .label-red .ml-0 .mb-1 .mt-2 }
 Currently only the cipher schemes [sqleet: ChaCha20]({{ site.baseurl }}{% link docs/ciphers/cipher_chacha20.md %}) and [SQLCipher: AES 256 Bit]({{ site.baseurl }}{% link docs/ciphers/cipher_sqlcipher.md %}) support this method, requiring the literal syntax as given in the example.
-Starting with version [2.2.0](https://github.com/utelle/SQLite3MultipleCiphers/releases/tag/v2.2.0) the ciphers [Ascon128]({{ site.baseurl }}{% link docs/ciphers/cipher_ascon128.md %}) and [AEGIS]({{ site.baseurl }}{% link docs/ciphers/cipher_aegis.md %}) support this option, too.
+Starting with version [2.2.0](https://github.com/utelle/SQLite3MultipleCiphers/releases/tag/v2.2.0) the ciphers [Ascon128]({{ site.baseurl }}{% link docs/ciphers/cipher_ascon.md %}) and [AEGIS]({{ site.baseurl }}{% link docs/ciphers/cipher_aegis.md %}) support this option, too.
 All named ciphers accept the raw key material in both forms shown in the example.
 
 ---
