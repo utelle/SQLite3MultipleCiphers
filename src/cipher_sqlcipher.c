@@ -349,16 +349,24 @@ EncryptPageSQLCipherCipher(void* cipher, int page, unsigned char* data, int len,
   int legacy = sqlCipherCipher->m_legacy;
   int nReserved = (reserved == 0 && legacy == 0) ? 0 : GetReservedSQLCipherCipher(cipher);
   int n = len - nReserved;
-  int offset = (page == 1) ? (sqlCipherCipher->m_legacy != 0) ? 16 : 24 : 0;
+  int offset = 0;
   int blen;
   unsigned char iv[128];
   int usePlaintextHeader = 0;
 
   /* Check whether a plaintext header should be used */
-  if (page == 1 && sqlCipherCipher->m_legacy >= SQLCIPHER_VERSION_4 && sqlCipherCipher->m_plaintextHeaderSize > 0)
+  if (page == 1)
   {
-    usePlaintextHeader = 1;
-    offset = sqlCipherCipher->m_plaintextHeaderSize;
+    int plaintextHeaderSize = sqlCipherCipher->m_plaintextHeaderSize;
+    offset = (sqlCipherCipher->m_legacy != 0) ? 16 : 24;
+    if (plaintextHeaderSize > 0)
+    {
+      usePlaintextHeader = 1;
+      if (sqlCipherCipher->m_legacy >= SQLCIPHER_VERSION_4)
+      {
+        offset = plaintextHeaderSize;
+      }
+    }
   }
 
   /* Check whether number of required reserved bytes and actually reserved bytes match */
@@ -423,17 +431,25 @@ DecryptPageSQLCipherCipher(void* cipher, int page, unsigned char* data, int len,
   int legacy = sqlCipherCipher->m_legacy;
   int nReserved = (reserved == 0 && legacy == 0) ? 0 : GetReservedSQLCipherCipher(cipher);
   int n = len - nReserved;
-  int offset = (page == 1) ? (sqlCipherCipher->m_legacy != 0) ? 16 : 24 : 0;
+  int offset = 0;
   int hmacOk = 1;
   int blen;
   unsigned char iv[128];
   int usePlaintextHeader = 0;
 
   /* Check whether a plaintext header should be used */
-  if (page == 1 && sqlCipherCipher->m_legacy >= SQLCIPHER_VERSION_4 && sqlCipherCipher->m_plaintextHeaderSize > 0)
+  if (page == 1)
   {
-    usePlaintextHeader = 1;
-    offset = sqlCipherCipher->m_plaintextHeaderSize;
+    int plaintextHeaderSize = sqlCipherCipher->m_plaintextHeaderSize;
+    offset = (sqlCipherCipher->m_legacy != 0) ? 16 : 24;
+    if (plaintextHeaderSize > 0)
+    {
+      usePlaintextHeader = 1;
+      if (sqlCipherCipher->m_legacy >= SQLCIPHER_VERSION_4)
+      {
+        offset = plaintextHeaderSize;
+      }
+    }
   }
 
   /* Check whether number of required reserved bytes and actually reserved bytes match */

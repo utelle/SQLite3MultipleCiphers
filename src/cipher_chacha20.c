@@ -198,7 +198,8 @@ EncryptPageChaCha20Cipher(void* cipher, int page, unsigned char* data, int len, 
     if (plaintextHeaderSize > 0)
     {
       usePlaintextHeader = 1;
-      offset = (plaintextHeaderSize > CIPHER_PAGE1_OFFSET) ? plaintextHeaderSize : CIPHER_PAGE1_OFFSET;
+      offset = (chacha20Cipher->m_legacy != 0) ? plaintextHeaderSize :
+               (plaintextHeaderSize > CIPHER_PAGE1_OFFSET) ? plaintextHeaderSize : CIPHER_PAGE1_OFFSET;
     }
     else
     {
@@ -283,7 +284,8 @@ DecryptPageChaCha20Cipher(void* cipher, int page, unsigned char* data, int len, 
     if (plaintextHeaderSize > 0)
     {
       usePlaintextHeader = 1;
-      offset = (plaintextHeaderSize > CIPHER_PAGE1_OFFSET) ? plaintextHeaderSize : CIPHER_PAGE1_OFFSET;
+      offset = (chacha20Cipher->m_legacy != 0) ? plaintextHeaderSize :
+               (plaintextHeaderSize > CIPHER_PAGE1_OFFSET) ? plaintextHeaderSize : CIPHER_PAGE1_OFFSET;
     }
     else
     {
