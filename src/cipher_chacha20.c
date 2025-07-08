@@ -80,8 +80,7 @@ AllocateChaCha20Cipher(sqlite3* db)
     {
       chacha20Cipher->m_kdfIter = SQLEET_KDF_ITER;
     }
-    int plaintextHeaderSize = sqlite3mcGetCipherParameter(cipherParams, "plaintext_header_size");
-    chacha20Cipher->m_plaintextHeaderSize = (plaintextHeaderSize >=0 && plaintextHeaderSize <= 100 && plaintextHeaderSize % 16 == 0) ? plaintextHeaderSize : 0;
+    chacha20Cipher->m_plaintextHeaderSize = sqlite3mcGetCipherParameter(cipherParams, "plaintext_header_size");
   }
   return chacha20Cipher;
 }

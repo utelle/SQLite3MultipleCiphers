@@ -187,8 +187,7 @@ AllocateAegisCipher(sqlite3* db)
       aegisCipher->m_keyLength = KEYLENGTH_AEGIS_256;
       aegisCipher->m_nonceLength = PAGE_NONCE_LEN_AEGIS_256;
     }
-    int plaintextHeaderSize = sqlite3mcGetCipherParameter(cipherParams, "plaintext_header_size");
-    aegisCipher->m_plaintextHeaderSize = (plaintextHeaderSize >=0 && plaintextHeaderSize <= 100 && plaintextHeaderSize % 16 == 0) ? plaintextHeaderSize : 0;
+    aegisCipher->m_plaintextHeaderSize = sqlite3mcGetCipherParameter(cipherParams, "plaintext_header_size");
   }
   return aegisCipher;
 }

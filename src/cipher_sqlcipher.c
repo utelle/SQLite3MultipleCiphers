@@ -142,8 +142,7 @@ AllocateSQLCipherCipher(sqlite3* db)
     sqlCipherCipher->m_hmacAlgorithmCompat = sqlite3mcGetCipherParameter(cipherParams, "hmac_algorithm_compat");
     if (sqlCipherCipher->m_legacy >= SQLCIPHER_VERSION_4)
     {
-      int plaintextHeaderSize = sqlite3mcGetCipherParameter(cipherParams, "plaintext_header_size");
-      sqlCipherCipher->m_plaintextHeaderSize = (plaintextHeaderSize >=0 && plaintextHeaderSize <= 100 && plaintextHeaderSize % 16 == 0) ? plaintextHeaderSize : 0;
+      sqlCipherCipher->m_plaintextHeaderSize = sqlite3mcGetCipherParameter(cipherParams, "plaintext_header_size");
     }
     else
     {

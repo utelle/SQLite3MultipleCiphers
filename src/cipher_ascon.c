@@ -64,8 +64,7 @@ AllocateAscon128Cipher(sqlite3* db)
   {
     CipherParams* cipherParams = sqlite3mcGetCipherParams(db, CIPHER_NAME_ASCON128);
     ascon128Cipher->m_kdfIter = sqlite3mcGetCipherParameter(cipherParams, "kdf_iter");
-    int plaintextHeaderSize = sqlite3mcGetCipherParameter(cipherParams, "plaintext_header_size");
-    ascon128Cipher->m_plaintextHeaderSize = (plaintextHeaderSize >=0 && plaintextHeaderSize <= 100 && plaintextHeaderSize % 16 == 0) ? plaintextHeaderSize : 0;
+    ascon128Cipher->m_plaintextHeaderSize = sqlite3mcGetCipherParameter(cipherParams, "plaintext_header_size");
   }
   return ascon128Cipher;
 }
