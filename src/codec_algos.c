@@ -237,7 +237,7 @@ sqlite3mcConvertHex2Bin(const unsigned char* hex, int len, unsigned char* bin)
 SQLITE_PRIVATE int
 sqlite3mcExtractRawKey(const char* password, int passwordLength,
                        int keyOnly, int keyLength, int saltLength,
-                       char* key, char* salt)
+                       unsigned char* key, unsigned char* salt)
 {
   /* Bypass key derivation if the key string starts with "raw:" */
   int bypass = 0;

@@ -951,7 +951,7 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
         {
           /* Save given cipher salt */
           if (sqlite3Strlen30(pragmaValue) >= 2 * KEYSALT_LENGTH &&
-              sqlite3mcIsHexKey(pragmaValue, 2 * KEYSALT_LENGTH))
+              sqlite3mcIsHexKey((unsigned char*) pragmaValue, 2 * KEYSALT_LENGTH))
           {
             char* cipherSalt = sqlite3_mprintf("%s", pragmaValue);
             if (sqlite3_set_clientdata(db, "sqlite3mc_cipher_salt", cipherSalt, sqlite3_free) != SQLITE_OK)

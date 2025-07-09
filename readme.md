@@ -10,12 +10,10 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version information
 
-* 2.2.0 - *July 2025*
+* 2.2.1 - *July 2025*
   - Based on SQLite version 3.50.2
-  - Removed dependency on security framework for Apple platforms
-  - Regenerated build files using premake5 5.0.0-beta7
-  - Added some patches for the SQLite shell source to handle extension inclusion
-  - Added source code amalgamation release package including "configure" based on _autosetup_
+  - Added plaintext header option to some ciphers (_chacha20_, _ascon128_, and _aegis_) (issue #209)
+  - Simplified and unified raw key and salt specification
 
 For further version information please consult the [CHANGELOG](CHANGELOG.md).
 

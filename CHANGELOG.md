@@ -7,17 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.1] - 2025-07-09
+
 ### Added
 
-- Added plaintext header option to some ciphers (issue [#209](../../issues/209))
+- Added plaintext header option to some ciphers (issue [#209](../../issues/209))  
   This option, added to ciphers _chacha20_, _ascon128_, and _aegis_, keeps the database header partially unencrypted and works in the same way as for the cipher scheme _sqlcipher_.
 
 ### Changed
 
-- Simplified and unified raw key and salt specification
+- Simplified and unified raw key and salt specification  
   - raw keys (and optionally salt) can be given in both formats, _SQLCipher_ or _sqleet_, for all cipher schemes supporting raw key specification (_chacha20_, _sqlcipher_, _ascon128_, _aegis_)
   - the cipher salt can now also be specified via "pragma cipher_salt" - pragma takes precedence over URI parameter
-  - the "cipher" URI parameter is no longer mandatory for the default cipher scheme
+  - the "cipher" URI parameter is no longer mandatory for the **default** cipher scheme
 
 ## [2.2.0] - 2025-07-01
 
@@ -652,7 +654,8 @@ The following ciphers are supported:
 - AES 256 Bit CBC - SHA1/SHA256/SHA512 HMAC ([SQLCipher](https://www.zetetic.net/sqlcipher/), database versions 1, 2, 3, and 4)
 - RC4 - No HMAC ([System.Data.SQLite](http://system.data.sqlite.org))
 
-[Unreleased]: ../../compare/v2.2.0...HEAD
+[Unreleased]: ../../compare/v2.2.1...HEAD
+[2.2.1]: ../../compare/v2.2.0...v2.2.1
 [2.2.0]: ../../compare/v2.1.3...v2.2.0
 [2.1.3]: ../../compare/v2.1.2...v2.1.3
 [2.1.2]: ../../compare/v2.1.1...v2.1.2
