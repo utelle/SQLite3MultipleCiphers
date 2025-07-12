@@ -81,6 +81,9 @@
 
 #endif /* SQLITE3MC_OMIT_AES_HARDWARE_SUPPORT */
 
+#if defined(__GNUC__)
+#pragma GCC push_options
+#endif
 
 #if HAS_AES_HARDWARE != AES_HARDWARE_NONE
 /* --- Implementation of common data and functions for any AES hardware --- */
@@ -126,9 +129,9 @@ toUint32FromLE(const void* buffer)
 
 /* Define SQLITE3MC_FUNC_ISA */
 #if SQLITE3MC_COMPILER_HAS_ATTRIBUTE(target)
-   #define SQLITE3MC_FUNC_ISA(isa) SQLITE3MC_COMPILER_ATTRIBUTE(target(isa))
+  #define SQLITE3MC_FUNC_ISA(isa) SQLITE3MC_COMPILER_ATTRIBUTE(target(isa))
 #else
-   #define SQLITE3MC_FUNC_ISA(isa)
+  #define SQLITE3MC_FUNC_ISA(isa)
 #endif
 
 /* Define SQLITE3MC_FUNC_ISA_INLINE */
@@ -168,8 +171,16 @@ aesHardwareCheck()
 
 #endif /* defined(__clang__) || defined(__GNUC__) */
 
+#if defined(__GNUC__)
+#pragma GCC push_options
+#endif
+
 #include <wmmintrin.h>
 #include <smmintrin.h>
+
+#if defined(__GNUC__)
+#pragma GCC pop_options
+#endif
 
 SQLITE3MC_FUNC_ISA("sse4.2,aes")
 static int
@@ -798,6 +809,10 @@ aesHardwareCheck()
   return 0;
 }
 
+#endif
+
+#if defined(__GNUC__)
+#pragma GCC pop_options
 #endif
 
 /*
