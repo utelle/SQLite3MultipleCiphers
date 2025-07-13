@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.2] - 2025-07-13
+
+### Fixed
+
+- Fixed issue [wxSQLite3 #126](https://github.com/utelle/wxsqlite3/issues/126)) - crash with "illegal instruction" on x86_64 Linux machines without AVX support
+
 ## [2.2.1] - 2025-07-09
 
 ### Added
@@ -654,7 +660,8 @@ The following ciphers are supported:
 - AES 256 Bit CBC - SHA1/SHA256/SHA512 HMAC ([SQLCipher](https://www.zetetic.net/sqlcipher/), database versions 1, 2, 3, and 4)
 - RC4 - No HMAC ([System.Data.SQLite](http://system.data.sqlite.org))
 
-[Unreleased]: ../../compare/v2.2.1...HEAD
+[Unreleased]: ../../compare/v2.2.2...HEAD
+[2.2.2]: ../../compare/v2.2.1...v2.2.2
 [2.2.1]: ../../compare/v2.2.0...v2.2.1
 [2.2.0]: ../../compare/v2.1.3...v2.2.0
 [2.1.3]: ../../compare/v2.1.2...v2.1.3
