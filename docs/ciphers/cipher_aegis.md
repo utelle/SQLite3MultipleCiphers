@@ -19,18 +19,19 @@ One-time keys per database page are derived from the encryption key, the page nu
 The following table lists all parameters related to this cipher that can be set before activating database encryption.
 
 | Parameter   | Default | Min   | Max   | Description |
-| :---        | :---:   | :---: | :---: | :---:       |
+| :---        | :---:   | :---: | :---: | :---       |
 | `tcost`     | 2       | 1     |       | Number of iterations for the key derivation with Argon2id |
 | `mcost`     | 19456   | 1     |       | Amount of memory in kB for key derivation with Argon2id |
 | `pcost`     | 1       | 1     |       | Parallelism, number of threads for key derivation with Argon2 |
 | `algorithm` | 4       | 1     | 6     | AEGIS variant to be used for page encryption |
-| `plaintext_header_size` | 0 | 0 | 100 | Size of plaintext database header<br/>must be a multiple of 16, i.e. 32 |
+| `plaintext_header_size` | 0 | 0 | 100 | Size of plaintext database header<br/>(see note) |
 
 **Notes**
 {: .label .label-red .ml-0 .mb-1 .mt-2 }
 - The default values were chosen based on the [OWASP](https://owasp.ord)(Open Web Application Security Project) recommendations as listed on the [Argon2](https://en.wikipedia.org/wiki/Argon2) WikiPedia web page under the heading _Recommended minimum parameters_.
 - Each combination of parameter values leads to different encryption and authentication tag values. If databases need to be compatible across different platforms and devices, the parameter values should be chosen with care. For example, _iOS_ restricts memory use to about 47 MB, so that choosing a value greater than `47 x 1024` (= `48128`) for `mcost` can cause errors.
 - Any of the available algorithms can be chosen on any platform. If hardware support is available, it will be used to accelerate the encryption process, but a software implementation will be used where hardware support is lacking.
+- If the _plaintext_header_size_ is > 0, then values between 1 and 23 will be interpreted as 24.
 
 **Note**
 {: .label .label-red .ml-0 .mb-1 .mt-2 }

@@ -436,16 +436,22 @@ where the value corresponds to the hash algoritm for HMAC calculation:
 ### PRAGMA *plaintext\_header\_size*
 
 **Applicable to:**
-[SQLCipher: AES 256 Bit]({{ site.baseurl }}{% link docs/ciphers/cipher_sqlcipher.md %})
+[sqleet: ChaCha20]({{ site.baseurl }}{% link docs/ciphers/cipher_chacha20.md %}), 
+[SQLCipher: AES 256 Bit]({{ site.baseurl }}{% link docs/ciphers/cipher_sqlcipher.md %}), 
+[Ascon]({{ site.baseurl }}{% link docs/ciphers/cipher_ascon.md %}), 
+[AEGIS]({{ site.baseurl }}{% link docs/ciphers/cipher_aegis.md %})
 
-The cipher scheme **SQLCipher** introduced a `PRAGMA` statement to keep the database header partially unencrypted in version 4. In the first place, it allows to overcome an issue with shared encrypted databases under iOS, when a database is operated in WAL mode. Such a database will be stored in a [shared container](https://developer.apple.com/library/archive/documentation/General/Conceptual/ExtensibilityPG/ExtensionScenarios.html). In this special case iOS actually examines a database file to determine whether it is an SQLite database in WAL mode. If the database is in WAL mode, then iOS extends [special privileges](https://developer.apple.com/library/content/technotes/tn2408/_index.html), allowing the application to maintain a file lock on the main database while it is in the background. However, if iOS can’t determine the file type from the database header, then iOS will kill the application process when it attempts to background with a file lock.
+The cipher scheme **SQLCipher** introduced a `PRAGMA` statement to keep the database header partially unencrypted in version 4. In the first place, it allows to overcome an issue with shared encrypted databases under _iOS_, when a database is operated in WAL mode. Such a database will be stored in a [shared container](https://developer.apple.com/library/archive/documentation/General/Conceptual/ExtensibilityPG/ExtensionScenarios.html). In this special case _iOS_ actually examines a database file to determine whether it is an SQLite database in WAL mode. If the database is in WAL mode, then _iOS_ extends [special privileges](https://developer.apple.com/library/content/technotes/tn2408/_index.html), allowing the application to maintain a file lock on the main database while it is in the background. However, if iOS can’t determine the file type from the database header, then iOS will kill the application process when it attempts to background with a file lock.
 
 The `PRAGMA plaintext_header_size` allows to configure the cipher scheme to keep the database header partially unencrypted. It has the following syntax:
 
 ```sql
 PRAGMA plaintext_header_size = { offset };
 ```
-where the offset (where encryption starts) must be multiple of 16, i.e. 32.
+where the following restrictions apply to the offset (where encryption starts) depending on the cipher scheme:
+- for _SQLCipher_ the value must be multiple of 16, i.e. 32
+- for _sqleet_ (_ChaCha20_ in _legacy_ mode) any value within the allowed range can be used
+- for _ChaCha20_ in _non-legacy_ mode as well as for _Ascon_ and _AEGIS_ values in the range 1 to 23 will be interpreted as 24.
 
 Notes
 {: .label .label-red .ml-0 .mb-1 .mt-2 }

@@ -23,9 +23,10 @@ The following table lists all parameters related to this cipher that can be set 
 | `kdf_iter` | 64007 | 12345 | 1 | | Number of iterations for the key derivation function |
 | `legacy` | 0 | 1 | 0 | 1 | Boolean flag whether the legacy mode should be used |
 | `legacy_page_size` | 4096 | 4096 | 0 | 65536 | Page size to use in legacy mode, 0 = default SQLite page size |
-| `plaintext_header_size` | 0 | 0 | 100 | Size of plaintext database header<br/>must be a multiple of 16, i.e. 32 |
+| `plaintext_header_size` | 0 | 0 | 0 | 100 | Size of plaintext database header</ br> (see note) |
 
 **Note**
 {: .label .label-red .ml-0 .mb-1 .mt-2 }
 - It is not recommended to use [_legacy_ mode]({{ site.baseurl }}{% link docs/ciphers/cipher_legacy_mode.md %}) for encrypting new databases. It is supported for compatibility reasons only, so that databases that were encrypted in _legacy_ mode can be accessed.
 - Only _page size_ values corresponding to a power of 2 (i.e. 0, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536) are allowed.
+- If the _plaintext_header_size_ is > 0, then any value within the min-max range is allowed for _legacy_ mode. In non-legacy mode values between 1 and 23 will be interpreted as 24.

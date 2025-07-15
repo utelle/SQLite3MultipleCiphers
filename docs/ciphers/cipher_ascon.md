@@ -16,7 +16,11 @@ One-time keys per database page are derived from the encryption key, the page nu
 
 The following table lists all parameters related to this cipher that can be set before activating database encryption.
 
-| Parameter | Default | Min | Max | Description |
-| :--- | :---: | :---: | :---: | :---: | :--- |
+| Parameter | Default | Min   | Max   | Description |
+| :---      | :---:   | :---: | :---: | :---        |
 | `kdf_iter` | 64007 | 1 | | Number of iterations for the key derivation function |
-| `plaintext_header_size` | 0 | 0 | 100 | Size of plaintext database header<br/>must be a multiple of 16, i.e. 32 |
+| `plaintext_header_size` | 0 | 0 | 100 | Size of plaintext database header<br/>(see note) |
+
+**Note**
+{: .label .label-red .ml-0 .mb-1 .mt-2 }
+- If the _plaintext_header_size_ is > 0, then values between 1 and 23 will be interpreted as 24.
