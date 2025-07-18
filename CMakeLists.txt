@@ -360,7 +360,7 @@ message("Will build ${SQLITE3MC_TARGET} as ${SQLITE3MC_LINK}")
 
 include(GNUInstallDirs)
 INSTALL(TARGETS ${SQLITE3MC_TARGET}
-  EXPORT ${SQLITE3MC_TARGET}Targets
+  EXPORT sqlite3mcTargets
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
@@ -368,25 +368,25 @@ INSTALL(TARGETS ${SQLITE3MC_TARGET}
   COMPONENT libraries
 )
 
-install(EXPORT ${SQLITE3MC_TARGET}Targets DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${SQLITE3MC_TARGET})
+install(EXPORT sqlite3mcTargets NAMESPACE sqlite3mc:: DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/sqlite3mc)
 
 # Create config for find_package()
 include(CMakePackageConfigHelpers)
-write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/${SQLITE3MC_TARGET}ConfigVersion.cmake COMPATIBILITY SameMajorVersion)
+write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/sqlite3mcConfigVersion.cmake COMPATIBILITY SameMajorVersion)
 set(SQLITE3MC_CONFIG_CONTENT "@PACKAGE_INIT@\n")
-string(APPEND SQLITE3MC_CONFIG_CONTENT "include(\"\${CMAKE_CURRENT_LIST_DIR}/${SQLITE3MC_TARGET}Targets.cmake\")")
-file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/${SQLITE3MC_TARGET}Config.cmake.in ${SQLITE3MC_CONFIG_CONTENT})
+string(APPEND SQLITE3MC_CONFIG_CONTENT "include(\"\${CMAKE_CURRENT_LIST_DIR}/sqlite3mcTargets.cmake\")")
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/sqlite3mcConfig.cmake.in ${SQLITE3MC_CONFIG_CONTENT})
 
 configure_package_config_file(
-  ${CMAKE_CURRENT_BINARY_DIR}/${SQLITE3MC_TARGET}Config.cmake.in
-  ${SQLITE3MC_TARGET}Config.cmake
-  INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${SQLITE3MC_TARGET}"
+  ${CMAKE_CURRENT_BINARY_DIR}/sqlite3mcConfig.cmake.in
+  sqlite3mcConfig.cmake
+  INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/sqlite3mc"
 )
 
 install(FILES
-  ${CMAKE_CURRENT_BINARY_DIR}/${SQLITE3MC_TARGET}ConfigVersion.cmake
-  ${CMAKE_CURRENT_BINARY_DIR}/${SQLITE3MC_TARGET}Config.cmake
-  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${SQLITE3MC_TARGET}"
+  ${CMAKE_CURRENT_BINARY_DIR}/sqlite3mcConfigVersion.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/sqlite3mcConfig.cmake
+  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/sqlite3mc"
 )
 
 # Shell Executable project
