@@ -383,12 +383,17 @@ fail:
 }
 
 #if defined(__APPLE__)
-#include <CommonCrypto/CommonRandom.h>
+  #if defined(__clang__) || defined(__GNUC__)
+    #if __has_include(<CommonCrypto/CommonRandom.h>)
+      #include <CommonCrypto/CommonRandom.h>
+      #define HAVE_COMMONCRYPTO_COMMONRANDOM_H 1
+    #endif
+  #endif
 #endif
 
 static size_t entropy(void* buf, size_t n)
 {
-#if defined(__APPLE__)
+#if defined(__APPLE__) && defined(HAVE_COMMONCRYPTO_COMMONRANDOM_H)
   if (CCRandomGenerateBytes(buf, n) == kCCSuccess)
     return n;
 #elif defined(__linux__) && defined(SYS_getrandom)

@@ -10,8 +10,8 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version information
 
-* 2.2.2 - *July 2025*
-  - Fixed issue [wxSQLite3 #126](https://github.com/utelle/wxsqlite3/issues/126)) - crash with "illegal instruction" on x86_64 Linux machines **without AVX** support
+* 2.2.3 - *July 2025*
+  - Based on SQLite version 3.50.3
 
 For further version information please consult the [CHANGELOG](CHANGELOG.md).
 
