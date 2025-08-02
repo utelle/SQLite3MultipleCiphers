@@ -67,7 +67,20 @@ AEGIS_AES_BLOCK_LOAD(const uint8_t *a)
 static inline AEGIS_AES_BLOCK_T
 AEGIS_AES_BLOCK_LOAD_64x2(uint64_t a, uint64_t b)
 {
+#if defined(_MSC_VER) && (_MSC_VER >= 1910 && _MSC_VER < 1920)
+    /*
+    ** Visual Studio 2017 produces an internal compiler error in release mode
+    ** for the function call _mm512_broadcast_i32x4(_mm_set_epi64x(a, b)).
+    ** Therefore perform the operation "manually".
+    */
+    __m128i x128 = _mm_set_epi64x(a, b);
+    __m256i x256 = _mm256_broadcastsi128_si256(x128);
+    __m512i x512 = _mm512_castsi256_si512(x256);
+    x512 = _mm512_inserti64x4(x512, x256, 1);
+    return x512;
+#else
     return _mm512_broadcast_i32x4(_mm_set_epi64x(a, b));
+#endif
 }
 
 static inline void
