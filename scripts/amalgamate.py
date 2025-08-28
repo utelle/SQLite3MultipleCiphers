@@ -65,7 +65,7 @@ class Amalgamation(object):
         return None
 
     def add_excluded_files(self):
-        search_files = self.exclude_files[:]
+        search_files = self.excluded_files[:]
         for search_file in search_files:
             found_excluded_path = self.find_included_file(search_file, None)
             if found_excluded_path:
@@ -99,7 +99,7 @@ class Amalgamation(object):
             print(" working_dir   = {0}".format(os.getcwd()))
             print(" include_paths = {0}".format(self.include_paths))
             print(" force_include = {0}".format(self.force_include))
-            print(" exclude_files = {0}".format(self.exclude_files))
+            print(" excluded_files = {0}".format(self.excluded_files))
         print("Creating amalgamation:")
         for file_path in self.sources:
             # Do not check the include paths while processing the source
