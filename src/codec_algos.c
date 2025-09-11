@@ -293,6 +293,7 @@ sqlite3mcExtractRawKey(const char* password, int passwordLength,
         sqlite3mcIsHexKey((unsigned char*)(password + 2), keyLength * 2) != 0)
     {
       sqlite3mcConvertHex2Bin((unsigned char*)(password + 2), passwordLength - 3, key);
+      bypass = 1;
     }
     else if (passwordLength == (((keyLength + saltLength) * 2) + 3) &&
              sqlite3_strnicmp(password, "x'", 2) == 0 &&
@@ -303,6 +304,7 @@ sqlite3mcExtractRawKey(const char* password, int passwordLength,
       {
         sqlite3mcConvertHex2Bin((unsigned char*)(password + 2 + keyLength * 2), saltLength * 2, salt);
       }
+      bypass = 1;
     }
   }
   return bypass;
