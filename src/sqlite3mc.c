@@ -702,7 +702,12 @@ sqlite3mc_initialize(const char* arg)
   */
   if (rc == SQLITE_OK)
   {
-    rc = sqlite3mc_vfs_create(NULL, 1);
+    /* Check whether a default VFS is configured */
+    if (sqlite3_vfs_find(NULL))
+    {
+      /* Add encryption VFS shim to default VFS */
+      rc = sqlite3mc_vfs_create(NULL, 1);
+    }
   }
   return rc;
 }
