@@ -34,6 +34,7 @@ sqlite3_blob_write
 sqlite3_busy_handler
 sqlite3_busy_timeout
 sqlite3_cancel_auto_extension
+sqlite3_carray_bind
 sqlite3_changes
 sqlite3_changes64
 sqlite3_clear_bindings
@@ -90,6 +91,7 @@ sqlite3_db_name
 sqlite3_db_readonly
 sqlite3_db_release_memory
 sqlite3_db_status
+sqlite3_db_status64
 sqlite3_declare_vtab
 sqlite3_deserialize
 sqlite3_drop_modules
@@ -202,7 +204,9 @@ sqlite3_serialize
 sqlite3_set_authorizer
 sqlite3_set_auxdata
 sqlite3_set_clientdata
+sqlite3_set_errmsg
 sqlite3_set_last_insert_rowid
+sqlite3_setlk_timeout
 sqlite3_shutdown
 sqlite3_sleep
 sqlite3_snprintf
@@ -311,6 +315,7 @@ sqlite3mc_vfs_create
 sqlite3mc_vfs_destroy
 sqlite3mc_vfs_shutdown
 sqlite3changegroup_add
+sqlite3changegroup_add_change
 sqlite3changegroup_add_strm
 sqlite3changegroup_delete
 sqlite3changegroup_new
@@ -321,6 +326,8 @@ sqlite3changeset_apply
 sqlite3changeset_apply_strm
 sqlite3changeset_apply_v2
 sqlite3changeset_apply_v2_strm
+sqlite3changeset_apply_v3
+sqlite3changeset_apply_v3_strm
 sqlite3changeset_concat
 sqlite3changeset_concat_strm
 sqlite3changeset_conflict

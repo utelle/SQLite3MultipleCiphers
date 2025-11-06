@@ -9,9 +9,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\src\carray.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\cipher_common.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -54,7 +51,7 @@
     <ClInclude Include="..\src\sqlite3mc_vfs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\test_windirent.h">
+    <ClInclude Include="..\src\windirent.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\src\zlibwrap.h">

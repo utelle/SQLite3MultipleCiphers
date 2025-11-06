@@ -72,63 +72,63 @@ in ./autosetup](/dir/autosetup).
 
 In (mostly) alphabetical order:
 
-- **`file-isexec filename`**\  
+- **`file-isexec filename`**\
   Should be used in place of `[file executable]`, as it will also
   check for `${filename}.exe` on Windows platforms. However, on such
   platforms it also assumes that _any_ existing file is executable.
 
-- **`get-env VAR ?default?`**\  
+- **`get-env VAR ?default?`**\
   Will fetch an "environment variable" from the first of either: (1) a
   KEY=VALUE passed to the configure script or (2) the system's
   environment variables. Not to be confused with `getenv`, which only
   does the latter and is rarely, if ever, useful in this tree.
-  - **`proj-get-env VAR ?default?`**\  
+  - **`proj-get-env VAR ?default?`**\
     Works like `get-env` but will, if that function finds no match,
     look for a file named `./.env-$VAR` and, if found, return its
     trimmed contents. This can be used, e.g., to set a developer's
-    local preferences for the default `CFLAGS`.\  
+    local preferences for the default `CFLAGS`.\
     Tip: adding `-O0` to `.env-CFLAGS` reduces rebuild times
     considerably at the cost of performance in `make devtest` and the
     like.
 
-- **`proj-fatal msg`**\  
+- **`proj-fatal msg`**\
   Emits `$msg` to stderr and exits with non-zero. Its differences from
   autosetup's `user-error` are purely cosmetic.
 
-- **`proj-if-opt-truthy flag thenScript ?elseScript?`**\  
+- **`proj-if-opt-truthy flag thenScript ?elseScript?`**\
   Evals `thenScript` if the given `--flag` is truthy, else it
   evals the optional `elseScript`.
 
-- **`proj-indented-notice ?-error? ?-notice? msg`**\  
+- **`proj-indented-notice ?-error? ?-notice? msg`**\
   Breaks its `msg` argument into lines, trims them, and emits them
   with consistent indentation. Exactly how it emits depends on the
   flags passed to it (or not), as covered in its docs. This will stick
   out starkly from normal output and is intended to be used only for
   important notices.
 
-- **`proj-opt-truthy flag`**\  
+- **`proj-opt-truthy flag`**\
   Returns 1 if `--flag`'s value is "truthy," i.e. one of (1, on,
   enabled, yes, true).
 
-- **`proj-opt-was-provided FLAG`**\  
+- **`proj-opt-was-provided FLAG`**\
   Returns 1 if `--FLAG` was explicitly provided to configure,
   else 0. This distinction can be used to determine, e.g., whether
   `--with-readline` was provided or whether we're searching for
   readline by default. In the former case, failure to find it should
-  be treated as fatal, where in the latter case it's not.\  
+  be treated as fatal, where in the latter case it's not.\
   Unlike most functions which deal with `--flags`, this one does not
   validate that `$FLAG` is a registered flag so will not fail fatally
   if `$FLAG` is not registered as an Autosetup option.
 
-- **`proj-val-truthy value`**\  
+- **`proj-val-truthy value`**\
   Returns 1 if `$value` is "truthy," See `proj-opt-truthy` for the definition
   of "truthy."
 
-- **`proj-warn msg`**\  
+- **`proj-warn msg`**\
   Emits `$msg` to stderr. Closely-related is autosetup's `user-notice`
   (described below).
 
-- **`sqlite-add-feature-flag ?-shell? FLAG...`**\  
+- **`sqlite-add-feature-flag ?-shell? FLAG...`**\
   Adds the given feature flag to the CFLAGS which are specific to
   building libsqlite3. It's intended to be passed one or more
   `-DSQLITE_ENABLE_...`, or similar, flags. If the `-shell` flag is
@@ -136,11 +136,11 @@ In (mostly) alphabetical order:
   `sqlite-add-shell-opt`. This is a no-op if `FLAG` is not provided or
   is empty.
 
-- **`sqlite-add-shell-opt FLAG...`**\  
+- **`sqlite-add-shell-opt FLAG...`**\
   The shell-specific counterpart of `sqlite-add-feature-flag` which
   only adds the given flag(s) to the CLI-shell-specific CFLAGS.
 
-- **`sqlite-configure BUILD-NAME {script}`**\  
+- **`sqlite-configure BUILD-NAME {script}`**\
   This is where all configure `--flags` are defined for all known
   build modes ("canonical" or "autoconf"). After processing all flags,
   this function runs `$script`, which contains the build-mode-specific
@@ -149,7 +149,7 @@ In (mostly) alphabetical order:
   exactly two commands:
   `use sqlite-config; sqlite-configure BUILD-NAME {script}`
 
-- **`user-notice msg`**\  
+- **`user-notice msg`**\
   Queues `$msg` to be sent to stderr, but does not emit it until
   either `show-notices` is called or the next time autosetup would
   output something (it internally calls `show-notices`). This can be
@@ -196,8 +196,8 @@ compatibility across TCL implementations:
    case, the configure process will fall back to building the in-tree
    copy of JimTCL.
 
-2. Manually build `./jimsh0` in the top of the checkout with:\  
-   `cc -o jimsh0 autosetup/jimsh0.c`\  
+2. Manually build `./jimsh0` in the top of the checkout with:\
+   `cc -o jimsh0 autosetup/jimsh0.c`\
    With that in place, the configure script will prefer to use that
    before looking for a system-level `tclsh`. Be aware, though, that
    `make distclean` will remove that file.
@@ -300,7 +300,7 @@ that approach include:
   maintainer.
 - It can force the maintainers of the configure script to place tests
   in a specific order so that the resulting flags get applied at
-  the correct time and/or in the correct order.\  
+  the correct time and/or in the correct order.\
   (A real-life example: before the approach described below was taken
   to collecting build-time flags, the test for `-rpath` had to come
   _after_ the test for zlib because the results of the `-rpath` test
@@ -380,8 +380,9 @@ and its own special handling of `--enable-...` flags makes `--debug`
 an alias for `--enable-debug`. As this project has a long history of
 using `--enable-debug`, we patch autosetup to use the name
 `--autosetup-debug` in place of `--debug`. That requires (as of this
-writing) four small edits in [](/file/autosetup/autosetup), as
-demonstrated in [check-in 3296c8d3](/info/3296c8d3).
+writing) four small edits in
+[/autosetup/autosetup](/file/autosetup/autosetup), as demonstrated in
+[check-in 3296c8d3](/info/3296c8d3).
 
 If autosetup is upgraded and this patch is _not_ applied the invoking
 `./configure` will fail loudly because of the declaration of the
@@ -426,7 +427,7 @@ proc sqlite-custom-flags {} {
 ```
 
 That function must return either an empty string or a list in the form
-used internally by `sqlite-config.tcl:sqlite-configure`.
+used internally by [sqlite-config.tcl][]'s `sqlite-configure`.
 
 Next, define:
 

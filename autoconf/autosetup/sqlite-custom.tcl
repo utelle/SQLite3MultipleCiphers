@@ -53,7 +53,6 @@ proc sqlite-custom-flags {} {
      cipher-ascon128=1  => {Disable cipher ASCON128}
      cipher-aegis=1     => {Disable cipher AEGIS}
 
-     carray             => {Enable the CARRAY extension}
      extfunc            => {Enable the EXTFUNC extension}
      regexp             => {Enable the REGEXP extension}
      series             => {Enable the SERIES extension}
@@ -76,7 +75,7 @@ proc sqlite-custom-handle-flags {} {
 
   # Enable all extensions, if option ALL was given
   proj-if-opt-truthy all {
-    foreach boolFlag { carray extfunc regexp series sha3 uuid } {
+    foreach boolFlag { extfunc regexp series sha3 uuid } {
       if {![proj-opt-was-provided $boolFlag]} {
         proj-opt-set $boolFlag 1
       }
@@ -85,7 +84,6 @@ proc sqlite-custom-handle-flags {} {
 
   msg-result "  Extensions..."
   foreach {boolFlag featureFlag shellFeatureFlag ifSetEvalThis} [proj-strip-hash-comments {
-    carray  -DSQLITE_ENABLE_CARRAY  "" {}
     extfunc -DSQLITE_ENABLE_EXTFUNC "" {}
     uuid    -DSQLITE_ENABLE_UUID    "" {}
     # The following 3 extensions are unconditionally enabled in the SQLite shell
@@ -113,11 +111,11 @@ proc sqlite-custom-handle-flags {} {
   proj-if-opt-truthy builtin-ciphers {
     # builtin ciphers enabled
     if {![proj-opt-truthy cipher-aes128cbc] &&
-        ![proj-opt-truthy cipher-aes256cbc] && 
-        ![proj-opt-truthy cipher-chacha20] && 
-        ![proj-opt-truthy cipher-sqlcipher] && 
-        ![proj-opt-truthy cipher-rc4] && 
-        ![proj-opt-truthy cipher-ascon128] && 
+        ![proj-opt-truthy cipher-aes256cbc] &&
+        ![proj-opt-truthy cipher-chacha20] &&
+        ![proj-opt-truthy cipher-sqlcipher] &&
+        ![proj-opt-truthy cipher-rc4] &&
+        ![proj-opt-truthy cipher-ascon128] &&
         ![proj-opt-truthy cipher-aegis]} {
       msg-result "    WARNING! All builtin ciphers explicitly disabled!"
     } {
@@ -125,7 +123,7 @@ proc sqlite-custom-handle-flags {} {
         sqlite-add-feature-flag -DSQLITE3MC_HAVE_DYNAMIC_CIPHERS
         msg-result "    Dynamic ciphers enabled"
       }
-    } 
+    }
     msg-result "    Builtin ciphers enabled as selected..."
   } {
     # builtin ciphers disabled
@@ -135,7 +133,7 @@ proc sqlite-custom-handle-flags {} {
       msg-result "    Dynamic ciphers enabled"
     } {
       msg-result "    WARNING! Neither builtin nor dynamic ciphers enabled!"
-    } 
+    }
     msg-result "    Builtin ciphers enabled as selected..."
   }
 

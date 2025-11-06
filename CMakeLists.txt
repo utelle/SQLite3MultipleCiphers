@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24.0.0)
-project(sqlite3mc VERSION 2.2.4)
+project(sqlite3mc VERSION 2.2.5)
 
 # Helper macro
 macro(_Enable_MT _target)
@@ -29,6 +29,7 @@ OPTION(SQLITE_ENABLE_CSV "Enable extension 'csv'" ON)
 OPTION(SQLITE_ENABLE_EXTFUNC "Enable extension 'extfunc'" ON)
 OPTION(SQLITE_ENABLE_GEOPOLY "Enable extension 'geopoly'" ON)
 OPTION(SQLITE_ENABLE_JSON1 "Enable extension 'json1'" ON)
+OPTION(SQLITE_ENABLE_PERCENTILE "Enable extension 'percentile'" ON)
 OPTION(SQLITE_ENABLE_RTREE "Enable extension 'rtree'" ON)
 OPTION(SQLITE_ENABLE_UUID "Enable extension 'uuid'" ON)
 OPTION(SQLITE_USE_URI "Enable the URI filename process logic" ON)
@@ -107,6 +108,7 @@ set(SQLITE3MC_BASE_DEFINITIONS
   $<$<BOOL:${SQLITE_ENABLE_GEOPOLY}>:SQLITE_ENABLE_GEOPOLY=1>
   $<$<BOOL:${SQLITE_ENABLE_EXTFUNC}>:SQLITE_ENABLE_EXTFUNC=1>
   $<$<BOOL:${SQLITE_ENABLE_CARRAY}>:SQLITE_ENABLE_CARRAY=1>
+  $<$<BOOL:${SQLITE_ENABLE_PERCENTILE}>:SQLITE_ENABLE_PERCENTILE=1>
   $<$<BOOL:${SQLITE_ENABLE_UUID}>:SQLITE_ENABLE_UUID=1>
   SQLITE_TEMP_STORE=2
   $<$<BOOL:${SQLITE_USE_URI}>:SQLITE_USE_URI=1>

@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.5] - 2025-11-06
+
+### Changed
+
+- Based on SQLite version 3.51.0
+- Enabled extension PERCENTILE
+- Updated build files
+
+### Fixed
+
+- Fixed issue [#215](../../issues/215) - Internal compiler error for VC++ 2017
+- Fixed issue [#218](../../issues/218) - Raw keys in SQLCipher notation are not handled correctly
+- Fixed issue [#221](../../issues/221) - Allow initializing library without default VFS
+
 ## [2.2.4] - 2025-08-01
 
 ### Changed
@@ -672,7 +686,8 @@ The following ciphers are supported:
 - AES 256 Bit CBC - SHA1/SHA256/SHA512 HMAC ([SQLCipher](https://www.zetetic.net/sqlcipher/), database versions 1, 2, 3, and 4)
 - RC4 - No HMAC ([System.Data.SQLite](http://system.data.sqlite.org))
 
-[Unreleased]: ../../compare/v2.2.4...HEAD
+[Unreleased]: ../../compare/v2.2.5...HEAD
+[2.2.5]: ../../compare/v2.2.4...v2.2.5
 [2.2.4]: ../../compare/v2.2.3...v2.2.4
 [2.2.3]: ../../compare/v2.2.2...v2.2.3
 [2.2.2]: ../../compare/v2.2.1...v2.2.2

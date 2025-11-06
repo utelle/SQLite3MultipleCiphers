@@ -51,10 +51,13 @@ SQLITE_PRIVATE void sqlite3mc_shutdown(void);
 ** To enable the extension functions define SQLITE_ENABLE_EXTFUNC on compiling this module
 ** To enable the reading CSV files define SQLITE_ENABLE_CSV on compiling this module
 ** To enable the SHA3 support define SQLITE_ENABLE_SHA3 on compiling this module
-** To enable the CARRAY support define SQLITE_ENABLE_CARRAY on compiling this module
 ** To enable the FILEIO support define SQLITE_ENABLE_FILEIO on compiling this module
 ** To enable the SERIES support define SQLITE_ENABLE_SERIES on compiling this module
 ** To enable the UUID support define SQLITE_ENABLE_UUID on compiling this module
+**
+** Extensions for which the SQLite amalgamation contains now the sources:
+** To enable the CARRAY support define SQLITE_ENABLE_CARRAY on compiling this module
+** To enable the PERCENTILE support define SQLITE_ENABLE_PERCENTILE on compiling this module
 */
 
 /*
@@ -261,16 +264,6 @@ int sqlite3_shathree_init(sqlite3* db, char** pzErrMsg, const sqlite3_api_routin
 #endif
 
 /*
-** CARRAY
-*/
-#ifdef SQLITE_ENABLE_CARRAY
-/* Prototype for initialization function of CARRAY extension */
-SQLITE_API
-int sqlite3_carray_init(sqlite3* db, char** pzErrMsg, const sqlite3_api_routines* pApi);
-#include "carray.c"
-#endif
-
-/*
 ** FILEIO
 */
 #ifdef SQLITE_ENABLE_FILEIO
@@ -290,7 +283,6 @@ int sqlite3_fileio_init(sqlite3* db, char** pzErrMsg, const sqlite3_api_routines
 # endif
 #endif
 
-#include "test_windirent.c"
 #include "fileio.c"
 #endif
 
@@ -747,12 +739,6 @@ sqlite3mc_builtin_extensions(sqlite3* db)
   if (rc == SQLITE_OK)
   {
     rc = sqlite3_shathree_init(db, &errmsg, NULL);
-  }
-#endif
-#ifdef SQLITE_ENABLE_CARRAY
-  if (rc == SQLITE_OK)
-  {
-    rc = sqlite3_carray_init(db, &errmsg, NULL);
   }
 #endif
 #ifdef SQLITE_ENABLE_FILEIO
