@@ -218,7 +218,7 @@ set(SQLITE3MC_BASE_SRCS
   src/rijndael.h
   src/sha1.h
   src/sha2.h
-  src/test_windirent.h
+  src/windirent.h
   ${SQLITE3MC_PUBLIC_HEADERS}
 )
 set(SQLITE3MC_DLLRES_SRCS
