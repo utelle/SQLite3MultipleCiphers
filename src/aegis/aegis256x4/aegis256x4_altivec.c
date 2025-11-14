@@ -5,6 +5,9 @@
 ** SPDX-License-Identifier: MIT
 */
 
+#include "../common/aeshardware.h"
+
+#if HAS_AEGIS_AES_HARDWARE == AEGIS_AES_HARDWARE_ALTIVEC
 #if defined(__ALTIVEC__) && defined(__CRYPTO__)
 
 #include <errno.h>
@@ -114,4 +117,5 @@ struct aegis256x4_implementation aegis256x4_altivec_implementation = {
 #  pragma clang attribute pop
 #endif
 
+#endif
 #endif

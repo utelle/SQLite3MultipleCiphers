@@ -63,11 +63,11 @@ _runtime_arm_cpu_features(CPUFeatures *const cpu_features)
     return -1; /* LCOV_EXCL_LINE */
 #endif
 
-#if defined(__ARM_NEON) || defined(__aarch64__) || defined(_M_ARM64)
+#if defined(__ARM_NEON) || defined(__aarch64__) || defined(_M_ARM64) || defined(_M_ARM64EC)
     cpu_features->has_neon = 1;
 #elif defined(HAVE_ANDROID_GETCPUFEATURES) && defined(ANDROID_CPU_ARM_FEATURE_NEON)
     cpu_features->has_neon = (android_getCpuFeatures() & ANDROID_CPU_ARM_FEATURE_NEON) != 0x0;
-#elif (defined(__aarch64__) || defined(_M_ARM64)) && defined(AT_HWCAP)
+#elif (defined(__aarch64__) || defined(_M_ARM64) || defined(_M_ARM64EC)) && defined(AT_HWCAP)
 #    ifdef HAVE_GETAUXVAL
     cpu_features->has_neon = (getauxval(AT_HWCAP) & (1L << 1)) != 0;
 #    elif defined(HAVE_ELF_AUX_INFO)
@@ -97,7 +97,7 @@ _runtime_arm_cpu_features(CPUFeatures *const cpu_features)
 
 #if __ARM_FEATURE_CRYPTO
     cpu_features->has_armcrypto = 1;
-#elif defined(_M_ARM64)
+#elif defined(_M_ARM64) || defined(_M_ARM64EC)
     cpu_features->has_armcrypto =
         1; /* assuming all CPUs supported by ARM Windows have the crypto extensions */
 #elif defined(__APPLE__) && defined(CPU_TYPE_ARM64) && defined(CPU_SUBTYPE_ARM64E)
@@ -116,7 +116,7 @@ _runtime_arm_cpu_features(CPUFeatures *const cpu_features)
     }
 #elif defined(HAVE_ANDROID_GETCPUFEATURES) && defined(ANDROID_CPU_ARM_FEATURE_AES)
     cpu_features->has_armcrypto = (android_getCpuFeatures() & ANDROID_CPU_ARM_FEATURE_AES) != 0x0;
-#elif (defined(__aarch64__) || defined(_M_ARM64)) && defined(AT_HWCAP)
+#elif (defined(__aarch64__) || defined(_M_ARM64) || defined(_M_ARM64EC)) && defined(AT_HWCAP)
 #    ifdef HAVE_GETAUXVAL
     cpu_features->has_armcrypto = (getauxval(AT_HWCAP) & (1L << 3)) != 0;
 #    elif defined(HAVE_ELF_AUX_INFO)

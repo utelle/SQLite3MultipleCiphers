@@ -5,6 +5,9 @@
 ** SPDX-License-Identifier: MIT
 */
 
+#include "../common/aeshardware.h"
+
+#if HAS_AEGIS_AES_HARDWARE == AEGIS_AES_HARDWARE_NI
 #if defined(__i386__) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_AMD64)
 
 #include <errno.h>
@@ -116,4 +119,5 @@ struct aegis128x4_implementation aegis128x4_avx2_implementation = {
 
 #endif /* HAVE_VAESINTRIN_H */
 
+#endif
 #endif

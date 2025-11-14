@@ -44,12 +44,20 @@
 /* --- Visual C/C++ --- */
 #elif defined (_MSC_VER)
 
+#if defined(_M_ARM64EC)
+#define HAS_AEGIS_AES_HARDWARE AEGIS_AES_HARDWARE_NEON
+
+/* Use header <arm64_neon.h> instead of <arm_neon.h> */
+#ifndef USE_ARM64_NEON_H
+#define USE_ARM64_NEON_H
+#endif
+
 /* Architecture: x86 or x86_64 */
-#if (defined(_M_X64) || defined(_M_IX86)) && _MSC_FULL_VER >= 150030729
+#elif (defined(_M_X64) || defined(_M_IX86)) && _MSC_FULL_VER >= 150030729
 #define HAS_AEGIS_AES_HARDWARE AEGIS_AES_HARDWARE_NI
 
 /* Architecture: ARM 64-bit */
-#elif defined(_M_ARM64)
+#elif defined(_M_ARM64) || defined(_M_ARM64EC)
 #define HAS_AEGIS_AES_HARDWARE AEGIS_AES_HARDWARE_NEON
 
 /* Use header <arm64_neon.h> instead of <arm_neon.h> */
