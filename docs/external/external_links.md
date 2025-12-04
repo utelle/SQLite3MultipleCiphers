@@ -20,13 +20,14 @@ Several tools, wrappers, and applications are using **SQLite3 Multiple Ciphers**
 - _Node.js._ wrapper [better-sqlite3-multiple-ciphers](https://www.npmjs.com/package/better-sqlite3-multiple-ciphers), ([GitHub](https://github.com/m4heshd/better-sqlite3-multiple-ciphers))
 - [SQLite JDBC Driver](https://github.com/Willena/sqlite-jdbc-crypt)
 - [SQLDelight driver](https://github.com/toxicity-io/sqlite-mc)
-- _.NET NuGet_ package [SQLite3MC.PCLRaw.bundle](https://www.nuget.org/packages/SQLite3MC.PCLRaw.bundle) (since November 2025). The prior package [SQLitePCLRaw.bundle_e_sqlite3mc](https://www.nuget.org/packages/SQLitePCLRaw.bundle_e_sqlite3mc) is deprecated, because the maintainer doesn't provide up-to-date binaries for the package any longer.
+- _.NET NuGet_ package [SQLite3MC.PCLRaw.bundle](https://www.nuget.org/packages/SQLite3MC.PCLRaw.bundle) (since November 2025).  
+  The prior package [SQLitePCLRaw.bundle_e_sqlite3mc](https://www.nuget.org/packages/SQLitePCLRaw.bundle_e_sqlite3mc) is deprecated, because the maintainer doesn't provide up-to-date binaries for the package for free any longer.
 - _Python3_ package [apsw-sqlite3mc](https://pypi.org/project/apsw-sqlite3mc), ([GitHub](https://github.com/utelle/apsw-sqlite3mc))
 - Qt plugin for SQLite [QtCipherSqlitePlugin](https://github.com/devbean/QtCipherSqlitePlugin) or [QSQLite3MultipleCiphers](https://github.com/FalsinSoft/QSQLite3MultipleCiphers)
 
 ## Package manager
 
-- Recipe for the _CONAN C/C++ Package Manager: [![Conan Center](https://img.shields.io/conan/v/sqlite3mc)](https://conan.io/center/recipes/sqlite3mc)
+- Recipe for the _CONAN C/C++ Package Manager_: [![Conan Center](https://img.shields.io/conan/v/sqlite3mc)](https://conan.io/center/recipes/sqlite3mc)
 
 ## Applications
 
