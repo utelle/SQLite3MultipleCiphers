@@ -2,7 +2,7 @@
 layout: default
 title: Dynamic cipher schemes
 parent: Supported Ciphers
-nav_order: 9
+nav_order: 10
 ---
 ## <a name="legacy" /> Dynamic cipher schemes
 
