@@ -10,8 +10,8 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version information
 
-* 2.3.0 - Release planned for *March 2026*
-  - Based on SQLite version 3.51.2, maybe update to version 3.52.0
+* 2.3.0 - *March 2026*
+  - Based on SQLite version 3.52.0
   - Updated Visual Studio solution files to support VS2026
   - Unified architecture names in build files (use _x64_ instead of _Win64_) (to avoid VS2026 conflicts)
   - Support compiling for ARM64EC (affects AEGIS code only) (issue #222)

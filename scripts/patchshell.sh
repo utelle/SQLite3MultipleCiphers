@@ -17,16 +17,16 @@ die() {
 sed -e '/^      sputf(stdout, "SQLite version/{n;N;d}' "$INPUT" \
   | sed '/#ifdef SQLITE_CUSTOM_INCLUDE/!{p;d;};n;n;n;a #if SQLITE3MC_USE_MINIZ != 0 && !defined(SQLITE_ENABLE_COMPRESS)\n#include "miniz.c"\n#ifdef SQLITE_HAVE_ZLIB\n#undef SQLITE_HAVE_ZLIB\n#endif\n#define SQLITE_HAVE_ZLIB 1\n#endif\n' \
   | sed '/#include <zlib.h>/c #include "zlibwrap.h"' \
-  | sed '/^      sqlite3_fprintf(stdout,$/c \      extern const char* sqlite3mc_version();\n      sqlite3_fprintf(stdout,' \
+  | sed '/^      cli_printf(stdout,$/c \      extern const char* sqlite3mc_version();\n      cli_printf(stdout,' \
   | sed '/^            "SQLite version/c \            "SQLite version \%s \%.19s" \/\*extra-version-info\*\/\n            " (\%s)\\n" \/\*SQLite3-Multiple-Ciphers-version-info\*\/' \
   | sed '/^            sqlite3_libversion(), sqlite3_sourceid());/c \            sqlite3_libversion(), sqlite3_sourceid(), sqlite3mc_version());' \
-  | sed '/^          sqlite3_libversion(), sqlite3_sourceid());/a \    extern const char* sqlite3mc_version();\n    sqlite3_fprintf(p->out, "\%s\\n", sqlite3mc_version());' \
-  | sed '/Begin ..\/ext\/misc\/shathree.c/i #ifndef SQLITE_OMIT_SHELL_SHATHREE' \
-  | sed '/End ..\/ext\/misc\/shathree.c/a #endif' \
-  | sed '/Begin ..\/ext\/misc\/series.c/i #ifndef SQLITE_OMIT_SHELL_SERIES' \
-  | sed '/End ..\/ext\/misc\/series.c/a #endif' \
-  | sed '/Begin ..\/ext\/misc\/regexp.c/i #ifndef SQLITE_OMIT_SHELL_REGEXP' \
-  | sed '/End ..\/ext\/misc\/regexp.c/a #endif' \
+  | sed '/^          sqlite3_libversion(), sqlite3_sourceid());/a \    extern const char* sqlite3mc_version();\n    cli_printf(p->out, "\%s\\n", sqlite3mc_version());' \
+  | sed '/Begin ext\/misc\/shathree.c/i #ifndef SQLITE_OMIT_SHELL_SHATHREE' \
+  | sed '/End ext\/misc\/shathree.c/a #endif' \
+  | sed '/Begin ext\/misc\/series.c/i #ifndef SQLITE_OMIT_SHELL_SERIES' \
+  | sed '/End ext\/misc\/series.c/a #endif' \
+  | sed '/Begin ext\/misc\/regexp.c/i #ifndef SQLITE_OMIT_SHELL_REGEXP' \
+  | sed '/End ext\/misc\/regexp.c/a #endif' \
   | sed '/sqlite3_shathree_init(p->db, 0, 0);/i #ifndef SQLITE_OMIT_SHELL_SHATHREE' \
   | sed '/sqlite3_shathree_init(p->db, 0, 0);/a #endif' \
   | sed '/sqlite3_series_init(p->db, 0, 0);/i #ifndef SQLITE_OMIT_SHELL_SERIES' \
