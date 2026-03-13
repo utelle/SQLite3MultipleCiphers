@@ -10,12 +10,8 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version information
 
-* 2.3.0 - *March 2026*
-  - Based on SQLite version 3.52.0
-  - Updated Visual Studio solution files to support VS2026
-  - Unified architecture names in build files (use _x64_ instead of _Win64_) (to avoid VS2026 conflicts)
-  - Support compiling for ARM64EC (affects AEGIS code only) (issue #222)
-  - Fixed issue #226: Handle raw key and salt material correctly when using the plaintext header option
+* 2.3.1 - *March 2026*
+  - Based on SQLite version 3.51.3
 
 For further version information please consult the [CHANGELOG](CHANGELOG.md).
 
