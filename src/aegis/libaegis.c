@@ -1,7 +1,7 @@
 /*
 ** Name:        libaegis.c
 ** Purpose:     Amalgamation of the AEGIS library
-** Copyright:   (c) 2024-2025 Ulrich Telle
+** Copyright:   (c) 2024-2026 Ulrich Telle
 ** SPDX-License-Identifier: MIT
 */
 
@@ -15,6 +15,63 @@
 #ifndef AEGIS_PRIVATE
 #define AEGIS_PRIVATE static
 #endif
+
+/* Namespacing to avoid conflicts with libsodium 1.0.21+ */
+
+/* Base Implementation Structs */
+#define aegis128l_implementation             sqlite3mc_aegis128l_implementation
+#define aegis128lx2_implementation           sqlite3mc_aegis128lx2_implementation
+#define aegis128lx4_implementation           sqlite3mc_aegis128lx4_implementation
+#define aegis256_implementation              sqlite3mc_aegis256_implementation
+#define aegis256x2_implementation            sqlite3mc_aegis256x2_implementation
+#define aegis256x4_implementation            sqlite3mc_aegis256x4_implementation
+
+/* Variants without hardware acceleration */
+#define aegis128l_soft_implementation        sqlite3mc_aegis128l_soft_implementation
+#define aegis128x2_soft_implementation       sqlite3mc_aegis128x2_soft_implementation
+#define aegis128x4_soft_implementation       sqlite3mc_aegis128x4_soft_implementation
+#define aegis256_soft_implementation         sqlite3mc_aegis256_soft_implementation
+#define aegis256x2_soft_implementation       sqlite3mc_aegis256x2_soft_implementation
+#define aegis256x4_soft_implementation       sqlite3mc_aegis256x4_soft_implementation
+
+#define softaes_block_encrypt                sqlite3mc_softaes_block_encrypt
+
+/* Variants with support for AES and AVX instruction sets */
+#define aegis128l_aesni_implementation       sqlite3mc_aegis128l_aesni_implementation
+#define aegis128x2_aesni_implementation      sqlite3mc_aegis128x2_aesni_implementation
+#define aegis128x4_aesni_implementation      sqlite3mc_aegis128x4_aesni_implementation
+#define aegis256_aesni_implementation        sqlite3mc_aegis256_aesni_implementation
+#define aegis256x2_aesni_implementation      sqlite3mc_aegis256x2_aesni_implementation
+#define aegis256x4_aesni_implementation      sqlite3mc_aegis256x4_aesni_implementation
+
+/* Variants with support for VAES and AVX2 instruction sets */
+#define aegis128x2_avx2_implementation       sqlite3mc_aegis128x2_avx2_implementation
+#define aegis128x4_avx2_implementation       sqlite3mc_aegis128x4_avx2_implementation
+#define aegis256x2_avx2_implementation       sqlite3mc_aegis256x2_avx2_implementation
+#define aegis256x4_avx2_implementation       sqlite3mc_aegis256x4_avx2_implementation
+
+/* Variants with support for AVX512F instruction sets */
+#define aegis128x4_avx512_implementation     sqlite3mc_aegis128x4_avx512_implementation
+#define aegis256x4_avx512_implementation     sqlite3mc_aegis256x4_avx512_implementation
+
+/* Variants with support for AltiVec instruction sets */
+#define aegis128l_altivec_implementation     sqlite3mc_aegis128l_altivec_implementation
+#define aegis128x2_altivec_implementation    sqlite3mc_aegis128x2_altivec_implementation
+#define aegis128x4_altivec_implementation    sqlite3mc_aegis128x4_altivec_implementation
+#define aegis256_altivec_implementation      sqlite3mc_aegis256_altivec_implementation
+#define aegis256x2_altivec_implementation    sqlite3mc_aegis256x2_altivec_implementation
+#define aegis256x4_altivec_implementation    sqlite3mc_aegis256x4_altivec_implementation
+
+/* Variants with support for ARM Neon instruction sets */
+#define aegis128l_armcrypto_implementation   sqlite3mc_aegis128l_armcrypto_implementation
+#define aegis128x2_armcrypto_implementation  sqlite3mc_aegis128x2_armcrypto_implementation
+#define aegis128x4_armcrypto_implementation  sqlite3mc_aegis128x4_armcrypto_implementation
+#define aegis256_armcrypto_implementation    sqlite3mc_aegis256_armcrypto_implementation
+#define aegis256x2_armcrypto_implementation  sqlite3mc_aegis256x2_armcrypto_implementation
+#define aegis256x4_armcrypto_implementation  sqlite3mc_aegis256x4_armcrypto_implementation
+
+/* Internal Tables (can conflict under -flto) */
+#define _aes_lut                             sqlite3mc_aegis_aes_lut
 
 #include "common/cpu.h"
 
