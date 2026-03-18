@@ -3,7 +3,7 @@
 ** Purpose:     Header file for SQLite3 Multiple Ciphers support
 ** Author:      Ulrich Telle
 ** Created:     2020-03-01
-** Copyright:   (c) 2019-2024 Ulrich Telle
+** Copyright:   (c) 2019-2026 Ulrich Telle
 ** License:     MIT
 */
 
@@ -107,6 +107,7 @@ SQLITE_API void sqlite3_activate_see(const char* zPassPhrase);
 SQLITE_API int sqlite3mc_cipher_count();
 SQLITE_API int sqlite3mc_cipher_index(const char* cipherName);
 SQLITE_API const char* sqlite3mc_cipher_name(int cipherIndex);
+SQLITE_API int sqlite3mc_cipher_name_copy(int cipherIndex, char* cipherName, int maxCipherNameSize);
 SQLITE_API int sqlite3mc_config(sqlite3* db, const char* paramName, int newValue);
 SQLITE_API int sqlite3mc_config_cipher(sqlite3* db, const char* cipherName, const char* paramName, int newValue);
 SQLITE_API unsigned char* sqlite3mc_codec_data(sqlite3* db, const char* zDbName, const char* paramName);

@@ -3,7 +3,7 @@
 ** Purpose:     Configuration of SQLite codecs
 ** Author:      Ulrich Telle
 ** Created:     2020-03-02
-** Copyright:   (c) 2006-2024 Ulrich Telle
+** Copyright:   (c) 2006-2026 Ulrich Telle
 ** License:     MIT
 */
 
@@ -150,18 +150,17 @@ sqlite3mc_cipher_index(const char* cipherName)
   return (j < count && globalCodecDescriptorTable[j].m_name[0] != 0) ? j + 1 : -1;
 }
 
-SQLITE_API const char*
-sqlite3mc_cipher_name(int cipherIndex)
+static const char*
+sqlite3mcFindCipherName(int cipherIndex)
 {
-  static char cipherName[CIPHER_NAME_MAXLEN] = "";
+  const char* cipherName = NULL;
   int count;
   int j;
 #ifndef SQLITE_OMIT_AUTOINIT
-  if( sqlite3_initialize() ) return cipherName;
+  if (sqlite3_initialize()) return NULL;
 #endif
   count = sqlite3mcGetGlobalCipherCount();
   j = 0;
-  cipherName[0] = '\0';
   if (cipherIndex > 0 && cipherIndex <= count)
   {
     for (j = 0; j < count && globalCodecDescriptorTable[j].m_name[0] != 0; ++j)
@@ -170,11 +169,55 @@ sqlite3mc_cipher_name(int cipherIndex)
     }
     if (j < count && globalCodecDescriptorTable[j].m_name[0] != 0)
     {
-      strncpy(cipherName, globalCodecDescriptorTable[j].m_name, CIPHER_NAME_MAXLEN - 1);
-      cipherName[CIPHER_NAME_MAXLEN - 1] = '\0';
+      cipherName = globalCodecDescriptorTable[j].m_name;
     }
   }
   return cipherName;
+}
+
+SQLITE_API const char*
+sqlite3mc_cipher_name(int cipherIndex)
+{
+  static char cipherName[CIPHER_NAME_MAXLEN] = "";
+  const char* globalCipherName = sqlite3mcFindCipherName(cipherIndex);
+  if (globalCipherName)
+  {
+    strncpy(cipherName, globalCipherName, CIPHER_NAME_MAXLEN - 1);
+    cipherName[CIPHER_NAME_MAXLEN - 1] = '\0';
+  }
+  else
+  {
+    cipherName[0] = '\0';
+  }
+  return cipherName;
+}
+
+SQLITE_API int
+sqlite3mc_cipher_name_copy(int cipherIndex, char* cipherName, int maxCipherNameSize)
+{
+  int ok = 1;
+  const char* globalCipherName = sqlite3mcFindCipherName(cipherIndex);
+  if (globalCipherName)
+  {
+    int cipherNameLen = (int)strlen(globalCipherName) + 1;
+    if (maxCipherNameSize >= cipherNameLen)
+    {
+      strncpy(cipherName, globalCipherName, maxCipherNameSize - 1);
+      cipherName[maxCipherNameSize - 1] = '\0';
+    }
+    else
+    {
+      /* Buffer too small, return negative value of minimum required buffer length */
+      ok = -cipherNameLen;
+    }
+  }
+  else
+  {
+    /* Invalid index */
+    cipherName[0] = '\0';
+    ok = 0;
+  }
+  return ok;
 }
 
 static
@@ -720,16 +763,16 @@ sqlite3mcConfigureFromUri(sqlite3* db, const char* zDbName, int configDefault)
   {
     /* Check whether cipher is specified */
     const char* cipherName = sqlite3_uri_parameter(dbFileName, "cipher");
-    if (cipherName == NULL)
+    if (cipherName == NULL || cipherName[0] == 0)
     {
       int defaultCipherIndex = sqlite3mc_config(db, "cipher", -1);
       if (defaultCipherIndex > 0)
       {
-        cipherName = sqlite3mc_cipher_name(defaultCipherIndex);
+        cipherName = sqlite3mcFindCipherName(defaultCipherIndex);
         sqlite3mc_config(db, "cipher", defaultCipherIndex);
       }
     }
-    if (cipherName != NULL)
+    if (cipherName != NULL && cipherName[0] != 0)
     {
       int j = 0;
       CipherParams* cipherParams = NULL;
