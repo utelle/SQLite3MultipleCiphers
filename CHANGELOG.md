@@ -11,9 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fixed issue [#227](../../issues/226) - Compile AEGIS with clang version 22 and above
-- Fixed issue [#228](../../issues/227) - Function `sqlite3mc_cipher_name` not thread-safe
-- Fixed issue [#229](../../issues/228) - Symbol conflicts when static linking to both `sqlite3mc` and `libsodium`
+- Fixed issue [#227](../../issues/227) - Compile AEGIS with clang version 22 and above
+- Fixed issue [#228](../../issues/228) - Function `sqlite3mc_cipher_name` not thread-safe
+- Fixed issue [#229](../../issues/229) - Symbol conflicts when static linking to both `sqlite3mc` and `libsodium`
 
 ## [2.3.1] - 2026-03-13
 
