@@ -10,8 +10,10 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version information
 
-* 2.3.1 - *March 2026*
-  - Based on SQLite version 3.51.3
+* 2.3.2 - *March 2026*
+  - Fixed issue #227: Compile AEGIS with clang version 22 and above
+  - Fixed issue #228: Function `sqlite3mc_cipher_name` not thread-safe
+  - Fixed issue #229: Symbol conflicts when static linking to both `sqlite3mc` and `libsodium`
 
 For further version information please consult the [CHANGELOG](CHANGELOG.md).
 
