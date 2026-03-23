@@ -148,6 +148,7 @@ The following table lists the builtin cipher schemes:
 | `sqlcipher` | `CODEC_TYPE_SQLCIPHER` | [SQLCipher: AES 256 Bit]({{ site.baseurl }}{% link docs/ciphers/cipher_sqlcipher.md %}) |
 | `rc4`       | `CODEC_TYPE_RC4`       | [System.Data.SQLite: RC4]({{ site.baseurl }}{% link docs/ciphers/cipher_sds_rc4.md %}) |
 | `ascon128`  | `CODEC_TYPE_ASCON128`  | [Ascon: Ascon-128 v1.2]({{ site.baseurl }}{% link docs/ciphers/cipher_ascon.md %}) |
+| `aegis`     | `CODEC_TYPE_AEGIS`     | [AEGIS: AEGIS family]({{ site.baseurl }}{% link docs/ciphers/cipher_aegis.md %}) |
 
 The return value always is the current parameter value on success, or **-1** on failure.
 
@@ -194,6 +195,7 @@ The following cipher names are used as the `cipherName` for the supported builti
 | `sqlcipher` | [AES 256 Bit CBC - SHA1 HMAC (SQLCipher)]({{ site.baseurl }}{% link docs/ciphers/cipher_sqlcipher.md %}) |
 | `rc4`       | [RC4 (System.Data.SQLite)]({{ site.baseurl }}{% link docs/ciphers/cipher_sds_rc4.md %}) |
 | `ascon128`  | [Ascon: Ascon-128 v1.2]({{ site.baseurl }}{% link docs/ciphers/cipher_ascon.md %}) |
+| `aegis`     | [AEGIS: AEGIS family]({{ site.baseurl }}{% link docs/ciphers/cipher_aegis.md %}) |
 
 The return value always is the current parameter value on success, or **-1** on failure.
 
@@ -295,6 +297,7 @@ Notes
   - `1` : The name of the cipher scheme was sucessfully retrieved
   - `0` : The index of the cipher scheme was invalid (out of range)
   - `-n`: The provided buffer was too small, the required buffer size is at least `n` characters
+- Function added in version 2.3.2
 
 ## <a name="cipher_register" />Function `sqlite3mc_register_cipher()`
 
