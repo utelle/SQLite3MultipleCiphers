@@ -27,12 +27,13 @@ The functions `sqlite3_key()`, `sqlite3_key_v2()`, `sqlite3_rekey()`, and `sqlit
 
 ## Registration functions
 
-| Function | Description |
-| :--- | :--- |
-| [`sqlite3mc_register_cipher()`](#cipher_register) | Register a cipher scheme |
-| [`sqlite3mc_cipher_count()`](#cipher_count) | Retrieve number of registered cipher schemes |
-| [`sqlite3mc_cipher_index()`](#cipher_index) | Retrieve index of a cipher scheme |
-| [`sqlite3mc_cipher_name()`](#cipher_name) | Retrieve name of cipher at a given index |
+| Function | Description | Remarks |
+| :--- | :--- | :--- |
+| [`sqlite3mc_register_cipher()`](#cipher_register) | Register a cipher scheme | |
+| [`sqlite3mc_cipher_count()`](#cipher_count) | Retrieve number of registered cipher schemes | |
+| [`sqlite3mc_cipher_index()`](#cipher_index) | Retrieve index of a cipher scheme | |
+| [`sqlite3mc_cipher_name()`](#cipher_name) | Retrieve name of cipher at a given index | **Deprecated**, not thread-safe |
+| [`sqlite3mc_cipher_name_copy()`](#cipher_name_copy) | Retrieve a copy of the cipher name at a given index | |
 
 ---
 
@@ -274,6 +275,26 @@ Notes
 {: .label .label-red .ml-0 .mb-1 .mt-2 }
 - An empty string is returned if an invalid index was given.
 - The returned string is valid until the next call to this function. That is, the string will be overwritten by the next call to this function.
+- The function is **not thread-safe**, and was therefore **deprecated**. It should not be used in new code any longer. Instead use [`sqlite3mc_cipher_name_copy()`](#cipher_name_copy).
+
+## <a name="cipher_name_copy" />Function `sqlite3mc_cipher_name_copy()`
+
+```c
+SQLITE_API int sqlite3mc_cipher_name_copy(
+  int cipherIndex        /* Index of cipher scheme */
+  char* cipherName       /* Buffer for name of cipher scheme */
+  int maxCipherNameSize  /* Size of the cipher name buffer */
+);
+```
+
+`sqlite3mc_cipher_name_copy()` retrieves a copy of the name of the cipher scheme for the given relative 1-based index in the list of registered cipher schemes in a caller-provided buffer.
+
+Notes
+{: .label .label-red .ml-0 .mb-1 .mt-2 }
+- The function returns a status code:
+  - `1` : The name of the cipher scheme was sucessfully retrieved
+  - `0` : The index of the cipher scheme was invalid (out of range)
+  - `-n`: The provided buffer was too small, the required buffer size is at least `n` characters
 
 ## <a name="cipher_register" />Function `sqlite3mc_register_cipher()`
 
