@@ -75,9 +75,9 @@ static void
 FreeAES128Cipher(void* cipher)
 {
   AES128Cipher* localCipher = (AES128Cipher*) cipher;
-  memset(localCipher->m_aes, 0, sizeof(Rijndael));
+  sqlite3mcSecureZeroMemory(localCipher->m_aes, sizeof(Rijndael));
   sqlite3_free(localCipher->m_aes);
-  memset(localCipher, 0, sizeof(AES128Cipher));
+  sqlite3mcSecureZeroMemory(localCipher, sizeof(AES128Cipher));
   sqlite3_free(localCipher);
 }
 

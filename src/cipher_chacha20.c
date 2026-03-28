@@ -89,7 +89,7 @@ static void
 FreeChaCha20Cipher(void* cipher)
 {
   ChaCha20Cipher* chacha20Cipher = (ChaCha20Cipher*) cipher;
-  memset(chacha20Cipher, 0, sizeof(ChaCha20Cipher));
+  sqlite3mcSecureZeroMemory(chacha20Cipher, sizeof(ChaCha20Cipher));
   sqlite3_free(chacha20Cipher);
 }
 

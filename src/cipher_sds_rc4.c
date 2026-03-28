@@ -65,7 +65,7 @@ static void
 FreeRC4Cipher(void* cipher)
 {
   RC4Cipher* localCipher = (RC4Cipher*) cipher;
-  memset(localCipher, 0, sizeof(RC4Cipher));
+  sqlite3mcSecureZeroMemory(localCipher, sizeof(RC4Cipher));
   sqlite3_free(localCipher);
 }
 

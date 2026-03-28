@@ -73,7 +73,7 @@ static void
 FreeAscon128Cipher(void* cipher)
 {
   Ascon128Cipher* ascon128Cipher = (Ascon128Cipher*) cipher;
-  memset(ascon128Cipher, 0, sizeof(Ascon128Cipher));
+  sqlite3mcSecureZeroMemory(ascon128Cipher, sizeof(Ascon128Cipher));
   sqlite3_free(ascon128Cipher);
 }
 

@@ -196,7 +196,7 @@ static void
 FreeAegisCipher(void* cipher)
 {
   AegisCipher* aegisCipher = (AegisCipher*) cipher;
-  memset(aegisCipher, 0, sizeof(AegisCipher));
+  sqlite3mcSecureZeroMemory(aegisCipher, sizeof(AegisCipher));
   sqlite3_free(aegisCipher);
 }
 

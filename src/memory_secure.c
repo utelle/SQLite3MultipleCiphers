@@ -68,7 +68,7 @@ static void mcMemoryFree(void* pPrior)
   if (mcSecureMemoryFlag)
   {
     int nSize = mcMemorySize(pPrior);
-    sqlite3mcSecureZeroMemory(pPrior, 0, nSize);
+    sqlite3mcSecureZeroMemory(pPrior, nSize);
   }
   mcDefaultMemoryMethods.xFree(pPrior);
 }

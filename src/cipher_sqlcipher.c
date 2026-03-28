@@ -156,9 +156,9 @@ static void
 FreeSQLCipherCipher(void* cipher)
 {
   SQLCipherCipher* sqlCipherCipher = (SQLCipherCipher*) cipher;
-  memset(sqlCipherCipher->m_aes, 0, sizeof(Rijndael));
+  sqlite3mcSecureZeroMemory(sqlCipherCipher->m_aes, sizeof(Rijndael));
   sqlite3_free(sqlCipherCipher->m_aes);
-  memset(sqlCipherCipher, 0, sizeof(SQLCipherCipher));
+  sqlite3mcSecureZeroMemory(sqlCipherCipher, sizeof(SQLCipherCipher));
   sqlite3_free(sqlCipherCipher);
 }
 

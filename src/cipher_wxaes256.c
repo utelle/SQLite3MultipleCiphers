@@ -80,9 +80,9 @@ static void
 FreeAES256Cipher(void* cipher)
 {
   AES256Cipher* aesCipher = (AES256Cipher*) cipher;
-  memset(aesCipher->m_aes, 0, sizeof(Rijndael));
+  sqlite3mcSecureZeroMemory(aesCipher->m_aes, sizeof(Rijndael));
   sqlite3_free(aesCipher->m_aes);
-  memset(aesCipher, 0, sizeof(AES256Cipher));
+  sqlite3mcSecureZeroMemory(aesCipher, sizeof(AES256Cipher));
   sqlite3_free(aesCipher);
 }
 
