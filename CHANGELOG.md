@@ -7,13 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.3] - 2026-04-10
+
+### Changed
+
+- Based on SQLite version 3.53.0
+
+### Fixed
+
+- Fixed issue [#230](../../issues/228) - Cipher data structures are not nullified securely on freeing
+
 ## [2.3.2] - 2026-03-19
 
 ### Fixed
 
-- Fixed issue [#227](../../issues/227) - Compile AEGIS with clang version 22 and above
-- Fixed issue [#228](../../issues/228) - Function `sqlite3mc_cipher_name` not thread-safe
-- Fixed issue [#229](../../issues/229) - Symbol conflicts when static linking to both `sqlite3mc` and `libsodium`
+- Fixed issue [#227](../../issues/226) - Compile AEGIS with clang version 22 and above
+- Fixed issue [#228](../../issues/227) - Function `sqlite3mc_cipher_name` not thread-safe
+- Fixed issue [#229](../../issues/228) - Symbol conflicts when static linking to both `sqlite3mc` and `libsodium`
 
 ## [2.3.1] - 2026-03-13
 
@@ -728,7 +738,8 @@ The following ciphers are supported:
 - AES 256 Bit CBC - SHA1/SHA256/SHA512 HMAC ([SQLCipher](https://www.zetetic.net/sqlcipher/), database versions 1, 2, 3, and 4)
 - RC4 - No HMAC ([System.Data.SQLite](http://system.data.sqlite.org))
 
-[Unreleased]: ../../compare/v2.3.2...HEAD
+[Unreleased]: ../../compare/v2.3.3...HEAD
+[2.3.3]: ../../compare/v2.3.2...v2.3.3
 [2.3.2]: ../../compare/v2.3.1...v2.3.2
 [2.3.1]: ../../compare/v2.3.0...v2.3.1
 [2.3.0]: ../../compare/v2.2.7...v2.3.0
