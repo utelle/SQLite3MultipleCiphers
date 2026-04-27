@@ -140,7 +140,7 @@ AllocateSQLCipherCipher(sqlite3* db)
     sqlCipherCipher->m_kdfAlgorithm = sqlite3mcGetCipherParameter(cipherParams, "kdf_algorithm");
     sqlCipherCipher->m_hmacAlgorithm = sqlite3mcGetCipherParameter(cipherParams, "hmac_algorithm");
     sqlCipherCipher->m_hmacAlgorithmCompat = sqlite3mcGetCipherParameter(cipherParams, "hmac_algorithm_compat");
-    if (sqlCipherCipher->m_legacy >= SQLCIPHER_VERSION_4)
+    if (sqlCipherCipher->m_legacy == 0 || sqlCipherCipher->m_legacy >= SQLCIPHER_VERSION_4)
     {
       sqlCipherCipher->m_plaintextHeaderSize = sqlite3mcGetCipherParameter(cipherParams, "plaintext_header_size");
     }
@@ -363,9 +363,12 @@ EncryptPageSQLCipherCipher(void* cipher, int page, unsigned char* data, int len,
     if (plaintextHeaderSize > 0)
     {
       usePlaintextHeader = 1;
-      if (sqlCipherCipher->m_legacy >= SQLCIPHER_VERSION_4)
+      if (sqlCipherCipher->m_legacy == 0 || sqlCipherCipher->m_legacy >= SQLCIPHER_VERSION_4)
       {
-        offset = plaintextHeaderSize;
+        if (plaintextHeaderSize > offset)
+        {
+          offset = plaintextHeaderSize;
+        }
       }
     }
   }
@@ -446,9 +449,12 @@ DecryptPageSQLCipherCipher(void* cipher, int page, unsigned char* data, int len,
     if (plaintextHeaderSize > 0)
     {
       usePlaintextHeader = 1;
-      if (sqlCipherCipher->m_legacy >= SQLCIPHER_VERSION_4)
+      if (sqlCipherCipher->m_legacy == 0 || sqlCipherCipher->m_legacy >= SQLCIPHER_VERSION_4)
       {
-        offset = plaintextHeaderSize;
+        if (plaintextHeaderSize > offset)
+        {
+          offset = plaintextHeaderSize;
+        }
       }
     }
   }
