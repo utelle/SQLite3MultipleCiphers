@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.4] - 2026-05-06
+
+### Changed
+
+- Based on SQLite version 3.53.1
+
+### Fixed
+
+- Fixed issue [#232](../../issues/232) - Zero out one-time-keys (for cipher schemes `chacha20`, `aegis`, and `ascon128`) after encrypt/decrypt operation
+- Resolved issue [#233](../../issues/233) - Add support for specifying plaintext header size in non-legacy mode of the SQLCipher cipher scheme. This option was supported only for legacy mode version 4 (legacy=4), but there is no reason to not support it for non-legacy mode.
+
 ## [2.3.3] - 2026-04-10
 
 ### Changed
@@ -15,15 +26,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fixed issue [#230](../../issues/228) - Cipher data structures are not nullified securely on freeing
+- Fixed issue [#230](../../issues/230) - Cipher data structures are not nullified securely on freeing
 
 ## [2.3.2] - 2026-03-19
 
 ### Fixed
 
-- Fixed issue [#227](../../issues/226) - Compile AEGIS with clang version 22 and above
-- Fixed issue [#228](../../issues/227) - Function `sqlite3mc_cipher_name` not thread-safe
-- Fixed issue [#229](../../issues/228) - Symbol conflicts when static linking to both `sqlite3mc` and `libsodium`
+- Fixed issue [#227](../../issues/227) - Compile AEGIS with clang version 22 and above
+- Fixed issue [#228](../../issues/228) - Function `sqlite3mc_cipher_name` not thread-safe
+- Fixed issue [#229](../../issues/229) - Symbol conflicts when static linking to both `sqlite3mc` and `libsodium`
 
 ## [2.3.1] - 2026-03-13
 

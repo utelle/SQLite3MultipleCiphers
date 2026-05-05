@@ -378,6 +378,9 @@ EncryptPageAegisCipher(void* cipher, int page, unsigned char* data, int len, int
     }
   }
 
+  /* Zero out otk array */
+  sqlite3mcSecureZeroMemory(otk, OTK_LEN_MAX_AEGIS);
+
   return rc;
 }
 
@@ -477,6 +480,9 @@ DecryptPageAegisCipher(void* cipher, int page, unsigned char* data, int len, int
       memcpy(data, SQLITE_FILE_HEADER, 16);
     }
   }
+
+  /* Zero out otk array */
+  sqlite3mcSecureZeroMemory(otk, OTK_LEN_MAX_AEGIS);
 
   return rc;
 }

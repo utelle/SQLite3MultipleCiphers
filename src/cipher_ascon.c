@@ -236,6 +236,9 @@ EncryptPageAscon128Cipher(void* cipher, int page, unsigned char* data, int len, 
     }
   }
 
+  /* Zero out otk array */
+  sqlite3mcSecureZeroMemory(otk, ASCON_HASH_BYTES);
+
   return rc;
 }
 
@@ -326,6 +329,9 @@ DecryptPageAscon128Cipher(void* cipher, int page, unsigned char* data, int len, 
       memcpy(data, SQLITE_FILE_HEADER, 16);
     }
   }
+
+  /* Zero out otk array */
+  sqlite3mcSecureZeroMemory(otk, ASCON_HASH_BYTES);
 
   return rc;
 }
