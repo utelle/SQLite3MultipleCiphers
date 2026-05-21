@@ -14,6 +14,7 @@ on:
           - release
 
 env:
+  AMALGAMATION: amalgamation
   SQLITE_PATH: sqlite3
   LIBICU_PATH: icu_precompiled
 
@@ -79,6 +80,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path ${{ env.SQLITE_PATH }}
           New-Item -ItemType Directory -Force -Path ${{ env.LIBICU_PATH }}
+          New-Item -ItemType Directory -Force -Path ${{ env.AMALGAMATION }}
 
       - name: Download source archive
         shell: pwsh
@@ -126,6 +128,15 @@ jobs:
           ./scripts/rekeyvacuum.sh $sqlite_src > $dest_rekey
           ls -l "${{ env.SQLITE_PATH }}"
           python --version
+
+      - name: Generate amalgamation
+        shell: pwsh
+        working-directory: ${{ env.AMALGAMATION }}
+        run: |
+        python ../scripts/amalgamate.py -v yes -c ../scripts/sqlite3mc.c.json -s ../src
+        python ../scripts/amalgamate.py -v yes -c ../scripts/sqlite3mc.h.json -s ../src
+        python ../scripts/amalgamate.py -v yes -c ../scripts/shell3mc.c.json  -s ../src
+        dir
 
   build-linux:
     runs-on: ubuntu-24.04
