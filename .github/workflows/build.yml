@@ -83,8 +83,9 @@ jobs:
       - name: Download source archive
         shell: pwsh
         run: |
+          $url = "${{ env.SQLITE_URL_PREFIX }}sqlite-amalgamation-${{ env.SQLITE_VERSION_RAW }}.zip"
           Invoke-WebRequest `
-            -Uri "${{ env.SQLITE_URL_PREFIX }sqlite-amalgamation-{ env.SQLITE_VERSION_RAW }.zip}" `
+            -Uri $url `
             -OutFile "${{ env.SQLITE_PATH }}/sqlite-amalgamation.zip"
           Invoke-WebRequest `
             -Uri "${{ env.ICU_URL_WIN32 }}" `
