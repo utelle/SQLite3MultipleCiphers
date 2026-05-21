@@ -1,0 +1,127 @@
+name: Build and Package (Manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Release mode"
+        required: true
+        type: choice
+        default: dry-run
+        options:
+          - sanity
+          - dry-run
+          - release
+
+env:
+  BUILD_DIR: build
+  SRC_ARCHIVE_DIR: external-src
+
+jobs:
+
+  ######################################################################
+  # Windows job
+  ######################################################################
+  build-windows:
+    runs-on: windows-2022
+    env:
+      MODE: ${{ inputs.mode }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - win32
+          - win64
+
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+    - name: Set up environment from config
+      shell: pwsh
+      run: |
+        $config = Get-Content config.json | ConvertFrom-Json
+
+        $version = $config.version
+        echo "VERSION=$sqliteVersion" >> $env:GITHUB_ENV
+
+        $sqliteVersion = $config.sqlite.version
+        $sqliteVersionRaw = $config.sqlite.version_raw
+        $sqlitePrefix  = $config.sqlite.url_prefix
+        $sqlitePrefixGH  = $config.sqlite.gh_prefix
+
+        echo "SQLITE_VERSION=$sqliteVersion" >> $env:GITHUB_ENV
+        echo "SQLITE_VERSION_RAW=$sqliteVersionRaw" >> $env:GITHUB_ENV
+        echo "SQLITE_URL_PREFIX=$sqlitePrefix" >> $env:GITHUB_ENV
+        echo "SQLITE_URL_PREFIX_GH=$sqlitePrefixGH" >> $env:GITHUB_ENV
+
+        echo "Resolved SQLITE_VERSION=$sqliteVersion"
+        echo "Resolved SQLITE_VERSION_RAW=$sqliteVersionRaw"
+        echo "Resolved SQLITE_URL_PREFIX: $sqlitePrefix"
+        echo "Resolved SQLITE_URL_PREFIX_GH: $sqlitePrefixGH"
+
+        $icuVersion = $config.icu.version
+        $icuTemplate  = $config.icu.url_template
+
+        $icu_url = $config.icu.url_template
+        $icu_url = $icu_url.Replace("{ICU_VERSION}", $icuVersion)
+        $icu_url_win32 = $icu_url.Replace("{PLATFORM}", "Win32")
+        $icu_url_win64 = $icu_url.Replace("{PLATFORM}", "Win64")
+
+        echo "ICU_VERSION=$icuVersion" >> $env:GITHUB_ENV
+        echo "ICU_URL_WIN32=$icu_url_win32" >> $env:GITHUB_ENV
+        echo "ICU_URL_WIN64=$icu_url_win64" >> $env:GITHUB_ENV
+
+        echo "Resolved ICU_VERSION: $icuVersion"
+        echo "Resolved ICU_URL_WIN32: $icu_url_win32"
+        echo "Resolved ICU_URL_WIN64: $icu_url_win64"
+
+  ######################################################################
+  # Linux job
+  ######################################################################
+  build-linux:
+    runs-on: ubuntu-24.04
+    env:
+      MODE: ${{ inputs.mode }}
+
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Build ICU URL
+        shell: bash
+        run: |
+          VERSION=$(jq -r '.version' config.json)
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+          SQLITE_VERSION=$(jq -r '.sqlite.version' config.json)
+          SQLITE_VERSION_RAW=$(jq -r '.sqlite.version_raw' config.json)
+          SQLITE_URL_PREFIX=$(jq -r '.sqlite.url_prefix' config.json)
+          SQLITE_URL_PREFIX_GH=$(jq -r '.sqlite.gh_prefix' config.json)
+
+          echo "SQLITE_VERSION=$SQLITE_VERSION" >> $GITHUB_ENV
+          echo "SQLITE_VERSION_RAW=$SQLITE_VERSION_RAW" >> $GITHUB_ENV
+          echo "SQLITE_URL_PREFIX=$SQLITE_URL_PREFIX" >> $GITHUB_ENV
+          echo "SQLITE_URL_PREFIX_GH=$SQLITE_URL_PREFIX_GH" >> $GITHUB_ENV
+
+          echo "Resolved SQLite Version: $SQLITE_VERSION"
+          echo "Resolved SQLite Version (raw): $SQLITE_VERSION_RAW"
+          echo "Resolved SQLite URL prefix: $SQLITE_URL_PREFIX"
+          echo "Resolved SQLite URL prefix (GH): $SQLITE_URL_PREFIX_GH"
+
+          ICU_VERSION=$(jq -r '.icu.version' config.json)
+          ICU_URL_TEMPLATE=$(jq -r '.icu.url_template' build-config.json)
+
+          ICU_URL="${ICU_URL_TEMPLATE//\{ICU_VERSION\}/$ICU_VERSION}"
+          ICU_URL_WIN32="${ICU_URL//\{PLATFORM\}/Win32}"
+          ICU_URL_WIN64="${ICU_URL//\{PLATFORM\}/Win64}"
+
+          echo "ICU_VERSION=$VERSION" >> $GITHUB_ENV
+          echo "ICU_URL_WIN32=$ICU_URL_WIN32" >> $GITHUB_ENV
+          echo "ICU_URL_WIN64=$ICU_URL_WIN64" >> $GITHUB_ENV
+
+          echo "Resolved ICU Version: $ICU_VERSION"
+          echo "Resolved ICU URL Win32: $ICU_URL_WIN32"
+          echo "Resolved ICU URL Win64: $ICU_URL_WIN64"
