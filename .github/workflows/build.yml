@@ -25,7 +25,7 @@ jobs:
   build-windows:
     runs-on: windows-2022
     env:
-      MODE: ${{ inputs.mode }}
+      MODE: ${{ github.event.inputs.mode }}
     strategy:
       fail-fast: false
       matrix:
