@@ -82,6 +82,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path ${{ env.SQLITE_PATH }}
           New-Item -ItemType Directory -Force -Path ${{ env.LIBICU_PATH }}
           New-Item -ItemType Directory -Force -Path ${{ env.AMALGAMATION }}
+          New-Item -ItemType Directory -Force -Path ${{ env.ARCHIVES }}
 
       - name: Download source archive
         shell: pwsh
@@ -139,16 +140,19 @@ jobs:
           python ../scripts/amalgamate.py -v yes -c ../scripts/shell3mc.c.json  -s ../src
           dir
 
-      - name: Create ZIP
+      - name: Create amalgamation ZIP archive
         shell: pwsh
         run: |
-          Compress-Archive -Path "build/package/*" -DestinationPath "build/artifact.zip"
+          $sourcepath = ${{ env.ARCHIVES }}
+          $destpath = "${{ env.ARCHIVES }}/amalgamation.zip"
+          Compress-Archive -Path "$sourcepath/*" -DestinationPath $destpath
 
-- name: Upload artifact
-  uses: actions/upload-artifact@v4
-  with:
-    name: build-artifact
-    path: build/artifact.zip
+      - name: Upload amalgamation
+        uses: actions/upload-artifact@v4
+        with:
+          name: amalgamation
+          path:  ${{ env.ARCHIVES }}/amalgamation.zip
+
   build-linux:
     runs-on: ubuntu-24.04
     env:
