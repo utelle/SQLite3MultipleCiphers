@@ -19,9 +19,6 @@ env:
 
 jobs:
 
-  ######################################################################
-  # Windows job
-  ######################################################################
   build-windows:
     runs-on: windows-2022
     env:
@@ -38,48 +35,45 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-    - name: Set up environment from config
-      shell: pwsh
-      run: |
-        $config = Get-Content config.json | ConvertFrom-Json
+      - name: Set up environment from config
+        shell: pwsh
+        run: |
+          $config = Get-Content config.json | ConvertFrom-Json
 
-        $version = $config.version
-        echo "VERSION=$sqliteVersion" >> $env:GITHUB_ENV
+          $version = $config.version
+          echo "VERSION=$sqliteVersion" >> $env:GITHUB_ENV
 
-        $sqliteVersion = $config.sqlite.version
-        $sqliteVersionRaw = $config.sqlite.version_raw
-        $sqlitePrefix  = $config.sqlite.url_prefix
-        $sqlitePrefixGH  = $config.sqlite.gh_prefix
+          $sqliteVersion = $config.sqlite.version
+          $sqliteVersionRaw = $config.sqlite.version_raw
+          $sqlitePrefix  = $config.sqlite.url_prefix
+          $sqlitePrefixGH  = $config.sqlite.gh_prefix
 
-        echo "SQLITE_VERSION=$sqliteVersion" >> $env:GITHUB_ENV
-        echo "SQLITE_VERSION_RAW=$sqliteVersionRaw" >> $env:GITHUB_ENV
-        echo "SQLITE_URL_PREFIX=$sqlitePrefix" >> $env:GITHUB_ENV
-        echo "SQLITE_URL_PREFIX_GH=$sqlitePrefixGH" >> $env:GITHUB_ENV
+          echo "SQLITE_VERSION=$sqliteVersion" >> $env:GITHUB_ENV
+          echo "SQLITE_VERSION_RAW=$sqliteVersionRaw" >> $env:GITHUB_ENV
+          echo "SQLITE_URL_PREFIX=$sqlitePrefix" >> $env:GITHUB_ENV
+          echo "SQLITE_URL_PREFIX_GH=$sqlitePrefixGH" >> $env:GITHUB_ENV
 
-        echo "Resolved SQLITE_VERSION=$sqliteVersion"
-        echo "Resolved SQLITE_VERSION_RAW=$sqliteVersionRaw"
-        echo "Resolved SQLITE_URL_PREFIX: $sqlitePrefix"
-        echo "Resolved SQLITE_URL_PREFIX_GH: $sqlitePrefixGH"
+          echo "Resolved SQLITE_VERSION=$sqliteVersion"
+          echo "Resolved SQLITE_VERSION_RAW=$sqliteVersionRaw"
+          echo "Resolved SQLITE_URL_PREFIX: $sqlitePrefix"
+          echo "Resolved SQLITE_URL_PREFIX_GH: $sqlitePrefixGH"
 
-        $icuVersion = $config.icu.version
-        $icuTemplate  = $config.icu.url_template
+          $icuVersion = $config.icu.version
+          $icuTemplate  = $config.icu.url_template
 
-        $icu_url = $config.icu.url_template
-        $icu_url = $icu_url.Replace("{ICU_VERSION}", $icuVersion)
-        $icu_url_win32 = $icu_url.Replace("{PLATFORM}", "Win32")
-        $icu_url_win64 = $icu_url.Replace("{PLATFORM}", "Win64")
+          $icu_url = $config.icu.url_template
+          $icu_url = $icu_url.Replace("{ICU_VERSION}", $icuVersion)
+          $icu_url_win32 = $icu_url.Replace("{PLATFORM}", "Win32")
+          $icu_url_win64 = $icu_url.Replace("{PLATFORM}", "Win64")
 
-        echo "ICU_VERSION=$icuVersion" >> $env:GITHUB_ENV
-        echo "ICU_URL_WIN32=$icu_url_win32" >> $env:GITHUB_ENV
-        echo "ICU_URL_WIN64=$icu_url_win64" >> $env:GITHUB_ENV
+          echo "ICU_VERSION=$icuVersion" >> $env:GITHUB_ENV
+          echo "ICU_URL_WIN32=$icu_url_win32" >> $env:GITHUB_ENV
+          echo "ICU_URL_WIN64=$icu_url_win64" >> $env:GITHUB_ENV
 
-        echo "Resolved ICU_VERSION: $icuVersion"
-        echo "Resolved ICU_URL_WIN32: $icu_url_win32"
-        echo "Resolved ICU_URL_WIN64: $icu_url_win64"
+          echo "Resolved ICU_VERSION: $icuVersion"
+          echo "Resolved ICU_URL_WIN32: $icu_url_win32"
+          echo "Resolved ICU_URL_WIN64: $icu_url_win64"
 
-  ######################################################################
-  # Linux job
-  ######################################################################
   build-linux:
     runs-on: ubuntu-24.04
     env:
