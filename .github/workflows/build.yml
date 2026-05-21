@@ -133,10 +133,10 @@ jobs:
         shell: pwsh
         working-directory: ${{ env.AMALGAMATION }}
         run: |
-        python ../scripts/amalgamate.py -v yes -c ../scripts/sqlite3mc.c.json -s ../src
-        python ../scripts/amalgamate.py -v yes -c ../scripts/sqlite3mc.h.json -s ../src
-        python ../scripts/amalgamate.py -v yes -c ../scripts/shell3mc.c.json  -s ../src
-        dir
+          python ../scripts/amalgamate.py -v yes -c ../scripts/sqlite3mc.c.json -s ../src
+          python ../scripts/amalgamate.py -v yes -c ../scripts/sqlite3mc.h.json -s ../src
+          python ../scripts/amalgamate.py -v yes -c ../scripts/shell3mc.c.json  -s ../src
+          dir
 
   build-linux:
     runs-on: ubuntu-24.04
