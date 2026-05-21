@@ -3,7 +3,7 @@
   "sqlite": {
     "version": "3.53.1",
     "version_raw": "3530100",
-    "url_prefix": "https://sqlite.org/2026/"
+    "url_prefix": "https://sqlite.org/2026/",
     "gh_prefix": "https://github.com/sqlite/sqlite/archive/refs/tags/"
   },
   "icu": {
