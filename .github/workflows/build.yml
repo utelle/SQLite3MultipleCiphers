@@ -14,8 +14,8 @@ on:
           - release
 
 env:
-  BUILD_DIR: build
-  SRC_ARCHIVE_DIR: external-src
+  SQLITE_PATH: sqlite3
+  LIBICU_PATH: icu_precompiled
 
 jobs:
 
@@ -74,6 +74,43 @@ jobs:
           echo "Resolved ICU_URL_WIN32: $icu_url_win32"
           echo "Resolved ICU_URL_WIN64: $icu_url_win64"
 
+      - name: Create working directories
+          shell: pwsh
+          run: |
+            New-Item -ItemType Directory -Force -Path ${{ env.SQLITE_PATH }}
+            New-Item -ItemType Directory -Force -Path ${{ env.LIBICU_PATH }}
+
+      - name: Download source archive
+        shell: pwsh
+        run: |
+          Invoke-WebRequest `
+            -Uri "${{ env.SQLITE_URL_PREFIX }sqlite-amalgamation-{ env.SQLITE_VERSION_RAW }.zip}" `
+            -OutFile "${{ env.SQLITE_PATH }}/sqlite-amalgamation.zip"
+          Invoke-WebRequest `
+            -Uri "${{ env.ICU_URL_WIN32 }}" `
+            -OutFile "${{ env.LIBICU_PATH }}/icu-precompiled-win32.zip"
+          Invoke-WebRequest `
+            -Uri "${{ env.ICU_URL_WIN64 }}" `
+            -OutFile "${{ env.LIBICU_PATH }}/icu-precompiled-win64.zip"
+
+      - name: Extract SQLite3 and ICU archives
+        shell: pwsh
+        run: |
+          Expand-Archive `
+            -Path "${{ env.SQLITE_PATH }}/sqlite-amalgamation.zip" `
+            -DestinationPath "${{ env.SQLITE_PATH }}"
+          Expand-Archive `
+            -Path "${{ env.LIBICU_PATH }}/icu-precompiled-win32.zip" `
+            -DestinationPath "${{ env.LIBICU_PATH }}/win32"
+          Expand-Archive `
+            -Path "${{ env.LIBICU_PATH }}/icu-precompiled-win64.zip" `
+            -DestinationPath "${{ env.LIBICU_PATH }}/win64"
+          $path = "${{ env.LIBICU_PATH }}/win64"
+          if (!(Test-Path "$path/include")) {
+            throw "ICU headers missing: $path/include"
+          }
+          Write-Host "ICU extraction OK"
+
   build-linux:
     runs-on: ubuntu-24.04
     env:
@@ -106,7 +143,7 @@ jobs:
           echo "Resolved SQLite URL prefix (GH): $SQLITE_URL_PREFIX_GH"
 
           ICU_VERSION=$(jq -r '.icu.version' config.json)
-          ICU_URL_TEMPLATE=$(jq -r '.icu.url_template' build-config.json)
+          ICU_URL_TEMPLATE=$(jq -r '.icu.url_template' config.json)
 
           ICU_URL="${ICU_URL_TEMPLATE//\{ICU_VERSION\}/$ICU_VERSION}"
           ICU_URL_WIN32="${ICU_URL//\{PLATFORM\}/Win32}"
