@@ -116,11 +116,11 @@ jobs:
       - name: Patch SQLite3 amalgamation
         shell: bash
         run: |
-          $sqlite_src = "${{ env.SQLITE_PATH }}/sqlite-amalgamation-{{ env.SQLITE_VERSION_RAW }}/sqlite3.c"
-          $shell_src = "${{ env.SQLITE_PATH }}/sqlite-amalgamation-{{ env.SQLITE_VERSION_RAW }}/shell.c"
-          $dest_sqlite = "${{ env.SQLITE_PATH }}/sqlite3patched.c"
-          $dest_shell = "${{ env.SQLITE_PATH }}/shell.c"
-          $dest_rekey = "${{ env.SQLITE_PATH }}/rekeyvacuum.c"
+          sqlite_src = "${{ env.SQLITE_PATH }}/sqlite-amalgamation-{{ env.SQLITE_VERSION_RAW }}/sqlite3.c"
+          shell_src = "${{ env.SQLITE_PATH }}/sqlite-amalgamation-{{ env.SQLITE_VERSION_RAW }}/shell.c"
+          dest_sqlite = "${{ env.SQLITE_PATH }}/sqlite3patched.c"
+          dest_shell = "${{ env.SQLITE_PATH }}/shell.c"
+          dest_rekey = "${{ env.SQLITE_PATH }}/rekeyvacuum.c"
           ./scripts/patchsqlite3.sh $sqlite_src > $dest_sqlite
           ./scripts/patchshell.sh $shell_src > $dest_shell
           ./scripts/rekeyvacuum.sh $sqlite_src > $dest_rekey
