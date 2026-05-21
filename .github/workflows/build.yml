@@ -15,8 +15,9 @@ on:
 
 env:
   AMALGAMATION: amalgamation
-  SQLITE_PATH: sqlite3
-  LIBICU_PATH: icu_precompiled
+  ARCHIVES:     archives
+  SQLITE_PATH:  sqlite3
+  LIBICU_PATH:  icu_precompiled
 
 jobs:
 
@@ -24,12 +25,12 @@ jobs:
     runs-on: windows-2022
     env:
       MODE: ${{ github.event.inputs.mode }}
-    strategy:
-      fail-fast: false
-      matrix:
-        platform:
-          - win32
-          - win64
+#    strategy:
+#      fail-fast: false
+#      matrix:
+#        platform:
+#          - win32
+#          - win64
 
     steps:
 
@@ -138,6 +139,16 @@ jobs:
           python ../scripts/amalgamate.py -v yes -c ../scripts/shell3mc.c.json  -s ../src
           dir
 
+      - name: Create ZIP
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "build/package/*" -DestinationPath "build/artifact.zip"
+
+- name: Upload artifact
+  uses: actions/upload-artifact@v4
+  with:
+    name: build-artifact
+    path: build/artifact.zip
   build-linux:
     runs-on: ubuntu-24.04
     env:

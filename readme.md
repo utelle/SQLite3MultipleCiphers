@@ -17,9 +17,13 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 For further version information please consult the [CHANGELOG](CHANGELOG.md).
 
-## How to participate
+## How to participate and/or contribute
 
 **Help in testing and discussing further development will be _highly_ appreciated**. Please use the [issue tracker](https://github.com/utelle/SQLite3MultipleCiphers/issues) to give feedback, report problems, or to discuss ideas.
+
+Before opening a pull request, please read our [Contributing Guidelines](CONTRIBUTING.md).
+
+PRs that do not include a verifiable problem statement or human-validated changes may be closed without review.
 
 ## Documentation
 
