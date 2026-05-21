@@ -75,10 +75,10 @@ jobs:
           echo "Resolved ICU_URL_WIN64: $icu_url_win64"
 
       - name: Create working directories
-          shell: pwsh
-          run: |
-            New-Item -ItemType Directory -Force -Path ${{ env.SQLITE_PATH }}
-            New-Item -ItemType Directory -Force -Path ${{ env.LIBICU_PATH }}
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path ${{ env.SQLITE_PATH }}
+          New-Item -ItemType Directory -Force -Path ${{ env.LIBICU_PATH }}
 
       - name: Download source archive
         shell: pwsh
