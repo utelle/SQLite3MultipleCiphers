@@ -138,6 +138,9 @@ jobs:
           python ../scripts/amalgamate.py -v yes -c ../scripts/sqlite3mc.c.json -s ../src
           python ../scripts/amalgamate.py -v yes -c ../scripts/sqlite3mc.h.json -s ../src
           python ../scripts/amalgamate.py -v yes -c ../scripts/shell3mc.c.json  -s ../src
+          (Get-Content shell3mc_amalgamation.c) `
+            -replace '\s+$', '' |
+            Set-Content shell3mc_amalgamation.c
           dir
 
       - name: Create amalgamation ZIP archive
@@ -149,7 +152,7 @@ jobs:
           dir $destpath
 
       - name: Upload amalgamation
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: amalgamation
           path:  ${{ env.ARCHIVES }}/amalgamation.zip
