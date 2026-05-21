@@ -143,9 +143,10 @@ jobs:
       - name: Create amalgamation ZIP archive
         shell: pwsh
         run: |
-          $sourcepath = "${{ env.ARCHIVES }}"
-          $destpath = "${{ env.ARCHIVES }}/amalgamation.zip"
-          Compress-Archive -Path "$sourcepath/*" -DestinationPath $destpath
+          $sourcepath = "${{ env.AMALGAMATION }}"
+          $destpath = "${{ env.ARCHIVES }}"
+          Compress-Archive -Path "$sourcepath/*" -DestinationPath "$destpath/amalgamation.zip"
+          dir $destpath
 
       - name: Upload amalgamation
         uses: actions/upload-artifact@v4
