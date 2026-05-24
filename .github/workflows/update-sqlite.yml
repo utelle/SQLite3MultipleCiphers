@@ -98,6 +98,12 @@ jobs:
           dest_sqlite="${{ env.SQLITE_PATH }}/sqlite3patched.c"
           dest_shell="${{ env.SQLITE_PATH }}/shell.c"
           dest_rekey="${{ env.SQLITE_PATH }}/rekeyvacuum.c"
+
+          chmod +x scripts/patchsqlite3.sh
+          chmod +x scripts/patchshell.sh
+          chmod +x scripts/rekeyvacuum.sh
+          ls -l scripts/
+
           ./scripts/patchsqlite3.sh $sqlite_src > $dest_sqlite
           ./scripts/patchshell.sh $shell_src > $dest_shell
           ./scripts/rekeyvacuum.sh $sqlite_src > $dest_rekey
