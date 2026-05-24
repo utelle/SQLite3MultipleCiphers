@@ -226,7 +226,8 @@ jobs:
           (
             SOURCEPATH="$SQLITE_PATH"
             cd "$SOURCEPATH"
-            zip "../$DESTPATH/sqlite3source.zip" *
+            find . -maxdepth 1 -type f -print \
+              | zip "../$DESTPATH/sqlite3source.zip" -@
           )
 
           ls -l "$DESTPATH"
@@ -238,6 +239,24 @@ jobs:
           path: |
             ${{ env.ARCHIVES }}/amalgamation.zip
             ${{ env.ARCHIVES }}/sqlite3source.zip
+
+      - name: Copy original and patched files into src
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "Copying files into src/ ..."
+
+          cp -f "$SQLITE_PATH/sqlite3.c" src/
+          cp -f "$SQLITE_PATH/sqlite3.h" src/
+          cp -f "$SQLITE_PATH/sqlite3ext.h" src/
+          cp -f "$SQLITE_PATH/sqlite3patched.c" src/
+          cp -f "$SQLITE_PATH/rekeyvacuum.c" src/
+          cp -f "$SQLITE_PATH/shell.c" src/
+
+          echo "Done. Checking for changes..."
+
+          git status --porcelain
 
 #      - name: Commit config changes
 #        shell: bash
