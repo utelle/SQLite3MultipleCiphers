@@ -73,6 +73,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$SQLITE_PATH"
+          mkdir -p "$AMALGAMATION"
+          mkdir -p "$ARCHIVES"
 
           echo "Downloading from: $SQLITE_URL_OFFICIAL"
           URL="${SQLITE_URL_OFFICIAL}sqlite-amalgamation-${SQLITE_VERSION_RAW}.zip"
@@ -196,31 +198,47 @@ jobs:
             fi
           done
 
-#      - name: Generate amalgamation
-#        shell: pwsh
-#        working-directory: ${{ env.AMALGAMATION }}
-#        run: |
-#          python ../scripts/amalgamate.py -v yes -c ../scripts/sqlite3mc.c.json -s ../src
-#          python ../scripts/amalgamate.py -v yes -c ../scripts/sqlite3mc.h.json -s ../src
-#          python ../scripts/amalgamate.py -v yes -c ../scripts/shell3mc.c.json  -s ../src
-#          (Get-Content shell3mc_amalgamation.c) `
-#            -replace '\s+$', '' |
-#            Set-Content shell3mc_amalgamation.c
-#          dir
+      - name: Generate amalgamation
+        shell: bash
+        working-directory: ${{ env.AMALGAMATION }}
+        run: |
+          python ../scripts/amalgamate.py -v yes -c ../scripts/sqlite3mc.c.json -s ../src
+          python ../scripts/amalgamate.py -v yes -c ../scripts/sqlite3mc.h.json -s ../src
+          python ../scripts/amalgamate.py -v yes -c ../scripts/shell3mc.c.json  -s ../src
+          sed -i 's/[[:space:]]*$//' "sqlite3mc_amalgamation.c"
+          sed -i 's/[[:space:]]*$//' "sqite3mc_amalgamation.h"
+          sed -i 's/[[:space:]]*$//' "shell3mc_amalgamation.c"
+          ls -l
 
-#      - name: Create amalgamation ZIP archive
-#        shell: pwsh
-#        run: |
-#          $sourcepath = "${{ env.AMALGAMATION }}"
-#          $destpath = "${{ env.ARCHIVES }}"
-#          Compress-Archive -Path "$sourcepath/*" -DestinationPath "$destpath/amalgamation.zip"
-#          dir $destpath
+      - name: Create amalgamation ZIP archive
+        shell: bash
+        run: |
+          set -euo pipefail
 
-#      - name: Upload amalgamation
-#        uses: actions/upload-artifact@v7
-#        with:
-#          name: amalgamation
-#          path:  ${{ env.ARCHIVES }}/amalgamation.zip
+          DESTPATH="$ARCHIVES"
+
+          mkdir -p "$DESTPATH"
+
+          (
+            SOURCEPATH="$AMALGAMATION"
+            cd "$SOURCEPATH"
+            zip -r "$DESTPATH/amalgamation.zip" .
+          )
+          (
+            SOURCEPATH="$SQLITE_PATH"
+            cd "$SOURCEPATH"
+            zip -r "$DESTPATH/sqlite3source.zip" .
+          )
+
+          ls -l "$DESTPATH"
+
+      - name: Upload amalgamation
+        uses: actions/upload-artifact@v7
+        with:
+          name: amalgamation
+          path: |
+            ${{ env.ARCHIVES }}/amalgamation.zip
+            ${{ env.ARCHIVES }}/sqlite3source.zip
 
 #      - name: Commit config changes
 #        shell: bash
