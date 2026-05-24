@@ -12,7 +12,7 @@ def sqlite_raw(v: str) -> str:
     patch = int(parts[2])
     build = int(parts[3]) if len(parts) > 3 else 0
 
-    return f"{major}{minor:02}{patch:02}{build:02}00"
+    return f"{major}{minor:02}{patch:02}{build:02}"
 
 
 def main():
