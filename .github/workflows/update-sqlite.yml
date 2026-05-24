@@ -1,0 +1,144 @@
+name: Download and patch SQLite (Manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      sqlite_version:
+        description: "SQLite version (e.g. 3.53.1)"
+        required: true
+      mode:
+        description: "Release mode"
+        required: true
+        type: choice
+        default: dry-run
+        options:
+          - sanity
+          - dry-run
+          - release
+
+permissions:
+  contents: write
+
+env:
+  CONFIG_FILE:  config.json
+  SQLITE_PATH:  sqlite3
+  AMALGAMATION: amalgamation
+  ARCHIVES:     archives
+  LIBICU_PATH:  icu_precompiled
+
+jobs:
+
+  generate:
+    runs-on: ubuntu-latest
+    env:
+      MODE: ${{ github.event.inputs.mode }}
+#    strategy:
+#      fail-fast: false
+#      matrix:
+#        platform:
+#          - win32
+#          - win64
+
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Update config
+        shell: bash
+        run: |
+          python scripts/update_config.py "${{ inputs.sqlite_version }}"
+
+      - name: Build context
+        shell: bash
+        run: |
+          python scripts/build_context.py
+
+      - name: Show environment
+        shell: bash
+        run: |
+          echo "SQLite Version:      $SQLITE_VERSION"
+          echo "SQLite Version Raw:  $SQLITE_VERSION_RAW"
+          echo "SQLite URL Official: $SQLITE_URL_OFFICIAL"
+          echo "SQLite URL GitHub:   $SQLITE_URL_GITHUB"
+
+      - name: Download SQLite sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$SQLITE_PATH"
+
+          echo "Downloading from: $SQLITE_URL_OFFICIAL"
+          URL="${SQLITE_URL_OFFICIAL}sqlite-amalgamation-${SQLITE_VERSION_RAW}.zip"
+          curl -L "$URL" -o sqlite.zip
+
+          echo "Extracting..."
+          unzip -q sqlite.zip -d "$SQLITE_PATH"
+
+          rm sqlite.zip
+
+          echo "Done. Contents:"
+          ls -la "$SQLITE_PATH"
+
+#      - name: Patch SQLite3 amalgamation
+#        shell: bash
+#        run: |
+#          sqlite_src="${{ env.SQLITE_PATH }}/sqlite-amalgamation-${{ env.SQLITE_VERSION_RAW }}/sqlite3.c"
+#          shell_src="${{ env.SQLITE_PATH }}/sqlite-amalgamation-${{ env.SQLITE_VERSION_RAW }}/shell.c"
+#          dest_sqlite="${{ env.SQLITE_PATH }}/sqlite3patched.c"
+#          dest_shell="${{ env.SQLITE_PATH }}/shell.c"
+#          dest_rekey="${{ env.SQLITE_PATH }}/rekeyvacuum.c"
+#          ./scripts/patchsqlite3.sh $sqlite_src > $dest_sqlite
+#          ./scripts/patchshell.sh $shell_src > $dest_shell
+#          ./scripts/rekeyvacuum.sh $sqlite_src > $dest_rekey
+#          ls -l "${{ env.SQLITE_PATH }}"
+#          python --version
+
+#      - name: Generate amalgamation
+#        shell: pwsh
+#        working-directory: ${{ env.AMALGAMATION }}
+#        run: |
+#          python ../scripts/amalgamate.py -v yes -c ../scripts/sqlite3mc.c.json -s ../src
+#          python ../scripts/amalgamate.py -v yes -c ../scripts/sqlite3mc.h.json -s ../src
+#          python ../scripts/amalgamate.py -v yes -c ../scripts/shell3mc.c.json  -s ../src
+#          (Get-Content shell3mc_amalgamation.c) `
+#            -replace '\s+$', '' |
+#            Set-Content shell3mc_amalgamation.c
+#          dir
+
+#      - name: Create amalgamation ZIP archive
+#        shell: pwsh
+#        run: |
+#          $sourcepath = "${{ env.AMALGAMATION }}"
+#          $destpath = "${{ env.ARCHIVES }}"
+#          Compress-Archive -Path "$sourcepath/*" -DestinationPath "$destpath/amalgamation.zip"
+#          dir $destpath
+
+#      - name: Upload amalgamation
+#        uses: actions/upload-artifact@v7
+#        with:
+#          name: amalgamation
+#          path:  ${{ env.ARCHIVES }}/amalgamation.zip
+
+#      - name: Commit config changes
+#        shell: bash
+#        run: |
+#          git config user.name "github-actions[bot]"
+#          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+#
+#          git add config.json
+#
+#          if git diff --cached --quiet; then
+#            echo "No changes to commit"
+#            exit 0
+#          fi
+#
+#          git commit -m "Update SQLite version to ${{ inputs.sqlite_version }}"
+#          git push
