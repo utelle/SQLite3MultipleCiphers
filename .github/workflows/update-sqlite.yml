@@ -246,30 +246,56 @@ jobs:
           set -euo pipefail
 
           echo "Copying files into src/ ..."
-
-          cp -f "$SQLITE_PATH/sqlite3.c" src/
-          cp -f "$SQLITE_PATH/sqlite3.h" src/
-          cp -f "$SQLITE_PATH/sqlite3ext.h" src/
-          cp -f "$SQLITE_PATH/sqlite3patched.c" src/
-          cp -f "$SQLITE_PATH/rekeyvacuum.c" src/
-          cp -f "$SQLITE_PATH/shell.c" src/
+          for f in sqlite3.c sqlite3.h sqlite3ext.c sqlite3patched.c rekeyvacuum.c shell.c; do
+            echo "Copying $f"
+            cp -f "$SQLITE_PATH/$f" src/
+          done
 
           echo "Done. Checking for changes..."
 
           git status --porcelain
 
-#      - name: Commit config changes
-#        shell: bash
-#        run: |
-#          git config user.name "github-actions[bot]"
-#          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-#
-#          git add config.json
-#
-#          if git diff --cached --quiet; then
-#            echo "No changes to commit"
-#            exit 0
-#          fi
-#
-#          git commit -m "Update SQLite version to ${{ inputs.sqlite_version }}"
-#          git push
+      # -------------------------------------------------
+      # GIT + GPG SETUP (only non-sanity)
+      # -------------------------------------------------
+      - name: Configure Git
+        if: ${{ inputs.mode != 'sanity' }}
+        run: |
+          git config user.name "${{ vars.GIT_USER_NAME }}"
+          git config user.email "${{ vars.GIT_USER_EMAIL }}"
+          git config user.signingkey "${{ vars.GPG_KEY_ID }}"
+          git config commit.gpgsign true
+
+      - name: Import GPG key
+        if: ${{ inputs.mode != 'sanity' }}
+        run: |
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
+
+      # -------------------------------------------------
+      # DRY RUN VALIDATION
+      # -------------------------------------------------
+      - name: Dry-run signing validation
+        if: ${{ inputs.mode == 'dry-run' }}
+        run: |
+          echo "Testing GPG setup..."
+          gpg --list-secret-keys --keyid-format=long
+
+          echo "Testing commit signing..."
+          git commit --allow-empty -S -m "dry-run signing test"
+
+          echo "Verifying signature..."
+          git log -1 --show-signature
+
+      - name: Commit config changes
+        if: ${{ inputs.mode == 'release' }}
+        shell: bash
+        run: |
+          git add config.json
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          git commit -m "Update SQLite version to ${{ inputs.sqlite_version }}"
+          git push
