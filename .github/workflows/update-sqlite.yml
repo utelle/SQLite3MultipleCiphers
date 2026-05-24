@@ -206,7 +206,7 @@ jobs:
           python ../scripts/amalgamate.py -v yes -c ../scripts/sqlite3mc.h.json -s ../src
           python ../scripts/amalgamate.py -v yes -c ../scripts/shell3mc.c.json  -s ../src
           sed -i 's/[[:space:]]*$//' "sqlite3mc_amalgamation.c"
-          sed -i 's/[[:space:]]*$//' "sqite3mc_amalgamation.h"
+          sed -i 's/[[:space:]]*$//' "sqlite3mc_amalgamation.h"
           sed -i 's/[[:space:]]*$//' "shell3mc_amalgamation.c"
           ls -l
 
