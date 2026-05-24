@@ -1,4 +1,4 @@
-name: Download and patch SQLite (Manual)
+name: Update SQLite (Manual)
 
 on:
   workflow_dispatch:
@@ -24,7 +24,6 @@ env:
   SQLITE_PATH:  sqlite3
   AMALGAMATION: amalgamation
   ARCHIVES:     archives
-  LIBICU_PATH:  icu_precompiled
 
 jobs:
 
@@ -85,22 +84,111 @@ jobs:
 
           rm sqlite.zip
 
-          echo "Done. Contents:"
+          echo "Done. Contents of $SQLITE_PATH:"
           ls -la "$SQLITE_PATH"
 
-#      - name: Patch SQLite3 amalgamation
-#        shell: bash
-#        run: |
-#          sqlite_src="${{ env.SQLITE_PATH }}/sqlite-amalgamation-${{ env.SQLITE_VERSION_RAW }}/sqlite3.c"
-#          shell_src="${{ env.SQLITE_PATH }}/sqlite-amalgamation-${{ env.SQLITE_VERSION_RAW }}/shell.c"
-#          dest_sqlite="${{ env.SQLITE_PATH }}/sqlite3patched.c"
-#          dest_shell="${{ env.SQLITE_PATH }}/shell.c"
-#          dest_rekey="${{ env.SQLITE_PATH }}/rekeyvacuum.c"
-#          ./scripts/patchsqlite3.sh $sqlite_src > $dest_sqlite
-#          ./scripts/patchshell.sh $shell_src > $dest_shell
-#          ./scripts/rekeyvacuum.sh $sqlite_src > $dest_rekey
-#          ls -l "${{ env.SQLITE_PATH }}"
-#          python --version
+      - name: Patch SQLite3 amalgamation
+        shell: bash
+        run: |
+          sqlite3_h="${{ env.SQLITE_PATH }}/sqlite-amalgamation-${{ env.SQLITE_VERSION_RAW }}/sqlite3.h"
+          sqlite3ext_h="${{ env.SQLITE_PATH }}/sqlite-amalgamation-${{ env.SQLITE_VERSION_RAW }}/sqlite3ext.h"
+
+          sqlite_src="${{ env.SQLITE_PATH }}/sqlite-amalgamation-${{ env.SQLITE_VERSION_RAW }}/sqlite3.c"
+          shell_src="${{ env.SQLITE_PATH }}/sqlite-amalgamation-${{ env.SQLITE_VERSION_RAW }}/shell.c"
+          dest_sqlite="${{ env.SQLITE_PATH }}/sqlite3patched.c"
+          dest_shell="${{ env.SQLITE_PATH }}/shell.c"
+          dest_rekey="${{ env.SQLITE_PATH }}/rekeyvacuum.c"
+          ./scripts/patchsqlite3.sh $sqlite_src > $dest_sqlite
+          ./scripts/patchshell.sh $shell_src > $dest_shell
+          ./scripts/rekeyvacuum.sh $sqlite_src > $dest_rekey
+          cp "$sqlite_src" "$SQLITE_PATH/"
+          cp "$sqlite3_h" "$SQLITE_PATH/"
+          cp "$sqlite3ext_h" "$SQLITE_PATH/"
+          ls -l "${{ env.SQLITE_PATH }}"
+
+      - name: Comparing patched SQLite files
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          FILES=(
+            "sqlite3patched.c"
+            "rekeyvacuum.c"
+            "shell.c"
+          )
+
+          echo "=== Patch comparison report ==="
+
+          CHANGED=0
+
+          for f in "${FILES[@]}"; do
+            echo ""
+            echo "Checking: $f"
+
+            if cmp -s "src/$f" "$SQLITE_PATH/$f"; then
+              echo "OK: identical"
+            else
+              echo "DIFF: changed"
+              CHANGED=1
+
+              echo "--- diff ($f) ---"
+              diff -u "src/$f" "$SQLITE_PATH/$f" || true
+            fi
+          done
+
+          echo ""
+          echo "=== Summary ==="
+
+          if [ "$CHANGED" -eq 0 ]; then
+            echo "All files identical"
+          else
+            echo "Some files differ (see above)"
+          fi
+
+          exit 0
+
+      - name: Per-file patch impact analysis
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          FILES=(
+            "sqlite3patched.c"
+            "rekeyvacuum.c"
+            "shell.c"
+          )
+
+          echo "=== Per-file patch impact ==="
+
+          for f in "${FILES[@]}"; do
+            echo ""
+            echo "File: $f"
+
+            SRC_FILE="src/$f"
+            NEW_FILE="$SQLITE_PATH/$f"
+
+            if [ ! -f "$SRC_FILE" ]; then
+              echo "⚠ missing in src: $SRC_FILE"
+              continue
+            fi
+
+            if [ ! -f "$NEW_FILE" ]; then
+              echo "⚠ missing in patched output: $NEW_FILE"
+              continue
+            fi
+
+            # Determine count of differing lines
+            DIFF_LINES=$(diff -u "$SRC_FILE" "$NEW_FILE" | grep -E "^[+-]" | wc -l || true)
+
+            if [ "$DIFF_LINES" -eq 0 ]; then
+              echo "OK: identical"
+            else
+              echo "CHANGED: $DIFF_LINES diff lines"
+
+              echo "--- diff preview ---"
+              diff -u "$SRC_FILE" "$NEW_FILE" | sed -n '1,40p' || true
+            fi
+          done
 
 #      - name: Generate amalgamation
 #        shell: pwsh
