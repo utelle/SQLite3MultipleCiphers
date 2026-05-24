@@ -246,7 +246,7 @@ jobs:
           set -euo pipefail
 
           echo "Copying files into src/ ..."
-          for f in sqlite3.c sqlite3.h sqlite3ext.c sqlite3patched.c rekeyvacuum.c shell.c; do
+          for f in sqlite3.c sqlite3.h sqlite3ext.h sqlite3patched.c rekeyvacuum.c shell.c; do
             echo "Copying $f"
             cp -f "$SQLITE_PATH/$f" src/
           done
