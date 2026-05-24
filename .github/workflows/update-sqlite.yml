@@ -217,17 +217,17 @@ jobs:
 
           DESTPATH="$ARCHIVES"
 
-          mkdir -p "$DESTPATH"
+          zip "$DESTPATH/archive.zip" "$SOURCEPATH"/*
 
           (
             SOURCEPATH="$AMALGAMATION"
             cd "$SOURCEPATH"
-            zip -r "$DESTPATH/amalgamation.zip" .
+            zip -r "../$DESTPATH/amalgamation.zip" .
           )
           (
             SOURCEPATH="$SQLITE_PATH"
             cd "$SOURCEPATH"
-            zip -r "$DESTPATH/sqlite3source.zip" .
+            zip "../$DESTPATH/sqlite3source.zip" *
           )
 
           ls -l "$DESTPATH"
