@@ -218,8 +218,6 @@ jobs:
 
           DESTPATH="$ARCHIVES"
 
-          zip "$DESTPATH/archive.zip" "$SOURCEPATH"/*
-
           (
             SOURCEPATH="$AMALGAMATION"
             cd "$SOURCEPATH"
