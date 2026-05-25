@@ -33,12 +33,11 @@ def main():
         "SQLITE_URL_OFFICIAL": sqlite_official,
         "SQLITE_URL_GITHUB": sqlite_github,
         "ICU_VERSION": icu_version,
-        "ICU_TEMPLATE": icu_official,
-        "ICU_URL_WIN32": icu_url_template.format(
+        "ICU_URL_WIN32": icu_official.format(
             ICU_VERSION=icu_version,
             PLATFORM="win32"
         ),
-        "ICU_URL_WIN64": icu_url_template.format(
+        "ICU_URL_WIN64": icu_official.format(
             ICU_VERSION=icu_version,
             PLATFORM="win64"
         ),
