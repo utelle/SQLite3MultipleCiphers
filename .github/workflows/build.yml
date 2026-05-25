@@ -17,7 +17,7 @@ env:
   AMALGAMATION: amalgamation
   ARCHIVES:     archives
   SQLITE_PATH:  sqlite3
-  LIBICU_PATH:  icu_precompiled
+  ICU_PATH:     icu_precompiled
 
 jobs:
 
@@ -70,7 +70,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path ${{ env.SQLITE_PATH }}
-          New-Item -ItemType Directory -Force -Path ${{ env.LIBICU_PATH }}
+          New-Item -ItemType Directory -Force -Path ${{ env.ICU_PATH }}
           New-Item -ItemType Directory -Force -Path ${{ env.AMALGAMATION }}
           New-Item -ItemType Directory -Force -Path ${{ env.ARCHIVES }}
 
@@ -82,10 +82,10 @@ jobs:
         run: |
           Invoke-WebRequest `
             -Uri "${{ env.ICU_URL_WIN32 }}" `
-            -OutFile "${{ env.LIBICU_PATH }}/icu-precompiled-win32.zip"
+            -OutFile "${{ env.ICU_PATH }}/icu-precompiled-win32.zip"
           Invoke-WebRequest `
             -Uri "${{ env.ICU_URL_WIN64 }}" `
-            -OutFile "${{ env.LIBICU_PATH }}/icu-precompiled-win64.zip"
+            -OutFile "${{ env.ICU_PATH }}/icu-precompiled-win64.zip"
 
       # -------------------------------------------------
       # Extract ICU binaries
@@ -94,18 +94,46 @@ jobs:
         shell: pwsh
         run: |
           Expand-Archive `
-            -Path "${{ env.LIBICU_PATH }}/icu-precompiled-win32.zip" `
-            -DestinationPath "${{ env.LIBICU_PATH }}/win32"
+            -Path "${{ env.ICU_PATH }}/icu-precompiled-win32.zip" `
+            -DestinationPath "${{ env.ICU_PATH }}/win32"
           Expand-Archive `
-            -Path "${{ env.LIBICU_PATH }}/icu-precompiled-win64.zip" `
-            -DestinationPath "${{ env.LIBICU_PATH }}/win64"
-          $path = "${{ env.LIBICU_PATH }}/win64"
+            -Path "${{ env.ICU_PATH }}/icu-precompiled-win64.zip" `
+            -DestinationPath "${{ env.ICU_PATH }}/win64"
+          $path = "${{ env.ICU_PATH }}/win64"
 
           if (!(Test-Path "$path/include")) {
             throw "ICU headers missing: $path/include"
           }
           Write-Host "ICU extraction OK"
           python --version
+
+      # -------------------------------------------------
+      # Setup MSBuild environment
+      # -------------------------------------------------
+      - name: Setup MSBuild environment
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build Win32
+        shell: pwsh
+        env:
+          LIBICU_PATH: ${{ github.workspace }}\icu_precompiled\win32
+        run: |
+          echo $env:LIBICU_PATH
+          msbuild build\sqlite3mc_vc17.sln `
+            /m `
+            /p:Configuration=Release `
+            /p:Platform=Win32
+
+      - name: Build x64
+        shell: pwsh
+        env:
+          LIBICU_PATH: ${{ github.workspace }}\icu_precompiled\win64
+        run: |
+          echo $env:LIBICU_PATH
+          msbuild build\sqlite3mc_vc17.sln `
+            /m `
+            /p:Configuration=Release `
+            /p:Platform=x64
 
 #      - name: Create amalgamation ZIP archive
 #        shell: pwsh
