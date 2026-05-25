@@ -22,7 +22,6 @@ permissions:
 env:
   CONFIG_FILE:  config.json
   SQLITE_PATH:  sqlite3
-  AMALGAMATION: amalgamation
   ARCHIVES:     archives
 
 jobs:
@@ -46,7 +45,7 @@ jobs:
       # Setup Python
       # -------------------------------------------------
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -91,7 +90,6 @@ jobs:
           set -euo pipefail
 
           mkdir -p "$SQLITE_PATH"
-          mkdir -p "$AMALGAMATION"
           mkdir -p "$ARCHIVES"
 
       # -------------------------------------------------
@@ -195,58 +193,6 @@ jobs:
           fi
 
           exit 0
-
-      # -------------------------------------------------
-      # Compare generated patched source files with previous version
-      # -------------------------------------------------
-      # Usually they will differ when updating to a new version.
-      # However, after a successful update, repeating the update process
-      # for the same version should result in identical files.
-      # -------------------------------------------------
-      - name: Per-file patch impact analysis
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          FILES=(
-            "sqlite3patched.c"
-            "rekeyvacuum.c"
-            "shell.c"
-          )
-
-          echo "=== Per-file patch impact ==="
-
-          for f in "${FILES[@]}"; do
-            echo ""
-            echo "File: $f"
-
-            SRC_FILE="src/$f"
-            NEW_FILE="$SQLITE_PATH/$f"
-
-            if [ ! -f "$SRC_FILE" ]; then
-              echo "⚠ missing in src: $SRC_FILE"
-              continue
-            fi
-
-            if [ ! -f "$NEW_FILE" ]; then
-              echo "⚠ missing in patched output: $NEW_FILE"
-              continue
-            fi
-
-            diff -u "$SRC_FILE" "$NEW_FILE" | grep '^@@' || true
-
-            # Determine count of differing blocks
-            DIFF_BLOCKS=$(diff -u "$SRC_FILE" "$NEW_FILE" | grep -c '^@@' || true)
-
-            if [ "$DIFF_BLOCKS" -eq 0 ]; then
-              echo "OK: identical"
-            else
-              echo "CHANGED: $DIFF_BLOCKS diff blocks"
-
-              echo "--- diff preview ---"
-              diff -u "$SRC_FILE" "$NEW_FILE" | sed -n '1,40p' || true
-            fi
-          done
 
       # -------------------------------------------------
       # Compare generated patched source files with originals
