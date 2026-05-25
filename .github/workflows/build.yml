@@ -135,6 +135,15 @@ jobs:
             /p:Configuration=Release `
             /p:Platform=x64
 
+      - name: Upload build output
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-output
+          path: |
+            bin/vc17/**
+            icu_precompiled/win32/bin/*.dll
+            icu_precompiled/win64/bin64/*.dll
+
 #      - name: Create amalgamation ZIP archive
 #        shell: pwsh
 #        run: |
@@ -194,3 +203,102 @@ jobs:
 #          echo "Resolved ICU Version: $ICU_VERSION"
 #          echo "Resolved ICU URL Win32: $ICU_URL_WIN32"
 #          echo "Resolved ICU URL Win64: $ICU_URL_WIN64"
+
+  package-windows:
+    needs: build-windows
+    runs-on: windows-2022
+    env:
+      MODE: ${{ github.event.inputs.mode }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: win32
+            dll_suffix: ""
+            exe_suffix: ""
+            icu: false
+            icu_path: ""
+
+          - id: win32-icu
+            dll_suffix: "_icu"
+            exe_suffix: "icu"
+            icu: true
+            icu_path: "icu_precompiled/win32/bin"
+
+          - id: win64
+            dll_suffix: "_x64"
+            exe_suffix: "_x64"
+            icu: false
+            icu_path: ""
+
+          - id: win64-icu
+            dll_suffix: "_icu_x64"
+            exe_suffix: "icu_x64"
+            icu: true
+            icu_path: "icu_precompiled/win64/bin64"
+
+    steps:
+
+      # -------------------------------------------------
+      # Checkout repository
+      # -------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      # -------------------------------------------------
+      # Create environment variables
+      # -------------------------------------------------
+      - name: Build context
+        shell: pwsh
+        run: |
+          python scripts/build_context.py
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: build-output
+
+      - name: Prepare package
+        shell: pwsh
+        run: |
+          Remove-Item -Recurse -Force package -ErrorAction SilentlyContinue
+
+          New-Item -ItemType Directory -Force package/bin
+          New-Item -ItemType Directory -Force package/dll
+          New-Item -ItemType Directory -Force package/include
+
+      - name: Collect files into staging
+        shell: pwsh
+        env:
+          MATRIX_ID: ${{ matrix.id }}
+        run: |
+          $dllbase = "sqlite3mc${{ matrix.dll_suffix }}"
+          $exebase = "sqlite3mc${{ matrix.exe_suffix }}"
+
+          $files = @(
+            @{ src = "bin/vc17/dll/release/$dllbase.dll"; dst = "dll/$dllbase.dll" },
+            @{ src = "bin/vc17/dll/release/$dllbase.exp"; dst = "dll/$dllbase.exp" },
+            @{ src = "bin/vc17/dll/release/$dllbase.lib"; dst = "dll/$dllbase.lib" },
+            @{ src = "bin/vc17/dll/release/$dllbase.pdb"; dst = "dll/$dllbase.pdb" },
+
+            @{ src = "bin/vc17/lib/release/$exebase.exe"; dst = "bin/$exebase.exe" }
+          )
+
+          foreach ($f in $files) {
+            if (Test-Path $f.src) {
+              $target = "package/$($f.dst)"
+
+              $dir = Split-Path $target
+              New-Item -ItemType Directory -Force $dir | Out-Null
+
+              Copy-Item $f.src $target
+            }
+          }
+
+      - name: Copy ICU runtime
+        if: matrix.icu == true
+        shell: pwsh
+        run: |
+          $icu_path = "${{ env.ICU_PATH }}/${{ matrix.icu_path }}"
+          echo "ICU path: $icu_path"
+          Get-ChildItem $icu_path -Filter *.dll | Copy-Item -Destination package/bin/
