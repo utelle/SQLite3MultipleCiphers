@@ -1,0 +1,112 @@
+name: Generate amalgamation (Manual)
+
+on:
+  workflow_dispatch:
+
+env:
+  CONFIG_FILE:  config.json
+  AMALGAMATION: amalgamation
+  ARCHIVES:     archives
+
+jobs:
+
+  generate:
+    runs-on: ubuntu-latest
+    env:
+      MODE: ${{ github.event.inputs.mode }}
+
+    steps:
+
+      # -------------------------------------------------
+      # Checkout repository
+      # -------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      # -------------------------------------------------
+      # Setup Python
+      # -------------------------------------------------
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # -------------------------------------------------
+      # Create environment variables
+      # -------------------------------------------------
+      - name: Build context
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python scripts/build_context.py
+
+      # -------------------------------------------------
+      # Display environment variables
+      # -------------------------------------------------
+      - name: Show environment
+        shell: bash
+        run: |
+          echo "SQLite Version:      $SQLITE_VERSION"
+          echo "SQLite Version Raw:  $SQLITE_VERSION_RAW"
+          echo "SQLite URL Official: $SQLITE_URL_OFFICIAL"
+          echo "SQLite URL GitHub:   $SQLITE_URL_GITHUB"
+
+      # -------------------------------------------------
+      # Create directories for intermediate files
+      # -------------------------------------------------
+      - name: Create directories
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p "$AMALGAMATION"
+          mkdir -p "$ARCHIVES"
+
+      # -------------------------------------------------
+      # Generate source amalgamation
+      # -------------------------------------------------
+      - name: Generate amalgamation
+        shell: bash
+        working-directory: ${{ env.AMALGAMATION }}
+        run: |
+          set -euo pipefail
+
+          python ../scripts/amalgamate.py -v yes -c ../scripts/sqlite3mc.c.json -s ../src
+          python ../scripts/amalgamate.py -v yes -c ../scripts/sqlite3mc.h.json -s ../src
+          python ../scripts/amalgamate.py -v yes -c ../scripts/shell3mc.c.json  -s ../src
+          ls -l
+          sed -i 's/[[:space:]]*$//' "sqlite3mc_amalgamation.c"
+          sed -i 's/[[:space:]]*$//' "sqlite3mc_amalgamation.h"
+          sed -i 's/[[:space:]]*$//' "shell3mc_amalgamation.c"
+          ls -l
+
+      # -------------------------------------------------
+      # Create ZIP archive(s) for the source amalgamation
+      # -------------------------------------------------
+      - name: Create amalgamation ZIP archive
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          DESTPATH="$ARCHIVES"
+
+          (
+            SOURCEPATH="$AMALGAMATION"
+            cd "$SOURCEPATH"
+            zip -r "../$DESTPATH/amalgamation.zip" .
+          )
+
+          ls -l "$DESTPATH"
+
+      # -------------------------------------------------
+      # Upload ZIP archive
+      # -------------------------------------------------
+      - name: Upload amalgamation
+        uses: actions/upload-artifact@v7
+        with:
+          name: amalgamation
+          path: |
+            ${{ env.ARCHIVES }}/amalgamation.zip
