@@ -350,28 +350,32 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - id: win32
+          - sys: mingw32
+            id: win32
             platform: Win32
             dll_suffix: ""
             exe_suffix: ""
             icu: false
             icu_path: ""
 
-          - id: icu-win32
+          - sys: mingw32
+            id: icu-win32
             platform: Win32
             dll_suffix: "_icu"
             exe_suffix: "icu"
             icu: true
             icu_path: "win32/bin"
 
-          - id: win64
+          - sys: mingw64
+            id: win64
             platform: Win64
             dll_suffix: "_x64"
             exe_suffix: "_x64"
             icu: false
             icu_path: ""
 
-          - id: icu-win64
+          - sys: mingw64
+            id: icu-win64
             platform: Win64
             dll_suffix: "_icu_x64"
             exe_suffix: "icu_x64"
@@ -420,41 +424,50 @@ jobs:
       - name: Setup MSYS2
         uses: msys2/setup-msys2@v2
         with:
+          msystem: ${{matrix.sys}}
           update: true
           install: >
             mingw-w64-x86_64-toolchain
             mingw-w64-i686-toolchain
 
-      - name: Check dlltool in MSYS2
-        shell: msys2 {0}
-        run: |
-          which dlltool
-          dlltool --version
-
       # -------------------------------------------------
       # Generate MinGW import library
       # -------------------------------------------------
-      - name: Generate MinGW import library
-        shell: pwsh
+      
+      - name: Build import lib
+        shell: msys2 {0}
         run: |
-          $base = "sqlite3mc${{ matrix.dll_suffix }}"
-          $dllbase = "sqlite3mc${{ matrix.dll_suffix }}"
+          base="sqlite3mc${{ matrix.dll_suffix }}"
 
-          $dll  = "bin/vc17/dll/release/$base.dll"
-          $lib  = "bin/vc17/dll/release/lib$base.dll.a"
+          dll="bin/vc17/dll/release/${base}.dll"
+          lib="bin/vc17/dll/release/lib${base}.dll.a"
 
-          if (!(Test-Path $dll)) {
-            throw "DLL not found: $dll"
-          }
+          echo "DLL: $dll"
+          echo "LIB: $lib"
 
-          $msys = "${{ steps.msys2.outputs.msys2-location }}"
-          if ("${{ matrix.platform }}" -eq "Win32") {
-            $dlltool = "$msys\mingw32\bin\dlltool.exe"
-          } else {
-            $dlltool = "$msys\mingw64\bin\dlltool.exe"
-          }
+          dlltool -D "$dll" -l "$lib"
 
-          & $dlltool -D $dll -l $lib
+#      - name: Generate MinGW import library
+#        shell: pwsh
+#        run: |
+#          $base = "sqlite3mc${{ matrix.dll_suffix }}"
+#          $dllbase = "sqlite3mc${{ matrix.dll_suffix }}"#
+#
+#          $dll  = "bin/vc17/dll/release/$base.dll"
+#          $lib  = "bin/vc17/dll/release/lib$base.dll.a"
+#
+#          if (!(Test-Path $dll)) {
+#            throw "DLL not found: $dll"
+#          }
+#
+#          $msys = "${{ steps.msys2.outputs.msys2-location }}"
+#          if ("${{ matrix.platform }}" -eq "Win32") {
+#            $dlltool = "$msys\mingw32\bin\dlltool.exe"
+#          } else {
+#            $dlltool = "$msys\mingw64\bin\dlltool.exe"
+#          }
+#
+#          & $dlltool -D $dll -l $lib
 
       # -------------------------------------------------
       # Collect all required files into staging
