@@ -447,10 +447,11 @@ jobs:
             throw "DLL not found: $dll"
           }
 
+          $msys = "${{ steps.msys2.outputs.msys2-location }}"
           if ("${{ matrix.platform }}" -eq "Win32") {
-            $dlltool = "C:\msys64\mingw32\bin\dlltool.exe"
+            $dlltool = "$msys\mingw32\bin\dlltool.exe"
           } else {
-            $dlltool = "C:\msys64\mingw64\bin\dlltool.exe"
+            $dlltool = "$msys\mingw64\bin\dlltool.exe"
           }
 
           & $dlltool -D $dll -l $lib
