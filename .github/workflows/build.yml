@@ -440,12 +440,16 @@ jobs:
           base="sqlite3mc${{ matrix.dll_suffix }}"
 
           dll="bin/vc17/dll/release/${base}.dll"
+          def="bin/vc17/dll/release/${base}.def"
           lib="bin/vc17/dll/release/lib${base}.dll.a"
 
           echo "DLL: $dll"
+          echo "DEF: $def"
           echo "LIB: $lib"
 
-          dlltool -D "$dll" -l "$lib"
+          gendef $dll
+
+          dlltool -d "$def" -l "$lib"
 
 #      - name: Generate MinGW import library
 #        shell: pwsh
