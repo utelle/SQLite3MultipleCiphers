@@ -442,7 +442,7 @@ jobs:
 
           dll="${base}.dll"
           def="${base}.def"
-          lib="${base}.dll.a"
+          lib="lib${base}.dll.a"
 
           echo "DLL: $dll"
           echo "DEF: $def"
