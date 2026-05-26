@@ -234,6 +234,41 @@ jobs:
           New-Item -ItemType Directory -Force package/include
 
       # -------------------------------------------------
+      # Set up MSYS2
+      # -------------------------------------------------
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          install: >
+            mingw-w64-x86_64-toolchain
+            mingw-w64-i686-toolchain
+
+      # -------------------------------------------------
+      # Generate MinGW import library
+      # -------------------------------------------------
+      - name: Generate MinGW import library
+        shell: pwsh
+        run: |
+          $base = "sqlite3mc${{ matrix.dll_suffix }}"
+          $dllbase = "sqlite3mc${{ matrix.dll_suffix }}"
+
+          $dll  = "bin/vc17/dll/release/$base.dll"
+          $lib  = "bin/vc17/dll/release/lib$base.dll.a"
+
+          if (!(Test-Path $dll)) {
+            throw "DLL not found: $dll"
+          }
+
+          if ("${{ matrix.platform }}" -eq "Win32") {
+            $dlltool = "C:\msys64\mingw32\bin\dlltool.exe"
+          } else {
+            $dlltool = "C:\msys64\mingw64\bin\dlltool.exe"
+          }
+
+          & $dlltool -D $dll -l $lib
+
+      # -------------------------------------------------
       # Collect all required files into staging
       # -------------------------------------------------
       - name: Collect files into staging
@@ -249,6 +284,8 @@ jobs:
             @{ src = "bin/vc17/dll/release/$dllbase.exp"; dst = "dll/$dllbase.exp" },
             @{ src = "bin/vc17/dll/release/$dllbase.lib"; dst = "dll/$dllbase.lib" },
             @{ src = "bin/vc17/dll/release/$dllbase.pdb"; dst = "dll/$dllbase.pdb" },
+
+            @{ src = "bin/vc17/dll/release/lib$dllbase.dll.a"; dst = "dll/lib$dllbase.dll.a" },
 
             @{ src = "bin/vc17/lib/release/$exebase.exe"; dst = "bin/$exebase.exe" },
 
