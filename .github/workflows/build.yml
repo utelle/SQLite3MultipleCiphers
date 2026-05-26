@@ -153,11 +153,188 @@ jobs:
 #          Compress-Archive -Path "$sourcepath/*" -DestinationPath "$destpath/amalgamation.zip"
 #          dir $destpath
 
-#      - name: Upload amalgamation
-#        uses: actions/upload-artifact@v7
-#        with:
-#          name: amalgamation
-#          path:  ${{ env.ARCHIVES }}/amalgamation.zip
+  amalgamate:
+    runs-on: ubuntu-latest
+    env:
+      MODE: ${{ github.event.inputs.mode }}
+
+    steps:
+
+      # -------------------------------------------------
+      # Checkout repository
+      # -------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      # -------------------------------------------------
+      # Setup Python
+      # -------------------------------------------------
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # -------------------------------------------------
+      # Create environment variables
+      # -------------------------------------------------
+      - name: Build context
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python scripts/build_context.py
+
+      # -------------------------------------------------
+      # Display environment variables
+      # -------------------------------------------------
+      - name: Show environment
+        shell: bash
+        run: |
+          echo "SQLite Version:      $SQLITE_VERSION"
+          echo "SQLite Version Raw:  $SQLITE_VERSION_RAW"
+          echo "SQLite URL Official: $SQLITE_URL_OFFICIAL"
+          echo "SQLite URL GitHub:   $SQLITE_URL_GITHUB"
+
+      # -------------------------------------------------
+      # Create directories for intermediate files
+      # -------------------------------------------------
+      - name: Create directories
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p "$AMALGAMATION"
+          mkdir -p "$ARCHIVES"
+
+      # -------------------------------------------------
+      # Generate source amalgamation
+      # -------------------------------------------------
+      - name: Generate amalgamation
+        shell: bash
+        working-directory: ${{ env.AMALGAMATION }}
+        run: |
+          set -euo pipefail
+
+          python ../scripts/amalgamate.py -v yes -c ../scripts/sqlite3mc.c.json -s ../src
+          python ../scripts/amalgamate.py -v yes -c ../scripts/sqlite3mc.h.json -s ../src
+          python ../scripts/amalgamate.py -v yes -c ../scripts/shell3mc.c.json  -s ../src
+          ls -l
+          sed -i 's/[[:space:]]*$//' "sqlite3mc_amalgamation.c"
+          sed -i 's/[[:space:]]*$//' "sqlite3mc_amalgamation.h"
+          sed -i 's/[[:space:]]*$//' "shell3mc_amalgamation.c"
+          ls -l
+
+      # -------------------------------------------------
+      # Create ZIP archive(s) for the source amalgamation
+      # -------------------------------------------------
+      - name: Create amalgamation ZIP archive
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          DESTPATH="$ARCHIVES"
+
+          (
+            SOURCEPATH="$AMALGAMATION"
+            cd "$SOURCEPATH"
+            zip -r "../$DESTPATH/amalgamation.zip" .
+          )
+
+          ls -l "$DESTPATH"
+
+      # -------------------------------------------------
+      # Upload ZIP archive
+      # -------------------------------------------------
+      - name: Upload amalgamation
+        uses: actions/upload-artifact@v7
+        with:
+          name: amalgamation
+          path: |
+            ${{ env.ARCHIVES }}/amalgamation.zip
+
+
+  build-android:
+    needs: amalgamate
+    runs-on: ubuntu-latest
+
+    env:
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+      ANDROID_HOME: /usr/local/lib/android/sdk
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Android SDK components
+        uses: android-actions/setup-android@v3
+
+      - name: Install NDK
+        run: |
+          sdkmanager "ndk;26.3.11579264"
+
+      - name: Download SQLite Android Bindings
+        run: |
+          curl -L \
+            "https://www.sqlite.org/android/zip/SQLite+Android+Bindings.zip?uuid=trunk" \
+            -o sqlite-android.zip
+
+      - name: Unpack SQLite Android Bindings
+        run: |
+          unzip sqlite-android.zip
+          mv SQLite_Android_Bindings sqlite-src
+
+      # -------------------------------------------------
+      # Download amalgamation
+      # -------------------------------------------------
+      - name: Download amalgamation
+        uses: actions/download-artifact@v8
+        with:
+          name: amalgamation
+          path: archives
+
+      - name: Unpack amalgamation
+        run: |
+          mkdir amalgamation
+          unzip archives/amalgamation.zip -d amalgamation
+
+      - name: Replace SQLite sources by own amalgamation
+        run: |
+          cp -fv amalgamation/sqlite3mc_amalgamation.c sqlite-src/sqlite3/src/main/jni/sqlite/sqlite3.c
+          cp -fv amalgamation/sqlite3mc_amalgamation.h sqlite-src/sqlite3/src/main/jni/sqlite/sqlite3.h
+
+      - name: Patch Android.mk
+        run: |
+          cp -fv packaging/Android.mk sqlite-src/sqlite3/src/main/jni/sqlite/Android.mk
+
+      - name: Make gradlew executable
+        run: |
+          chmod +x sqlite-src/gradlew
+
+      - name: Build Release AAR
+        working-directory: sqlite-src/sqlite3
+        run: |
+          ../gradlew assembleRelease
+
+      - name: Collect AAR
+        run: |
+          mkdir -p staging
+          find sqlite-src -name "*.aar" -exec cp {} staging/ \;
+
+      - name: Upload AAR Artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: sqlite-android-aar
+          path: staging/*.aar
+
+
 
 #  build-linux:
 #    runs-on: ubuntu-24.04
