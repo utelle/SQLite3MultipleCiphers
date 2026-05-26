@@ -448,6 +448,11 @@ jobs:
           echo "LIB: $lib"
 
           gendef $dll
+          
+          ls -l
+          ls -l bin/vc17/dll/release
+
+          echo "Call dlltool"
 
           dlltool -d "$def" -l "$lib"
 
