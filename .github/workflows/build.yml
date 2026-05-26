@@ -436,12 +436,13 @@ jobs:
       
       - name: Build import lib
         shell: msys2 {0}
+        working-directory: bin/vc17/dll/release
         run: |
           base="sqlite3mc${{ matrix.dll_suffix }}"
 
-          dll="bin/vc17/dll/release/${base}.dll"
-          def="bin/vc17/dll/release/${base}.def"
-          lib="bin/vc17/dll/release/lib${base}.dll.a"
+          dll="${base}.dll"
+          def="${base}.def"
+          lib="${base}.dll.a"
 
           echo "DLL: $dll"
           echo "DEF: $def"
@@ -450,7 +451,6 @@ jobs:
           gendef $dll
           
           ls -l
-          ls -l bin/vc17/dll/release
 
           echo "Call dlltool"
 
