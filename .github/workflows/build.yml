@@ -141,8 +141,8 @@ jobs:
           name: build-output
           path: |
             bin/vc17/**
-            icu_precompiled/win32/bin/*.dll
-            icu_precompiled/win64/bin64/*.dll
+            icu_precompiled/win32/bin/icu*.dll
+            icu_precompiled/win64/bin64/icu*.dll
           retention-days: 1
 
 #      - name: Create amalgamation ZIP archive
@@ -242,7 +242,7 @@ jobs:
           MATRIX_ID: ${{ matrix.id }}
         run: |
           $dllbase = "sqlite3mc${{ matrix.dll_suffix }}"
-          $exebase = "sqlite3mc${{ matrix.exe_suffix }}"
+          $exebase = "sqlite3mc_shell${{ matrix.exe_suffix }}"
 
           $files = @(
             @{ src = "bin/vc17/dll/release/$dllbase.dll"; dst = "dll/$dllbase.dll" },
@@ -252,11 +252,11 @@ jobs:
 
             @{ src = "bin/vc17/lib/release/$exebase.exe"; dst = "bin/$exebase.exe" },
 
-            @{ src = "include/sqlite3.h"; dst = "include/sqlite3.h" },
-            @{ src = "include/sqlite3ext.h"; dst = "include/sqlite3ext.h" },
-            @{ src = "include/sqlite3mc.h"; dst = "include/sqlite3mc.h" },
-            @{ src = "include/sqlite3mc_version.h"; dst = "include/sqlite3mc_version.h" },
-            @{ src = "include/sqlite3mc_vfs.h"; dst = "include/sqlite3mc_vfs.h" },
+            @{ src = "src/sqlite3.h"; dst = "include/sqlite3.h" },
+            @{ src = "src/sqlite3ext.h"; dst = "include/sqlite3ext.h" },
+            @{ src = "src/sqlite3mc.h"; dst = "include/sqlite3mc.h" },
+            @{ src = "src/sqlite3mc_version.h"; dst = "include/sqlite3mc_version.h" },
+            @{ src = "src/sqlite3mc_vfs.h"; dst = "include/sqlite3mc_vfs.h" },
 
             @{ src = "LICENSE"; dst = "LICENSE" },
             @{ src = "LICENSE.spdx"; dst = "LICENSE.spdx" }
@@ -335,7 +335,7 @@ jobs:
       # Upload ZIP archive with Windows binaries
       # -------------------------------------------------
       - name: Upload ZIP artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sqlite3mc-${{ matrix.id }}
           path: dist/*.zip
