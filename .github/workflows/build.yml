@@ -351,24 +351,28 @@ jobs:
       matrix:
         include:
           - id: win32
+            platform: Win32
             dll_suffix: ""
             exe_suffix: ""
             icu: false
             icu_path: ""
 
           - id: icu-win32
+            platform: Win32
             dll_suffix: "_icu"
             exe_suffix: "icu"
             icu: true
             icu_path: "win32/bin"
 
           - id: win64
+            platform: Win64
             dll_suffix: "_x64"
             exe_suffix: "_x64"
             icu: false
             icu_path: ""
 
           - id: icu-win64
+            platform: Win64
             dll_suffix: "_icu_x64"
             exe_suffix: "icu_x64"
             icu: true
@@ -420,6 +424,12 @@ jobs:
           install: >
             mingw-w64-x86_64-toolchain
             mingw-w64-i686-toolchain
+
+      - name: Check dlltool in MSYS2
+        shell: msys2 {0}
+        run: |
+          which dlltool
+          dlltool --version
 
       # -------------------------------------------------
       # Generate MinGW import library
