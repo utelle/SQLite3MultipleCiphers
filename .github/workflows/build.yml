@@ -111,7 +111,7 @@ jobs:
       # Setup MSBuild environment
       # -------------------------------------------------
       - name: Setup MSBuild environment
-        uses: microsoft/setup-msbuild@v2
+        uses: microsoft/setup-msbuild@v3
 
       - name: Build Win32
         shell: pwsh
@@ -143,6 +143,7 @@ jobs:
             bin/vc17/**
             icu_precompiled/win32/bin/*.dll
             icu_precompiled/win64/bin64/*.dll
+          retention-days: 1
 
 #      - name: Create amalgamation ZIP archive
 #        shell: pwsh
@@ -163,47 +164,6 @@ jobs:
 #    env:
 #      MODE: ${{ inputs.mode }}
 
-#    steps:
-
-#      - name: Checkout repository
-#        uses: actions/checkout@v6
-
-#      - name: Build ICU URL
-#        shell: bash
-#        run: |
-#          VERSION=$(jq -r '.version' config.json)
-#          echo "VERSION=$VERSION" >> $GITHUB_ENV
-
-#          SQLITE_VERSION=$(jq -r '.sqlite.version' config.json)
-#          SQLITE_VERSION_RAW=$(jq -r '.sqlite.version_raw' config.json)
-#          SQLITE_URL_PREFIX=$(jq -r '.sqlite.url_prefix' config.json)
-#          SQLITE_URL_PREFIX_GH=$(jq -r '.sqlite.gh_prefix' config.json)
-
-#          echo "SQLITE_VERSION=$SQLITE_VERSION" >> $GITHUB_ENV
-#          echo "SQLITE_VERSION_RAW=$SQLITE_VERSION_RAW" >> $GITHUB_ENV
-#          echo "SQLITE_URL_PREFIX=$SQLITE_URL_PREFIX" >> $GITHUB_ENV
-#          echo "SQLITE_URL_PREFIX_GH=$SQLITE_URL_PREFIX_GH" >> $GITHUB_ENV
-
-#          echo "Resolved SQLite Version: $SQLITE_VERSION"
-#          echo "Resolved SQLite Version (raw): $SQLITE_VERSION_RAW"
-#          echo "Resolved SQLite URL prefix: $SQLITE_URL_PREFIX"
-#          echo "Resolved SQLite URL prefix (GH): $SQLITE_URL_PREFIX_GH"
-
-#          ICU_VERSION=$(jq -r '.icu.version' config.json)
-#          ICU_URL_TEMPLATE=$(jq -r '.icu.url_template' config.json)
-
-#          ICU_URL="${ICU_URL_TEMPLATE//\{ICU_VERSION\}/$ICU_VERSION}"
-#          ICU_URL_WIN32="${ICU_URL//\{PLATFORM\}/Win32}"
-#          ICU_URL_WIN64="${ICU_URL//\{PLATFORM\}/Win64}"
-
-#          echo "ICU_VERSION=$VERSION" >> $GITHUB_ENV
-#          echo "ICU_URL_WIN32=$ICU_URL_WIN32" >> $GITHUB_ENV
-#          echo "ICU_URL_WIN64=$ICU_URL_WIN64" >> $GITHUB_ENV
-
-#          echo "Resolved ICU Version: $ICU_VERSION"
-#          echo "Resolved ICU URL Win32: $ICU_URL_WIN32"
-#          echo "Resolved ICU URL Win64: $ICU_URL_WIN64"
-
   package-windows:
     needs: build-windows
     runs-on: windows-2022
@@ -219,11 +179,11 @@ jobs:
             icu: false
             icu_path: ""
 
-          - id: win32-icu
+          - id: icu-win32
             dll_suffix: "_icu"
             exe_suffix: "icu"
             icu: true
-            icu_path: "icu_precompiled/win32/bin"
+            icu_path: "win32/bin"
 
           - id: win64
             dll_suffix: "_x64"
@@ -231,11 +191,11 @@ jobs:
             icu: false
             icu_path: ""
 
-          - id: win64-icu
+          - id: icu-win64
             dll_suffix: "_icu_x64"
             exe_suffix: "icu_x64"
             icu: true
-            icu_path: "icu_precompiled/win64/bin64"
+            icu_path: "win64/bin64"
 
     steps:
 
@@ -253,11 +213,17 @@ jobs:
         run: |
           python scripts/build_context.py
 
+      # -------------------------------------------------
+      # Download build artifacts
+      # -------------------------------------------------
       - name: Download build artifacts
         uses: actions/download-artifact@v8
         with:
           name: build-output
 
+      # -------------------------------------------------
+      # Prepare packaging directory
+      # -------------------------------------------------
       - name: Prepare package
         shell: pwsh
         run: |
@@ -267,6 +233,9 @@ jobs:
           New-Item -ItemType Directory -Force package/dll
           New-Item -ItemType Directory -Force package/include
 
+      # -------------------------------------------------
+      # Collect all required files into staging
+      # -------------------------------------------------
       - name: Collect files into staging
         shell: pwsh
         env:
@@ -281,7 +250,16 @@ jobs:
             @{ src = "bin/vc17/dll/release/$dllbase.lib"; dst = "dll/$dllbase.lib" },
             @{ src = "bin/vc17/dll/release/$dllbase.pdb"; dst = "dll/$dllbase.pdb" },
 
-            @{ src = "bin/vc17/lib/release/$exebase.exe"; dst = "bin/$exebase.exe" }
+            @{ src = "bin/vc17/lib/release/$exebase.exe"; dst = "bin/$exebase.exe" },
+
+            @{ src = "include/sqlite3.h"; dst = "include/sqlite3.h" },
+            @{ src = "include/sqlite3ext.h"; dst = "include/sqlite3ext.h" },
+            @{ src = "include/sqlite3mc.h"; dst = "include/sqlite3mc.h" },
+            @{ src = "include/sqlite3mc_version.h"; dst = "include/sqlite3mc_version.h" },
+            @{ src = "include/sqlite3mc_vfs.h"; dst = "include/sqlite3mc_vfs.h" },
+
+            @{ src = "LICENSE"; dst = "LICENSE" },
+            @{ src = "LICENSE.spdx"; dst = "LICENSE.spdx" }
           )
 
           foreach ($f in $files) {
@@ -295,6 +273,9 @@ jobs:
             }
           }
 
+      # -------------------------------------------------
+      # Copy ICU runtime for builds with ICU support
+      # -------------------------------------------------
       - name: Copy ICU runtime
         if: matrix.icu == true
         shell: pwsh
@@ -302,3 +283,60 @@ jobs:
           $icu_path = "${{ env.ICU_PATH }}/${{ matrix.icu_path }}"
           echo "ICU path: $icu_path"
           Get-ChildItem $icu_path -Filter *.dll | Copy-Item -Destination package/bin/
+
+      # -------------------------------------------------
+      # Generate README for packaging
+      # -------------------------------------------------
+      - name: Generate README
+        shell: pwsh
+        run: |
+          $date = Get-Date -Format "yyyy-MM-dd"
+
+          $content = Get-Content packaging/readme.template.md -Raw
+
+          $content = $content.Replace(
+            "{{BUILD_DATE}}",
+            $date
+          )
+
+          $content = $content.Replace(
+            "{{ICU_VERSION}}",
+            "${{ env.ICU_VERSION }}"
+          )
+          
+          $icuIncluded = if ("${{ matrix.icu }}" -eq "true") {
+            "${{ env.ICU_VERSION }}"
+          } else {
+            "not included"
+          }
+          $content = $content.Replace(
+            "{{ICU_SUPPORT}}",
+            $icuIncluded
+          )
+
+          Set-Content package/README.md $content
+
+      # -------------------------------------------------
+      # Create ZIP archive with Windows binaries
+      # -------------------------------------------------
+      - name: Create ZIP archive
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+
+          $zipName = "sqlite3mc-${{ env.SQLITE3MC_VERSION }}-sqlite-${{ env.SQLITE_VERSION }}-${{ matrix.id }}.zip"
+
+          Compress-Archive `
+            -Path package/* `
+            -DestinationPath "dist/$zipName" `
+            -Force
+
+      # -------------------------------------------------
+      # Upload ZIP archive with Windows binaries
+      # -------------------------------------------------
+      - name: Upload ZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sqlite3mc-${{ matrix.id }}
+          path: dist/*.zip
+          retention-days: 1

@@ -18,6 +18,7 @@ def sqlite_raw(v: str) -> str:
 def main():
     config = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
 
+    sqlite3mc_version = config["version"]
     sqlite_version = config["sqlite"]["version"]
 
     # URLs aus config (kein Hardcoding!)
@@ -28,6 +29,7 @@ def main():
     icu_official = config["icu"]["sources"]["official"]["url"]
 
     ctx = {
+        "SQLITE3MC_VERSION": sqlite3mc_version,
         "SQLITE_VERSION": sqlite_version,
         "SQLITE_VERSION_RAW": sqlite_raw(sqlite_version),
         "SQLITE_URL_OFFICIAL": sqlite_official,
