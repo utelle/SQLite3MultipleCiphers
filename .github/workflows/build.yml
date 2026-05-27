@@ -724,8 +724,8 @@ jobs:
       # -------------------------------------------------
       - name: Replace SQLite sources by own amalgamation
         run: |
-          cp -fv amalgamation/sqlite3mc_amalgamation.c sqlite/ext/wasm/sqlite3-see.c
-          cp -fv amalgamation/sqlite3mc_amalgamation.h sqlite/ext/wasm/sqlite3.h
+          cp -fv amalgamation/sqlite3mc_amalgamation.c sqlite/sqlite3-see.c
+          cp -fv amalgamation/sqlite3mc_amalgamation.h sqlite/sqlite3.h
 
       # -------------------------------------------------
       # Build SQLite WASM
