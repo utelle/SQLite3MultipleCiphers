@@ -754,4 +754,4 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: sqlite3mc-wasm
-          path: sqlite/ext/wasm/release/*.zip
+          path: sqlite/ext/wasm/*.zip
