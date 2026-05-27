@@ -705,7 +705,7 @@ jobs:
       # -------------------------------------------------
       # Download SQLite3MC amalgamation
       # -------------------------------------------------
-      - name: Download amalgamation
+      - name: Download SQLite3MC amalgamation
         uses: actions/download-artifact@v8
         with:
           name: amalgamation
@@ -714,7 +714,7 @@ jobs:
       # -------------------------------------------------
       # Unpack SQLite3MC amalgamation
       # -------------------------------------------------
-      - name: Unpack amalgamation
+      - name: Unpack SQLite3MC amalgamation
         run: |
           mkdir amalgamation
           unzip archives/amalgamation.zip -d amalgamation
@@ -725,7 +725,7 @@ jobs:
       - name: Replace SQLite sources by own amalgamation
         run: |
           cp -fv amalgamation/sqlite3mc_amalgamation.c sqlite/ext/wasm/sqlite3-see.c
-          cp -fv amalgamation/sqlite3mc_amalgamation.h sqlite/ext/wams/sqlite3.h
+          cp -fv amalgamation/sqlite3mc_amalgamation.h sqlite/ext/wasm/sqlite3.h
 
       # -------------------------------------------------
       # Build SQLite WASM
