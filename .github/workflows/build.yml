@@ -21,6 +21,10 @@ env:
 
 jobs:
 
+#########################################################
+# Job for building binaries for Win32 and Win64
+#########################################################
+
   build-windows:
     runs-on: windows-2022
     env:
@@ -113,6 +117,9 @@ jobs:
       - name: Setup MSBuild environment
         uses: microsoft/setup-msbuild@v3
 
+      # -------------------------------------------------
+      # Build Win32 binaries
+      # -------------------------------------------------
       - name: Build Win32
         shell: pwsh
         env:
@@ -124,6 +131,9 @@ jobs:
             /p:Configuration=Release `
             /p:Platform=Win32
 
+      # -------------------------------------------------
+      # Build Win64 binaries
+      # -------------------------------------------------
       - name: Build x64
         shell: pwsh
         env:
@@ -135,6 +145,9 @@ jobs:
             /p:Configuration=Release `
             /p:Platform=x64
 
+      # -------------------------------------------------
+      # Upload Win32 and Winb4 binariesBuild Win32 binaries
+      # -------------------------------------------------
       - name: Upload build output
         uses: actions/upload-artifact@v7
         with:
@@ -145,13 +158,9 @@ jobs:
             icu_precompiled/win64/bin64/icu*.dll
           retention-days: 1
 
-#      - name: Create amalgamation ZIP archive
-#        shell: pwsh
-#        run: |
-#          $sourcepath = "${{ env.AMALGAMATION }}"
-#          $destpath = "${{ env.ARCHIVES }}"
-#          Compress-Archive -Path "$sourcepath/*" -DestinationPath "$destpath/amalgamation.zip"
-#          dir $destpath
+#########################################################
+# Job for generating the SQLite3MC amalgamation
+#########################################################
 
   amalgamate:
     runs-on: ubuntu-latest
@@ -172,7 +181,7 @@ jobs:
       # Setup Python
       # -------------------------------------------------
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -254,6 +263,9 @@ jobs:
           path: |
             ${{ env.ARCHIVES }}/amalgamation.zip
 
+#########################################################
+# Job for building the binaries for Android
+#########################################################
 
   build-android:
     needs: amalgamate
@@ -264,35 +276,54 @@ jobs:
       ANDROID_HOME: /usr/local/lib/android/sdk
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
 
+      # -------------------------------------------------
+      # Checkout repository
+      # -------------------------------------------------
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+
+      # -------------------------------------------------
+      # Set up Java environment
+      # -------------------------------------------------
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
+      # -------------------------------------------------
+      # Install Android SDK
+      # -------------------------------------------------
       - name: Install Android SDK components
         uses: android-actions/setup-android@v3
 
+      # -------------------------------------------------
+      # Install Android NDK
+      # -------------------------------------------------
       - name: Install NDK
         run: |
           sdkmanager "ndk;26.3.11579264"
 
+      # -------------------------------------------------
+      # Download SQLite Android Bindings
+      # -------------------------------------------------
       - name: Download SQLite Android Bindings
         run: |
           curl -L \
             "https://www.sqlite.org/android/zip/SQLite+Android+Bindings.zip?uuid=trunk" \
             -o sqlite-android.zip
 
+      # -------------------------------------------------
+      # Unpack SQLite Android Bindings
+      # -------------------------------------------------
       - name: Unpack SQLite Android Bindings
         run: |
           unzip sqlite-android.zip
           mv SQLite_Android_Bindings sqlite-src
 
       # -------------------------------------------------
-      # Download amalgamation
+      # Download SQLite3MC amalgamation
       # -------------------------------------------------
       - name: Download amalgamation
         uses: actions/download-artifact@v8
@@ -300,46 +331,64 @@ jobs:
           name: amalgamation
           path: archives
 
+      # -------------------------------------------------
+      # Unpack SQLite3MC amalgamation
+      # -------------------------------------------------
       - name: Unpack amalgamation
         run: |
           mkdir amalgamation
           unzip archives/amalgamation.zip -d amalgamation
 
+      # -------------------------------------------------
+      # Replace SQLite sources by own amalgamation
+      # -------------------------------------------------
       - name: Replace SQLite sources by own amalgamation
         run: |
           cp -fv amalgamation/sqlite3mc_amalgamation.c sqlite-src/sqlite3/src/main/jni/sqlite/sqlite3.c
           cp -fv amalgamation/sqlite3mc_amalgamation.h sqlite-src/sqlite3/src/main/jni/sqlite/sqlite3.h
 
-      - name: Patch Android.mk
+      # -------------------------------------------------
+      # Replace Android.mk
+      # -------------------------------------------------
+      - name: Replace Android.mk
         run: |
           cp -fv packaging/Android.mk sqlite-src/sqlite3/src/main/jni/sqlite/Android.mk
 
+      # -------------------------------------------------
+      # Make gradlew executable
+      # -------------------------------------------------
       - name: Make gradlew executable
         run: |
           chmod +x sqlite-src/gradlew
 
+      # -------------------------------------------------
+      # Build release AAR
+      # -------------------------------------------------
       - name: Build Release AAR
         working-directory: sqlite-src/sqlite3
         run: |
           ../gradlew assembleRelease
 
+      # -------------------------------------------------
+      # Collect AAR
+      # -------------------------------------------------
       - name: Collect AAR
         run: |
           mkdir -p staging
           find sqlite-src -name "*.aar" -exec cp {} staging/ \;
 
+      # -------------------------------------------------
+      # Upload AAR Artifact
+      # -------------------------------------------------
       - name: Upload AAR Artifact
         uses: actions/upload-artifact@v7
         with:
           name: sqlite-android-aar
           path: staging/*.aar
 
-
-
-#  build-linux:
-#    runs-on: ubuntu-24.04
-#    env:
-#      MODE: ${{ inputs.mode }}
+#########################################################
+# Job for packaging the release archives for Win32/Win64
+#########################################################
 
   package-windows:
     needs: build-windows
@@ -456,28 +505,6 @@ jobs:
 
           dlltool -d "$def" -l "$lib"
 
-#      - name: Generate MinGW import library
-#        shell: pwsh
-#        run: |
-#          $base = "sqlite3mc${{ matrix.dll_suffix }}"
-#          $dllbase = "sqlite3mc${{ matrix.dll_suffix }}"#
-#
-#          $dll  = "bin/vc17/dll/release/$base.dll"
-#          $lib  = "bin/vc17/dll/release/lib$base.dll.a"
-#
-#          if (!(Test-Path $dll)) {
-#            throw "DLL not found: $dll"
-#          }
-#
-#          $msys = "${{ steps.msys2.outputs.msys2-location }}"
-#          if ("${{ matrix.platform }}" -eq "Win32") {
-#            $dlltool = "$msys\mingw32\bin\dlltool.exe"
-#          } else {
-#            $dlltool = "$msys\mingw64\bin\dlltool.exe"
-#          }
-#
-#          & $dlltool -D $dll -l $lib
-
       # -------------------------------------------------
       # Collect all required files into staging
       # -------------------------------------------------
@@ -587,3 +614,144 @@ jobs:
           name: sqlite3mc-${{ matrix.id }}
           path: dist/*.zip
           retention-days: 1
+
+#########################################################
+# Job for building WASM
+#########################################################
+
+  build-wasm:
+    name: Build SQLite WASM
+    needs: amalgamate
+    runs-on: ubuntu-latest
+
+    outputs:
+      artifact-name: sqlite-wasm-binaries
+
+    steps:
+      # -------------------------------------------------
+      # Checkout repository
+      # -------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      # -------------------------------------------------
+      # Create environment variables
+      # -------------------------------------------------
+      - name: Build context
+        shell: pwsh
+        run: |
+          python scripts/build_context.py
+
+      # -------------------------------------------------
+      # Clone matching branch of SQLite repository
+      # -------------------------------------------------
+      - name: Checkout SQLite source
+        run: |
+          git clone \
+            --branch version-${SQLITE_VERSION} \
+            --depth 1 \
+            https://github.com/sqlite/sqlite.git
+
+          # Apply local patches before build
+          cd sqlite
+          git apply --check --verbose -p0 packaging/wasm/GNUmakefile.patch
+          git apply --verbose -p0 packaging/wasm/GNUmakefile.patch
+          git apply --check --verbose -p0 packaging/wasm/EXPORTED_FUNCTIONS.c-pp.patch
+          git apply --verbose -p0 packaging/wasm/EXPORTED_FUNCTIONS.c-pp.patch
+          git apply --check --verbose -p0 packaging/wasm/sqlite3-api-glue.c-pp.js.patch
+          git apply --verbose -p0 packaging/wasm/sqlite3-api-glue.c-pp.js.patch
+
+      # -------------------------------------------------
+      # Set up Emscripten
+      # -------------------------------------------------
+      - name: Setup Emscripten
+        uses: emscripten-core/setup-emsdk@v16
+        with:
+          version: latest
+
+      # -------------------------------------------------
+      # Install WABT tools
+      # -------------------------------------------------
+      - name: Install WABT tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wabt
+
+      # -------------------------------------------------
+      # Verify Emscripten toochain
+      # -------------------------------------------------
+      - name: Verify toolchain
+        run: |
+          emcc --version
+          wasm-strip --version
+          node --version
+
+      # -------------------------------------------------
+      # Verify Emscripten toochain
+      # -------------------------------------------------
+      - name: Configure SQLite
+        working-directory: sqlite
+        run: |
+          ./configure --enable-all
+
+      # -------------------------------------------------
+      # Generate SQLite amalgamation
+      # -------------------------------------------------
+      - name: Generate SQLite amalgamation
+        working-directory: sqlite
+        run: |
+          make sqlite3.c
+
+      # -------------------------------------------------
+      # Download SQLite3MC amalgamation
+      # -------------------------------------------------
+      - name: Download amalgamation
+        uses: actions/download-artifact@v8
+        with:
+          name: amalgamation
+          path: archives
+
+      # -------------------------------------------------
+      # Unpack SQLite3MC amalgamation
+      # -------------------------------------------------
+      - name: Unpack amalgamation
+        run: |
+          mkdir amalgamation
+          unzip archives/amalgamation.zip -d amalgamation
+
+      # -------------------------------------------------
+      # Copy SQLite3MC amalgamation to WASM directory
+      # -------------------------------------------------
+      - name: Replace SQLite sources by own amalgamation
+        run: |
+          cp -fv amalgamation/sqlite3mc_amalgamation.c sqlite/ext/wasm/sqlite3-see.c
+          cp -fv amalgamation/sqlite3mc_amalgamation.h sqlite/ext/wams/sqlite3.h
+
+      # -------------------------------------------------
+      # Build SQLite WASM
+      # -------------------------------------------------
+      - name: Build SQLite WASM
+        working-directory: sqlite/ext/wasm
+        run: |
+          make dist dist.build=oz
+
+      # -------------------------------------------------
+      # Package WASM binary ZIP
+      # -------------------------------------------------
+      - name: Package artifacts
+        working-directory: sqlite/ext/wasm
+        run: |
+          srcdir="sqlite-wasm-see-${SQLITE_VERSION_RAW}"
+          dstdir="sqlite3mc-wasm-${SQLITE_VERSION_RAW}"
+          zipname="sqlite3mc-${VERSION}-sqlite-${SQLITE_VERSION}-wasm.zip"
+          mv $srcdir $dstdir
+          zip -r $zipname $dstdir
+
+      # -------------------------------------------------
+      # Upload WASM binary ZIP
+      # -------------------------------------------------
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: sqlite3mc-wasm
+          path: sqlite/ext/wasm/release/*.zip

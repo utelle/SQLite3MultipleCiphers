@@ -1,0 +1,20 @@
+--- ext/wasm/api/EXPORTED_FUNCTIONS.c-pp	2026-05-05 12:34:17.000000000 +0200
++++ ext/wasm/api/EXPORTED_FUNCTIONS.c-pp	2026-05-06 09:32:45.257299852 +0200
+@@ -233,6 +233,17 @@
+ _sqlite3_rekey
+ _sqlite3_rekey_v2
+ _sqlite3_activate_see
++_sqlite3mc_cipher_count
++_sqlite3mc_cipher_index
++_sqlite3mc_cipher_name
++_sqlite3mc_cipher_name_copy
++_sqlite3mc_config
++_sqlite3mc_config_cipher
++_sqlite3mc_codec_data
++_sqlite3mc_version
++_sqlite3mc_vfs_create
++_sqlite3mc_vfs_destroy
++_sqlite3mc_vfs_shutdown
+ //#/if enable-see
+ //#if fiddle
+ _fiddle_db_arg
