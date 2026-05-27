@@ -287,7 +287,7 @@ jobs:
       # Set up Java environment
       # -------------------------------------------------
       - name: Set up Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -296,7 +296,7 @@ jobs:
       # Install Android SDK
       # -------------------------------------------------
       - name: Install Android SDK components
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
       # -------------------------------------------------
       # Install Android NDK
@@ -743,7 +743,7 @@ jobs:
         run: |
           srcdir="sqlite-wasm-see-${SQLITE_VERSION_RAW}"
           dstdir="sqlite3mc-wasm-${SQLITE_VERSION_RAW}"
-          zipname="sqlite3mc-${VERSION}-sqlite-${SQLITE_VERSION}-wasm.zip"
+          zipname="sqlite3mc-${SQLITE3MC_VERSION}-sqlite-${SQLITE_VERSION}-wasm.zip"
           mv $srcdir $dstdir
           zip -r $zipname $dstdir
 
@@ -755,3 +755,74 @@ jobs:
         with:
           name: sqlite3mc-wasm
           path: sqlite/ext/wasm/*.zip
+
+#########################################################
+# Job for building autoconf
+#########################################################
+
+  build-autoconf:
+    name: Build autoconf package
+    needs: amalgamate
+    runs-on: ubuntu-latest
+
+    outputs:
+      artifact-name: sqlite-wasm-binaries
+
+    steps:
+      # -------------------------------------------------
+      # Checkout repository
+      # -------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      # -------------------------------------------------
+      # Create environment variables
+      # -------------------------------------------------
+      - name: Build context
+        shell: pwsh
+        run: |
+          python scripts/build_context.py
+
+      # -------------------------------------------------
+      # Download SQLite3MC amalgamation
+      # -------------------------------------------------
+      - name: Download SQLite3MC amalgamation
+        uses: actions/download-artifact@v8
+        with:
+          name: amalgamation
+          path: archives
+
+      # -------------------------------------------------
+      # Unpack SQLite3MC amalgamation
+      # -------------------------------------------------
+      - name: Unpack SQLite3MC amalgamation
+        run: |
+          mkdir amalgamation
+          unzip archives/amalgamation.zip -d amalgamation
+
+      # -------------------------------------------------
+      # Copy SQLite3MC amalgamation to WASM directory
+      # -------------------------------------------------
+      - name: Replace SQLite sources by own amalgamation
+        run: |
+          cp -fv amalgamation/sqlite3mc_amalgamation.c autoconf/sqlite3.c
+          cp -fv amalgamation/sqlite3mc_amalgamation.h autoconf/sqlite3.h
+          cp -fv amalgamation/shell3mc_amalgamation.c autoconf/shell.c
+          cp -fv src/sqlite3ext.h autoconf/sqlite3ext.h
+
+      # -------------------------------------------------
+      # Package WASM binary ZIP
+      # -------------------------------------------------
+      - name: Package artifacts
+        run: |
+          targzname="archives/sqlite3mc-${SQLITE3MC_VERSION}-sqlite-${SQLITE_VERSION}-autoconf.tar.gz"
+          tar -czvf $targzname autoconf
+
+      # -------------------------------------------------
+      # Upload autoconf release archive
+      # -------------------------------------------------
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: sqlite3mc-autoconf
+          path: archives/sqlite3*.tar.gz
