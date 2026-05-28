@@ -860,9 +860,9 @@ jobs:
       # -------------------------------------------------
       # Checkout repository
       # -------------------------------------------------
-    - uses: actions/checkout@v6
-      with:
-        fetch-depth: 0
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       # -------------------------------------------------
       # Create environment variables
