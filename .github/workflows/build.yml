@@ -16,6 +16,7 @@ on:
 env:
   AMALGAMATION: amalgamation
   ARCHIVES:     archives
+  RELEASE:      release
   SQLITE_PATH:  sqlite3
   ICU_PATH:     icu_precompiled
 
@@ -233,7 +234,17 @@ jobs:
           sed -i 's/[[:space:]]*$//' "sqlite3mc_amalgamation.c"
           sed -i 's/[[:space:]]*$//' "sqlite3mc_amalgamation.h"
           sed -i 's/[[:space:]]*$//' "shell3mc_amalgamation.c"
+          cp ../src/sqlite3ext.h .
           ls -l
+
+      # -------------------------------------------------
+      # Generate README for amalgamation
+      # -------------------------------------------------
+      - name: Generate README
+        shell: bash
+        run: |
+          python scripts/render_readme.py packaging/readme-amalgamation.template.md "$AMALGAMATION/README.md"
+          cp 
 
       # -------------------------------------------------
       # Create ZIP archive(s) for the source amalgamation
@@ -259,7 +270,7 @@ jobs:
       - name: Upload amalgamation
         uses: actions/upload-artifact@v7
         with:
-          name: amalgamation
+          name: sqlite3mc-amalgamation
           path: |
             ${{ env.ARCHIVES }}/amalgamation.zip
 
@@ -328,7 +339,7 @@ jobs:
       - name: Download amalgamation
         uses: actions/download-artifact@v8
         with:
-          name: amalgamation
+          name: sqlite3mc-amalgamation
           path: archives
 
       # -------------------------------------------------
@@ -352,7 +363,7 @@ jobs:
       # -------------------------------------------------
       - name: Replace Android.mk
         run: |
-          cp -fv packaging/Android.mk sqlite-src/sqlite3/src/main/jni/sqlite/Android.mk
+          cp -fv packaging/android/Android.mk sqlite-src/sqlite3/src/main/jni/sqlite/Android.mk
 
       # -------------------------------------------------
       # Make gradlew executable
@@ -383,7 +394,7 @@ jobs:
       - name: Upload AAR Artifact
         uses: actions/upload-artifact@v7
         with:
-          name: sqlite-android-aar
+          name: sqlite3mc-android-aar
           path: staging/*.aar
 
 #########################################################
@@ -564,31 +575,33 @@ jobs:
       - name: Generate README
         shell: pwsh
         run: |
-          $date = Get-Date -Format "yyyy-MM-dd"
+          python scripts/render_readme.py packaging/readme.template.md package/README.md
 
-          $content = Get-Content packaging/readme.template.md -Raw
+          # $date = Get-Date -Format "yyyy-MM-dd"
 
-          $content = $content.Replace(
-            "{{BUILD_DATE}}",
-            $date
-          )
+          # $content = Get-Content packaging/readme.template.md -Raw
 
-          $content = $content.Replace(
-            "{{ICU_VERSION}}",
-            "${{ env.ICU_VERSION }}"
-          )
+          #$content = $content.Replace(
+          #  "{{BUILD_DATE}}",
+          #  $date
+          #)
+
+          #$content = $content.Replace(
+          #  "{{ICU_VERSION}}",
+          #  "${{ env.ICU_VERSION }}"
+          #)
           
-          $icuIncluded = if ("${{ matrix.icu }}" -eq "true") {
-            "${{ env.ICU_VERSION }}"
-          } else {
-            "not included"
-          }
-          $content = $content.Replace(
-            "{{ICU_SUPPORT}}",
-            $icuIncluded
-          )
+          #$icuIncluded = if ("${{ matrix.icu }}" -eq "true") {
+          #  "${{ env.ICU_VERSION }}"
+          #} else {
+          #  "not included"
+          #}
+          #$content = $content.Replace(
+          #  "{{ICU_SUPPORT}}",
+          #  $icuIncluded
+          #)
 
-          Set-Content package/README.md $content
+          #Set-Content package/README.md $content
 
       # -------------------------------------------------
       # Create ZIP archive with Windows binaries
@@ -708,7 +721,7 @@ jobs:
       - name: Download SQLite3MC amalgamation
         uses: actions/download-artifact@v8
         with:
-          name: amalgamation
+          name: sqlite3mc-amalgamation
           path: archives
 
       # -------------------------------------------------
@@ -789,7 +802,7 @@ jobs:
       - name: Download SQLite3MC amalgamation
         uses: actions/download-artifact@v8
         with:
-          name: amalgamation
+          name: sqlite3mc-amalgamation
           path: archives
 
       # -------------------------------------------------
@@ -825,4 +838,135 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: sqlite3mc-autoconf
-          path: archives/sqlite3*.tar.gz
+          path: archives/sqlite3mc*.tar.gz
+
+#########################################################
+# Job for making the release
+#########################################################
+
+  release:
+    needs:
+     - build-android
+     - build-autoconf
+     - build-wasm
+     - package-windows
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      MODE: ${{ github.event.inputs.mode }}
+
+    steps:
+      # -------------------------------------------------
+      # Checkout repository
+      # -------------------------------------------------
+    - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+
+      # -------------------------------------------------
+      # Create environment variables
+      # -------------------------------------------------
+      - name: Build context
+        shell: pwsh
+        run: |
+          python scripts/build_context.py
+
+      # -------------------------------------------------
+      # DOWNLOAD BUILD ARTIFACTS
+      # -------------------------------------------------
+      - name: Download artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: sqlite3mc-*
+          merge-multiple: true
+          path: release
+
+      # -------------------------------------------------
+      # Show list of release artifacts
+      # -------------------------------------------------
+      - name:Show list of release artifacts
+        run: |
+          ls -l release
+
+      # -------------------------------------------------
+      # MODE INFO
+      # -------------------------------------------------
+      - name: Release mode info
+        run: |
+          echo "=============================="
+          echo "MODE: $MODE"
+          echo "VERSION: $SQLITE3MC_VERSION"
+          echo "ARCHIVE: $ARCHIVE_NAME"
+          echo "=============================="
+
+          case "$MODE" in
+            sanity)
+              echo "🔎 SANITY CHECK MODE (no side effects)"
+              ;;
+            dry-run)
+              echo "🧪 DRY RUN MODE (signing tested, no release)"
+              ;;
+            release)
+              echo "🚀 REAL RELEASE MODE (will publish)"
+              ;;
+          esac
+
+      # -------------------------------------------------
+      # SANITY MODE (no git, no gpg)
+      # -------------------------------------------------
+      - name: Sanity check environment
+        if: ${{ inputs.mode == 'sanity' }}
+        run: |
+          echo "Checking toolchain only..."
+          git --version
+          gpg --version
+          echo "Sanity check complete."
+
+      # -------------------------------------------------
+      # GIT + GPG SETUP (only non-sanity)
+      # -------------------------------------------------
+      - name: Configure Git
+        if: ${{ inputs.mode != 'sanity' }}
+        run: |
+          git config user.name "${{ vars.GIT_USER_NAME }}"
+          git config user.email "${{ vars.GIT_USER_EMAIL }}"
+          git config user.signingkey "${{ vars.GPG_KEY_ID }}"
+          git config commit.gpgsign true
+
+      - name: Import GPG key
+        if: ${{ inputs.mode != 'sanity' }}
+        run: |
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
+
+      # -------------------------------------------------
+      # DRY RUN VALIDATION
+      # -------------------------------------------------
+      - name: Dry-run signing validation
+        if: ${{ inputs.mode == 'dry-run' }}
+        run: |
+          echo "Testing GPG setup..."
+          gpg --list-secret-keys --keyid-format=long
+
+          echo "Testing commit signing..."
+          git commit --allow-empty -S -m "dry-run signing test"
+
+          echo "Verifying signature..."
+          git log -1 --show-signature
+
+      # -------------------------------------------------
+      # RELEASE STEP
+      # -------------------------------------------------
+      - name: Create signed tag
+        if: ${{ inputs.mode == 'release' }}
+        run: |
+          git tag -s "${{ env.SQLITE3MC_VERSION }}" -m "Release ${{ env.SQLITE3MC_VERSION }}"
+          git push origin "${{ env.SQLITE3MC_VERSION }}"
+
+      - name: Create GitHub Release
+        if: ${{ inputs.mode == 'release' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.version }}
+          files: |
+            release/*

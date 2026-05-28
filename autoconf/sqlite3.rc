@@ -26,6 +26,14 @@
 #include "sqlite3.h"
 #include "sqlite3rc.h"
 
+#define SQLITE3MC_MAKE_VERSION_DOT_STRING(x, y, z, w) \
+  SQLITE3MC_STRINGIZE(x) "." SQLITE3MC_STRINGIZE(y) "." SQLITE3MC_STRINGIZE(z) "." SQLITE3MC_STRINGIZE(w)
+
+#define SQLITE3MC_FILE_VERSION_NUM_DOT_STRING \
+  SQLITE3MC_MAKE_VERSION_DOT_STRING(SQLITE3MC_VERSION_MAJOR, SQLITE3MC_VERSION_MINOR, SQLITE3MC_VERSION_RELEASE, SQLITE3MC_VERSION_SUBRELEASE)
+#define SQLITE3MC_PROD_VERSION_NUM_DOT_STRING \
+  SQLITE3MC_MAKE_VERSION_DOT_STRING(SQLITE3MC_VERSION_MAJOR, SQLITE3MC_VERSION_MINOR, SQLITE3MC_VERSION_RELEASE, SQLITE3MC_VERSION_SUBRELEASE)
+
 /*
  * English (U.S.) resources
  */
@@ -50,8 +58,8 @@ IDI_SQLITE ICON "..\\art\\sqlite370.ico"
  */
 
 VS_VERSION_INFO VERSIONINFO
-  FILEVERSION SQLITE_RESOURCE_VERSION
-  PRODUCTVERSION SQLITE_RESOURCE_VERSION
+  FILEVERSION SQLITE3MC_VERSION_MAJOR,SQLITE3MC_VERSION_MINOR,SQLITE3MC_VERSION_RELEASE,SQLITE3MC_VERSION_SUBRELEASE
+  PRODUCTVERSION SQLITE3MC_VERSION_MAJOR,SQLITE3MC_VERSION_MINOR,SQLITE3MC_VERSION_RELEASE,SQLITE3MC_VERSION_SUBRELEASE
   FILEFLAGSMASK VS_FFI_FILEFLAGSMASK
 #if defined(_DEBUG)
   FILEFLAGS VS_FF_DEBUG
@@ -66,13 +74,14 @@ BEGIN
   BEGIN
     BLOCK "040904b0"
     BEGIN
-      VALUE "CompanyName", "SQLite Development Team"
-      VALUE "FileDescription", "SQLite is a software library that implements a self-contained, serverless, zero-configuration, transactional SQL database engine."
-      VALUE "FileVersion", SQLITE_VERSION
-      VALUE "InternalName", "sqlite3"
-      VALUE "LegalCopyright", "http://sqlite.org/copyright.html"
-      VALUE "ProductName", "SQLite"
-      VALUE "ProductVersion", SQLITE_VERSION
+      VALUE "CompanyName", "SQLite3 Multiple Ciphers Development Team"
+      VALUE "FileDescription", "SQLite3 Multiple Ciphers Database Library"
+      VALUE "FileVersion", SQLITE3MC_FILE_VERSION_NUM_DOT_STRING
+      VALUE "InternalName", "sqlite3mc.dll"
+      VALUE "OriginalFilename", "sqlite3mc.dll"
+      VALUE "LegalCopyright", "Copyright (C) 2019-2026, Ulrich Telle"
+      VALUE "ProductName", "SQLite3 Multiple Ciphers"
+      VALUE "ProductVersion", SQLITE3MC_PROD_VERSION_NUM_DOT_STRING
       VALUE "SourceId", SQLITE_SOURCE_ID
     END
   END
