@@ -885,7 +885,7 @@ jobs:
       # -------------------------------------------------
       # Show list of release artifacts
       # -------------------------------------------------
-      - name:Show list of release artifacts
+      - name: Show list of release artifacts
         run: |
           ls -l release
 
@@ -934,6 +934,9 @@ jobs:
           git config user.signingkey "${{ vars.GPG_KEY_ID }}"
           git config commit.gpgsign true
 
+      # -------------------------------------------------
+      # Import GPG key
+      # -------------------------------------------------
       - name: Import GPG key
         if: ${{ inputs.mode != 'sanity' }}
         run: |
