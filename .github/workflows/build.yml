@@ -294,6 +294,14 @@ jobs:
         uses: actions/checkout@v6
 
       # -------------------------------------------------
+      # Create environment variables
+      # -------------------------------------------------
+      - name: Build context
+        shell: pwsh
+        run: |
+          python scripts/build_context.py
+
+      # -------------------------------------------------
       # Set up Java environment
       # -------------------------------------------------
       - name: Set up Java
@@ -750,7 +758,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: sqlite3mc-wasm
-          path: sqlite/ext/wasm/*.zip
+          path: sqlite/ext/wasm/sqlite3mc*.zip
 
 #########################################################
 # Job for building autoconf
@@ -866,10 +874,12 @@ jobs:
           path: release
 
       # -------------------------------------------------
-      # Show list of release artifacts
+      # Rename amalgamation archive
       # -------------------------------------------------
-      - name: Show list of release artifacts
+      - name: Rename amalgamation archive
         run: |
+          dstname="sqlite3mc-${SQLITE3MC_VERSION}-sqlite-${SQLITE_VERSION}-amalgamation.zip"
+          mv "release/amalgamation.zip" "release/$dstname
           ls -l release
 
       # -------------------------------------------------
