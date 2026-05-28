@@ -387,6 +387,10 @@ jobs:
           mkdir -p staging
           find sqlite-src -name "*.aar" -exec cp {} staging/ \;
 
+          aarsrc="staging/sqlite3-release.aar"
+          aardst="staging/sqlite3mc-${SQLITE3MC_VERSION}-sqlite-${SQLITE_VERSION}-android.aar"
+          mv $aarsrc $aardst
+
       # -------------------------------------------------
       # Upload AAR Artifact
       # -------------------------------------------------
@@ -574,33 +578,13 @@ jobs:
       - name: Generate README
         shell: pwsh
         run: |
+          $icuIncluded = if ("${{ matrix.icu }}" -eq "true") {
+            "${{ env.ICU_VERSION }}"
+          } else {
+            "not included"
+          }
+          $env:ICU_SUPPORT = $icuIncluded
           python scripts/render_readme.py packaging/readme.template.md package/README.md
-
-          # $date = Get-Date -Format "yyyy-MM-dd"
-
-          # $content = Get-Content packaging/readme.template.md -Raw
-
-          #$content = $content.Replace(
-          #  "{{BUILD_DATE}}",
-          #  $date
-          #)
-
-          #$content = $content.Replace(
-          #  "{{ICU_VERSION}}",
-          #  "${{ env.ICU_VERSION }}"
-          #)
-          
-          #$icuIncluded = if ("${{ matrix.icu }}" -eq "true") {
-          #  "${{ env.ICU_VERSION }}"
-          #} else {
-          #  "not included"
-          #}
-          #$content = $content.Replace(
-          #  "{{ICU_SUPPORT}}",
-          #  $icuIncluded
-          #)
-
-          #Set-Content package/README.md $content
 
       # -------------------------------------------------
       # Create ZIP archive with Windows binaries
