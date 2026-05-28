@@ -940,7 +940,7 @@ jobs:
           echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
 
       # -------------------------------------------------
-      # DRY RUN VALIDATION
+      # Dry Run Validation
       # -------------------------------------------------
       - name: Dry-run signing validation
         if: ${{ inputs.mode == 'dry-run' }}
@@ -955,7 +955,7 @@ jobs:
           git log -1 --show-signature
 
       # -------------------------------------------------
-      # RELEASE STEP
+      # Create signed tag for release
       # -------------------------------------------------
       - name: Create signed tag
         if: ${{ inputs.mode == 'release' }}
@@ -963,6 +963,9 @@ jobs:
           git tag -s "${{ env.SQLITE3MC_VERSION }}" -m "Release ${{ env.SQLITE3MC_VERSION }}"
           git push origin "${{ env.SQLITE3MC_VERSION }}"
 
+      # -------------------------------------------------
+      # Create GitHub Release
+      # -------------------------------------------------
       - name: Create GitHub Release
         if: ${{ inputs.mode == 'release' }}
         uses: softprops/action-gh-release@v2
