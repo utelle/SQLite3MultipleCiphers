@@ -823,7 +823,7 @@ jobs:
           cp -fv src/sqlite3ext.h autoconf/sqlite3ext.h
 
       # -------------------------------------------------
-      # Package WASM binary ZIP
+      # Package autoconf ZIP
       # -------------------------------------------------
       - name: Package artifacts
         run: |
