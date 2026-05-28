@@ -5,12 +5,12 @@ from datetime import date
 
 
 def render_template(content: str) -> str:
-    # automatische Standardwerte
+    # automatic default values
     env = dict(os.environ)
 
     env.setdefault("BUILD_DATE", date.today().isoformat())
 
-    # einfache {VAR} Ersetzung
+    # simple {VAR} replacement
     return content.format(**env)
 
 

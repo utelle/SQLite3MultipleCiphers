@@ -1,7 +1,7 @@
 # Release notes
 
-Release date: {{BUILD_DATE}}
-ICU support:  ICU {{ICU_SUPPORT}}
+Release date: {BUILD_DATE}
+ICU support:  ICU {ICU_SUPPORT}
 
 The SQLite3 shell applications are compatible with the official
 SQLite3 shell in respect to the compile time options
@@ -12,11 +12,11 @@ Separate archives are provided _with_ resp. _without_ enabled ICU support
 for 32-bit and 64-bit Windows.
 
 ICU support for SQLite3 is currently based on the pre-built ICU
-Libraries {{ICU_VERSION}}, which were compiled with Visual Studio 2022.
+Libraries {ICU_VERSION}, which were compiled with Visual Studio 2022.
 The required ICU DLLs are included in the archives in folder `bin`.
 They were downloaded from
 
-https://github.com/unicode-org/icu/releases/tag/release-{{ICU_VERSION}}
+https://github.com/unicode-org/icu/releases/tag/release-{ICU_VERSION}
 
 In addition, the Visual C++ 2022 runtime is required to be installed,
 because the ICU DLLs depend on it.
