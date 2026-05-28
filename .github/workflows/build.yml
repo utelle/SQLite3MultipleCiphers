@@ -879,7 +879,7 @@ jobs:
       - name: Rename amalgamation archive
         run: |
           dstname="sqlite3mc-${SQLITE3MC_VERSION}-sqlite-${SQLITE_VERSION}-amalgamation.zip"
-          mv "release/amalgamation.zip" "release/$dstname
+          mv "release/amalgamation.zip" "release/$dstname"
           ls -l release
 
       # -------------------------------------------------
