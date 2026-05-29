@@ -12,8 +12,9 @@
         "url": "https://github.com/sqlite/sqlite/archive/refs/tags/"
       },
       "android": {
+        "check-in": "fc6c086470",
         "type": "http_prefix",
-        "url": "https://www.sqlite.org/android/zip/fc6c086470/"
+        "url": "https://www.sqlite.org/android/zip/{SQLITE_ANDROID_CHECK_IN}/"
       }
     }
   },
