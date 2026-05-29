@@ -1014,7 +1014,7 @@ jobs:
       # SANITY MODE (no git, no gpg)
       # -------------------------------------------------
       - name: Sanity check environment
-        if: ${{ env.MODE == 'sanity' }}
+        if: ${{ github.event.inputs.mode == 'sanity' }}
         run: |
           set -euo pipefail
           echo "Checking toolchain only..."
@@ -1026,7 +1026,7 @@ jobs:
       # GIT + GPG SETUP (only non-sanity)
       # -------------------------------------------------
       - name: Configure Git
-        if: ${{ env.MODE != 'sanity' }}
+        if: ${{ github.event.inputs.mode != 'sanity' }}
         run: |
           set -euo pipefail
           git config user.name "${{ vars.GIT_USER_NAME }}"
@@ -1038,7 +1038,7 @@ jobs:
       # Import GPG key
       # -------------------------------------------------
       - name: Import GPG key
-        if: ${{ env.MODE != 'sanity' }}
+        if: ${{ github.event.inputs.mode != 'sanity' }}
         run: |
           set -euo pipefail
           echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
@@ -1047,7 +1047,7 @@ jobs:
       # Dry Run Validation
       # -------------------------------------------------
       - name: Dry-run signing validation
-        if: ${{ env.MODE == 'dry-run' }}
+        if: ${{ github.event.inputs.mode == 'dry-run' }}
         run: |
           set -euo pipefail
           echo "Testing GPG setup..."
@@ -1063,7 +1063,7 @@ jobs:
       # Create signed tag for release
       # -------------------------------------------------
       - name: Create signed tag
-        if: ${{ env.MODE == 'release' }}
+        if: ${{ github.event.inputs.mode == 'release' }}
         run: |
           set -euo pipefail
           # Set tag
@@ -1081,7 +1081,7 @@ jobs:
       # Generate SLSA-aligned build provenance for all release artifacts
       # -------------------------------------------------
       - name: Generate build provenance
-        if: ${{ env.MODE == 'release' }}
+        if: ${{ github.event.inputs.mode == 'release' }}
         uses: actions/attest-build-provenance@v4
         with:
           subject-path: 'release/sqlite3mc-*'
@@ -1090,7 +1090,7 @@ jobs:
       # Create GitHub Release
       # -------------------------------------------------
       - name: Create GitHub Release
-        if: ${{ env.MODE == 'release' }}
+        if: ${{ github.event.inputs.mode == 'release' }}
         uses: softprops/action-gh-release@v3
         with:
           tag_name: "v${{ env.SQLITE3MC_VERSION }}"
