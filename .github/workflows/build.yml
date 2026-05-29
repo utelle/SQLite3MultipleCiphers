@@ -676,15 +676,6 @@ jobs:
             --depth 1 \
             https://github.com/sqlite/sqlite.git
 
-          # Apply local patches before build
-          cd sqlite
-          git apply --check --verbose -p0 ../packaging/wasm/GNUmakefile.patch
-          git apply         --verbose -p0 ../packaging/wasm/GNUmakefile.patch
-          git apply --check --verbose -p0 ../packaging/wasm/EXPORTED_FUNCTIONS.c-pp.patch
-          git apply         --verbose -p0 ../packaging/wasm/EXPORTED_FUNCTIONS.c-pp.patch
-          git apply --check --verbose -p0 ../packaging/wasm/sqlite3-api-glue.c-pp.js.patch
-          git apply         --verbose -p0 ../packaging/wasm/sqlite3-api-glue.c-pp.js.patch
-
       # -------------------------------------------------
       # Set up Emscripten
       # -------------------------------------------------
@@ -755,6 +746,17 @@ jobs:
           fi
 
           exit 0
+
+      - name: Apply local changes
+        run: |
+          # Apply local patches before build
+          cd sqlite
+          git apply --check --verbose -p0 ../packaging/wasm/GNUmakefile.patch
+          git apply         --verbose -p0 ../packaging/wasm/GNUmakefile.patch
+          git apply --check --verbose -p0 ../packaging/wasm/EXPORTED_FUNCTIONS.c-pp.patch
+          git apply         --verbose -p0 ../packaging/wasm/EXPORTED_FUNCTIONS.c-pp.patch
+          git apply --check --verbose -p0 ../packaging/wasm/sqlite3-api-glue.c-pp.js.patch
+          git apply         --verbose -p0 ../packaging/wasm/sqlite3-api-glue.c-pp.js.patch
 
       # -------------------------------------------------
       # Download SQLite3MC amalgamation
