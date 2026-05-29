@@ -929,7 +929,7 @@ jobs:
 #########################################################
 
   release:
-    if: ${{ github.ref == 'refs/heads/main' && env.MODE == 'release' }}
+    if: ${{ startsWith(github.ref, 'refs/heads/main') && github.event.inputs.mode == 'release' }}
     needs:
      - build-android
      - build-autoconf
