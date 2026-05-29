@@ -3,6 +3,13 @@
 Release date: {BUILD_DATE}
 ICU support:  ICU {ICU_SUPPORT}
 
+Version information:
+  - SQLite3MC {SQLITE3MC_VERSION}
+  - SQLite {SQLITE_VERSION}
+
+# Windows binaries for SQLite3 Multiple Ciphers
+
+
 The SQLite3 shell applications are compatible with the official
 SQLite3 shell in respect to the compile time options
 `SQLITE_ENABLE_DBSTAT_VTAB`, `SQLITE_ENABLE_STMTVTAB`, and

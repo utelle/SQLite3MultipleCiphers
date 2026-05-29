@@ -24,6 +24,7 @@ def main():
     # URLs aus config (kein Hardcoding!)
     sqlite_official = config["sqlite"]["sources"]["official"]["url"]
     sqlite_github = config["sqlite"]["sources"]["github"]["url"]
+    sqlite_android = config["sqlite"]["sources"]["android"]["url"]
 
     icu_version = config["icu"]["version"]
     icu_official = config["icu"]["sources"]["official"]["url"]
@@ -34,6 +35,7 @@ def main():
         "SQLITE_VERSION_RAW": sqlite_raw(sqlite_version),
         "SQLITE_URL_OFFICIAL": sqlite_official,
         "SQLITE_URL_GITHUB": sqlite_github,
+        "SQLITE_URL_ANDROID": sqlite_android,
         "ICU_VERSION": icu_version,
         "ICU_URL_WIN32": icu_official.format(
             ICU_VERSION=icu_version,

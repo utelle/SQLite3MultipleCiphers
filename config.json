@@ -4,12 +4,16 @@
     "version": "3.53.1",
     "sources": {
       "official": {
-        "type": "http_template",
+        "type": "http_prefix",
         "url": "https://sqlite.org/2026/"
       },
       "github": {
-        "type": "http_template",
+        "type": "http_prefix",
         "url": "https://github.com/sqlite/sqlite/archive/refs/tags/"
+      },
+      "android": {
+        "type": "http_prefix",
+        "url": "https://www.sqlite.org/android/zip/fc6c086470/"
       }
     }
   },
