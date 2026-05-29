@@ -927,9 +927,9 @@ jobs:
 #########################################################
 # Job for making the release
 #########################################################
+#    if: ${{ github.ref == 'refs/heads/main' && github.event.inputs.mode == 'release' }}
 
   release:
-    if: ${{ github.ref == 'refs/heads/main' && github.event.inputs.mode == 'release' }}
     needs:
      - build-android
      - build-autoconf
