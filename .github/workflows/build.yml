@@ -726,11 +726,14 @@ jobs:
         run: |
           make sqlite3.c
 
-      - name: Verify SQLite amalgamation consistency
-        run: |
-          diff -q \
-            src/sqlite3.c \
+      - name: Upload SQLite amalgamation for comparison
+        uses: actions/upload-artifact@v7
+        with:
+          name: sqlite-compare
+          path: |
+            src/sqlite3.c
             sqlite/sqlite3.c
+          retention-days: 1
 
       - name: Verify SQLite amalgamation consistency
         shell: bash
