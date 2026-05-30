@@ -254,7 +254,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python scripts/render_readme.py packaging/readme-amalgamation.template.md "$AMALGAMATION/README.md"
+          python scripts/render_template.py packaging/readme-amalgamation.md.in "$AMALGAMATION/README.md"
 
       # -------------------------------------------------
       # Create ZIP archive(s) for the source amalgamation
@@ -625,7 +625,7 @@ jobs:
             "not included"
           }
           $env:ICU_SUPPORT = $icuIncluded
-          python scripts/render_readme.py packaging/readme.template.md package/README.md
+          python scripts/render_template.py packaging/readme.md.in package/README.md
 
       # -------------------------------------------------
       # Create ZIP archive with Windows binaries
@@ -988,6 +988,16 @@ jobs:
           ls -l release
 
       # -------------------------------------------------
+      # Generate release notes
+      # -------------------------------------------------
+      - name: Generate release notes
+        run: |
+          set -euo pipefail
+          python scripts/render_template.py \
+            packaging/release-notes.md.in \
+            release/release-notes.md
+
+      # -------------------------------------------------
       # MODE INFO
       # -------------------------------------------------
       - name: Release mode info
@@ -1094,5 +1104,6 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           tag_name: "v${{ env.SQLITE3MC_VERSION }}"
+          body_path: release/release-notes.md
           files: |
             release/sqlite3mc-*
