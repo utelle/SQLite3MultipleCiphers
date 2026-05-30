@@ -17,9 +17,6 @@ on:
           - dry-run
           - release
 
-permissions:
-  contents: read
-
 env:
   AMALGAMATION: amalgamation
   ARCHIVES:     archives
@@ -35,9 +32,14 @@ jobs:
 
   build-windows:
     runs-on: windows-2022
-    timeout-minutes: 90
     env:
       MODE: ${{ github.event.inputs.mode }}
+#    strategy:
+#      fail-fast: false
+#      matrix:
+#        platform:
+#          - win32
+#          - win64
 
     steps:
 
@@ -150,7 +152,7 @@ jobs:
             /p:Platform=x64
 
       # -------------------------------------------------
-      # Upload Win32 and Win64 binaries
+      # Upload Win32 and Winb4 binariesBuild Win32 binaries
       # -------------------------------------------------
       - name: Upload build output
         uses: actions/upload-artifact@v7
@@ -168,7 +170,6 @@ jobs:
 
   amalgamate:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
     env:
       MODE: ${{ github.event.inputs.mode }}
 
@@ -292,7 +293,6 @@ jobs:
   build-android:
     needs: amalgamate
     runs-on: ubuntu-latest
-    timeout-minutes: 60
 
     env:
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
@@ -448,7 +448,6 @@ jobs:
   package-windows:
     needs: build-windows
     runs-on: windows-2022
-    timeout-minutes: 60
     env:
       MODE: ${{ github.event.inputs.mode }}
     strategy:
@@ -660,7 +659,6 @@ jobs:
     name: Build SQLite WASM
     needs: amalgamate
     runs-on: ubuntu-latest
-    timeout-minutes: 90
 
     outputs:
       artifact-name: sqlite-wasm-binaries
@@ -856,7 +854,6 @@ jobs:
     name: Build autoconf package
     needs: amalgamate
     runs-on: ubuntu-latest
-    timeout-minutes: 30
 
     outputs:
       artifact-name: sqlite3mc-autoconf-binaries
@@ -927,7 +924,6 @@ jobs:
 #########################################################
 # Job for making the release
 #########################################################
-#    if: ${{ github.ref == 'refs/heads/main' && github.event.inputs.mode == 'release' }}
 
   release:
     needs:
@@ -936,14 +932,8 @@ jobs:
      - build-wasm
      - package-windows
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    concurrency:
-      group: sqlite3mc-release
-      cancel-in-progress: false
     permissions:
       contents: write
-      id-token: write       # OIDC token for keyless Sigstore signing
-      attestations: write   # write build provenance attestation
     env:
       MODE: ${{ github.event.inputs.mode }}
 
@@ -1014,7 +1004,7 @@ jobs:
       # SANITY MODE (no git, no gpg)
       # -------------------------------------------------
       - name: Sanity check environment
-        if: ${{ github.event.inputs.mode == 'sanity' }}
+        if: ${{ env.MODE == 'sanity' }}
         run: |
           set -euo pipefail
           echo "Checking toolchain only..."
@@ -1026,7 +1016,7 @@ jobs:
       # GIT + GPG SETUP (only non-sanity)
       # -------------------------------------------------
       - name: Configure Git
-        if: ${{ github.event.inputs.mode != 'sanity' }}
+        if: ${{ env.MODE != 'sanity' }}
         run: |
           set -euo pipefail
           git config user.name "${{ vars.GIT_USER_NAME }}"
@@ -1038,7 +1028,7 @@ jobs:
       # Import GPG key
       # -------------------------------------------------
       - name: Import GPG key
-        if: ${{ github.event.inputs.mode != 'sanity' }}
+        if: ${{ env.MODE != 'sanity' }}
         run: |
           set -euo pipefail
           echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
@@ -1047,7 +1037,7 @@ jobs:
       # Dry Run Validation
       # -------------------------------------------------
       - name: Dry-run signing validation
-        if: ${{ github.event.inputs.mode == 'dry-run' }}
+        if: ${{ env.MODE == 'dry-run' }}
         run: |
           set -euo pipefail
           echo "Testing GPG setup..."
@@ -1063,35 +1053,19 @@ jobs:
       # Create signed tag for release
       # -------------------------------------------------
       - name: Create signed tag
-        if: ${{ github.event.inputs.mode == 'release' }}
+        if: ${{ env.MODE == 'release' }}
         run: |
           set -euo pipefail
-          # Set tag
-          TAG="v${SQLITE3MC_VERSION}"
-
-          # Check that tag doesn't exist already
-          git rev-parse "$TAG" >/dev/null 2>&1 \
-            && { echo "::error::Tag $TAG already exists"; exit 1; }
-
-          # Create annotated and signed tag
-          git tag -s "$TAG" -m "Release SQLite3MC $TAG"
-          git push origin "$TAG"
-
-      # -------------------------------------------------
-      # Generate SLSA-aligned build provenance for all release artifacts
-      # -------------------------------------------------
-      - name: Generate build provenance
-        if: ${{ github.event.inputs.mode == 'release' }}
-        uses: actions/attest-build-provenance@v4
-        with:
-          subject-path: 'release/sqlite3mc-*'
+          git tag -l "v${SQLITE3MC_VERSION}" && exit 1 || true
+          git tag -s "v${{ env.SQLITE3MC_VERSION }}" -m "Release SQLite3MC ${{ env.SQLITE3MC_VERSION }}"
+          git push origin "v${{ env.SQLITE3MC_VERSION }}"
 
       # -------------------------------------------------
       # Create GitHub Release
       # -------------------------------------------------
       - name: Create GitHub Release
-        if: ${{ github.event.inputs.mode == 'release' }}
-        uses: softprops/action-gh-release@v3
+        if: ${{ env.MODE == 'release' }}
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: "v${{ env.SQLITE3MC_VERSION }}"
           files: |
