@@ -34,6 +34,7 @@ jobs:
 #########################################################
 
   build-windows:
+    name: Build Windows binaries
     runs-on: windows-2022
     timeout-minutes: 90
     env:
@@ -167,6 +168,7 @@ jobs:
 #########################################################
 
   amalgamate:
+    name: Generate source amalgamation
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -290,6 +292,7 @@ jobs:
 #########################################################
 
   build-android:
+    name: Build Android binaries
     needs: amalgamate
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -446,6 +449,7 @@ jobs:
 #########################################################
 
   package-windows:
+    name: Assemble Windows release packages
     needs: build-windows
     runs-on: windows-2022
     timeout-minutes: 60
@@ -657,7 +661,7 @@ jobs:
 #########################################################
 
   build-wasm:
-    name: Build SQLite WASM
+    name: Build SQLite3MC WASM
     needs: amalgamate
     runs-on: ubuntu-latest
     timeout-minutes: 90
@@ -929,7 +933,8 @@ jobs:
 #########################################################
 
   release:
-    if: ${{ github.ref == 'refs/heads/main' && github.event.inputs.mode == 'release' }}
+    name: Assemble release
+    if: ${{ github.event.inputs.mode != 'release' || github.ref == 'refs/heads/main' }}
     needs:
      - build-android
      - build-autoconf
