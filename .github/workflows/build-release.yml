@@ -970,7 +970,7 @@ jobs:
           python scripts/build_context.py
 
       # -------------------------------------------------
-      # DOWNLOAD BUILD ARTIFACTS
+      # Download build artifacts
       # -------------------------------------------------
       - name: Download artifacts
         uses: actions/download-artifact@v8
@@ -1003,7 +1003,7 @@ jobs:
             release/release-notes.md
 
       # -------------------------------------------------
-      # MODE INFO
+      # Mode information
       # -------------------------------------------------
       - name: Release mode info
         run: |
@@ -1026,7 +1026,7 @@ jobs:
           esac
 
       # -------------------------------------------------
-      # SANITY MODE (no git, no gpg)
+      # Sanity mode (no git, no gpg)
       # -------------------------------------------------
       - name: Sanity check environment
         if: ${{ env.MODE == 'sanity' }}
@@ -1038,7 +1038,7 @@ jobs:
           echo "Sanity check complete."
 
       # -------------------------------------------------
-      # GIT + GPG SETUP (only non-sanity)
+      # GIT + GPG setup (only non-sanity)
       # -------------------------------------------------
       - name: Configure Git
         if: ${{ env.MODE != 'sanity' }}
