@@ -34,7 +34,7 @@ def main():
     sqlite_official = config["sqlite"]["sources"]["official"]["url"]
     sqlite_github = config["sqlite"]["sources"]["github"]["url"]
     sqlite_android = config["sqlite"]["sources"]["android"]["url"]
-    sqlite_android_check_in = config["sqlite"]["sources"]["android"]["check-in"]
+    sqlite_android_check_in = config["sqlite"]["android"]["check-in"]
 
     icu_version = config["icu"]["version"]
     icu_official = config["icu"]["sources"]["official"]["url"]

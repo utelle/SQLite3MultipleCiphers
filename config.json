@@ -2,18 +2,17 @@
   "version": "2.3.4",
   "sqlite": {
     "version": "3.53.1",
+    "android": {
+        "check-in": "fc6c086470"
+    },
     "sources": {
       "official": {
-        "type": "http_prefix",
         "url": "https://sqlite.org/2026/"
       },
       "github": {
-        "type": "http_prefix",
         "url": "https://github.com/sqlite/sqlite/archive/refs/tags/"
       },
       "android": {
-        "check-in": "fc6c086470",
-        "type": "http_prefix",
         "url": "https://www.sqlite.org/android/zip/{SQLITE_ANDROID_CHECK_IN}/"
       }
     }
@@ -22,7 +21,6 @@
     "version": "78.3",
     "sources": {
       "official": {
-        "type": "http_template",
         "url": "https://github.com/unicode-org/icu/releases/download/release-{ICU_VERSION}/icu4c-{ICU_VERSION}-{PLATFORM}-MSVC2022.zip"
       }
     }
