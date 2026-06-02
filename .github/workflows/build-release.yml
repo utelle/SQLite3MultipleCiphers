@@ -532,16 +532,28 @@ jobs:
           New-Item -ItemType Directory -Force package/include
 
       # -------------------------------------------------
-      # Set up MSYS2
+      # Set up MSYS2 for Win32
       # -------------------------------------------------
       - name: Setup MSYS2
+        if: matrix.platform == Win32
+        uses: msys2/setup-msys2@e9898307ac31d1a803454791be09ab9973336e1c # v2
+        with:
+          msystem: ${{matrix.sys}}
+          update: true
+          install: >
+            mingw-w64-i686-toolchain
+
+      # -------------------------------------------------
+      # Set up MSYS2 for Win64
+      # -------------------------------------------------
+      - name: Setup MSYS2
+        if: matrix.platform == Win64
         uses: msys2/setup-msys2@e9898307ac31d1a803454791be09ab9973336e1c # v2
         with:
           msystem: ${{matrix.sys}}
           update: true
           install: >
             mingw-w64-x86_64-toolchain
-            mingw-w64-i686-toolchain
 
       # -------------------------------------------------
       # Generate MinGW import library
