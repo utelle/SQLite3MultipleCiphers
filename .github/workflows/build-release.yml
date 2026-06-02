@@ -20,6 +20,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: build-release-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   AMALGAMATION: amalgamation
   ARCHIVES:     archives
@@ -120,7 +124,7 @@ jobs:
       # Setup MSBuild environment
       # -------------------------------------------------
       - name: Setup MSBuild environment
-        uses: microsoft/setup-msbuild@v3
+        uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57 # v3
 
       # -------------------------------------------------
       # Build Win32 binaries
@@ -339,7 +343,7 @@ jobs:
       # Install Android SDK
       # -------------------------------------------------
       - name: Install Android SDK components
-        uses: android-actions/setup-android@v4
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4
 
       # -------------------------------------------------
       # Install Android NDK
@@ -531,7 +535,7 @@ jobs:
       # Set up MSYS2
       # -------------------------------------------------
       - name: Setup MSYS2
-        uses: msys2/setup-msys2@v2
+        uses: msys2/setup-msys2@e9898307ac31d1a803454791be09ab9973336e1c # v2
         with:
           msystem: ${{matrix.sys}}
           update: true
@@ -700,7 +704,7 @@ jobs:
       # Set up Emscripten
       # -------------------------------------------------
       - name: Setup Emscripten
-        uses: emscripten-core/setup-emsdk@v16
+        uses: emscripten-core/setup-emsdk@4528d102f7230f0e7b276855c01ea1159be0e984 # v16
         with:
           version: latest
 
@@ -1085,11 +1089,13 @@ jobs:
           TAG="v${SQLITE3MC_VERSION}"
 
           # Check that tag doesn't exist already
-          git rev-parse "$TAG" >/dev/null 2>&1 \
-            && { echo "::error::Tag $TAG already exists"; exit 1; }
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "::error::Tag $TAG already exists"
+            exit 1
+          fi
 
           # Create annotated and signed tag
-          git tag -s "$TAG" -m "Release SQLite3MC $TAG"
+          git tag -s "$TAG" -m "Release SQLite3MC ${SQLITE3MC_VERSION}"
           git push origin "$TAG"
 
       # -------------------------------------------------
@@ -1106,7 +1112,7 @@ jobs:
       # -------------------------------------------------
       - name: Create GitHub Release
         if: ${{ env.MODE == 'release' }}
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
         with:
           tag_name: "v${{ env.SQLITE3MC_VERSION }}"
           body_path: release/release-notes.md

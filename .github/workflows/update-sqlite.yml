@@ -23,7 +23,11 @@ on:
           - update
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: update-sqlite-${{ github.ref }}
+  cancel-in-progress: false
 
 env:
   CONFIG_FILE:  config.json
@@ -35,6 +39,9 @@ jobs:
   generate:
     name: Update version information and SQLite sources
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write   # commits & pushes updated SQLite sources
     env:
       MODE: ${{ github.event.inputs.mode }}
 
@@ -139,7 +146,7 @@ jobs:
           echo "Downloading from: $SQLITE_URL_OFFICIAL"
           URL="${SQLITE_URL_OFFICIAL}sqlite-amalgamation-${SQLITE_VERSION_RAW}.zip"
           echo "File: $URL"
-          curl -L "$URL" -o sqlite.zip
+          curl -fL --retry 3 --retry-delay 5 "$URL" -o sqlite.zip
 
           echo "Extracting..."
           unzip -q sqlite.zip -d "$SQLITE_PATH"
