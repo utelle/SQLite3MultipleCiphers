@@ -3,21 +3,31 @@ name: Update SQLite (Manual)
 on:
   workflow_dispatch:
     inputs:
+      sqlite3mc_version:
+        description: "SQLite3MC version (e.g. 2.3.4)"
+        required: true
       sqlite_version:
         description: "SQLite version (e.g. 3.53.1)"
         required: true
+      android_check_in:
+        description: "SQLite Android Check-In (e.g. fc6c086470)"
+        required: true
       mode:
-        description: "Release mode"
+        description: "Update mode"
         required: true
         type: choice
         default: dry-run
         options:
           - sanity
           - dry-run
-          - release
+          - update
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: update-sqlite-${{ github.ref }}
+  cancel-in-progress: false
 
 env:
   CONFIG_FILE:  config.json
@@ -27,7 +37,11 @@ env:
 jobs:
 
   generate:
+    name: Update version information and SQLite sources
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write   # commits & pushes updated SQLite sources
     env:
       MODE: ${{ github.event.inputs.mode }}
 
@@ -57,7 +71,15 @@ jobs:
         run: |
           set -euo pipefail
 
-          python scripts/update_config.py "${{ inputs.sqlite_version }}"
+          python scripts/update_config.py "${{ inputs.sqlite3mc_version }}" "${{ inputs.sqlite_version }}" "${{ inputs.android_check_in }}"
+
+      # -------------------------------------------------
+      # Validate config
+      # -------------------------------------------------
+      - name: Validate config
+        run: |
+          set -euo pipefail
+          python scripts/validate_config.py config.json
 
       # -------------------------------------------------
       # Create environment variables
@@ -76,10 +98,31 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          echo "SQLite3MC Version:   $SQLITE3MC_VERSION"
           echo "SQLite Version:      $SQLITE_VERSION"
           echo "SQLite Version Raw:  $SQLITE_VERSION_RAW"
           echo "SQLite URL Official: $SQLITE_URL_OFFICIAL"
           echo "SQLite URL GitHub:   $SQLITE_URL_GITHUB"
+
+      # -------------------------------------------------
+      # Generate version-dependent files
+      # -------------------------------------------------
+      - name: Generate version-dependent files
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/render_template.py packaging/sqlite3mc_version.h.in "src/sqlite3mc_version.h"
+
+      # -------------------------------------------------
+      # Upload version-dependent files (for debugging)
+      # -------------------------------------------------
+      - name: Upload version-dependent files
+        uses: actions/upload-artifact@v7
+        with:
+          name: version-deps
+          path: |
+            config.json
+            src/sqlite3mc_version.h
 
       # -------------------------------------------------
       # Create directories for intermediate files
@@ -103,7 +146,7 @@ jobs:
           echo "Downloading from: $SQLITE_URL_OFFICIAL"
           URL="${SQLITE_URL_OFFICIAL}sqlite-amalgamation-${SQLITE_VERSION_RAW}.zip"
           echo "File: $URL"
-          curl -L "$URL" -o sqlite.zip
+          curl -fL --retry 3 --retry-delay 5 "$URL" -o sqlite.zip
 
           echo "Extracting..."
           unzip -q sqlite.zip -d "$SQLITE_PATH"
@@ -338,6 +381,7 @@ jobs:
           git add src/sqlite3.c
           git add src/sqlite3.h
           git add src/sqlite3ext.h
+          git add src/sqlite3mc_version.h
 
           git add src/sqlite3patched.c
           git add src/shell.c

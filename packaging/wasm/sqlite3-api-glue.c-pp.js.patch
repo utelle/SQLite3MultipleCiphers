@@ -1,0 +1,22 @@
+--- ext/wasm/api/sqlite3-api-glue.c-pp.js	2026-05-05 12:34:17.000000000 +0200
++++ ext/wasm/api/sqlite3-api-glue.c-pp.js	2026-05-06 09:33:45.701854080 +0200
+@@ -499,7 +499,18 @@
+       ["sqlite3_key_v2","int","sqlite3*","string","*","int"],
+       ["sqlite3_rekey", "int", "sqlite3*", "string", "int"],
+       ["sqlite3_rekey_v2", "int", "sqlite3*", "string", "*", "int"],
+-      ["sqlite3_activate_see", undefined, "string"]
++      ["sqlite3_activate_see", undefined, "string"],
++      ["sqlite3mc_cipher_count", "int"],
++      ["sqlite3mc_cipher_index", "int", "string"],
++      ["sqlite3mc_cipher_name", "string", "int"],
++      ["sqlite3mc_cipher_name_copy", "int", "int", "string", "int"],
++      ["sqlite3mc_config", "int", "sqlite3*", "string", "int"],
++      ["sqlite3mc_config_cipher", "int", "sqlite3*", "string", "string", "int"],
++      ["sqlite3mc_codec_data", "string", "sqlite3*", "string", "string"],
++      ["sqlite3mc_version", "string"],
++      ["sqlite3mc_vfs_create", "int", "string", "int"],
++      ["sqlite3mc_vfs_destroy", undefined, "string"],
++      ["sqlite3mc_vfs_shutdown", undefined]
+     );
+   }
+ //#/if enable-see

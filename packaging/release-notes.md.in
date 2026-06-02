@@ -1,0 +1,18 @@
+**Changes since previous release**
+- Based on SQLite version {SQLITE_VERSION}
+- Fixed issue #232 - Zero out one-time-keys (for cipher schemes `chacha20`, `aegis`, and `ascon128`) after encrypt/decrypt operation
+- Resolved issue #233 - Add support for specifying plaintext header size in non-legacy mode of the _SQLCipher_ cipher scheme. This option was supported only for legacy mode version 4 (legacy=4), but there is no reason to not support it for non-legacy mode.
+
+> [!IMPORTANT]
+> :pushpin: The _amalgamation source package_ including `configure` is _still_ **experimental**. :pushpin:
+> Currently, only POSIX compliant systems are supported. Support files for building on Windows are included, but will only be adapted if the need arises.
+Please report any issue you may experience using the [GitHub issue tracker](https://github.com/utelle/SQLite3MultipleCiphers/issues).
+❗ Please share your experiences with this source package. TIA. ❗ 
+
+**Notes**
+This release contains the following precompiled binaries:
+- SQLite3 binaries for Windows (SQLite3 shell and DLLs) _with_ resp. _without_ enabled ICU support in variants for 32-bit and 64-bit Windows. The SQLite3 shell applications support the [SQLite Archive](https://www.sqlite.org/sqlar.html) feature,
+- Source code amalgamation (_amalgamation_) - a single C source file and a single C header file,
+- Source code amalgamation (_autoconf_) - a single C source file and a single C header file - including a `configure` script for POSIX compliant systems,
+- Precompiled SQLite Android library (see [SQLite Android Bindings](https://www.sqlite.org/android/doc/trunk/www/index.wiki)),
+- Precompiled bundle of `sqlite3.wasm` and its JavaScript APIs, ready for use in web applications (see [SQLite3 WebAssembly](https://sqlite.org/wasm/)).

@@ -1,4 +1,8 @@
-name: Build and Package (Manual)
+name: Build and Release (Manual)
+
+# Notes:
+# - All release artifact names must start with "sqlite3mc-".
+#   Intermediate or temporary artifacts must not use this prefix.
 
 on:
   workflow_dispatch:
@@ -13,192 +17,1104 @@ on:
           - dry-run
           - release
 
+permissions:
+  contents: read
+
+concurrency:
+  group: build-release-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   AMALGAMATION: amalgamation
   ARCHIVES:     archives
+  RELEASE:      release
   SQLITE_PATH:  sqlite3
-  LIBICU_PATH:  icu_precompiled
+  ICU_PATH:     icu_precompiled
 
 jobs:
 
+#########################################################
+# Job for building binaries for Win32 and Win64
+#########################################################
+
   build-windows:
+    name: Build Windows binaries
     runs-on: windows-2022
+    timeout-minutes: 90
     env:
       MODE: ${{ github.event.inputs.mode }}
-#    strategy:
-#      fail-fast: false
-#      matrix:
-#        platform:
-#          - win32
-#          - win64
 
     steps:
 
+      # -------------------------------------------------
+      # Checkout repository
+      # -------------------------------------------------
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Set up environment from config
+      # -------------------------------------------------
+      # Create environment variables
+      # -------------------------------------------------
+      - name: Build context
         shell: pwsh
         run: |
-          $config = Get-Content config.json | ConvertFrom-Json
+          python scripts/build_context.py
 
-          $version = $config.version
-          echo "VERSION=$sqliteVersion" >> $env:GITHUB_ENV
+      # -------------------------------------------------
+      # Display environment variables
+      # -------------------------------------------------
+      - name: Show environment
+        shell: pwsh
+        run: |
+          echo "SQLite Version:      $env:SQLITE_VERSION"
+          echo "SQLite Version Raw:  $env:SQLITE_VERSION_RAW"
+          echo "SQLite URL Official: $env:SQLITE_URL_OFFICIAL"
+          echo "SQLite URL GitHub:   $env:SQLITE_URL_GITHUB"
+          echo "SQLite URL Android:  $env:SQLITE_URL_ANDROID"
+          echo ""
+          echo "ICU Version:         $env:ICU_VERSION"
+          echo "ICU URL Win32:       $env:ICU_URL_WIN32"
+          echo "ICU URL Win64:       $env:ICU_URL_WIN64"
 
-          $sqliteVersion = $config.sqlite.version
-          $sqliteVersionRaw = $config.sqlite.version_raw
-          $sqlitePrefix  = $config.sqlite.url_prefix
-          $sqlitePrefixGH  = $config.sqlite.gh_prefix
-
-          echo "SQLITE_VERSION=$sqliteVersion" >> $env:GITHUB_ENV
-          echo "SQLITE_VERSION_RAW=$sqliteVersionRaw" >> $env:GITHUB_ENV
-          echo "SQLITE_URL_PREFIX=$sqlitePrefix" >> $env:GITHUB_ENV
-          echo "SQLITE_URL_PREFIX_GH=$sqlitePrefixGH" >> $env:GITHUB_ENV
-
-          echo "Resolved SQLITE_VERSION=$sqliteVersion"
-          echo "Resolved SQLITE_VERSION_RAW=$sqliteVersionRaw"
-          echo "Resolved SQLITE_URL_PREFIX: $sqlitePrefix"
-          echo "Resolved SQLITE_URL_PREFIX_GH: $sqlitePrefixGH"
-
-          $icuVersion = $config.icu.version
-          $icuTemplate  = $config.icu.url_template
-
-          $icu_url = $config.icu.url_template
-          $icu_url = $icu_url.Replace("{ICU_VERSION}", $icuVersion)
-          $icu_url_win32 = $icu_url.Replace("{PLATFORM}", "Win32")
-          $icu_url_win64 = $icu_url.Replace("{PLATFORM}", "Win64")
-
-          echo "ICU_VERSION=$icuVersion" >> $env:GITHUB_ENV
-          echo "ICU_URL_WIN32=$icu_url_win32" >> $env:GITHUB_ENV
-          echo "ICU_URL_WIN64=$icu_url_win64" >> $env:GITHUB_ENV
-
-          echo "Resolved ICU_VERSION: $icuVersion"
-          echo "Resolved ICU_URL_WIN32: $icu_url_win32"
-          echo "Resolved ICU_URL_WIN64: $icu_url_win64"
-
+      # -------------------------------------------------
+      # Create directories for intermediate results
+      # -------------------------------------------------
       - name: Create working directories
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path ${{ env.SQLITE_PATH }}
-          New-Item -ItemType Directory -Force -Path ${{ env.LIBICU_PATH }}
+          New-Item -ItemType Directory -Force -Path ${{ env.ICU_PATH }}
           New-Item -ItemType Directory -Force -Path ${{ env.AMALGAMATION }}
           New-Item -ItemType Directory -Force -Path ${{ env.ARCHIVES }}
 
+      # -------------------------------------------------
+      # Download ICU binary releases for Win32 and Win64
+      # -------------------------------------------------
       - name: Download source archive
         shell: pwsh
         run: |
-          $url = "${{ env.SQLITE_URL_PREFIX }}sqlite-amalgamation-${{ env.SQLITE_VERSION_RAW }}.zip"
-          Invoke-WebRequest `
-            -Uri $url `
-            -OutFile "${{ env.SQLITE_PATH }}/sqlite-amalgamation.zip"
           Invoke-WebRequest `
             -Uri "${{ env.ICU_URL_WIN32 }}" `
-            -OutFile "${{ env.LIBICU_PATH }}/icu-precompiled-win32.zip"
+            -OutFile "${{ env.ICU_PATH }}/icu-precompiled-win32.zip"
           Invoke-WebRequest `
             -Uri "${{ env.ICU_URL_WIN64 }}" `
-            -OutFile "${{ env.LIBICU_PATH }}/icu-precompiled-win64.zip"
+            -OutFile "${{ env.ICU_PATH }}/icu-precompiled-win64.zip"
 
-      - name: Extract SQLite3 and ICU archives
+      # -------------------------------------------------
+      # Extract ICU binaries
+      # -------------------------------------------------
+      - name: Extract ICU archives
         shell: pwsh
         run: |
           Expand-Archive `
-            -Path "${{ env.SQLITE_PATH }}/sqlite-amalgamation.zip" `
-            -DestinationPath "${{ env.SQLITE_PATH }}"
+            -Path "${{ env.ICU_PATH }}/icu-precompiled-win32.zip" `
+            -DestinationPath "${{ env.ICU_PATH }}/win32"
           Expand-Archive `
-            -Path "${{ env.LIBICU_PATH }}/icu-precompiled-win32.zip" `
-            -DestinationPath "${{ env.LIBICU_PATH }}/win32"
-          Expand-Archive `
-            -Path "${{ env.LIBICU_PATH }}/icu-precompiled-win64.zip" `
-            -DestinationPath "${{ env.LIBICU_PATH }}/win64"
-          $path = "${{ env.LIBICU_PATH }}/win64"
+            -Path "${{ env.ICU_PATH }}/icu-precompiled-win64.zip" `
+            -DestinationPath "${{ env.ICU_PATH }}/win64"
+          $path = "${{ env.ICU_PATH }}/win64"
+
           if (!(Test-Path "$path/include")) {
             throw "ICU headers missing: $path/include"
           }
           Write-Host "ICU extraction OK"
           python --version
 
-      - name: Patch SQLite3 amalgamation
-        shell: bash
-        run: |
-          sqlite_src="${{ env.SQLITE_PATH }}/sqlite-amalgamation-${{ env.SQLITE_VERSION_RAW }}/sqlite3.c"
-          shell_src="${{ env.SQLITE_PATH }}/sqlite-amalgamation-${{ env.SQLITE_VERSION_RAW }}/shell.c"
-          dest_sqlite="${{ env.SQLITE_PATH }}/sqlite3patched.c"
-          dest_shell="${{ env.SQLITE_PATH }}/shell.c"
-          dest_rekey="${{ env.SQLITE_PATH }}/rekeyvacuum.c"
-          ./scripts/patchsqlite3.sh $sqlite_src > $dest_sqlite
-          ./scripts/patchshell.sh $shell_src > $dest_shell
-          ./scripts/rekeyvacuum.sh $sqlite_src > $dest_rekey
-          ls -l "${{ env.SQLITE_PATH }}"
-          python --version
+      # -------------------------------------------------
+      # Setup MSBuild environment
+      # -------------------------------------------------
+      - name: Setup MSBuild environment
+        uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57 # v3
 
-      - name: Generate amalgamation
+      # -------------------------------------------------
+      # Build Win32 binaries
+      # -------------------------------------------------
+      - name: Build Win32
         shell: pwsh
-        working-directory: ${{ env.AMALGAMATION }}
+        env:
+          LIBICU_PATH: ${{ github.workspace }}\icu_precompiled\win32
         run: |
-          python ../scripts/amalgamate.py -v yes -c ../scripts/sqlite3mc.c.json -s ../src
-          python ../scripts/amalgamate.py -v yes -c ../scripts/sqlite3mc.h.json -s ../src
-          python ../scripts/amalgamate.py -v yes -c ../scripts/shell3mc.c.json  -s ../src
-          (Get-Content shell3mc_amalgamation.c) `
-            -replace '\s+$', '' |
-            Set-Content shell3mc_amalgamation.c
-          dir
+          echo $env:LIBICU_PATH
+          msbuild build\sqlite3mc_vc17.sln `
+            /m `
+            /p:Configuration=Release `
+            /p:Platform=Win32
 
-      - name: Create amalgamation ZIP archive
+      # -------------------------------------------------
+      # Build Win64 binaries
+      # -------------------------------------------------
+      - name: Build x64
         shell: pwsh
+        env:
+          LIBICU_PATH: ${{ github.workspace }}\icu_precompiled\win64
         run: |
-          $sourcepath = "${{ env.AMALGAMATION }}"
-          $destpath = "${{ env.ARCHIVES }}"
-          Compress-Archive -Path "$sourcepath/*" -DestinationPath "$destpath/amalgamation.zip"
-          dir $destpath
+          echo $env:LIBICU_PATH
+          msbuild build\sqlite3mc_vc17.sln `
+            /m `
+            /p:Configuration=Release `
+            /p:Platform=x64
 
-      - name: Upload amalgamation
+      # -------------------------------------------------
+      # Upload Win32 and Win64 binaries
+      # -------------------------------------------------
+      - name: Upload build output
         uses: actions/upload-artifact@v7
         with:
-          name: amalgamation
-          path:  ${{ env.ARCHIVES }}/amalgamation.zip
+          name: build-output
+          path: |
+            bin/vc17/**
+            icu_precompiled/win32/bin/icu*.dll
+            icu_precompiled/win64/bin64/icu*.dll
+          retention-days: 1
 
-  build-linux:
-    runs-on: ubuntu-24.04
+#########################################################
+# Job for generating the SQLite3MC amalgamation
+#########################################################
+
+  amalgamate:
+    name: Generate source amalgamation
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     env:
-      MODE: ${{ inputs.mode }}
+      MODE: ${{ github.event.inputs.mode }}
 
     steps:
 
+      # -------------------------------------------------
+      # Checkout repository
+      # -------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      # -------------------------------------------------
+      # Setup Python
+      # -------------------------------------------------
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      # -------------------------------------------------
+      # Create environment variables
+      # -------------------------------------------------
+      - name: Build context
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/build_context.py
+
+      # -------------------------------------------------
+      # Display environment variables
+      # -------------------------------------------------
+      - name: Show environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "SQLite Version:      $SQLITE_VERSION"
+          echo "SQLite Version Raw:  $SQLITE_VERSION_RAW"
+          echo "SQLite URL Official: $SQLITE_URL_OFFICIAL"
+          echo "SQLite URL GitHub:   $SQLITE_URL_GITHUB"
+          echo "SQLite URL Android:  $SQLITE_URL_ANDROID"
+
+      # -------------------------------------------------
+      # Create directories for intermediate files
+      # -------------------------------------------------
+      - name: Create directories
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          : "${AMALGAMATION:?missing}"
+          : "${ARCHIVES:?missing}"
+
+          mkdir -p "$AMALGAMATION"
+          mkdir -p "$ARCHIVES"
+
+      # -------------------------------------------------
+      # Generate source amalgamation
+      # -------------------------------------------------
+      - name: Generate amalgamation
+        shell: bash
+        working-directory: ${{ env.AMALGAMATION }}
+        run: |
+          set -euo pipefail
+
+          python ../scripts/amalgamate.py -v yes -c ../scripts/sqlite3mc.c.json -s ../src
+          python ../scripts/amalgamate.py -v yes -c ../scripts/sqlite3mc.h.json -s ../src
+          python ../scripts/amalgamate.py -v yes -c ../scripts/shell3mc.c.json  -s ../src
+          ls -l
+
+          test -f sqlite3mc_amalgamation.c
+          sed -i 's/[[:space:]]*$//' "sqlite3mc_amalgamation.c"
+          sed -i 's/[[:space:]]*$//' "sqlite3mc_amalgamation.h"
+          sed -i 's/[[:space:]]*$//' "shell3mc_amalgamation.c"
+          cp ../src/sqlite3ext.h .
+          ls -l
+
+      # -------------------------------------------------
+      # Generate README for amalgamation
+      # -------------------------------------------------
+      - name: Generate README
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/render_template.py packaging/readme-amalgamation.md.in "$AMALGAMATION/README.md"
+
+      # -------------------------------------------------
+      # Create ZIP archive(s) for the source amalgamation
+      # -------------------------------------------------
+      - name: Create amalgamation ZIP archive
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          DESTPATH="$ARCHIVES"
+
+          (
+            SOURCEPATH="$AMALGAMATION"
+            cd "$SOURCEPATH"
+            zip -r "../$DESTPATH/amalgamation.zip" .
+          )
+
+          ls -l "$DESTPATH"
+
+      # -------------------------------------------------
+      # Upload ZIP archive
+      # -------------------------------------------------
+      - name: Upload amalgamation
+        uses: actions/upload-artifact@v7
+        with:
+          name: sqlite3mc-amalgamation
+          if-no-files-found: error
+          path: |
+            ${{ env.ARCHIVES }}/amalgamation.zip
+
+#########################################################
+# Job for building the binaries for Android
+#########################################################
+
+  build-android:
+    name: Build Android binaries
+    needs: amalgamate
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    env:
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+      ANDROID_HOME: /usr/local/lib/android/sdk
+
+    steps:
+
+      # -------------------------------------------------
+      # Checkout repository
+      # -------------------------------------------------
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+
+      # -------------------------------------------------
+      # Setup Python
+      # -------------------------------------------------
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      # -------------------------------------------------
+      # Create environment variables
+      # -------------------------------------------------
+      - name: Build context
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/build_context.py
+
+      # -------------------------------------------------
+      # Set up Java environment
+      # -------------------------------------------------
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # -------------------------------------------------
+      # Install Android SDK
+      # -------------------------------------------------
+      - name: Install Android SDK components
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4
+
+      # -------------------------------------------------
+      # Install Android NDK
+      # -------------------------------------------------
+      - name: Install NDK
+        run: |
+          set -euo pipefail
+          sdkmanager "ndk;26.3.11579264"
+
+      # -------------------------------------------------
+      # Download SQLite Android Bindings
+      # -------------------------------------------------
+      - name: Download SQLite Android Bindings
+        run: |
+          set -euo pipefail
+          echo "Downloading from: $SQLITE_URL_ANDROID"
+          URL="${SQLITE_URL_ANDROID}sqlite-android.zip"
+          echo "File: $URL"
+          curl -fL "$URL" -o sqlite-android.zip
+
+      # -------------------------------------------------
+      # Unpack SQLite Android Bindings
+      # -------------------------------------------------
+      - name: Unpack SQLite Android Bindings
+        run: |
+          set -euo pipefail
+          unzip -q sqlite-android.zip
+          mv sqlite-android sqlite-src
+
+      # -------------------------------------------------
+      # Download SQLite3MC amalgamation
+      # -------------------------------------------------
+      - name: Download amalgamation
+        uses: actions/download-artifact@v8
+        with:
+          name: sqlite3mc-amalgamation
+          path: archives
+
+      # -------------------------------------------------
+      # Unpack SQLite3MC amalgamation
+      # -------------------------------------------------
+      - name: Unpack amalgamation
+        run: |
+          set -euo pipefail
+          mkdir amalgamation
+          unzip -q archives/amalgamation.zip -d amalgamation
+
+      # -------------------------------------------------
+      # Replace SQLite sources by own amalgamation
+      # -------------------------------------------------
+      - name: Replace SQLite sources by own amalgamation
+        run: |
+          set -euo pipefail
+          cp -fv amalgamation/sqlite3mc_amalgamation.c sqlite-src/sqlite3/src/main/jni/sqlite/sqlite3.c
+          cp -fv amalgamation/sqlite3mc_amalgamation.h sqlite-src/sqlite3/src/main/jni/sqlite/sqlite3.h
+
+      # -------------------------------------------------
+      # Replace Android.mk
+      # -------------------------------------------------
+      - name: Replace Android.mk
+        run: |
+          set -euo pipefail
+          cp -fv packaging/android/Android.mk sqlite-src/sqlite3/src/main/jni/sqlite/Android.mk
+
+      # -------------------------------------------------
+      # Make gradlew executable
+      # -------------------------------------------------
+      - name: Make gradlew executable
+        run: |
+          set -euo pipefail
+          chmod +x sqlite-src/gradlew
+
+      # -------------------------------------------------
+      # Build release AAR
+      # -------------------------------------------------
+      - name: Build Release AAR
+        working-directory: sqlite-src/sqlite3
+        run: |
+          set -euo pipefail
+          ../gradlew assembleRelease
+
+      # -------------------------------------------------
+      # Collect AAR
+      # -------------------------------------------------
+      - name: Collect AAR
+        run: |
+          set -euo pipefail
+          mkdir -p staging
+          find sqlite-src -name "*.aar" -exec cp {} staging/ \;
+
+          aarsrc="staging/sqlite3-release.aar"
+          aardst="staging/sqlite3mc-${SQLITE3MC_VERSION}-sqlite-${SQLITE_VERSION}-android.aar"
+          mv "$aarsrc" "$aardst"
+
+      # -------------------------------------------------
+      # Upload AAR Artifact
+      # -------------------------------------------------
+      - name: Upload AAR Artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: sqlite3mc-android-aar
+          if-no-files-found: error
+          path: staging/sqlite3mc*.aar
+
+#########################################################
+# Job for packaging the release archives for Win32/Win64
+#########################################################
+
+  package-windows:
+    name: Assemble Windows release packages
+    needs: build-windows
+    runs-on: windows-2022
+    timeout-minutes: 60
+    env:
+      MODE: ${{ github.event.inputs.mode }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - sys: mingw32
+            id: win32
+            platform: Win32
+            dll_suffix: ""
+            exe_suffix: ""
+            icu: false
+            icu_path: ""
+
+          - sys: mingw32
+            id: icu-win32
+            platform: Win32
+            dll_suffix: "_icu"
+            exe_suffix: "icu"
+            icu: true
+            icu_path: "win32/bin"
+
+          - sys: mingw64
+            id: win64
+            platform: Win64
+            dll_suffix: "_x64"
+            exe_suffix: "_x64"
+            icu: false
+            icu_path: ""
+
+          - sys: mingw64
+            id: icu-win64
+            platform: Win64
+            dll_suffix: "_icu_x64"
+            exe_suffix: "icu_x64"
+            icu: true
+            icu_path: "win64/bin64"
+
+    steps:
+
+      # -------------------------------------------------
+      # Checkout repository
+      # -------------------------------------------------
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Build ICU URL
+      # -------------------------------------------------
+      # Create environment variables
+      # -------------------------------------------------
+      - name: Build context
+        shell: pwsh
+        run: |
+          python scripts/build_context.py
+
+      # -------------------------------------------------
+      # Download build artifacts
+      # -------------------------------------------------
+      - name: Download build artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: build-output
+
+      # -------------------------------------------------
+      # Prepare packaging directory
+      # -------------------------------------------------
+      - name: Prepare package
+        shell: pwsh
+        run: |
+          Remove-Item -Recurse -Force package -ErrorAction SilentlyContinue
+
+          New-Item -ItemType Directory -Force package/bin
+          New-Item -ItemType Directory -Force package/dll
+          New-Item -ItemType Directory -Force package/include
+
+      # -------------------------------------------------
+      # Set up MSYS2
+      # -------------------------------------------------
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@e9898307ac31d1a803454791be09ab9973336e1c # v2
+        with:
+          msystem: ${{matrix.sys}}
+          update: true
+          install: >
+            mingw-w64-x86_64-toolchain
+            mingw-w64-i686-toolchain
+
+      # -------------------------------------------------
+      # Generate MinGW import library
+      # -------------------------------------------------
+      - name: Build import lib
+        shell: msys2 {0}
+        working-directory: bin/vc17/dll/release
+        run: |
+          base="sqlite3mc${{ matrix.dll_suffix }}"
+
+          dll="${base}.dll"
+          def="${base}.def"
+          lib="lib${base}.dll.a"
+
+          echo "DLL: $dll"
+          echo "DEF: $def"
+          echo "LIB: $lib"
+
+          gendef $dll
+          
+          ls -l
+
+          echo "Call dlltool"
+
+          dlltool -d "$def" -l "$lib"
+
+      # -------------------------------------------------
+      # Collect all required files into staging
+      # -------------------------------------------------
+      - name: Collect files into staging
+        shell: pwsh
+        env:
+          MATRIX_ID: ${{ matrix.id }}
+        run: |
+          $dllbase = "sqlite3mc${{ matrix.dll_suffix }}"
+          $exebase = "sqlite3mc_shell${{ matrix.exe_suffix }}"
+
+          $files = @(
+            @{ src = "bin/vc17/dll/release/$dllbase.dll"; dst = "dll/$dllbase.dll" },
+            @{ src = "bin/vc17/dll/release/$dllbase.exp"; dst = "dll/$dllbase.exp" },
+            @{ src = "bin/vc17/dll/release/$dllbase.lib"; dst = "dll/$dllbase.lib" },
+            @{ src = "bin/vc17/dll/release/$dllbase.pdb"; dst = "dll/$dllbase.pdb" },
+
+            @{ src = "bin/vc17/dll/release/lib$dllbase.dll.a"; dst = "dll/lib$dllbase.dll.a" },
+
+            @{ src = "bin/vc17/lib/release/$exebase.exe"; dst = "bin/$exebase.exe" },
+
+            @{ src = "src/sqlite3.h"; dst = "include/sqlite3.h" },
+            @{ src = "src/sqlite3ext.h"; dst = "include/sqlite3ext.h" },
+            @{ src = "src/sqlite3mc.h"; dst = "include/sqlite3mc.h" },
+            @{ src = "src/sqlite3mc_version.h"; dst = "include/sqlite3mc_version.h" },
+            @{ src = "src/sqlite3mc_vfs.h"; dst = "include/sqlite3mc_vfs.h" },
+
+            @{ src = "LICENSE"; dst = "LICENSE" },
+            @{ src = "LICENSE.spdx"; dst = "LICENSE.spdx" }
+          )
+
+          foreach ($f in $files) {
+            if (Test-Path $f.src) {
+              $target = "package/$($f.dst)"
+
+              $dir = Split-Path $target
+              New-Item -ItemType Directory -Force $dir | Out-Null
+
+              Copy-Item $f.src $target
+            }
+          }
+
+      # -------------------------------------------------
+      # Copy ICU runtime for builds with ICU support
+      # -------------------------------------------------
+      - name: Copy ICU runtime
+        if: matrix.icu == true
+        shell: pwsh
+        run: |
+          $icu_path = "${{ env.ICU_PATH }}/${{ matrix.icu_path }}"
+          echo "ICU path: $icu_path"
+          Get-ChildItem $icu_path -Filter *.dll | Copy-Item -Destination package/bin/
+
+      # -------------------------------------------------
+      # Generate README for packaging
+      # -------------------------------------------------
+      - name: Generate README
+        shell: pwsh
+        run: |
+          $icuIncluded = if ("${{ matrix.icu }}" -eq "true") {
+            "${{ env.ICU_VERSION }}"
+          } else {
+            "not included"
+          }
+          $env:ICU_SUPPORT = $icuIncluded
+          python scripts/render_template.py packaging/readme.md.in package/README.md
+
+      # -------------------------------------------------
+      # Create ZIP archive with Windows binaries
+      # -------------------------------------------------
+      - name: Create ZIP archive
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+
+          $zipName = "sqlite3mc-${{ env.SQLITE3MC_VERSION }}-sqlite-${{ env.SQLITE_VERSION }}-${{ matrix.id }}.zip"
+
+          Compress-Archive `
+            -Path package/* `
+            -DestinationPath "dist/$zipName" `
+            -Force
+
+      # -------------------------------------------------
+      # Upload ZIP archive with Windows binaries
+      # -------------------------------------------------
+      - name: Upload ZIP artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: sqlite3mc-${{ matrix.id }}
+          path: dist/*.zip
+          retention-days: 1
+
+#########################################################
+# Job for building WASM
+#########################################################
+
+  build-wasm:
+    name: Build SQLite3MC WASM
+    needs: amalgamate
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    outputs:
+      artifact-name: sqlite-wasm-binaries
+
+    steps:
+      # -------------------------------------------------
+      # Checkout repository
+      # -------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      # -------------------------------------------------
+      # Create environment variables
+      # -------------------------------------------------
+      - name: Build context
         shell: bash
         run: |
-          VERSION=$(jq -r '.version' config.json)
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          set -euo pipefail
+          python scripts/build_context.py
 
-          SQLITE_VERSION=$(jq -r '.sqlite.version' config.json)
-          SQLITE_VERSION_RAW=$(jq -r '.sqlite.version_raw' config.json)
-          SQLITE_URL_PREFIX=$(jq -r '.sqlite.url_prefix' config.json)
-          SQLITE_URL_PREFIX_GH=$(jq -r '.sqlite.gh_prefix' config.json)
+      # -------------------------------------------------
+      # Clone matching branch of SQLite repository
+      # -------------------------------------------------
+      - name: Checkout SQLite source
+        run: |
+          set -euo pipefail
+          git clone \
+            --branch version-${SQLITE_VERSION} \
+            --depth 1 \
+            https://github.com/sqlite/sqlite.git
 
-          echo "SQLITE_VERSION=$SQLITE_VERSION" >> $GITHUB_ENV
-          echo "SQLITE_VERSION_RAW=$SQLITE_VERSION_RAW" >> $GITHUB_ENV
-          echo "SQLITE_URL_PREFIX=$SQLITE_URL_PREFIX" >> $GITHUB_ENV
-          echo "SQLITE_URL_PREFIX_GH=$SQLITE_URL_PREFIX_GH" >> $GITHUB_ENV
+      # -------------------------------------------------
+      # Set up Emscripten
+      # -------------------------------------------------
+      - name: Setup Emscripten
+        uses: emscripten-core/setup-emsdk@4528d102f7230f0e7b276855c01ea1159be0e984 # v16
+        with:
+          version: latest
 
-          echo "Resolved SQLite Version: $SQLITE_VERSION"
-          echo "Resolved SQLite Version (raw): $SQLITE_VERSION_RAW"
-          echo "Resolved SQLite URL prefix: $SQLITE_URL_PREFIX"
-          echo "Resolved SQLite URL prefix (GH): $SQLITE_URL_PREFIX_GH"
+      # -------------------------------------------------
+      # Install WABT tools
+      # -------------------------------------------------
+      - name: Install WABT tools
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y wabt
 
-          ICU_VERSION=$(jq -r '.icu.version' config.json)
-          ICU_URL_TEMPLATE=$(jq -r '.icu.url_template' config.json)
+      # -------------------------------------------------
+      # Verify Emscripten toochain
+      # -------------------------------------------------
+      - name: Verify toolchain
+        run: |
+          set -euo pipefail
+          emcc --version
+          wasm-strip --version
+          node --version
 
-          ICU_URL="${ICU_URL_TEMPLATE//\{ICU_VERSION\}/$ICU_VERSION}"
-          ICU_URL_WIN32="${ICU_URL//\{PLATFORM\}/Win32}"
-          ICU_URL_WIN64="${ICU_URL//\{PLATFORM\}/Win64}"
+      # -------------------------------------------------
+      # Configure SQLite
+      # -------------------------------------------------
+      - name: Configure SQLite
+        working-directory: sqlite
+        run: |
+          set -euo pipefail
+          ./configure --enable-all
 
-          echo "ICU_VERSION=$VERSION" >> $GITHUB_ENV
-          echo "ICU_URL_WIN32=$ICU_URL_WIN32" >> $GITHUB_ENV
-          echo "ICU_URL_WIN64=$ICU_URL_WIN64" >> $GITHUB_ENV
+      # -------------------------------------------------
+      # Generate SQLite amalgamation
+      # -------------------------------------------------
+      - name: Generate SQLite amalgamation
+        working-directory: sqlite
+        run: |
+          set -euo pipefail
+          make sqlite3.c
 
-          echo "Resolved ICU Version: $ICU_VERSION"
-          echo "Resolved ICU URL Win32: $ICU_URL_WIN32"
-          echo "Resolved ICU URL Win64: $ICU_URL_WIN64"
+      # -------------------------------------------------
+      # Upload SQLite amalgamation for comparison
+      # -------------------------------------------------
+      - name: Upload SQLite amalgamation for comparison
+        uses: actions/upload-artifact@v7
+        with:
+          name: sqlite-compare
+          path: |
+            src/sqlite3.c
+            sqlite/sqlite3.c
+          retention-days: 1
+
+      # -------------------------------------------------
+      # Verify SQLite amalgamation consistency
+      # -------------------------------------------------
+      - name: Verify SQLite amalgamation consistency
+        shell: bash
+        run: |
+          set -uo pipefail
+          set +e
+
+          echo "=== SHA256 comparison ==="
+          sha256sum src/sqlite3.c sqlite/sqlite3.c
+
+          echo ""
+          echo "=== DIFF comparison (quiet) ==="
+
+          if diff -q src/sqlite3.c sqlite/sqlite3.c; then
+            echo "OK: SQLite amalgamation matches"
+          else
+            echo "::warning::SQLite amalgamation differs"
+          fi
+
+          exit 0
+
+      # -------------------------------------------------
+      # Apply local patches (add SQLite3MC symbols)
+      # -------------------------------------------------
+      - name: Apply local changes
+        run: |
+          set -euo pipefail
+          # Apply local patches before build
+          cd sqlite
+
+          PATCHES=(
+            ../packaging/wasm/GNUmakefile.patch
+            ../packaging/wasm/EXPORTED_FUNCTIONS.c-pp.patch
+            ../packaging/wasm/sqlite3-api-glue.c-pp.js.patch
+          )
+
+          git apply --check --verbose -p0 "${PATCHES[@]}"
+          git apply         --verbose -p0 "${PATCHES[@]}"
+
+      # -------------------------------------------------
+      # Download SQLite3MC amalgamation
+      # -------------------------------------------------
+      - name: Download SQLite3MC amalgamation
+        uses: actions/download-artifact@v8
+        with:
+          name: sqlite3mc-amalgamation
+          path: archives
+
+      # -------------------------------------------------
+      # Unpack SQLite3MC amalgamation
+      # -------------------------------------------------
+      - name: Unpack SQLite3MC amalgamation
+        run: |
+          set -euo pipefail
+          mkdir amalgamation
+          unzip -q archives/amalgamation.zip -d amalgamation
+
+      # -------------------------------------------------
+      # Copy SQLite3MC amalgamation to WASM directory
+      # -------------------------------------------------
+      - name: Replace SQLite sources by own amalgamation
+        run: |
+          set -euo pipefail
+          cp -fv amalgamation/sqlite3mc_amalgamation.c sqlite/sqlite3-see.c
+          cp -fv amalgamation/sqlite3mc_amalgamation.h sqlite/sqlite3.h
+
+      # -------------------------------------------------
+      # Build SQLite WASM
+      # -------------------------------------------------
+      - name: Build SQLite WASM
+        working-directory: sqlite/ext/wasm
+        run: |
+          set -euo pipefail
+          make dist dist.build=oz
+
+      # -------------------------------------------------
+      # Package WASM binary ZIP
+      # -------------------------------------------------
+      - name: Package artifacts
+        working-directory: sqlite/ext/wasm
+        run: |
+          set -euo pipefail
+          srcdir="sqlite-wasm-see-${SQLITE_VERSION_RAW}"
+          dstdir="sqlite3mc-wasm-${SQLITE_VERSION_RAW}"
+          zipname="sqlite3mc-${SQLITE3MC_VERSION}-sqlite-${SQLITE_VERSION}-wasm.zip"
+          mv "$srcdir" "$dstdir"
+          zip -qr "$zipname" "$dstdir"
+
+      # -------------------------------------------------
+      # Upload WASM binary ZIP
+      # -------------------------------------------------
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: sqlite3mc-wasm
+          path: sqlite/ext/wasm/sqlite3mc*.zip
+
+#########################################################
+# Job for building autoconf
+#########################################################
+
+  build-autoconf:
+    name: Build autoconf package
+    needs: amalgamate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    outputs:
+      artifact-name: sqlite3mc-autoconf-binaries
+
+    steps:
+      # -------------------------------------------------
+      # Checkout repository
+      # -------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      # -------------------------------------------------
+      # Create environment variables
+      # -------------------------------------------------
+      - name: Build context
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/build_context.py
+
+      # -------------------------------------------------
+      # Download SQLite3MC amalgamation
+      # -------------------------------------------------
+      - name: Download SQLite3MC amalgamation
+        uses: actions/download-artifact@v8
+        with:
+          name: sqlite3mc-amalgamation
+          path: archives
+
+      # -------------------------------------------------
+      # Unpack SQLite3MC amalgamation
+      # -------------------------------------------------
+      - name: Unpack SQLite3MC amalgamation
+        run: |
+          set -euo pipefail
+          mkdir amalgamation
+          unzip -q archives/amalgamation.zip -d amalgamation
+
+      # -------------------------------------------------
+      # Copy SQLite3MC amalgamation to WASM directory
+      # -------------------------------------------------
+      - name: Replace SQLite sources by own amalgamation
+        run: |
+          set -euo pipefail
+          cp -fv amalgamation/sqlite3mc_amalgamation.c autoconf/sqlite3.c
+          cp -fv amalgamation/sqlite3mc_amalgamation.h autoconf/sqlite3.h
+          cp -fv amalgamation/shell3mc_amalgamation.c autoconf/shell.c
+          cp -fv src/sqlite3ext.h autoconf/sqlite3ext.h
+
+      # -------------------------------------------------
+      # Package autoconf ZIP
+      # -------------------------------------------------
+      - name: Package artifacts
+        run: |
+          set -euo pipefail
+          targzname="archives/sqlite3mc-${SQLITE3MC_VERSION}-sqlite-${SQLITE_VERSION}-autoconf.tar.gz"
+          tar -czvf "$targzname" autoconf
+
+      # -------------------------------------------------
+      # Upload autoconf release archive
+      # -------------------------------------------------
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: sqlite3mc-autoconf
+          path: archives/sqlite3mc*.tar.gz
+
+#########################################################
+# Job for making the release
+#########################################################
+
+  release:
+    name: Assemble release
+    if: ${{ github.event.inputs.mode != 'release' || github.ref == 'refs/heads/main' }}
+    needs:
+     - build-android
+     - build-autoconf
+     - build-wasm
+     - package-windows
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    concurrency:
+      group: sqlite3mc-release
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      id-token: write       # OIDC token for keyless Sigstore signing
+      attestations: write   # write build provenance attestation
+    env:
+      MODE: ${{ github.event.inputs.mode }}
+
+    steps:
+      # -------------------------------------------------
+      # Checkout repository
+      # -------------------------------------------------
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      # -------------------------------------------------
+      # Create environment variables
+      # -------------------------------------------------
+      - name: Build context
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/build_context.py
+
+      # -------------------------------------------------
+      # Download build artifacts
+      # -------------------------------------------------
+      - name: Download artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: sqlite3mc-*
+          merge-multiple: true
+          path: release
+
+      # -------------------------------------------------
+      # Rename amalgamation archive
+      # -------------------------------------------------
+      - name: Rename amalgamation archive
+        run: |
+          set -euo pipefail
+          ls release
+          test -f release/amalgamation.zip
+
+          dstname="sqlite3mc-${SQLITE3MC_VERSION}-sqlite-${SQLITE_VERSION}-amalgamation.zip"
+          mv "release/amalgamation.zip" "release/$dstname"
+          ls -l release
+
+      # -------------------------------------------------
+      # Generate release notes
+      # -------------------------------------------------
+      - name: Generate release notes
+        run: |
+          set -euo pipefail
+          python scripts/render_template.py \
+            packaging/release-notes.md.in \
+            release/release-notes.md
+
+      # -------------------------------------------------
+      # Mode information
+      # -------------------------------------------------
+      - name: Release mode info
+        run: |
+          set -euo pipefail
+          echo "=============================="
+          echo "MODE: $MODE"
+          echo "VERSION: $SQLITE3MC_VERSION"
+          echo "=============================="
+
+          case "$MODE" in
+            sanity)
+              echo "🔎 SANITY CHECK MODE (no side effects)"
+              ;;
+            dry-run)
+              echo "🧪 DRY RUN MODE (signing tested, no release)"
+              ;;
+            release)
+              echo "🚀 REAL RELEASE MODE (will publish)"
+              ;;
+          esac
+
+      # -------------------------------------------------
+      # Sanity mode (no git, no gpg)
+      # -------------------------------------------------
+      - name: Sanity check environment
+        if: ${{ env.MODE == 'sanity' }}
+        run: |
+          set -euo pipefail
+          echo "Checking toolchain only..."
+          git --version
+          gpg --version
+          echo "Sanity check complete."
+
+      # -------------------------------------------------
+      # GIT + GPG setup (only non-sanity)
+      # -------------------------------------------------
+      - name: Configure Git
+        if: ${{ env.MODE != 'sanity' }}
+        run: |
+          set -euo pipefail
+          git config user.name "${{ vars.GIT_USER_NAME }}"
+          git config user.email "${{ vars.GIT_USER_EMAIL }}"
+          git config user.signingkey "${{ vars.GPG_KEY_ID }}"
+          git config commit.gpgsign true
+
+      # -------------------------------------------------
+      # Import GPG key
+      # -------------------------------------------------
+      - name: Import GPG key
+        if: ${{ env.MODE != 'sanity' }}
+        run: |
+          set -euo pipefail
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
+
+      # -------------------------------------------------
+      # Dry Run Validation
+      # -------------------------------------------------
+      - name: Dry-run signing validation
+        if: ${{ env.MODE == 'dry-run' }}
+        run: |
+          set -euo pipefail
+          echo "Testing GPG setup..."
+          gpg --list-secret-keys --keyid-format=long
+
+          echo "Testing commit signing..."
+          git commit --allow-empty -S -m "dry-run signing test"
+
+          echo "Verifying signature..."
+          git log -1 --show-signature
+
+      # -------------------------------------------------
+      # Create signed tag for release
+      # -------------------------------------------------
+      - name: Create signed tag
+        if: ${{ env.MODE == 'release' }}
+        run: |
+          set -euo pipefail
+          # Set tag
+          TAG="v${SQLITE3MC_VERSION}"
+
+          # Check that tag doesn't exist already
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "::error::Tag $TAG already exists"
+            exit 1
+          fi
+
+          # Create annotated and signed tag
+          git tag -s "$TAG" -m "Release SQLite3MC ${SQLITE3MC_VERSION}"
+          git push origin "$TAG"
+
+      # -------------------------------------------------
+      # Generate SLSA-aligned build provenance for all release artifacts
+      # -------------------------------------------------
+      - name: Generate build provenance
+        if: ${{ env.MODE == 'release' }}
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: 'release/sqlite3mc-*'
+
+      # -------------------------------------------------
+      # Create GitHub Release
+      # -------------------------------------------------
+      - name: Create GitHub Release
+        if: ${{ env.MODE == 'release' }}
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
+        with:
+          tag_name: "v${{ env.SQLITE3MC_VERSION }}"
+          body_path: release/release-notes.md
+          files: |
+            release/sqlite3mc-*
