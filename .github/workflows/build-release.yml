@@ -129,10 +129,12 @@ jobs:
         run: |
           $expected = "E52F07877A5805F9AF4AB0ACD46C5610D06E7001"
 
-          $actual = gpg --fingerprint --with-colons `
-            E52F07877A5805F9AF4AB0ACD46C5610D06E7001 |
-            Select-String "fpr" |
-            ForEach-Object { ($_ -split ":")[9] }
+          $actual = (
+            gpg --fingerprint --with-colons `
+              E52F07877A5805F9AF4AB0ACD46C5610D06E7001 |
+              Select-String "^fpr:" |
+              ForEach-Object { ($_ -split ":")[9] }
+          )[0]
 
           if ($actual -ne $expected) {
             throw "ICU fingerprint mismatch: $actual"
