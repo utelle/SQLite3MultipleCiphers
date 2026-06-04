@@ -113,10 +113,10 @@ jobs:
           "@ | Out-File "${{ env.ICU_PATH }}\icu-mapping.txt"
 
           Invoke-WebRequest `
-            -Uri "${{ env.ICU_URL }}/SHASUM512.txt" `
+            -Uri "${{ env.ICU_URL_RELEASE }}/SHASUM512.txt" `
             -OutFile "${{ env.ICU_PATH }}\SHASUM512.txt"
           Invoke-WebRequest `
-            -Uri "${{ env.ICU_URL }}\SHASUM512.txt.asc" `
+            -Uri "${{ env.ICU_URL_RELEASE }}/SHASUM512.txt.asc" `
             -OutFile "${{ env.ICU_PATH }}\SHASUM512.txt.asc"
 
       - name: Import ICU signing key
