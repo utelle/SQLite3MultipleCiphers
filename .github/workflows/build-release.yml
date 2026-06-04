@@ -534,7 +534,7 @@ jobs:
       # -------------------------------------------------
       # Set up MSYS2 for Win32
       # -------------------------------------------------
-      - name: Setup MSYS2
+      - name: Setup MSYS2 for Win32
         if: matrix.platform == 'Win32'
         uses: msys2/setup-msys2@e9898307ac31d1a803454791be09ab9973336e1c # v2
         with:
@@ -546,7 +546,7 @@ jobs:
       # -------------------------------------------------
       # Set up MSYS2 for Win64
       # -------------------------------------------------
-      - name: Setup MSYS2
+      - name: Setup MSYS2 for Win64
         if: matrix.platform == 'Win64'
         uses: msys2/setup-msys2@e9898307ac31d1a803454791be09ab9973336e1c # v2
         with:
