@@ -90,15 +90,70 @@ jobs:
       # -------------------------------------------------
       # Download ICU binary releases for Win32 and Win64
       # -------------------------------------------------
-      - name: Download source archive
+      - name: Download ICU binary releases for Windows
         shell: pwsh
         run: |
+          $win32Url = "${{ env.ICU_URL_WIN32 }}"
+          $win64Url = "${{ env.ICU_URL_WIN64 }}"
+
+          $win32File = ($win32Url -split "/")[-1]
+          $win64File = ($win64Url -split "/")[-1]
+
           Invoke-WebRequest `
-            -Uri "${{ env.ICU_URL_WIN32 }}" `
-            -OutFile "${{ env.ICU_PATH }}/icu-precompiled-win32.zip"
+            -Uri "$win32Url" `
+            -OutFile "${{ env.ICU_PATH }}\icu-precompiled-win32.zip"
           Invoke-WebRequest `
-            -Uri "${{ env.ICU_URL_WIN64 }}" `
-            -OutFile "${{ env.ICU_PATH }}/icu-precompiled-win64.zip"
+            -Uri "$win64Url" `
+            -OutFile "${{ env.ICU_PATH }}\icu-precompiled-win64.zip"
+
+          # Export canonical mapping for verifier step
+          @"
+          $win32File=icu-precompiled-win32.zip
+          $win64File=icu-precompiled-win64.zip
+          "@ | Out-File "${{ env.ICU_PATH }}\icu-mapping.txt"
+
+          Invoke-WebRequest `
+            -Uri "${{ env.ICU_URL }}/SHASUM512.txt" `
+            -OutFile "${{ env.ICU_PATH }}\SHASUM512.txt"
+          Invoke-WebRequest `
+            -Uri "${{ env.ICU_URL }}\SHASUM512.txt.asc" `
+            -OutFile "${{ env.ICU_PATH }}\SHASUM512.txt.asc"
+
+      - name: Import ICU signing key
+        shell: pwsh
+        run: |
+          gpg --batch --import "${{ github.workspace }}/scripts/ICU_KEYS.txt"
+
+      - name: Verify ICU signing key fingerprint
+        shell: pwsh
+        run: |
+          $expected = "E52F07877A5805F9AF4AB0ACD46C5610D06E7001"
+
+          $actual = gpg --fingerprint --with-colons `
+            E52F07877A5805F9AF4AB0ACD46C5610D06E7001 |
+            Select-String "fpr" |
+            ForEach-Object { ($_ -split ":")[9] }
+
+          if ($actual -ne $expected) {
+            throw "ICU fingerprint mismatch: $actual"
+          }
+
+          Write-Host "ICU fingerprint OK"
+
+      - name: Verify ICU checksum signature
+        shell: pwsh
+        run: |
+          gpg --batch --verify `
+            "${{ env.ICU_PATH }}\SHASUM512.txt.asc" `
+            "${{ env.ICU_PATH }}\SHASUM512.txt"
+
+      - name: Verify ICU artifacts
+        shell: pwsh
+        run: |
+          pwsh scripts/verify_icu.ps1 `
+            -ChecksumFile "${{ env.ICU_PATH }}\SHASUM512.txt" `
+            -ArtifactDir "${{ env.ICU_PATH }}" `
+            -MappingFile "${{ env.ICU_PATH }}\icu-mapping.txt"
 
       # -------------------------------------------------
       # Extract ICU binaries
