@@ -185,12 +185,10 @@ jobs:
         env:
           EXPECTED_SHA3: ${{ steps.sqlite-download.outputs.sha3 }}
         run: |
-          ACTUAL_SHA3=$(sha3sum -a 256 sqlite-amalgamation.zip | awk '{print $1}')
-
-          echo "Expected: $EXPECTED_SHA3"
-          echo "Actual  : $ACTUAL_SHA3"
-
-          test "$ACTUAL_SHA3" = "$EXPECTED_SHA3"
+          set -euo pipefail
+          python3 scripts/verify_sha3.py \
+            sqlite-amalgamation.zip \
+            "${{ steps.sqlite-download.outputs.sha3 }}"
 
       # -------------------------------------------------
       # Extract SQLite sources from amalgamation archive
