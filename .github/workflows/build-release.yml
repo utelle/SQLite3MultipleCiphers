@@ -428,7 +428,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          fossil open android.fossil sqlite-src
+          mkdir sqlite-src
+          cd sqlite-src
+          fossil open ../android.fossil
 
       - name: Checkout Android binding revision
         shell: bash
