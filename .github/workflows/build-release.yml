@@ -424,12 +424,6 @@ jobs:
           set -euo pipefail
           fossil clone https://www.sqlite.org/android android.fossil
 
-      - name: Clone SQLite Android Fossil repo
-        shell: bash
-        run: |
-          set -euo pipefail
-          fossil clone https://www.sqlite.org/android android.fossil
-
       - name: Open Fossil repository
         shell: bash
         run: |
