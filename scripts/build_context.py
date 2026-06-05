@@ -37,6 +37,7 @@ def main():
     sqlite_android_check_in = config["sqlite"]["android"]["check-in"]
 
     icu_version = config["icu"]["version"]
+    icu_release = config["icu"]["sources"]["release"]["url"]
     icu_official = config["icu"]["sources"]["official"]["url"]
 
     ctx = {
@@ -55,6 +56,9 @@ def main():
             SQLITE_ANDROID_CHECK_IN=sqlite_android_check_in
         ),
         "ICU_VERSION": icu_version,
+        "ICU_URL_RELEASE": icu_release.format(
+            ICU_VERSION=icu_version
+        ),
         "ICU_URL_WIN32": icu_official.format(
             ICU_VERSION=icu_version,
             PLATFORM="win32"

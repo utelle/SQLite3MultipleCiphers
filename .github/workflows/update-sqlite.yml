@@ -136,22 +136,72 @@ jobs:
           mkdir -p "$ARCHIVES"
 
       # -------------------------------------------------
-      # Download amalgamation of requested SQLite version
+      # Download current SQLite download page
       # -------------------------------------------------
-      - name: Download SQLite sources
+      - name: Download SQLite download page
+        run: |
+          set -euo pipefail
+          curl -fsSL https://sqlite.org/download.html -o download.html
+
+      # -------------------------------------------------
+      # Extract SHA3 for amalgamation from download page
+      # -------------------------------------------------
+      - name: Extract SHA3 for amalgamation
+        id: sqlite-download
+        run: |
+          set -euo pipefail
+
+          line=$(grep "^PRODUCT,${SQLITE_VERSION},.*sqlite-amalgamation.*\.zip," download.html)
+
+          if [ -z "$line" ]; then
+            echo "No amalgamation entry found for SQLite ${SQLITE_VERSION}"
+            exit 1
+          fi
+
+          IFS=',' read -r product version relurl size sha3 <<< "$line"
+
+          echo "url=https://sqlite.org/${relurl}" >> "$GITHUB_OUTPUT"
+          echo "sha3=${sha3}" >> "$GITHUB_OUTPUT"
+
+          echo "Found:"
+          echo "URL : https://sqlite.org/${relurl}"
+          echo "SHA3: ${sha3}"
+
+      # -------------------------------------------------
+      # Download amalgamation archive
+      # -------------------------------------------------
+      - name: Download amalgamation archive
+        run: |
+          set -euo pipefail
+          echo "Downloading SQLite source amalgamation: ${{ steps.sqlite-download.outputs.url }}"
+          curl -fsSL --retry 3 --retry-delay 5 \
+            "${{ steps.sqlite-download.outputs.url }}" \
+            -o sqlite-amalgamation.zip
+
+      # -------------------------------------------------
+      # Verify SHA3-256 checksum
+      # -------------------------------------------------
+      - name: Verify SHA3-256 checksum
+        env:
+          EXPECTED_SHA3: ${{ steps.sqlite-download.outputs.sha3 }}
+        run: |
+          set -euo pipefail
+          python3 scripts/verify_sha3.py \
+            sqlite-amalgamation.zip \
+            "${{ steps.sqlite-download.outputs.sha3 }}"
+
+      # -------------------------------------------------
+      # Extract SQLite sources from amalgamation archive
+      # -------------------------------------------------
+      - name: Extract SQLite sources from amalgamation archive
         shell: bash
         run: |
           set -euo pipefail
 
-          echo "Downloading from: $SQLITE_URL_OFFICIAL"
-          URL="${SQLITE_URL_OFFICIAL}sqlite-amalgamation-${SQLITE_VERSION_RAW}.zip"
-          echo "File: $URL"
-          curl -fL --retry 3 --retry-delay 5 "$URL" -o sqlite.zip
-
           echo "Extracting..."
-          unzip -q sqlite.zip -d "$SQLITE_PATH"
+          unzip -q sqlite-amalgamation.zip -d "$SQLITE_PATH"
 
-          rm sqlite.zip
+          rm sqlite-amalgamation.zip
 
           echo "Done. Contents of $SQLITE_PATH:"
           ls -la "$SQLITE_PATH"
@@ -368,10 +418,10 @@ jobs:
           git verify-commit HEAD
 
       # -------------------------------------------------
-      # Commit changed source files and configuration (only release)
+      # Commit changed source files and configuration (only update)
       # -------------------------------------------------
       - name: Commit config and source changes
-        if: ${{ inputs.mode == 'release' }}
+        if: ${{ inputs.mode == 'update' }}
         shell: bash
         run: |
           set -euo pipefail

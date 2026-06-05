@@ -90,15 +90,63 @@ jobs:
       # -------------------------------------------------
       # Download ICU binary releases for Win32 and Win64
       # -------------------------------------------------
-      - name: Download source archive
+      - name: Download ICU binary releases for Windows
         shell: pwsh
         run: |
+          $win32Url = "${{ env.ICU_URL_WIN32 }}"
+          $win64Url = "${{ env.ICU_URL_WIN64 }}"
+
+          $win32File = ($win32Url -split "/")[-1]
+          $win64File = ($win64Url -split "/")[-1]
+
           Invoke-WebRequest `
-            -Uri "${{ env.ICU_URL_WIN32 }}" `
-            -OutFile "${{ env.ICU_PATH }}/icu-precompiled-win32.zip"
+            -Uri "$win32Url" `
+            -OutFile "${{ env.ICU_PATH }}\icu-precompiled-win32.zip"
           Invoke-WebRequest `
-            -Uri "${{ env.ICU_URL_WIN64 }}" `
-            -OutFile "${{ env.ICU_PATH }}/icu-precompiled-win64.zip"
+            -Uri "$win64Url" `
+            -OutFile "${{ env.ICU_PATH }}\icu-precompiled-win64.zip"
+
+          # Export canonical mapping for verifier step
+          @"
+          $win32File=icu-precompiled-win32.zip
+          $win64File=icu-precompiled-win64.zip
+          "@ | Out-File "${{ env.ICU_PATH }}\icu-mapping.txt"
+
+          Invoke-WebRequest `
+            -Uri "${{ env.ICU_URL_RELEASE }}/SHASUM512.txt" `
+            -OutFile "${{ env.ICU_PATH }}\SHASUM512.txt"
+          Invoke-WebRequest `
+            -Uri "${{ env.ICU_URL_RELEASE }}/SHASUM512.txt.asc" `
+            -OutFile "${{ env.ICU_PATH }}\SHASUM512.txt.asc"
+
+      # -------------------------------------------------
+      # Import ICU signing key
+      # -------------------------------------------------
+      - name: Import ICU signing key
+        shell: pwsh
+        run: |
+          gpg --batch --import "${{ github.workspace }}/scripts/ICU_KEYS.txt"
+
+      # -------------------------------------------------
+      # Verify ICU checksum sugnature
+      # -------------------------------------------------
+      - name: Verify ICU checksum signature
+        shell: pwsh
+        run: |
+          gpg --batch --verify `
+            "${{ env.ICU_PATH }}\SHASUM512.txt.asc" `
+            "${{ env.ICU_PATH }}\SHASUM512.txt"
+
+      # -------------------------------------------------
+      # Verify ICU artifacts
+      # -------------------------------------------------
+      - name: Verify ICU artifacts
+        shell: pwsh
+        run: |
+          pwsh scripts/verify_icu.ps1 `
+            -ChecksumFile "${{ env.ICU_PATH }}\SHASUM512.txt" `
+            -ArtifactDir "${{ env.ICU_PATH }}" `
+            -MappingFile "${{ env.ICU_PATH }}\icu-mapping.txt"
 
       # -------------------------------------------------
       # Extract ICU binaries
@@ -354,24 +402,52 @@ jobs:
           sdkmanager "ndk;26.3.11579264"
 
       # -------------------------------------------------
-      # Download SQLite Android Bindings
+      # Install Fossil
       # -------------------------------------------------
-      - name: Download SQLite Android Bindings
+      - name: Install Fossil
+        shell: bash
         run: |
           set -euo pipefail
-          echo "Downloading from: $SQLITE_URL_ANDROID"
-          URL="${SQLITE_URL_ANDROID}sqlite-android.zip"
-          echo "File: $URL"
-          curl -fL "$URL" -o sqlite-android.zip
+
+          FOSSIL_VERSION="2.28"
+
+          curl -fL --retry 3 --retry-delay 5 -o fossil.tar.gz \
+            https://www.fossil-scm.org/home/uv/fossil-linux-x64-$FOSSIL_VERSION.tar.gz
+
+          tar -xzf fossil.tar.gz
+          sudo mv fossil /usr/local/bin/
+          fossil version
 
       # -------------------------------------------------
-      # Unpack SQLite Android Bindings
+      # Clone SQLite Android Fossil repo
       # -------------------------------------------------
-      - name: Unpack SQLite Android Bindings
+      - name: Clone SQLite Android Fossil repo
+        shell: bash
         run: |
           set -euo pipefail
-          unzip -q sqlite-android.zip
-          mv sqlite-android sqlite-src
+          fossil clone https://www.sqlite.org/android android.fossil
+
+      # -------------------------------------------------
+      # Open Fossil repository
+      # -------------------------------------------------
+      - name: Open Fossil repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir sqlite-src
+          cd sqlite-src
+          fossil open ../android.fossil
+
+      # -------------------------------------------------
+      # Checkout Android binding revision
+      # -------------------------------------------------
+      - name: Checkout Android binding revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd sqlite-src
+          fossil update "${SQLITE_ANDROID_CHECK_IN}"
+          fossil info
 
       # -------------------------------------------------
       # Download SQLite3MC amalgamation
@@ -702,15 +778,67 @@ jobs:
           python scripts/build_context.py
 
       # -------------------------------------------------
-      # Clone matching branch of SQLite repository
+      # Install Fossil
       # -------------------------------------------------
-      - name: Checkout SQLite source
+      - name: Install Fossil
+        shell: bash
         run: |
           set -euo pipefail
-          git clone \
-            --branch version-${SQLITE_VERSION} \
-            --depth 1 \
-            https://github.com/sqlite/sqlite.git
+
+          FOSSIL_VERSION="2.28"
+
+          curl -fL --retry 3 --retry-delay 5 -o fossil.tar.gz \
+            https://www.fossil-scm.org/home/uv/fossil-linux-x64-$FOSSIL_VERSION.tar.gz
+
+          tar -xzf fossil.tar.gz
+          sudo mv fossil /usr/local/bin/
+          fossil version
+
+      # -------------------------------------------------
+      # Clone SQLite Fossil repo
+      # -------------------------------------------------
+      - name: Clone SQLite Fossil repo
+        shell: bash
+        run: |
+          set -euo pipefail
+          fossil clone https://www.sqlite.org/src sqlite.fossil
+
+      # -------------------------------------------------
+      # Open Fossil repository
+      # -------------------------------------------------
+      - name: Open Fossil repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir sqlite
+          cd sqlite
+          fossil open ../sqlite.fossil
+
+      # -------------------------------------------------
+      # Checkout selected SQLite version
+      # -------------------------------------------------
+      - name: Checkout selected SQLite version
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd sqlite
+          fossil update "version-${SQLITE_VERSION}"
+          fossil info
+
+      # -------------------------------------------------
+      # Setup git for fossil repo
+      # -------------------------------------------------
+      - name: Setup git for fossil repo
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd sqlite
+          rm -rf .git
+          git init
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add -A
+          git commit -m "SQLite ${SQLITE_VERSION} snapshot"
 
       # -------------------------------------------------
       # Set up Emscripten
