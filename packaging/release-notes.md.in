@@ -1,7 +1,5 @@
 **Changes since previous release**
 - Based on SQLite version {SQLITE_VERSION}
-- Fixed issue #232 - Zero out one-time-keys (for cipher schemes `chacha20`, `aegis`, and `ascon128`) after encrypt/decrypt operation
-- Resolved issue #233 - Add support for specifying plaintext header size in non-legacy mode of the _SQLCipher_ cipher scheme. This option was supported only for legacy mode version 4 (legacy=4), but there is no reason to not support it for non-legacy mode.
 
 > [!IMPORTANT]
 > :pushpin: The _amalgamation source package_ including `configure` is _still_ **experimental**. :pushpin:
