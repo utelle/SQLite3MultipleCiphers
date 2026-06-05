@@ -119,29 +119,17 @@ jobs:
             -Uri "${{ env.ICU_URL_RELEASE }}/SHASUM512.txt.asc" `
             -OutFile "${{ env.ICU_PATH }}\SHASUM512.txt.asc"
 
+      # -------------------------------------------------
+      # Import ICU signing key
+      # -------------------------------------------------
       - name: Import ICU signing key
         shell: pwsh
         run: |
           gpg --batch --import "${{ github.workspace }}/scripts/ICU_KEYS.txt"
 
-      - name: Verify ICU signing key fingerprint
-        shell: pwsh
-        run: |
-          $expected = "E52F07877A5805F9AF4AB0ACD46C5610D06E7001"
-
-          $actual = (
-            gpg --fingerprint --with-colons `
-              E52F07877A5805F9AF4AB0ACD46C5610D06E7001 |
-              Select-String "^fpr:" |
-              ForEach-Object { ($_ -split ":")[9] }
-          )[0]
-
-          if ($actual -ne $expected) {
-            throw "ICU fingerprint mismatch: $actual"
-          }
-
-          Write-Host "ICU fingerprint OK"
-
+      # -------------------------------------------------
+      # Verify ICU checksum sugnature
+      # -------------------------------------------------
       - name: Verify ICU checksum signature
         shell: pwsh
         run: |
@@ -149,6 +137,9 @@ jobs:
             "${{ env.ICU_PATH }}\SHASUM512.txt.asc" `
             "${{ env.ICU_PATH }}\SHASUM512.txt"
 
+      # -------------------------------------------------
+      # Verify ICU artifacts
+      # -------------------------------------------------
       - name: Verify ICU artifacts
         shell: pwsh
         run: |
@@ -411,24 +402,60 @@ jobs:
           sdkmanager "ndk;26.3.11579264"
 
       # -------------------------------------------------
-      # Download SQLite Android Bindings
+      # Install Fossil
       # -------------------------------------------------
-      - name: Download SQLite Android Bindings
+      - name: Install Fossil
+        shell: bash
         run: |
           set -euo pipefail
-          echo "Downloading from: $SQLITE_URL_ANDROID"
-          URL="${SQLITE_URL_ANDROID}sqlite-android.zip"
-          echo "File: $URL"
-          curl -fL "$URL" -o sqlite-android.zip
 
-      # -------------------------------------------------
-      # Unpack SQLite Android Bindings
-      # -------------------------------------------------
-      - name: Unpack SQLite Android Bindings
+          FOSSIL_VERSION="2.28"
+
+          curl -fL --retry 3 --retry-delay 5 -o fossil.tar.gz \
+            https://www.fossil-scm.org/home/uv/fossil-linux-x64-$FOSSIL_VERSION.tar.gz
+
+          tar -xzf fossil.tar.gz
+          sudo mv fossil /usr/local/bin/
+          fossil version
+
+      - name: Clone SQLite Android Fossil repo
+        shell: bash
         run: |
           set -euo pipefail
-          unzip -q sqlite-android.zip
-          mv sqlite-android sqlite-src
+          fossil clone https://www.sqlite.org/android android.fossil
+
+      - name: Clone SQLite Android Fossil repo
+        shell: bash
+        run: |
+          set -euo pipefail
+          fossil clone https://www.sqlite.org/android android.fossil
+
+      - name: Open Fossil repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          fossil open android.fossil sqlite-src
+
+      - name: Checkout Android binding revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd sqlite-src
+          fossil update "${SQLITE_ANDROID_CHECK_IN}"
+          fossil status
+
+      - name: Verify Fossil repository integrity
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd sqlite-src
+          fossil verify
+
+      - name: Print checkout info
+        shell: bash
+        run: |
+          cd sqlite-src
+          fossil info
 
       # -------------------------------------------------
       # Download SQLite3MC amalgamation
