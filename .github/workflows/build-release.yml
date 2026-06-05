@@ -418,12 +418,18 @@ jobs:
           sudo mv fossil /usr/local/bin/
           fossil version
 
+      # -------------------------------------------------
+      # Clone SQLite Android Fossil repo
+      # -------------------------------------------------
       - name: Clone SQLite Android Fossil repo
         shell: bash
         run: |
           set -euo pipefail
           fossil clone https://www.sqlite.org/android android.fossil
 
+      # -------------------------------------------------
+      # Open Fossil repository
+      # -------------------------------------------------
       - name: Open Fossil repository
         shell: bash
         run: |
@@ -432,6 +438,9 @@ jobs:
           cd sqlite-src
           fossil open ../android.fossil
 
+      # -------------------------------------------------
+      # Checkout Android binding revision
+      # -------------------------------------------------
       - name: Checkout Android binding revision
         shell: bash
         run: |
@@ -785,12 +794,18 @@ jobs:
           sudo mv fossil /usr/local/bin/
           fossil version
 
+      # -------------------------------------------------
+      # Clone SQLite Fossil repo
+      # -------------------------------------------------
       - name: Clone SQLite Fossil repo
         shell: bash
         run: |
           set -euo pipefail
           fossil clone https://www.sqlite.org/src sqlite.fossil
 
+      # -------------------------------------------------
+      # Open Fossil repository
+      # -------------------------------------------------
       - name: Open Fossil repository
         shell: bash
         run: |
@@ -799,6 +814,9 @@ jobs:
           cd sqlite
           fossil open ../sqlite.fossil
 
+      # -------------------------------------------------
+      # Checkout selected SQLite version
+      # -------------------------------------------------
       - name: Checkout selected SQLite version
         shell: bash
         run: |
@@ -807,6 +825,9 @@ jobs:
           fossil update "version-${SQLITE_VERSION}"
           fossil info
 
+      # -------------------------------------------------
+      # Setup git for fossil repo
+      # -------------------------------------------------
       - name: Setup git for fossil repo
         shell: bash
         run: |
