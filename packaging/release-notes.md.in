@@ -1,4 +1,5 @@
-**Changes since previous release**
+## Changes since previous release
+
 - Based on SQLite version {SQLITE_VERSION}
 
 > [!IMPORTANT]
@@ -14,3 +15,7 @@ This release contains the following precompiled binaries:
 - Source code amalgamation (_autoconf_) - a single C source file and a single C header file - including a `configure` script for POSIX compliant systems,
 - Precompiled SQLite Android library (see [SQLite Android Bindings](https://www.sqlite.org/android/doc/trunk/www/index.wiki)),
 - Precompiled bundle of `sqlite3.wasm` and its JavaScript APIs, ready for use in web applications (see [SQLite3 WebAssembly](https://sqlite.org/wasm/)).
+
+## Verification
+
+Release artifacts were built by GitHub Actions and are published with GitHub Artifact Attestations for provenance verification.

@@ -112,6 +112,17 @@ jobs:
         run: |
           set -euo pipefail
           python scripts/render_template.py packaging/sqlite3mc_version.h.in "src/sqlite3mc_version.h"
+          python scripts/render_template.py packaging/autoconf/VERSION.in "autoconf/VERSION"
+          python scripts/render_template.py packaging/autoconf/sqlite3rc.h.in "autoconf/sqlite3rc.h"
+
+      # -------------------------------------------------
+      # Update version in CMake build file
+      # -------------------------------------------------
+      - name: Update version in build files
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/update_build_files.py
 
       # -------------------------------------------------
       # Upload version-dependent files (for debugging)
@@ -122,6 +133,10 @@ jobs:
           name: version-deps
           path: |
             config.json
+            CMakeLists.txt
+            configure.ac
+            autoconf/VERSION
+            autoconf/sqlite3rc.h
             src/sqlite3mc_version.h
 
       # -------------------------------------------------
@@ -427,6 +442,11 @@ jobs:
           set -euo pipefail
 
           git add config.json
+          git add CMakeLists.txt
+          git add configure.ac
+
+          git add autoconf/VERSION
+          git add autoconf/sqlite3rc.h
 
           git add src/sqlite3.c
           git add src/sqlite3.h
