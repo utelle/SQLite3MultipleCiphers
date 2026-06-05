@@ -136,7 +136,7 @@ jobs:
             CMakeLists.txt
             configure.ac
             autoconf/VERSION
-            autoconf/sqite3rc.h
+            autoconf/sqlite3rc.h
             src/sqlite3mc_version.h
 
       # -------------------------------------------------
@@ -446,7 +446,7 @@ jobs:
           git add configure.ac
 
           git add autoconf/VERSION
-          git add autoconf/sqite3rc.h
+          git add autoconf/sqlite3rc.h
 
           git add src/sqlite3.c
           git add src/sqlite3.h
