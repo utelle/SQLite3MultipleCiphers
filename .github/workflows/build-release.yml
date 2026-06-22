@@ -418,7 +418,9 @@ jobs:
           curl -fL --retry 3 --retry-delay 5 -o fossil.tar.gz \
             https://www.fossil-scm.org/home/uv/fossil-linux-x64-$FOSSIL_VERSION.tar.gz
 
-          echo "${FOSSIL_SHA3}  fossil.tar.gz" | sha3sum -c -
+          python3 scripts/verify_sha3.py \
+            fossil.tar.gz \
+            "${FOSSIL_SHA3}"
 
       # -------------------------------------------------
       # Install Fossil
@@ -792,17 +794,33 @@ jobs:
           python scripts/build_context.py
 
       # -------------------------------------------------
+      # Download and verify Fossil
+      # --------------
+      # SHA3-256 checksum (retrieved from https://www3.fossil-scm.org/home/uvlist on 2026-06-08)
+      # fossil-linux-x64-2.28.tar.gz cbd89e653e1b797802f2ee5bb55d6ad4959291ec6d6eb192c79ff62d9a224c33
+      # -------------------------------------------------
+      - name: Download and verify Fossil
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          FOSSIL_VERSION="2.28"
+          FOSSIL_SHA3="cbd89e653e1b797802f2ee5bb55d6ad4959291ec6d6eb192c79ff62d9a224c33"
+
+          curl -fL --retry 3 --retry-delay 5 -o fossil.tar.gz \
+            https://www.fossil-scm.org/home/uv/fossil-linux-x64-$FOSSIL_VERSION.tar.gz
+
+          python3 scripts/verify_sha3.py \
+            fossil.tar.gz \
+            "${FOSSIL_SHA3}"
+
+      # -------------------------------------------------
       # Install Fossil
       # -------------------------------------------------
       - name: Install Fossil
         shell: bash
         run: |
           set -euo pipefail
-
-          FOSSIL_VERSION="2.28"
-
-          curl -fL --retry 3 --retry-delay 5 -o fossil.tar.gz \
-            https://www.fossil-scm.org/home/uv/fossil-linux-x64-$FOSSIL_VERSION.tar.gz
 
           tar -xzf fossil.tar.gz
           sudo mv fossil /usr/local/bin/
