@@ -10,10 +10,8 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version information
 
-* 2.3.4 - *May 2026*
-  - Based on SQLite version 3.53.1
-  - Fixed issue #232 - Zero out one-time-keys (for cipher schemes `chacha20`, `aegis`, and `ascon128`) after encrypt/decrypt operation
-  - Resolved issue #233 - Add support for specifying plaintext header size in non-legacy mode of the SQLCipher cipher scheme. This option was supported only for legacy mode version 4 (legacy=4), but there is no reason to not support it for non-legacy mode.
+* 2.3.5 - *June 2026*
+  - Based on SQLite version 3.53.2
 
 For further version information please consult the [CHANGELOG](CHANGELOG.md).
 

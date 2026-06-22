@@ -1,5 +1,5 @@
-January 10, 2026
-================
+June 5, 2026
+============
 
 This package contains an experimental variant for "SQLite3 Multiple
 Ciphers" of the original C source amalgamation package including a

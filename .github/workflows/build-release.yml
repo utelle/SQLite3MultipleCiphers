@@ -612,7 +612,7 @@ jobs:
       # -------------------------------------------------
       - name: Setup MSYS2 for Win32
         if: matrix.platform == 'Win32'
-        uses: msys2/setup-msys2@e9898307ac31d1a803454791be09ab9973336e1c # v2
+        uses: msys2/setup-msys2@66cd2cce69caa17b53920067426061ca1de3a884 # v2
         with:
           msystem: ${{matrix.sys}}
           update: true
@@ -624,7 +624,7 @@ jobs:
       # -------------------------------------------------
       - name: Setup MSYS2 for Win64
         if: matrix.platform == 'Win64'
-        uses: msys2/setup-msys2@e9898307ac31d1a803454791be09ab9973336e1c # v2
+        uses: msys2/setup-msys2@66cd2cce69caa17b53920067426061ca1de3a884 # v2
         with:
           msystem: ${{matrix.sys}}
           update: true
