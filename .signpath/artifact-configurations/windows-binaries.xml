@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  SignPath Artifact Configuration for the SQLite3MultipleCiphers repo.
+  Register in the SignPath portal under project "SQLite3MultipleCiphers" with the
+  configuration slug "windows-binaries". The portal copy is authoritative.
+
+  The workflow stages the signable PE files into a FLAT directory ("to-sign/")
+  and uploads it with actions/upload-artifact, which wraps it in a ZIP -> root
+  element <zip-file>. The DLLs/EXEs therefore sit directly at the ZIP root by
+  file name (single level), so no recursive "**" is needed here.
+
+  min-matches="1" on the DLL pattern fails the request loudly if nothing was
+  staged (at least sqlite3mc.dll is always built); the shell EXE stays optional.
+-->
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <zip-file>
+    <pe-file-set>
+      <include path="sqlite3mc*.dll"       min-matches="1" max-matches="unbounded" />
+      <include path="sqlite3mc_shell*.exe" min-matches="0" max-matches="unbounded" />
+      <for-each>
+        <authenticode-sign />
+      </for-each>
+    </pe-file-set>
+  </zip-file>
+</artifact-configuration>
