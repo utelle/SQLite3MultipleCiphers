@@ -24,7 +24,7 @@ While reasonable effort will be made to assess and address valid security issues
 
 ## Scope
 
-[SQLite3MultipleCiphers}(https://utelle.github.io/SQLite3MultipleCiphers/) extends [SQLite](https://sqlite.org) with database encryption capabilities.
+[SQLite3MultipleCiphers](https://utelle.github.io/SQLite3MultipleCiphers/) extends [SQLite](https://sqlite.org) with database encryption capabilities.
 
 Security reports should focus on vulnerabilities introduced by this project, particularly in relation to its cryptographic functionality.
 
@@ -58,7 +58,7 @@ For background on _SQLite CVEs_ and their applicability, see: [https://sqlite.or
 
 Reports should clearly explain how a given [SQLite](https://sqlite.org) issue affects [SQLite3MultipleCiphers](https://utelle.github.io/SQLite3MultipleCiphers/), particularly with respect to its _encryption-related_ functionality.
 
-Reports that merely reference a published [SQLite CVE](https://sqlite.org/cves.html) without demonstrating relevance to this project are generally considered out of scope.
+Reports that merely reference a published [SQLite CVE](https://sqlite.org/cves.html#status_of_recent_sqlite_cves) without demonstrating relevance to this project are generally considered out of scope.
 
 ## Supported Versions
 
