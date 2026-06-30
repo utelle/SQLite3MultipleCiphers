@@ -203,10 +203,67 @@ jobs:
             /p:Platform=x64
 
       # -------------------------------------------------
+      # Stage Windows PE files for signing
+      # -------------------------------------------------
+      - name: Stage Windows PE files for signing
+        if: ${{ env.MODE != 'sanity' }}
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force to-sign | Out-Null
+          # All signable DLLs are produced in dll/release, the shell EXEs in
+          # lib/release (same paths package-windows collects from). Names are
+          # unique across the variants, so a flat staging dir is collision-free.
+          Copy-Item bin/vc17/dll/release/sqlite3mc*.dll       to-sign/ -ErrorAction SilentlyContinue
+          Copy-Item bin/vc17/lib/release/sqlite3mc_shell*.exe to-sign/ -ErrorAction SilentlyContinue
+          Get-ChildItem to-sign
+
+      # -------------------------------------------------
+      # Upload unsigned PE files
+      # -------------------------------------------------
+      - name: Upload unsigned PE files
+        id: upload-unsigned-pe
+        if: ${{ env.MODE != 'sanity' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: unsigned-windows-pe       # must NOT start with sqlite3mc- (intermediate)
+          path: to-sign
+          if-no-files-found: error
+
+      # -------------------------------------------------
+      # Submit signing request (SignPath)
+      # -------------------------------------------------
+      - name: Submit signing request (SignPath)
+        if: ${{ env.MODE != 'sanity' }}
+        uses: signpath/github-action-submit-signing-request@b9d91eadd323de506c0c81cf0c7fe7438f3360fd # v2.2
+        with:
+          api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
+          organization-id: '${{ vars.SIGNPATH_ORGANIZATION_ID }}'
+          project-slug: 'SQLite3MultipleCiphers'
+          artifact-configuration-slug: 'windows-binaries'
+          signing-policy-slug: ${{ env.MODE == 'release' && 'release-signing' || 'test-signing' }}
+          github-artifact-id: '${{ steps.upload-unsigned-pe.outputs.artifact-id }}'
+          wait-for-completion: true
+          # release-signing typically requires manual approval -> wait longer
+          wait-for-completion-timeout-in-seconds: 1800
+          output-artifact-directory: 'signed'
+
+      # -------------------------------------------------
+      # Restore signed PE files
+      # -------------------------------------------------
+      - name: Restore signed PE files
+        if: ${{ env.MODE != 'sanity' }}
+        shell: pwsh
+        run: |
+          # SignPath returns the same file names; put the signed DLLs/EXEs back
+          # exactly where package-windows picks them up.
+          Copy-Item signed/sqlite3mc*.dll       bin/vc17/dll/release/ -Force
+          Copy-Item signed/sqlite3mc_shell*.exe bin/vc17/lib/release/ -Force
+
+      # -------------------------------------------------
       # Upload Win32 and Win64 binaries
       # -------------------------------------------------
       - name: Upload build output
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: build-output
           path: |
@@ -402,17 +459,33 @@ jobs:
           sdkmanager "ndk;26.3.11579264"
 
       # -------------------------------------------------
+      # Download and verify Fossil
+      # --------------
+      # SHA3-256 checksum (retrieved from https://www3.fossil-scm.org/home/uvlist on 2026-06-08)
+      # fossil-linux-x64-2.28.tar.gz cbd89e653e1b797802f2ee5bb55d6ad4959291ec6d6eb192c79ff62d9a224c33
+      # -------------------------------------------------
+      - name: Download and verify Fossil
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          FOSSIL_VERSION="2.28"
+          FOSSIL_SHA3="cbd89e653e1b797802f2ee5bb55d6ad4959291ec6d6eb192c79ff62d9a224c33"
+
+          curl -fL --retry 3 --retry-delay 5 -o fossil.tar.gz \
+            https://www.fossil-scm.org/home/uv/fossil-linux-x64-$FOSSIL_VERSION.tar.gz
+
+          python3 scripts/verify_sha3.py \
+            fossil.tar.gz \
+            "${FOSSIL_SHA3}"
+
+      # -------------------------------------------------
       # Install Fossil
       # -------------------------------------------------
       - name: Install Fossil
         shell: bash
         run: |
           set -euo pipefail
-
-          FOSSIL_VERSION="2.28"
-
-          curl -fL --retry 3 --retry-delay 5 -o fossil.tar.gz \
-            https://www.fossil-scm.org/home/uv/fossil-linux-x64-$FOSSIL_VERSION.tar.gz
 
           tar -xzf fossil.tar.gz
           sudo mv fossil /usr/local/bin/
@@ -778,17 +851,33 @@ jobs:
           python scripts/build_context.py
 
       # -------------------------------------------------
+      # Download and verify Fossil
+      # --------------
+      # SHA3-256 checksum (retrieved from https://www3.fossil-scm.org/home/uvlist on 2026-06-08)
+      # fossil-linux-x64-2.28.tar.gz cbd89e653e1b797802f2ee5bb55d6ad4959291ec6d6eb192c79ff62d9a224c33
+      # -------------------------------------------------
+      - name: Download and verify Fossil
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          FOSSIL_VERSION="2.28"
+          FOSSIL_SHA3="cbd89e653e1b797802f2ee5bb55d6ad4959291ec6d6eb192c79ff62d9a224c33"
+
+          curl -fL --retry 3 --retry-delay 5 -o fossil.tar.gz \
+            https://www.fossil-scm.org/home/uv/fossil-linux-x64-$FOSSIL_VERSION.tar.gz
+
+          python3 scripts/verify_sha3.py \
+            fossil.tar.gz \
+            "${FOSSIL_SHA3}"
+
+      # -------------------------------------------------
       # Install Fossil
       # -------------------------------------------------
       - name: Install Fossil
         shell: bash
         run: |
           set -euo pipefail
-
-          FOSSIL_VERSION="2.28"
-
-          curl -fL --retry 3 --retry-delay 5 -o fossil.tar.gz \
-            https://www.fossil-scm.org/home/uv/fossil-linux-x64-$FOSSIL_VERSION.tar.gz
 
           tar -xzf fossil.tar.gz
           sudo mv fossil /usr/local/bin/
