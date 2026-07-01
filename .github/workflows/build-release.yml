@@ -390,7 +390,7 @@ jobs:
       # Upload ZIP archive
       # -------------------------------------------------
       - name: Upload amalgamation
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: sqlite3mc-amalgamation
           if-no-files-found: error
@@ -592,7 +592,7 @@ jobs:
       # Upload AAR Artifact
       # -------------------------------------------------
       - name: Upload AAR Artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: sqlite3mc-android-aar
           if-no-files-found: error
@@ -816,7 +816,7 @@ jobs:
       # Upload ZIP archive with Windows binaries
       # -------------------------------------------------
       - name: Upload ZIP artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: sqlite3mc-${{ matrix.id }}
           path: dist/*.zip
@@ -979,7 +979,7 @@ jobs:
       # Upload SQLite amalgamation for comparison
       # -------------------------------------------------
       - name: Upload SQLite amalgamation for comparison
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: sqlite-compare
           path: |
@@ -1081,7 +1081,7 @@ jobs:
       # Upload WASM binary ZIP
       # -------------------------------------------------
       - name: Upload build artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: sqlite3mc-wasm
           path: sqlite/ext/wasm/sqlite3mc*.zip
@@ -1157,7 +1157,7 @@ jobs:
       # Upload autoconf release archive
       # -------------------------------------------------
       - name: Upload build artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: sqlite3mc-autoconf
           path: archives/sqlite3mc*.tar.gz
