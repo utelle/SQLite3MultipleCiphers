@@ -356,6 +356,7 @@ jobs:
           sed -i 's/[[:space:]]*$//' "sqlite3mc_amalgamation.h"
           sed -i 's/[[:space:]]*$//' "shell3mc_amalgamation.c"
           cp ../src/sqlite3ext.h .
+          cp ../src/sqlite3.h .
           ls -l
 
       # -------------------------------------------------
@@ -1234,6 +1235,62 @@ jobs:
           python scripts/render_template.py \
             packaging/release-notes.md.in \
             release/release-notes.md
+
+      # -------------------------------------------------
+      # Generate checksum file SHA256SUMS
+      # -------------------------------------------------
+      - name: Generate SHA256SUMS
+        working-directory: release
+        run: |
+          set -euo pipefail
+          checksum_file="sqlite3mc-${{ env.SQLITE3MC_VERSION }}-SHA256SUMS"
+
+          find . -maxdepth 1 -type f -name "sqlite3mc-*" \
+            ! -name "*-SHA256SUMS*" \
+            ! -name "*.sig" \
+            ! -name "*.pem" \
+            -printf "%f\n" \
+            | sort \
+            | while read file; do
+                sha256sum "$file"
+              done > "$checksum_file"
+
+          echo "Created $checksum_file"
+
+      # -------------------------------------------------
+      # Install Cosign
+      # -------------------------------------------------
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
+      # -------------------------------------------------
+      # Sign SHA256SUMS with Cosign
+      # -------------------------------------------------
+      - name: Sign SHA256SUMS
+        working-directory: release
+        run: |
+          set -euo pipefail
+          checksum_file="sqlite3mc-${{ env.SQLITE3MC_VERSION }}-SHA256SUMS"
+
+          cosign sign-blob \
+            --yes \
+            --output-signature "${checksum_file}.sig" \
+            --output-certificate "${checksum_file}.pem" \
+            "$checksum_file"
+
+      # -------------------------------------------------
+      # Verify SHA256SUMS signature with Cosign
+      # -------------------------------------------------
+      - name: Verify SHA256SUMS signature
+        working-directory: release
+        run: |
+          set -euo pipefail
+          checksum_file="sqlite3mc-${{ env.SQLITE3MC_VERSION }}-SHA256SUMS"
+
+          cosign verify-blob \
+            --certificate "${checksum_file}.pem" \
+            --signature "${checksum_file}.sig" \
+            "$FILE"
 
       # -------------------------------------------------
       # Mode information
