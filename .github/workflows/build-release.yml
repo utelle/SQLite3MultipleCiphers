@@ -220,44 +220,44 @@ jobs:
       # -------------------------------------------------
       # Upload unsigned PE files
       # -------------------------------------------------
-      - name: Upload unsigned PE files
-        id: upload-unsigned-pe
-        if: ${{ env.MODE != 'sanity' }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: unsigned-windows-pe       # must NOT start with sqlite3mc- (intermediate)
-          path: to-sign
-          if-no-files-found: error
+      #- name: Upload unsigned PE files
+      #  id: upload-unsigned-pe
+      #  if: ${{ env.MODE != 'sanity' }}
+      #  uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      #  with:
+      #    name: unsigned-windows-pe       # must NOT start with sqlite3mc- (intermediate)
+      #    path: to-sign
+      #    if-no-files-found: error
 
       # -------------------------------------------------
       # Submit signing request (SignPath)
       # -------------------------------------------------
-      - name: Submit signing request (SignPath)
-        if: ${{ env.MODE != 'sanity' }}
-        uses: signpath/github-action-submit-signing-request@b9d91eadd323de506c0c81cf0c7fe7438f3360fd # v2.2
-        with:
-          api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
-          organization-id: '${{ vars.SIGNPATH_ORGANIZATION_ID }}'
-          project-slug: 'SQLite3MultipleCiphers'
-          artifact-configuration-slug: 'windows-binaries'
-          signing-policy-slug: ${{ env.MODE == 'release' && 'release-signing' || 'test-signing' }}
-          github-artifact-id: '${{ steps.upload-unsigned-pe.outputs.artifact-id }}'
-          wait-for-completion: true
-          # release-signing typically requires manual approval -> wait longer
-          wait-for-completion-timeout-in-seconds: 1800
-          output-artifact-directory: 'signed'
+      #- name: Submit signing request (SignPath)
+      #  if: ${{ env.MODE != 'sanity' }}
+      #  uses: signpath/github-action-submit-signing-request@b9d91eadd323de506c0c81cf0c7fe7438f3360fd # v2.2
+      #  with:
+      #    api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
+      #    organization-id: '${{ vars.SIGNPATH_ORGANIZATION_ID }}'
+      #    project-slug: 'SQLite3MultipleCiphers'
+      #    artifact-configuration-slug: 'windows-binaries'
+      #    signing-policy-slug: ${{ env.MODE == 'release' && 'release-signing' || 'test-signing' }}
+      #    github-artifact-id: '${{ steps.upload-unsigned-pe.outputs.artifact-id }}'
+      #    wait-for-completion: true
+      #    # release-signing typically requires manual approval -> wait longer
+      #    wait-for-completion-timeout-in-seconds: 1800
+      #    output-artifact-directory: 'signed'
 
       # -------------------------------------------------
       # Restore signed PE files
       # -------------------------------------------------
-      - name: Restore signed PE files
-        if: ${{ env.MODE != 'sanity' }}
-        shell: pwsh
-        run: |
-          # SignPath returns the same file names; put the signed DLLs/EXEs back
-          # exactly where package-windows picks them up.
-          Copy-Item signed/sqlite3mc*.dll       bin/vc17/dll/release/ -Force
-          Copy-Item signed/sqlite3mc_shell*.exe bin/vc17/lib/release/ -Force
+      #- name: Restore signed PE files
+      #  if: ${{ env.MODE != 'sanity' }}
+      #  shell: pwsh
+      #  run: |
+      #    # SignPath returns the same file names; put the signed DLLs/EXEs back
+      #    # exactly where package-windows picks them up.
+      #    Copy-Item signed/sqlite3mc*.dll       bin/vc17/dll/release/ -Force
+      #    Copy-Item signed/sqlite3mc_shell*.exe bin/vc17/lib/release/ -Force
 
       # -------------------------------------------------
       # Upload Win32 and Win64 binaries
@@ -1381,7 +1381,7 @@ jobs:
           fi
 
           # Create annotated and signed tag
-          git tag -s "$TAG" -m "Release SQLite3MC ${SQLITE3MC_VERSION}"
+          git tag -s "$TAG" -m "based on SQLite3 ${SQLITE_VERSION}"
           git push origin "$TAG"
 
       # -------------------------------------------------
