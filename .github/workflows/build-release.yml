@@ -1290,6 +1290,9 @@ jobs:
           cosign verify-blob \
             --certificate "${checksum_file}.pem" \
             --signature "${checksum_file}.sig" \
+            --certificate-identity-regexp \
+              '^https://github.com/utelle/SQLite3MultipleCiphers/.*' \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
             "$checksum_file"
 
       # -------------------------------------------------
