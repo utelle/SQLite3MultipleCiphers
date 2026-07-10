@@ -19,3 +19,16 @@ This release contains the following precompiled binaries:
 ## Verification
 
 Release artifacts were built by GitHub Actions and are published with GitHub Artifact Attestations for provenance verification.
+
+The `SHA256SUMS` file containing the checksums of the release artifacts is additionally signed using [Sigstore Cosign](https://docs.sigstore.dev/cosign/).
+
+To verify the integrity and authenticity of the checksum file, install Cosign and run:
+
+```sh
+cosign verify-blob \
+  --certificate sqlite3mc-{SQLITE3MC_VERSION}-SHA256SUMS.pem \
+  --signature sqlite3mc-{SQLITE3MC_VERSION}-SHA256SUMS.sig \
+  --certificate-identity-regexp '^https://github.com/utelle/SQLite3MultipleCiphers/.*' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  sqlite3mc-{SQLITE3MC_VERSION}-SHA256SUMS
+```

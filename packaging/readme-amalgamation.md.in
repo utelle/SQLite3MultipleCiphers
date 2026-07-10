@@ -21,6 +21,7 @@ File name                | Description
 sqlite3mc_amalgamation.c | C source, SQLite3 Multiple Ciphers amalgamation
 sqlite3mc_amalgamation.h | C header, SQLite3 Multiple Ciphers amalgamation
 shell3mc_amalgamation.c  | C source of the SQLite shell, SQLite3 Multiple Ciphers amalgamation
+sqlite3.h                | C header, original SQLite
 sqlite3ext.h             | C header for extensions, original SQLite
 
 ## Support
