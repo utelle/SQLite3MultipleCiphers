@@ -1290,7 +1290,7 @@ jobs:
           cosign verify-blob \
             --certificate "${checksum_file}.pem" \
             --signature "${checksum_file}.sig" \
-            "$FILE"
+            "$checksum_file"
 
       # -------------------------------------------------
       # Mode information
