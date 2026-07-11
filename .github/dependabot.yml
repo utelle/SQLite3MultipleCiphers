@@ -1,18 +1,20 @@
 version: 2
 updates:
-  # Hält die in den Workflows gepinnten Action-Commit-SHAs aktuell.
-  # Dependabot aktualisiert sowohl den SHA als auch den "# vX"-Kommentar.
+  # Keeps the Action-Commit-SHAs pinned in workflows up-to-date.
+  # Dependabot updates the SHA as well as the "# vX" comment.
   - package-ecosystem: "github-actions"
-    directory: "/"
+    # "/" covers .github/workflows; the Glob additionally covers the
+    # local composite actions under .github/actions/*.
+    directories: ["/", "/.github/actions/*"]
     schedule:
       interval: "weekly"
     commit-message:
       prefix: "ci"
-    # Alle Action-Updates in einem gebündelten PR statt einzeln:
+    # All action updates should be bundled in a single PR:
     groups:
       github-actions:
         patterns:
           - "*"
-    # Hinweis: Dependabot liest diese Datei vom Default-Branch. Sollen die
-    # Updates stattdessen gegen den Experimentier-Branch laufen, hier ergänzen:
+    # Note: Dependabot reads this file from default branch.
+    # If updates should run against an experimental branch, add here:
     #   target-branch: "test-workflows"

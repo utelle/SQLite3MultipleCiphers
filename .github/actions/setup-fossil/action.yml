@@ -1,0 +1,84 @@
+# Composite action: install a pinned, SHA3-256-verified Fossil binary and
+# open a Fossil checkout.
+#
+# Replaces the step sequence "Download and verify Fossil" / "Install Fossil" /
+# "Clone ..." / "Open ..." / "Checkout ..." that was duplicated in the Android
+# and WASM jobs. The Fossil version and its SHA3-256 checksum are now pinned
+# in EXACTLY ONE place (this file); previously the hash had to be maintained
+# twice in build-release.yml.
+#
+# SHA3-256 checksum (retrieved from https://www3.fossil-scm.org/home/uvlist on 2026-06-08)
+# fossil-linux-x64-2.28.tar.gz cbd89e653e1b797802f2ee5bb55d6ad4959291ec6d6eb192c79ff62d9a224c33
+
+name: Set up Fossil checkout
+description: >-
+  Install a pinned, SHA3-256-verified Fossil binary (fail-closed, verified
+  via scripts/verify_sha3.py), then clone a Fossil repository, open it and
+  update to the requested check-in.
+
+inputs:
+  repository:
+    description: URL of the Fossil repository to clone
+    required: true
+  ref:
+    description: Check-in / tag to update the checkout to
+    required: true
+  path:
+    description: Directory in which the checkout is opened
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Download and verify Fossil
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        FOSSIL_VERSION="2.28"
+        FOSSIL_SHA3="cbd89e653e1b797802f2ee5bb55d6ad4959291ec6d6eb192c79ff62d9a224c33"
+
+        curl -fL --retry 3 --retry-delay 5 -o fossil.tar.gz \
+          https://www.fossil-scm.org/home/uv/fossil-linux-x64-$FOSSIL_VERSION.tar.gz
+
+        python3 scripts/verify_sha3.py \
+          fossil.tar.gz \
+          "${FOSSIL_SHA3}"
+
+    - name: Install Fossil
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        tar -xzf fossil.tar.gz
+        sudo mv fossil /usr/local/bin/
+        fossil version
+
+    - name: Clone Fossil repository
+      shell: bash
+      env:
+        FOSSIL_REPOSITORY: ${{ inputs.repository }}
+      run: |
+        set -euo pipefail
+        fossil clone "$FOSSIL_REPOSITORY" "$GITHUB_WORKSPACE/repo.fossil"
+
+    - name: Open Fossil repository
+      shell: bash
+      env:
+        FOSSIL_CHECKOUT: ${{ inputs.path }}
+      run: |
+        set -euo pipefail
+        mkdir -p "$FOSSIL_CHECKOUT"
+        cd "$FOSSIL_CHECKOUT"
+        fossil open "$GITHUB_WORKSPACE/repo.fossil"
+
+    - name: Update to requested check-in
+      shell: bash
+      env:
+        FOSSIL_CHECKOUT: ${{ inputs.path }}
+        FOSSIL_REF: ${{ inputs.ref }}
+      run: |
+        set -euo pipefail
+        cd "$FOSSIL_CHECKOUT"
+        fossil update "$FOSSIL_REF"
+        fossil info

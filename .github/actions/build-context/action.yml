@@ -1,0 +1,29 @@
+# Composite action: derive the build context (version numbers, download URLs)
+# from config.json into $GITHUB_ENV and log it.
+#
+# Replaces the per-job "Build context" (+ "Show environment") steps that were
+# duplicated across every job of build-release.yml and update-sqlite.yml.
+# Works on Linux and Windows runners alike (shell: bash is available on all
+# GitHub-hosted images).
+
+name: Build context
+description: >-
+  Run scripts/build_context.py (writes SQLITE3MC_*/SQLITE_*/ICU_* variables
+  to $GITHUB_ENV) and print the resulting build context.
+
+runs:
+  using: composite
+  steps:
+    - name: Derive build context
+      shell: bash
+      run: |
+        set -euo pipefail
+        python scripts/build_context.py
+
+    # Separate step on purpose: variables written to $GITHUB_ENV only become
+    # visible in *subsequent* steps.
+    - name: Show build context
+      shell: bash
+      run: |
+        echo "=== Build context ==="
+        env | grep -E '^(SQLITE3MC_|SQLITE_|ICU_)' | sort || true

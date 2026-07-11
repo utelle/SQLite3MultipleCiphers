@@ -1,0 +1,80 @@
+# Composite action: configure git identity, import the GPG private key and
+# optionally run a dry-run signing validation.
+#
+# BYTE-IDENTICAL copy in SQLite3MultipleCiphers and SQLite3MultipleCiphers-cb
+# — keep in sync; master copy: SQLite3MultipleCiphers.
+#
+# Replaces the "Configure Git" + "Import GPG key" + "Dry-run signing
+# validation" step triple that was duplicated in build-release.yml and
+# update-sqlite.yml (and, with small variations, in the -cb repo).
+#
+# Gating stays in the calling workflow:
+#   - skip entirely in sanity mode:   if: ${{ env.MODE != 'sanity' }}
+#   - validation only in dry-run:     validate: ${{ env.MODE == 'dry-run' }}
+#
+# Secrets/vars cannot be read inside a composite action — they are passed in
+# as inputs and exposed to the scripts via env (avoids textual interpolation
+# of the key material into the script body).
+
+name: Set up GPG signing
+description: >-
+  Configure git user/signing key, import the GPG private key, and optionally
+  validate signing with an empty signed commit (dry-run).
+
+inputs:
+  git-user-name:
+    description: git user.name (vars.GIT_USER_NAME)
+    required: true
+  git-user-email:
+    description: git user.email (vars.GIT_USER_EMAIL)
+    required: true
+  gpg-key-id:
+    description: GPG signing key id (vars.GPG_KEY_ID)
+    required: true
+  gpg-private-key:
+    description: ASCII-armored GPG private key (secrets.GPG_PRIVATE_KEY)
+    required: true
+  validate:
+    description: Run the dry-run signing validation ('true' / 'false')
+    required: false
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    - name: Configure git and import GPG key
+      shell: bash
+      env:
+        GIT_USER_NAME: ${{ inputs.git-user-name }}
+        GIT_USER_EMAIL: ${{ inputs.git-user-email }}
+        GPG_KEY_ID: ${{ inputs.gpg-key-id }}
+        GPG_PRIVATE_KEY: ${{ inputs.gpg-private-key }}
+      run: |
+        set -euo pipefail
+        git config user.name "$GIT_USER_NAME"
+        git config user.email "$GIT_USER_EMAIL"
+        git config user.signingkey "$GPG_KEY_ID"
+        git config commit.gpgsign true
+        printf '%s\n' "$GPG_PRIVATE_KEY" | gpg --batch --import
+
+    - name: Dry-run signing validation
+      shell: bash
+      env:
+        VALIDATE: ${{ inputs.validate }}
+      run: |
+        set -euo pipefail
+        if [ "$VALIDATE" != "true" ]; then
+          echo "(signing validation skipped)"
+          exit 0
+        fi
+
+        echo "Testing GPG setup..."
+        gpg --list-secret-keys --keyid-format=long
+
+        echo "Testing commit signing..."
+        git commit --allow-empty -S -m "dry-run signing test"
+
+        echo "Verifying signature..."
+        git log -1 --show-signature
+        git log -1 --format='%ae'
+        git verify-commit HEAD

@@ -1,0 +1,102 @@
+# Composite action: SignPath code signing (upload -> submit -> download).
+#
+# BYTE-IDENTICAL copy in all three repos (SQLite3MultipleCiphers,
+# SQLite3MultipleCiphers-cb, SQLite3MultipleCiphers-NuGet) — keep in sync;
+# master copy: SQLite3MultipleCiphers.
+#
+# Wraps exactly the three steps every signing site repeats:
+#   1. upload the unsigned files as a workflow artifact,
+#   2. submit the SignPath signing request (policy derived from mode),
+#   3. download the signed result into output-directory.
+#
+# STAGING and RESTORE deliberately stay in the calling workflow: the call
+# sites restore to different destinations, and the `path` input is passed
+# VERBATIM to actions/upload-artifact so the uploaded ZIP layout stays exactly
+# what the portal-side artifact configuration (under SignPath review) expects.
+#
+# All steps are skipped in 'sanity' mode (fail-safe no-op).
+#
+# The calling job needs:
+#   permissions:
+#     contents: read
+#     actions: read     # SignPath fetches the artifact of this workflow run
+#
+# Secrets/vars cannot be read inside a composite action — pass them in:
+#   project-slug:    ${{ vars.SIGNPATH_PROJECT_SLUG }}
+#   organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+#   api-token:       ${{ secrets.SIGNPATH_API_TOKEN }}
+
+name: SignPath code signing
+description: >-
+  Upload the unsigned artifact, submit a SignPath signing request (policy
+  derived from mode: release -> release-signing, otherwise test-signing),
+  and download the signed result. No-op in 'sanity' mode.
+
+inputs:
+  mode:
+    description: "Release mode (sanity | dry-run | release)"
+    required: true
+  artifact-name:
+    description: >-
+      Name of the intermediate workflow artifact holding the unsigned files
+      (must NOT start with sqlite3mc-)
+    required: true
+  path:
+    description: >-
+      File(s)/glob(s) to upload, passed verbatim to actions/upload-artifact.
+      DO NOT reshape: the resulting ZIP layout must match the portal-side
+      artifact configuration.
+    required: true
+  artifact-configuration-slug:
+    description: SignPath artifact configuration slug
+    required: true
+  project-slug:
+    description: SignPath project slug (vars.SIGNPATH_PROJECT_SLUG)
+    required: true
+  organization-id:
+    description: SignPath organization id (vars.SIGNPATH_ORGANIZATION_ID)
+    required: true
+  api-token:
+    description: SignPath REST API token (secrets.SIGNPATH_API_TOKEN)
+    required: true
+  output-directory:
+    description: Directory the signed files are downloaded to
+    required: false
+    default: signed
+  wait-timeout:
+    description: >-
+      Seconds to wait for completion; release-signing typically requires
+      manual approval -> keep generous
+    required: false
+    default: '1800'
+
+outputs:
+  signed-directory:
+    description: Directory containing the signed files (when signing ran)
+    value: ${{ inputs.output-directory }}
+
+runs:
+  using: composite
+  steps:
+    - name: Upload unsigned artifact
+      id: upload-unsigned
+      if: ${{ inputs.mode != 'sanity' }}
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ inputs.path }}
+        if-no-files-found: error
+
+    - name: Submit signing request (SignPath)
+      if: ${{ inputs.mode != 'sanity' }}
+      uses: signpath/github-action-submit-signing-request@b9d91eadd323de506c0c81cf0c7fe7438f3360fd # v2.2
+      with:
+        api-token: '${{ inputs.api-token }}'
+        organization-id: '${{ inputs.organization-id }}'
+        project-slug: '${{ inputs.project-slug }}'
+        artifact-configuration-slug: '${{ inputs.artifact-configuration-slug }}'
+        signing-policy-slug: ${{ inputs.mode == 'release' && 'release-signing' || 'test-signing' }}
+        github-artifact-id: '${{ steps.upload-unsigned.outputs.artifact-id }}'
+        wait-for-completion: true
+        wait-for-completion-timeout-in-seconds: ${{ inputs.wait-timeout }}
+        output-artifact-directory: '${{ inputs.output-directory }}'

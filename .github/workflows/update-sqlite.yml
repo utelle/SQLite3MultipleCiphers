@@ -82,27 +82,10 @@ jobs:
           python scripts/validate_config.py config.json
 
       # -------------------------------------------------
-      # Create environment variables
+      # Create environment variables and display them
       # -------------------------------------------------
       - name: Build context
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          python scripts/build_context.py
-
-      # -------------------------------------------------
-      # Display environment variables
-      # -------------------------------------------------
-      - name: Show environment
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "SQLite3MC Version:   $SQLITE3MC_VERSION"
-          echo "SQLite Version:      $SQLITE_VERSION"
-          echo "SQLite Version Raw:  $SQLITE_VERSION_RAW"
-          echo "SQLite URL Official: $SQLITE_URL_OFFICIAL"
-          echo "SQLite URL GitHub:   $SQLITE_URL_GITHUB"
+        uses: ./.github/actions/build-context
 
       # -------------------------------------------------
       # Generate version-dependent files
@@ -389,48 +372,18 @@ jobs:
       # -------------------------------------------------
       # GIT + GPG SETUP (only non-sanity)
       # -------------------------------------------------
-      - name: Configure Git
+      # Modes of this workflow are sanity | dry-run | update;
+      # validation runs in dry-run mode only.
+      # -------------------------------------------------
+      - name: Set up GPG signing
         if: ${{ inputs.mode != 'sanity' }}
-        run: |
-          git config user.name "${{ vars.GIT_USER_NAME }}"
-          git config user.email "${{ vars.GIT_USER_EMAIL }}"
-          git config user.signingkey "${{ vars.GPG_KEY_ID }}"
-          git config commit.gpgsign true
-
-      # -------------------------------------------------
-      # Import GPG key (only non-sanity)
-      # -------------------------------------------------
-      - name: Import GPG key
-        if: ${{ inputs.mode != 'sanity' }}
-        run: |
-          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
-
-      # -------------------------------------------------
-      # DRY RUN VALIDATION
-      # -------------------------------------------------
-      - name: Dry-run signing validation
-        if: ${{ inputs.mode == 'dry-run' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          echo "Testing GPG setup..."
-          gpg --list-secret-keys --keyid-format=long
-
-          echo "Testing commit signing..."
-          git commit --allow-empty -S -m "dry-run signing test"
-
-          echo "Verifying signature..."
-          git log -1 --show-signature
-          
-          echo "Commit email:"
-          git log -1 --format='%ae'
-
-          echo "Commit signature:"
-          git log -1 --show-signature
-
-          echo "Verify commit:"
-          git verify-commit HEAD
+        uses: ./.github/actions/setup-signing
+        with:
+          git-user-name: ${{ vars.GIT_USER_NAME }}
+          git-user-email: ${{ vars.GIT_USER_EMAIL }}
+          gpg-key-id: ${{ vars.GPG_KEY_ID }}
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          validate: ${{ inputs.mode == 'dry-run' }}
 
       # -------------------------------------------------
       # Commit changed source files and configuration (only update)

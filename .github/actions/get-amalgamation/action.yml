@@ -1,0 +1,34 @@
+# Composite action: fetch the SQLite3MC amalgamation built by the
+# `amalgamate` job and unpack it.
+#
+# Replaces the "Download amalgamation" + "Unpack amalgamation" step pair that
+# was duplicated in the Android, WASM and autoconf jobs.
+
+name: Get SQLite3MC amalgamation
+description: >-
+  Download the sqlite3mc-amalgamation workflow artifact into archives/ and
+  unpack it into the given directory.
+
+inputs:
+  path:
+    description: Directory to unpack the amalgamation into
+    required: false
+    default: amalgamation
+
+runs:
+  using: composite
+  steps:
+    - name: Download amalgamation artifact
+      uses: actions/download-artifact@v8
+      with:
+        name: sqlite3mc-amalgamation
+        path: archives
+
+    - name: Unpack amalgamation
+      shell: bash
+      env:
+        AMALGAMATION_PATH: ${{ inputs.path }}
+      run: |
+        set -euo pipefail
+        mkdir -p "$AMALGAMATION_PATH"
+        unzip -q archives/amalgamation.zip -d "$AMALGAMATION_PATH"
