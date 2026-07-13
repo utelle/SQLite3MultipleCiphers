@@ -68,3 +68,41 @@ To overcome this issue version 4 of _SQLCipher_ introduced a new parameter `plai
 While _SQLite3 Multiple Ciphers_ supported the parameter `plain_text_header_size` right from the beginning, it did not for other cipher schemes. Starting with version [2.2.0](https://github.com/utelle/SQLite3MultipleCiphers/releases/tag/v2.2.0) the cipher schemes _chacha20_, _ascon128_, and _aegis_ support this parameter as well.
 
 In _SQLite3 Multiple Ciphers_ the cipher salt can be retrieved with the function [`sqlite3mc_codec_data`]({{ site.baseurl }}{% link docs/configuration/config_sql_functions.md %}#function-sqlite3mc_codec_data) using parameter `cipher_salt`. Alternatively, it can be retrieved with `PRAGMA cipher_salt`. On opening a database the _cipher salt_ has to be supplied either via the database URI parameter `cipher_salt`, or via `PRAGMA cipher_salt='<hex bytes of cipher salt>'`, before `PRAGMA key` is executed.
+
+## What should I keep in mind when using _SQLite3 Multiple Ciphers_ together with other _SQLite_ libraries?
+
+_SQLite3 Multiple Ciphers_ is designed as a **drop-in replacement for the original SQLite library**. Therefore, it intentionally exports the standard `sqlite3_*` API and is intended to provide the SQLite implementation used by the application.
+
+The SQLite documentation recommends that only **one SQLite implementation** should exist within a process (see section [Multiple copies of _SQLite_ linked into the same application](https://sqlite.org/howtocorrupt.html#multiple_copies_of_sqlite_linked_into_the_same_application) of the SQLite documentation about [How to corrupt an SQLite database file](https://sqlite.org/howtocorrupt.html)). SQLite maintains process-wide global state (such as memory management, mutex configuration, VFS registrations, extension handling, and initialization state) that is not designed to be duplicated across multiple independent SQLite builds.
+
+For this reason, using _SQLite3 Multiple Ciphers_ together with other SQLite implementations in the same process can lead to unpredictable behavior. Examples include:
+
+- libraries that embed their own SQLite build for internal use,
+- libraries that export the standard `sqlite3_*` symbols,
+- applications that intentionally load multiple SQLite variants,
+- components that link against a system-provided SQLite implementation while the application uses _SQLite3 Multiple Ciphers_ as a replacement.
+
+A native component may embed SQLite without intending to expose SQLite as part of its public API. However, if the embedded SQLite symbols are not hidden or renamed during the build process, they can become visible to the entire process and conflict with other SQLite implementations.
+
+The presence of multiple SQLite implementations can cause problems even if they use the same SQLite version. Different compile-time options, enabled extensions, patches, or build configurations can result in incompatible behavior. For example, one SQLite build may include extensions such as FTS5, JSON support, ICU integration, or encryption-related functionality, while another build does not.
+
+When multiple SQLite implementations are present, symbol resolution depends on the platform, linker, loader, and application configuration. As a result, it may not be predictable which implementation is actually used at runtime. Typical symptoms include:
+
+- encryption-related PRAGMAs such as `PRAGMA key` or `PRAGMA cipher` having no effect,
+- encrypted databases failing to open with errors such as *"file is not a database"*,
+- missing SQLite extensions or compile-time features,
+- subtle runtime failures caused by different SQLite versions or build configurations.
+
+Platform-specific linker options (such as `ForceLoad` on iOS) may influence which SQLite implementation is selected in a particular application. However, such settings only affect symbol availability or resolution in a specific build scenario. They do not solve the underlying problem of multiple competing SQLite implementations within the same process and may have unintended effects on other components.
+
+It is therefore the responsibility of the application developer to ensure that the application uses a consistent SQLite configuration and to avoid combining components that provide incompatible SQLite implementations.
+
+If a component uses SQLite only as an internal implementation detail, it should ideally hide or rename its SQLite symbols so that they do not conflict with the SQLite implementation chosen by the application.
+
+The likelihood of symbol conflicts depends on the native platform and on how the involved libraries are built.
+
+On some platforms, such as Windows, symbols in dynamic libraries (DLLs) are usually exported only when they are explicitly marked for export. This reduces the chance that internal implementation symbols accidentally become globally visible.
+
+However, similar conflicts can still occur when static libraries are linked into the same application. If multiple static libraries contain identical global symbols, the final result depends on linker behavior, library order, and build settings.
+
+On platforms where native symbols are more commonly visible by default, accidentally exporting internal SQLite symbols is easier and can lead to conflicts with other SQLite implementations in the same process.
