@@ -31,7 +31,9 @@ Documentation on how to build the extension can be found on the page [SQLite3 Mu
 
 ## Sponsors/Supporters
 
-<a href="https://signpath.io" title="SignPath"><img src="signpath-logo.svg" width="200"></a> **Free code signing on Windows provided by [SignPath.io](https://signpath.io), certificate by [SignPath Foundation](https://signpath.org)**
+<a href="https://signpath.io" title="SignPath"><img src="signpath-logo.svg" width="200"></a>
+
+**Free code signing on Windows provided by [SignPath.io](https://signpath.io), certificate by [SignPath Foundation](https://signpath.org)**
 
 ---
 
