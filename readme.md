@@ -31,9 +31,9 @@ Documentation on how to build the extension can be found on the page [SQLite3 Mu
 
 ## Sponsors/Supporters
 
-[![SignPath Logo](signpath-logo.svg)](https://signpath.io) Free code signing on Windows provided by [SignPath.io](https://signpath.io), certificate by [SignPath Foundation](https://signpath.org)
+<h3><a href="https://signpath.io" title="SignPath"><img src="signpath-logo.svg" width="200"></a> Free code signing on Windows provided by [SignPath.io](https://signpath.io), certificate by [SignPath Foundation](https://signpath.org)</h3>
 
---
+---
 
 [![JetBrains logo.](https://resources.jetbrains.com/storage/products/company/brand/logos/jetbrains.svg)](https://jb.gg/OpenSourceSupport) supports this project (and directly dependent projects like [wxSQLite3](https://github.com/utelle/wxsqlite3), [apsw-sqlite3mc](https://github.com/utelle/apsw-sqlite3mc), and [SQLite3MultipleCiphers-NuGet](https://github.com/utelle/SQLite3MultipleCiphers-NuGet)) by providing free [CLion](https://www.jetbrains.com/clion/) licenses. This helps to better maintain the project for different platforms.
 
