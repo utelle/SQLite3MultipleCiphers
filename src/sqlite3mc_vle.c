@@ -537,7 +537,7 @@ static void vle_setKey(sqlite3_context* ctx, int argc, sqlite3_value** argv)
     if (algorithmType == SQLITE_TEXT)
     {
       int algorithmLen = sqlite3_value_bytes(argv[2]);
-      const char* algorithm = sqlite3_value_text(argv[2]);
+      const char* algorithm = (const char*) sqlite3_value_text(argv[2]);
       if (sqlite3_strnicmp(algorithm, "chacha20", algorithmLen) == 0)
       {
         vle->algorithm = CODEC_TYPE_CHACHA20;
