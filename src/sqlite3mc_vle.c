@@ -72,7 +72,7 @@ static void vle_setKey(sqlite3_context* ctx, int argc, sqlite3_value** argv);
 static void vle_encrypt(sqlite3_context* ctx, int argc, sqlite3_value** argv);
 static void vle_decrypt(sqlite3_context* ctx, int argc, sqlite3_value** argv);
 
-static int sqlite3_vle_init(sqlite3* db, char** pzErrMsg, const sqlite3_api_routines* pApi);
+SQLITE_API int sqlite3_vle_init(sqlite3* db, char** pzErrMsg, const sqlite3_api_routines* pApi);
 
 static uint32_t
 vle_readU32BE(const unsigned char* p)
@@ -800,6 +800,7 @@ vle_decrypt(sqlite3_context* ctx, int argc, sqlite3_value** argv)
 ** ----------------- SQLite Extension Init -----------------
 */
 
+SQLITE_API
 int sqlite3_vle_init(sqlite3* db, char** pzErrMsg, const sqlite3_api_routines* pApi)
 {
   SQLITE_EXTENSION_INIT2(pApi);
