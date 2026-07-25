@@ -499,7 +499,7 @@ static void vle_setKey(sqlite3_context* ctx, int argc, sqlite3_value** argv)
   }
 
   /* Salt */
-  static unsigned char* saltDefault = "vle:default-salt";
+  static unsigned char* saltDefault = (unsigned char*) "vle:default-salt";
   int saltLen = 0;
   const unsigned char* salt = NULL;
   if (argc >= 2)
@@ -522,7 +522,7 @@ static void vle_setKey(sqlite3_context* ctx, int argc, sqlite3_value** argv)
   if (saltLen == 0)
   {
     salt = saltDefault;
-    saltLen = (int) strlen(salt);
+    saltLen = (int) strlen((const char*) salt);
   }
 
   unsigned char digest[SHA256_DIGEST_SIZE];
@@ -537,7 +537,7 @@ static void vle_setKey(sqlite3_context* ctx, int argc, sqlite3_value** argv)
     if (algorithmType == SQLITE_TEXT)
     {
       int algorithmLen = sqlite3_value_bytes(argv[2]);
-      const unsigned char* algorithm = sqlite3_value_text(argv[2]);
+      const char* algorithm = sqlite3_value_text(argv[2]);
       if (sqlite3_strnicmp(algorithm, "chacha20", algorithmLen) == 0)
       {
         vle->algorithm = CODEC_TYPE_CHACHA20;
@@ -561,7 +561,7 @@ static void vle_setKey(sqlite3_context* ctx, int argc, sqlite3_value** argv)
 
   /* Options */
   int optionsLen = 0;
-  unsigned char* options = NULL;
+  char* options = NULL;
   if (argc >= 4)
   {
     int optionsType = sqlite3_value_type(argv[3]);
