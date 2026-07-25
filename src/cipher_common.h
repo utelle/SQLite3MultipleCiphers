@@ -3,7 +3,7 @@
 ** Purpose:     Header for the ciphers of SQLite3 Multiple Ciphers
 ** Author:      Ulrich Telle
 ** Created:     2020-02-02
-** Copyright:   (c) 2006-2022 Ulrich Telle
+** Copyright:   (c) 2006-2026 Ulrich Telle
 ** License:     MIT
 */
 
@@ -112,7 +112,7 @@ SQLITE_PRIVATE void sqlite3mcClearKeySalt(Codec* codec);
 
 SQLITE_PRIVATE int sqlite3mcCodecSetup(Codec* codec, int cipherType, char* userPassword, int passwordLength);
 
-SQLITE_PRIVATE int sqlite3mcSetupWriteCipher(Codec* codec, int cipherType, char* userPassword, int passwordLength);
+SQLITE_PRIVATE int sqlite3mcSetupWriteCipher(Codec* codec, int cipherType, char* userPassword, int passwordLength, int usesWal);
 
 SQLITE_PRIVATE void sqlite3mcSetIsEncrypted(Codec* codec, int isEncrypted);
 
@@ -171,7 +171,7 @@ SQLITE_PRIVATE int sqlite3mcCodecCopy(Codec* codec, Codec* other);
 
 SQLITE_PRIVATE void sqlite3mcGenerateReadKey(Codec* codec, char* userPassword, int passwordLength, unsigned char* cipherSalt);
 
-SQLITE_PRIVATE void sqlite3mcGenerateWriteKey(Codec* codec, char* userPassword, int passwordLength, unsigned char* cipherSalt);
+SQLITE_PRIVATE void sqlite3mcGenerateWriteKey(Codec* codec, char* userPassword, int passwordLength, unsigned char* cipherSalt, int usesWal);
 
 SQLITE_PRIVATE int sqlite3mcEncrypt(Codec* codec, int page, unsigned char* data, int len, int useWriteKey);
 

@@ -231,7 +231,6 @@ int ascon_aead_decrypt(uint8_t* mtext,
 {
   int rc = 0;
   ascon_state_t s;
-  if (clen < CRYPTO_ABYTES) return -1;
   /* perform ascon computation */
   ascon_key_t key;
   ascon_loadkey(&key, k);

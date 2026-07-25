@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-07-25
+
+### Changed
+
+- Based on SQLite version 3.53.4
+- Regenerated build files (with some additional options enabled)
+- Modified rekey operation to support rekeying in WAL mode  
+  Up to now the rekey operation generated a new key salt, but in WAL mode that would have led to corrupted databases, and was therefore not supported. Rekeying in WAL mode is now supported at the price of keeping the previous key salt. However, this is usually only a minor security degradation.
+
+### Added
+
+- Added extension for value-level encryption (VLE)  
+  SQL functions `sqlite3mc_vle_key`, `sqlite3mc_vle_encrypt`, and `sqlite3mc_vle_decrypt`were implemented to allow to set up an encryption key for encrypting resp decrypting individual column values.
+
 ## [2.3.6] - 2026-07-10
 
 ### Changed
@@ -761,7 +775,8 @@ The following ciphers are supported:
 - AES 256 Bit CBC - SHA1/SHA256/SHA512 HMAC ([SQLCipher](https://www.zetetic.net/sqlcipher/), database versions 1, 2, 3, and 4)
 - RC4 - No HMAC ([System.Data.SQLite](http://system.data.sqlite.org))
 
-[Unreleased]: ../../compare/v2.3.6...HEAD
+[Unreleased]: ../../compare/v2.4.0...HEAD
+[2.4.0]: ../../compare/v2.3.6...v2.4.0
 [2.3.6]: ../../compare/v2.3.5...v2.3.6
 [2.3.5]: ../../compare/v2.3.4...v2.3.5
 [2.3.4]: ../../compare/v2.3.3...v2.3.4

@@ -10,8 +10,13 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version information
 
-* 2.3.6 - *July 2026*
-  - Based on SQLite version 3.53.3
+* 2.4.0 - *July 2026*
+  - Based on SQLite version 3.53.4
+  - Regenerated build files (with some additional options enabled)
+  - Modified rekey operation to support rekeying in WAL mode  
+    Up to now the rekey operation generated a new key salt, but in WAL mode that would have led to corrupted databases, and was therefore not supported. Rekeying in WAL mode is now supported at the price of keeping the previous key salt. However, this is usually only a minor security degradation.
+  - Added extension for value-level encryption (VLE)  
+    SQL functions `sqlite3mc_vle_key`, `sqlite3mc_vle_encrypt`, and `sqlite3mc_vle_decrypt`were implemented to allow to set up an encryption key for encrypting resp decrypting individual column values.
 
 For further version information please consult the [CHANGELOG](CHANGELOG.md).
 

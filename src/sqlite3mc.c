@@ -350,6 +350,16 @@ int sqlite3_zipfile_init(sqlite3 *db, char **pzErrMsg, const sqlite3_api_routine
 #endif
 
 /*
+** VLE - Value Level Encryption
+*/
+#define SQLITE3MC_ENABLE_VLE 1
+#ifdef SQLITE3MC_ENABLE_VLE
+SQLITE_API
+int sqlite3_vle_init(sqlite3* db, char** pzErrMsg, const sqlite3_api_routines* pApi);
+#include "sqlite3mc_vle.c"
+#endif
+
+/*
 ** Multi cipher VFS
 */
 #include "sqlite3mc_vfs.c"
@@ -781,6 +791,12 @@ sqlite3mc_builtin_extensions(sqlite3* db)
   if (rc == SQLITE_OK)
   {
     rc = sqlite3_zipfile_init(db, &errmsg, NULL);
+  }
+#endif
+#ifdef SQLITE3MC_ENABLE_VLE
+  if (rc == SQLITE_OK)
+  {
+    rc = sqlite3_vle_init(db, &errmsg, NULL);
   }
 #endif
   return rc;

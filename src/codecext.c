@@ -3,7 +3,7 @@
 ** Purpose:     Implementation of SQLite codec API
 ** Author:      Ulrich Telle
 ** Created:     2006-12-06
-** Copyright:   (c) 2006-2022 Ulrich Telle
+** Copyright:   (c) 2006-2026 Ulrich Telle
 ** License:     MIT
 */
 
@@ -401,6 +401,7 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
   int nReserved;
   Pager* pPager;
   Codec* codec;
+  int usesWal = 0;
   int codecAllocated = 0;
   int rc = SQLITE_ERROR;
   char* err = NULL;
@@ -436,10 +437,11 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
 
   pPager = sqlite3BtreePager(pBt);
   codec = sqlite3mcGetCodec(db, zDbName);
+  usesWal = pagerUseWal(pPager);
 
-  if (pagerUseWal(pPager))
+  if (usesWal && (zKey != NULL) && (nKey > 0) && (codec == NULL || !sqlite3mcIsEncrypted(codec)))
   {
-    sqlite3ErrorWithMsg(db, rc, "Rekeying is not supported in WAL journal mode.");
+    sqlite3ErrorWithMsg(db, rc, "Rekeying an unencrypted database is not supported in WAL journal mode.");
     return rc;
   }
 
@@ -464,7 +466,7 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
     {
       sqlite3mcSetDb(codec, db);
       sqlite3mcSetBtree(codec, pBt);
-      rc = sqlite3mcSetupWriteCipher(codec, sqlite3mcGetCipherType(db), (char*) zKey, nKey);
+      rc = sqlite3mcSetupWriteCipher(codec, sqlite3mcGetCipherType(db), (char*) zKey, nKey, usesWal);
     }
     if (rc == SQLITE_OK)
     {
@@ -523,7 +525,7 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
   {
     /* Database encrypted and key specified, therefore re-encrypt database with new key */
     /* Keep read key, change write key to new key */
-    rc = sqlite3mcSetupWriteCipher(codec, sqlite3mcGetCipherType(db), (char*) zKey, nKey);
+    rc = sqlite3mcSetupWriteCipher(codec, sqlite3mcGetCipherType(db), (char*) zKey, nKey, usesWal);
     if (rc == SQLITE_OK)
     {
       int nPagesizeWriteCipher = sqlite3mcGetPageSizeWriteCipher(codec);

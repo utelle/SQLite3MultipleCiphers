@@ -3,7 +3,7 @@
 ** Purpose:     Implementation of cipher SQLCipher (version 1 to 4)
 ** Author:      Ulrich Telle
 ** Created:     2020-02-02
-** Copyright:   (c) 2006-2024 Ulrich Telle
+** Copyright:   (c) 2006-2026 Ulrich Telle
 ** License:     MIT
 */
 
@@ -244,6 +244,11 @@ GenerateKeySQLCipherCipher(void* cipher, char* userPassword, int passwordLength,
   SQLCipherCipher* sqlCipherCipher = (SQLCipherCipher*) cipher;
 
   int keyOnly = 1;
+  if (rekey == 2)
+  {
+    /* (rekey == 2) means database is in WAL mode, thus don't change the cipher salt */
+    rekey = (cipherSalt != NULL) ? 0 : 1;
+  }
   if (rekey || cipherSalt == NULL)
   {
     chacha20_rng(sqlCipherCipher->m_salt, SALTLENGTH_SQLCIPHER);

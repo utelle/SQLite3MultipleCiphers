@@ -3,7 +3,7 @@
 ** Purpose:     Implementation of SQLite codecs
 ** Author:      Ulrich Telle
 ** Created:     2020-02-02
-** Copyright:   (c) 2006-2024 Ulrich Telle
+** Copyright:   (c) 2006-2026 Ulrich Telle
 ** License:     MIT
 */
 
@@ -273,7 +273,7 @@ sqlite3mcCodecSetup(Codec* codec, int cipherType, char* userPassword, int passwo
 }
 
 SQLITE_PRIVATE int
-sqlite3mcSetupWriteCipher(Codec* codec, int cipherType, char* userPassword, int passwordLength)
+sqlite3mcSetupWriteCipher(Codec* codec, int cipherType, char* userPassword, int passwordLength, int usesWal)
 {
   int rc = SQLITE_OK;
   CipherParams* globalParams = sqlite3mcGetCipherParams(codec->m_db, CIPHER_NAME_GLOBAL);
@@ -294,7 +294,7 @@ sqlite3mcSetupWriteCipher(Codec* codec, int cipherType, char* userPassword, int 
   if (codec->m_writeCipher != NULL)
   {
     unsigned char* keySalt = (codec->m_hasKeySalt != 0) ? codec->m_keySalt : NULL;
-    sqlite3mcGenerateWriteKey(codec, userPassword, passwordLength, keySalt);
+    sqlite3mcGenerateWriteKey(codec, userPassword, passwordLength, keySalt, usesWal);
   }
   else
   {
@@ -618,11 +618,11 @@ sqlite3mcGenerateReadKey(Codec* codec, char* userPassword, int passwordLength, u
 }
 
 SQLITE_PRIVATE void
-sqlite3mcGenerateWriteKey(Codec* codec, char* userPassword, int passwordLength, unsigned char* cipherSalt)
+sqlite3mcGenerateWriteKey(Codec* codec, char* userPassword, int passwordLength, unsigned char* cipherSalt, int usesWal)
 {
   unsigned char dbHeader[KEYSALT_LENGTH];
   unsigned char* pDbHeader = (cipherSalt == NULL) ? mcReadDatabaseHeader(codec, dbHeader) : cipherSalt;
-  globalCodecDescriptorTable[codec->m_writeCipherType-1].m_generateKey(codec->m_writeCipher, userPassword, passwordLength, 1, pDbHeader);
+  globalCodecDescriptorTable[codec->m_writeCipherType-1].m_generateKey(codec->m_writeCipher, userPassword, passwordLength, (usesWal) ? 2 : 1, pDbHeader);
 }
 
 SQLITE_PRIVATE int

@@ -3,7 +3,7 @@
 ** Purpose:     Implementation of cipher Ascon
 ** Author:      Ulrich Telle
 ** Created:     2023-11-13
-** Copyright:   (c) 2023-2024 Ulrich Telle
+** Copyright:   (c) 2023-2026 Ulrich Telle
 ** License:     MIT
 */
 
@@ -123,6 +123,11 @@ GenerateKeyAscon128Cipher(void* cipher, char* userPassword, int passwordLength, 
   Ascon128Cipher* ascon128Cipher = (Ascon128Cipher*) cipher;
 
   int keyOnly = 1;
+  if (rekey == 2)
+  {
+    /* (rekey == 2) means database is in WAL mode, thus don't change the cipher salt */
+    rekey = (cipherSalt != NULL) ? 0 : 1;
+  }
   if (rekey || cipherSalt == NULL)
   {
     chacha20_rng(ascon128Cipher->m_salt, SALTLENGTH_ASCON128);
