@@ -131,9 +131,11 @@ The `PRAGMA rekey` resp `PRAGMA hexrekey` statement has the following syntax:
 PRAGMA rekey = { passphrase | 'passphrase' };
 PRAGMA hexrekey = { hex-passphrase | 'hex-passphrase' };
 ```
-Note
+Notes
 {: .label .label-red .ml-0 .mb-1 .mt-2 }
-The unquoted variant for the _passphrase_ is only valid, if the passphrase does not contain any whitespace characters. The _rekey_ pragma only works with string keys. The encoding of the passphrase should be UTF-8, unless a wrapper is used that implicitly performs conversion to UTF-8 internally. If you use a binary key, use the _hexrekey_ pragma instead.
+- The unquoted variant for the _passphrase_ is only valid, if the passphrase does not contain any whitespace characters. The _rekey_ pragma only works with string keys. The encoding of the passphrase should be UTF-8, unless a wrapper is used that implicitly performs conversion to UTF-8 internally. If you use a binary key, use the _hexrekey_ pragma instead.
+- Up to version 2.3.6 the rekey operation was not supported, if the database was in _WAL_ journal mode. Since version 2.4.0 this restriction has been lifted for most use cases. Rekeying is now supported in WAL mode for already encrypted databases, or for decrypting an encrypted database. Only in case of encrypting a plain database the journal mode has to be changed to a nonWAL mode, before removing the encryption.
+- Rekeying in WAL journal mode comes at a price: the key salt, stored in the database header, can't be changed and is therefore reused.
 
 <span class="label label-green">Example 1:</span> _Change passphrase_
 
@@ -177,6 +179,7 @@ where `ciphername` is one of the following strings:
 - **_sqlcipher_** = [SQLCipher: AES 256 Bit]({{ site.baseurl }}{% link docs/ciphers/cipher_sqlcipher.md %}), 
 - **_rc4_** = [System.Data.SQLite: RC4]({{ site.baseurl }}{% link docs/ciphers/cipher_sds_rc4.md %})
 - **_ascon128_** = [Ascon: Ascon-128 v1.2]({{ site.baseurl }}{% link docs/ciphers/cipher_ascon.md %})
+- **_aegis_** = [Aegis: AEGIS family]({{ site.baseurl }}{% link docs/ciphers/cipher_aegis.md %})
 
 <span class="label label-green">Example:</span> _Select cipher wxSQLite3: AES 256 Bit_
 
@@ -509,8 +512,8 @@ PRAGMA pcost = { 1 | 2 ... };
 The `PRAGMA algorithm` statement allows to modify the _AEGIS_ algorithm variant used for encryption. It has the following syntax:
 
 ```sql
-PRAGMA algorithm = { 1 | `aegis-128l` | 2 | `aegis-128x2` | 3 | `aegis-128x4`|
-                     4 | `aegis-256`  | 5 | `aegis-256x2` | 6 | `aegis-256x4` };
+PRAGMA algorithm = { 1 | 'aegis-128l' | 2 | 'aegis-128x2' | 3 | 'aegis-128x4' |
+                     4 | 'aegis-256'  | 5 | 'aegis-256x2' | 6 | 'aegis-256x4' };
 ```
 where the value corresponds to the _AEGIS_ algorithm:
 - 1 = `aegis-128l`
