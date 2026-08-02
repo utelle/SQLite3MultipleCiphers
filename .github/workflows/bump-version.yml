@@ -1,0 +1,159 @@
+name: Bump SQLite3MC version (Manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      sqlite3mc_version:
+        description: "SQLite3MC version (e.g. 2.3.4)"
+        required: true
+      mode:
+        description: "Update mode"
+        required: true
+        type: choice
+        default: dry-run
+        options:
+          - sanity
+          - dry-run
+          - update
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bump-version-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CONFIG_FILE:  config.json
+  SQLITE_PATH:  sqlite3
+  ARCHIVES:     archives
+
+jobs:
+
+  generate:
+    name: Update version information and SQLite sources
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write   # commits & pushes updated SQLite sources
+    env:
+      MODE: ${{ github.event.inputs.mode }}
+
+    steps:
+
+      # -------------------------------------------------
+      # Checkout repository
+      # -------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # -------------------------------------------------
+      # Setup Python
+      # -------------------------------------------------
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      # -------------------------------------------------
+      # Bump SQLite3MC version number in configuration
+      # -------------------------------------------------
+      - name: Bump SQLite3MC version in config
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python scripts/bump_version.py "${{ inputs.sqlite3mc_version }}"
+
+      # -------------------------------------------------
+      # Validate config
+      # -------------------------------------------------
+      - name: Validate config
+        run: |
+          set -euo pipefail
+          python scripts/validate_config.py config.json
+
+      # -------------------------------------------------
+      # Create environment variables and display them
+      # -------------------------------------------------
+      - name: Build context
+        uses: ./.github/actions/build-context
+
+      # -------------------------------------------------
+      # Generate version-dependent files
+      # -------------------------------------------------
+      - name: Generate version-dependent files
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/render_template.py packaging/sqlite3mc_version.h.in "src/sqlite3mc_version.h"
+          python scripts/render_template.py packaging/autoconf/VERSION.in "autoconf/VERSION"
+          python scripts/render_template.py packaging/autoconf/sqlite3rc.h.in "autoconf/sqlite3rc.h"
+
+      # -------------------------------------------------
+      # Update version in CMake build file
+      # -------------------------------------------------
+      - name: Update version in build files
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/update_build_files.py
+
+      # -------------------------------------------------
+      # Upload version-dependent files (for debugging)
+      # -------------------------------------------------
+      - name: Upload version-dependent files
+        uses: actions/upload-artifact@v7
+        with:
+          name: version-deps
+          path: |
+            config.json
+            CMakeLists.txt
+            configure.ac
+            autoconf/VERSION
+            autoconf/sqlite3rc.h
+            src/sqlite3mc_version.h
+
+      # -------------------------------------------------
+      # GIT + GPG SETUP (only non-sanity)
+      # -------------------------------------------------
+      # Modes of this workflow are sanity | dry-run | update;
+      # validation runs in dry-run mode only.
+      # -------------------------------------------------
+      - name: Set up GPG signing
+        if: ${{ inputs.mode != 'sanity' }}
+        uses: ./.github/actions/setup-signing
+        with:
+          git-user-name: ${{ vars.GIT_USER_NAME }}
+          git-user-email: ${{ vars.GIT_USER_EMAIL }}
+          gpg-key-id: ${{ vars.GPG_KEY_ID }}
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          validate: ${{ inputs.mode == 'dry-run' }}
+
+      # -------------------------------------------------
+      # Commit changed source files and configuration (only update)
+      # -------------------------------------------------
+      - name: Commit config and source changes
+        if: ${{ inputs.mode == 'update' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git add config.json
+          git add CMakeLists.txt
+          git add configure.ac
+
+          git add autoconf/VERSION
+          git add autoconf/sqlite3rc.h
+
+          git add src/sqlite3mc_version.h
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          git commit -m "Bump SQLite3MC version to ${{ inputs.sqlite3mc_version }}"
+          git push
