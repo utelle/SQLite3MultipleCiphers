@@ -31,11 +31,11 @@ env:
 jobs:
 
   generate:
-    name: Update version information and SQLite sources
+    name: Update SQLite3MC version information
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
-      contents: write   # commits & pushes updated SQLite sources
+      contents: write   # commits & pushes updated SQLite3MC files
     env:
       MODE: ${{ github.event.inputs.mode }}
 
