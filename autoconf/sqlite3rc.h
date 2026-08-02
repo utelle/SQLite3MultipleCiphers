@@ -3,7 +3,7 @@
 #endif
 
 #ifndef SQLITE3MC_VERSION_MINOR
-#define SQLITE3MC_VERSION_MINOR      4
+#define SQLITE3MC_VERSION_MINOR      5
 #endif
 
 #ifndef SQLITE3MC_VERSION_RELEASE
