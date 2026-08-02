@@ -93,7 +93,7 @@ def print_diff(old: dict, new: dict):
 # ----------------------------
 
 def main():
-    if len(sys.argv) != 4:
+    if len(sys.argv) != 2:
         raise SystemExit(
             "Usage: update_config.py <project_version>"
         )
