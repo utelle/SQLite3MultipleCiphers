@@ -3,9 +3,26 @@
 ** Purpose:     Amalgamation of the SQLite3 Multiple Ciphers encryption extension for SQLite
 ** Author:      Ulrich Telle
 ** Created:     2020-02-28
-** Copyright:   (c) 2006-2025 Ulrich Telle
+** Copyright:   (c) 2006-2026 Ulrich Telle
 ** License:     MIT
 */
+
+/*
+** If SQLite functions should be called through a dispatch table,
+** thus hiding all SQLite function symbols from the linker,
+** define the symbol SQLITE3MC_USE_DISPATCH_TABLE.
+*/
+
+#ifdef SQLITE3MC_USE_DISPATCH_TABLE
+#ifdef SQLITE_API
+#undef SQLITE_API
+#endif
+#ifdef SQLITE_PRIVATE
+#undef SQLITE_PRIVATE
+#endif
+#define SQLITE_API static
+#define SQLITE_PRIVATE static
+#endif
 
 /*
 ** Force some options required for WASM builds
@@ -229,6 +246,7 @@ mcRegisterCodecExtensions(sqlite3* db, char** pzErrMsg, const sqlite3_api_routin
 */
 #ifdef SQLITE_ENABLE_EXTFUNC
 /* Prototype for initialization function of EXTENSIONFUNCTIONS extension */
+SQLITE_API
 int RegisterExtensionFunctions(sqlite3* db);
 #include "extensionfunctions.c"
 #endif
@@ -814,4 +832,111 @@ sqlite3mc_shutdown(void)
 */
 #ifdef SQLITE_ENABLE_TCL
 #include "tclsqlite.c"
+#endif
+
+#ifdef SQLITE3MC_USE_DISPATCH_TABLE
+
+/*
+** Dispatch table
+*/
+
+static const sqlite3mc_core_routines sqlite3mcCoreApis =
+{
+  sqlite3_initialize,
+  sqlite3_shutdown,
+  sqlite3_config,
+  sqlite3_enable_load_extension,
+#ifndef SQLITE_OMIT_DEPRECATED
+  sqlite3_memory_alarm,
+#else
+  0,
+#endif
+#ifndef NDEBUG
+  sqlite3_mutex_held,
+  sqlite3_mutex_notheld,
+#else
+  0,
+  0,
+#endif
+  sqlite3_os_init,
+  sqlite3_os_end,
+
+#ifdef SQLITE_ENABLE_PREUPDATE_HOOK
+  sqlite3_preupdate_blobwrite,
+  sqlite3_preupdate_count,
+  sqlite3_preupdate_depth,
+  sqlite3_preupdate_hook,
+  sqlite3_preupdate_new,
+  sqlite3_preupdate_old,
+#else
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+#endif
+#ifdef SQLITE_ENABLE_SNAPSHOT
+  sqlite3_snapshot_cmp,
+  sqlite3_snapshot_free,
+  sqlite3_snapshot_get,
+  sqlite3_snapshot_open,
+  sqlite3_snapshot_recover,
+#else
+  0,
+  0,
+  0,
+  0,
+  0,
+#endif
+#ifdef SQLITE_ENABLE_STMT_SCANSTATUS
+  sqlite3_stmt_scanstatus,
+  sqlite3_stmt_scanstatus_v2,
+  sqlite3_stmt_scanstatus_reset,
+#else
+  0,
+  0,
+  0,
+#endif
+#if SQLITE_OS_WIN == 1
+  sqlite3_win32_set_directory,
+  sqlite3_win32_set_directory16,
+  sqlite3_win32_set_directory8,
+#else
+  0,
+  0,
+  0,
+#endif
+};
+
+static const sqlite3mc_api_routines sqlite3mcApis =
+{
+  sqlite3_activate_see,
+  sqlite3_key,
+  sqlite3_key_v2,
+  sqlite3_rekey,
+  sqlite3_rekey_v2,
+
+  sqlite3mc_version,
+  sqlite3mc_cipher_count,
+  sqlite3mc_cipher_index,
+  sqlite3mc_cipher_name,
+  sqlite3mc_cipher_name_copy,
+  sqlite3mc_config,
+  sqlite3mc_config_cipher,
+  sqlite3mc_codec_data,
+
+  sqlite3mc_vfs_create,
+  sqlite3mc_vfs_destroy,
+  sqlite3mc_vfs_shutdown,
+};
+
+/*
+** Global pointers to the dispatch tables
+*/
+
+const sqlite3_api_routines*    SQLITE3MC_API_TABLE_EXT  = &sqlite3Apis;
+const sqlite3mc_core_routines* SQLITE3MC_API_TABLE_CORE = &sqlite3mcCoreApis;
+const sqlite3mc_api_routines*  SQLITE3MC_API_TABLE_MC   = &sqlite3mcApis;
+
 #endif

@@ -14,10 +14,12 @@
 #define U64BIG
 #endif
 
+ASCON_API
 void printword(const char* text, const uint64_t x) {
   printf("%s=%016" PRIx64, text, U64BIG(WORDTOU64(x)));
 }
 
+ASCON_API
 void printstate(const char* text, const ascon_state_t* s) {
   int i;
   printf("%s:", text);

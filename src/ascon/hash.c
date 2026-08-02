@@ -23,6 +23,7 @@
 
 #ifdef ASCON_HASH_BYTES
 
+ASCON_API
 forceinline void ascon_inithash(ascon_state_t* s) {
   int i;
   /* initialize */
@@ -57,6 +58,7 @@ forceinline void ascon_inithash(ascon_state_t* s) {
   ascon_printstate("initialization", s);
 }
 
+ASCON_API
 forceinline void ascon_absorb(ascon_state_t* s, const uint8_t* in,
                               uint64_t inlen) {
   /* absorb full plaintext blocks */
@@ -73,6 +75,7 @@ forceinline void ascon_absorb(ascon_state_t* s, const uint8_t* in,
   ascon_printstate("pad plaintext", s);
 }
 
+ASCON_API
 forceinline void ascon_squeeze(ascon_state_t* s, uint8_t* out,
                                uint64_t outlen) {
   /* squeeze full output blocks */

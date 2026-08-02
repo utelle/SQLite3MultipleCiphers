@@ -7,6 +7,7 @@
 #include "printstate.h"
 #include "word.h"
 
+ASCON_API
 forceinline void ASCON_ROUND(ascon_state_t* s, uint8_t C) {
   ascon_state_t t;
   /* round constant */
@@ -38,6 +39,7 @@ forceinline void ASCON_ROUND(ascon_state_t* s, uint8_t C) {
   ascon_printstate(" round output", s);
 }
 
+ASCON_API
 forceinline void ASCON_PROUNDS(ascon_state_t* s, int nr) {
   int i = ASCON_START(nr);
   do {

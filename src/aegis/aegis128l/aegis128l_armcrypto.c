@@ -106,6 +106,7 @@ AEGIS_update(AEGIS_AES_BLOCK_T *const state, const AEGIS_AES_BLOCK_T d1, const A
 
 #include "aegis128l_common.h"
 
+AEGIS_API
 struct aegis128l_implementation aegis128l_armcrypto_implementation = {
 #include "../common/func_table.h"
 };

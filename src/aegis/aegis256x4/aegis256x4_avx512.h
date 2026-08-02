@@ -12,7 +12,7 @@
 #include "implementations.h"
 
 #ifdef HAVE_VAESINTRIN_H
-extern struct aegis256x4_implementation aegis256x4_avx512_implementation;
+AEGIS_EXTERN struct aegis256x4_implementation aegis256x4_avx512_implementation;
 #endif
 
 #endif /* AEGIS256X4_AVX512_H */

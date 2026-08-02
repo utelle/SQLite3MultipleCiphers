@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-08-02
+
+### Changed
+
+- Adjusted visibility of internal functions and global data  
+  Many functions and global data of the AEGIS and Ascon crypto algorithms were visible to the linker possibly causing name clashes. They have been made consequently `static`.
+
+### Added
+
+- Added 2 compile time symbols, `SQLITE3MC_USE_DISPATCH_TABLE` and `SQLITE3MC_API_TABLE_PREFIX`
+  - Symbol `SQLITE3MC_USE_DISPATCH_TABLE` allows to effectively hide all SQLite API functions' symbols from the linker by establishing dispatch tables for calling the SQLite API functions. This avoids linker and runtime conflicts, if an application can't avoid to load multiple SQLite instances. In general, applications should avoid to load multiple instances of SQLite, because that can easily lead to database file corruption, if multiple SQLite instances access the same database file(s). However, if each SQLite instance only accesses a set of database files disjunct to each other, it is usually safe to have multiple SQLite instances in the same process.
+  - Symbol `SQLITE3MC_API_TABLE_PREFIX` allows to adjust the external names of the dispatch tables, so that even 2 instances of _SQLite3MC_ could operate in parallel, as long as they don't access the same database file(s). If the symbol is not defined, the default prefix `sqlite3mc` will be used.
+
 ## [2.4.0] - 2026-07-25
 
 ### Changed
@@ -775,7 +788,8 @@ The following ciphers are supported:
 - AES 256 Bit CBC - SHA1/SHA256/SHA512 HMAC ([SQLCipher](https://www.zetetic.net/sqlcipher/), database versions 1, 2, 3, and 4)
 - RC4 - No HMAC ([System.Data.SQLite](http://system.data.sqlite.org))
 
-[Unreleased]: ../../compare/v2.4.0...HEAD
+[Unreleased]: ../../compare/v2.5.0...HEAD
+[2.5.0]: ../../compare/v2.4.0...v2.5.0
 [2.4.0]: ../../compare/v2.3.6...v2.4.0
 [2.3.6]: ../../compare/v2.3.5...v2.3.6
 [2.3.5]: ../../compare/v2.3.4...v2.3.5

@@ -155,6 +155,7 @@ void NOT_OPTIMIZED _argon2_secure_wipe_memory(void *v, size_t n) {
 }
 
 /* Memory clear flag defaults to true. */
+ARGON2_PUBLIC
 int FLAG_clear_internal_memory = 1;
 
 ARGON2_PRIVATE

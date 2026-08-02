@@ -22,6 +22,11 @@
 
 #define ASCON128_KDF_ITER_DEFAULT 64007
 
+/* Make ASCON code static unless told otherwise */
+#ifndef ASCON_API
+#define ASCON_API static
+#endif
+
 #include "ascon/prolog.h"
 #include "ascon/aead.c"
 #include "ascon/hash.c"

@@ -210,4 +210,187 @@ SQLITE_API int sqlite3mc_register_cipher(const CipherDescriptor* desc, const Cip
 */
 #include "sqlite3mc_vfs.h"
 
+/*
+** Dispatch table support
+*/
+
+#ifdef SQLITE3MC_USE_DISPATCH_TABLE
+
+/*
+** Instead of making the SQLite symbols public dispatch tables can be
+** used. In that case only the pointers to the dispatch tables are
+** made public, hiding all other SQLite symbols. This is useful for
+** modules which want to use an embedded SQLite version without
+** conflicts with other SQLite implementation.
+**
+** The only rule to obey is that such an embedded SQLite instance
+** should not access the same database files as a separate SQLite
+** instance within the same process, because that could lead to
+** database corruption.
+**
+** Define symbol SQLITE3MC_USE_DISPATCH_TABLE to activate the use of
+** dispatch tables.
+**
+** Define symbol SQLITE3MC_API_TABLE_PREFIX to specify your own
+** global symbols for the dispatch tables to avoid name clashes.
+**
+** Example: #define SQLITE3MC_API_TABLE_PREFIX MyApplication
+**
+** The default prefix is "sqlite3mc".
+*/
+
+#ifndef SQLITE3MC_API_TABLE_PREFIX
+#define SQLITE3MC_API_TABLE_PREFIX  sqlite3mc
 #endif
+
+#define SQLITE3MC_CONCAT(A,B) SQLITE3MC_CONCAT_(A,B)
+#define SQLITE3MC_CONCAT_(A,B) A##B
+#define SQLITE3MC_API_TABLE(name) SQLITE3MC_CONCAT(SQLITE3MC_API_TABLE_PREFIX,SQLITE3MC_CONCAT(_,name))
+
+#define SQLITE3MC_API_TABLE_EXT  SQLITE3MC_API_TABLE(api_ext)
+#define SQLITE3MC_API_TABLE_CORE SQLITE3MC_API_TABLE(api_core)
+#define SQLITE3MC_API_TABLE_MC   SQLITE3MC_API_TABLE(api_mc)
+
+/* Define the dispatch table name for sqlite3ext.h */
+#define sqlite3_api SQLITE3MC_API_TABLE_EXT
+
+#include "sqlite3ext.h"
+
+struct sqlite3mc_core_routines {
+  int (*initialize)(void);
+  int (*shutdown)(void);
+  int (*config)(int, ...);
+  int (*enable_load_extension)(sqlite3*, int);
+  int (*memory_alarm)(void(*)(void*, sqlite3_int64, int), void*, sqlite3_int64);
+  int (*mutex_held)(sqlite3_mutex*);
+  int (*mutex_notheld)(sqlite3_mutex*);
+  int (*os_init)(void);
+  int (*os_end)(void);
+  int (*preupdate_blobwrite)(sqlite3*);
+  int (*preupdate_count)(sqlite3*);
+  int (*preupdate_depth)(sqlite3*);
+  void* (*preupdate_hook)(sqlite3*,
+                          void(*xPreUpdate)(void*, sqlite3*, int, char const*, char const*, sqlite3_int64, sqlite3_int64),
+                          void*);
+  int (*preupdate_old)(sqlite3*, int, sqlite3_value**);
+  int (*preupdate_new)(sqlite3*, int, sqlite3_value**);
+
+  int (*snapshot_cmp)(sqlite3_snapshot*, sqlite3_snapshot*);
+  void (*snapshot_free)(sqlite3_snapshot*);
+  int (*snapshot_get)(sqlite3*, const char*, sqlite3_snapshot**);
+  int (*snapshot_open)(sqlite3*, const char*, sqlite3_snapshot*);
+  int (*snapshot_recover)(sqlite3*, const char*);
+
+  int (*stmt_scanstatus)(sqlite3_stmt*, int, int, void*);
+  int (*stmt_scanstatus_v2)(sqlite3_stmt*, int, int, int, void*);
+  void (*stmt_scanstatus_reset)(sqlite3_stmt*);
+
+  int (*win32_set_directory)(unsigned long type, void* zValue);
+  int (*win32_set_directory8)(unsigned long type, const char* zValue);
+  int (*win32_set_directory16)(unsigned long type, const void* zValue);
+};
+
+struct sqlite3mc_api_routines {
+    void (*activate_see)(const char* zPassPhrase);
+    int (*key)(sqlite3* db, const void* pKey, int nKey);
+    int (*key_v2)(sqlite3*, const char* zDbName, const void* pKey, int nKey);
+    int (*rekey)(sqlite3*, const void* pKey, int nKey);
+    int (*rekey_v2)(sqlite3*, const char* zDbName, const void* pKey, int nKey);
+
+    const char* (*mc_version)();
+    int (*mc_cipher_count)();
+    int (*mc_cipher_index)(const char* cipherName);
+    const char* (*mc_cipher_name)(int cipherIndex);
+    int (*mc_cipher_name_copy)(int cipherIndex, char* cipherName, int maxCipherNameSize);
+    int (*mc_config)(sqlite3* db, const char* paramName, int newValue);
+    int (*mc_config_cipher)(sqlite3* db, const char* cipherName, const char* paramName, int newValue);
+    unsigned char* (*mc_codec_data)(sqlite3* db, const char* zDbName, const char* paramName);
+
+    int (*mc_vfs_create)(const char* zVfsReal, int makeDefault);
+    void (*mc_vfs_destroy)(const char* zName);
+    void (*mc_vfs_shutdown)();
+};
+
+typedef struct sqlite3mc_core_routines sqlite3mc_core_routines;
+typedef struct sqlite3mc_api_routines sqlite3mc_api_routines;
+
+#ifndef SQLITE3MC_DISPATCH_API
+#if defined(_WIN32)
+#define SQLITE3MC_DISPATCH_API __declspec(dllexport)
+#else
+#define SQLITE3MC_DISPATCH_API
+#endif
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+SQLITE3MC_DISPATCH_API extern const sqlite3_api_routines*    SQLITE3MC_API_TABLE_EXT;
+SQLITE3MC_DISPATCH_API extern const sqlite3mc_core_routines* SQLITE3MC_API_TABLE_CORE;
+SQLITE3MC_DISPATCH_API extern const sqlite3mc_api_routines*  SQLITE3MC_API_TABLE_MC;
+
+#ifdef __cplusplus
+}  /* End of the 'extern "C"' block */
+#endif
+
+#if !defined(SQLITE_CORE)
+
+/* SQLite core API - not defined in sqlite3ext.h */
+
+#define sqlite3_initialize            SQLITE3MC_API_TABLE_CORE->initialize
+#define sqlite3_shutdown              SQLITE3MC_API_TABLE_CORE->shutdown
+#define sqlite3_config                SQLITE3MC_API_TABLE_CORE->config
+#define sqlite3_enable_load_extension SQLITE3MC_API_TABLE_CORE->enable_load_extension
+#define sqlite3_memory_alarm          SQLITE3MC_API_TABLE_CORE->memory_alarm
+#define sqlite3_mutex_held            SQLITE3MC_API_TABLE_CORE->mutex_held
+#define sqlite3_mutex_notheld         SQLITE3MC_API_TABLE_CORE->mutex_notheld
+#define sqlite3_os_init               SQLITE3MC_API_TABLE_CORE->os_init
+#define sqlite3_os_end                SQLITE3MC_API_TABLE_CORE->os_end
+#define sqlite3_preupdate_blobwrite   SQLITE3MC_API_TABLE_CORE->preupdate_blobwrite
+#define sqlite3_preupdate_count       SQLITE3MC_API_TABLE_CORE->preupdate_count
+#define sqlite3_preupdate_depth       SQLITE3MC_API_TABLE_CORE->preupdate_depth
+#define sqlite3_preupdate_hook        SQLITE3MC_API_TABLE_CORE->preupdate_hook
+#define sqlite3_preupdate_old         SQLITE3MC_API_TABLE_CORE->preupdate_old
+#define sqlite3_preupdate_new         SQLITE3MC_API_TABLE_CORE->preupdate_new
+
+#define sqlite3_snapshot_cmp          SQLITE3MC_API_TABLE_CORE->snapshot_cmp
+#define sqlite3_snapshot_free         SQLITE3MC_API_TABLE_CORE->snapshot_free
+#define sqlite3_snapshot_get          SQLITE3MC_API_TABLE_CORE->snapshot_get
+#define sqlite3_snapshot_open         SQLITE3MC_API_TABLE_CORE->snapshot_open
+#define sqlite3_snapshot_recover      SQLITE3MC_API_TABLE_CORE->snapshot_recover
+
+#define sqlite3_stmt_scanstatus       SQLITE3MC_API_TABLE_CORE->stmt_scanstatus
+#define sqlite3_stmt_scanstatus_v2    SQLITE3MC_API_TABLE_CORE->stmt_scanstatus_v2
+#define sqlite3_stmt_scanstatus_reset SQLITE3MC_API_TABLE_CORE->stmt_scanstatus_reset
+
+#define sqlite3_win32_set_directory   SQLITE3MC_API_TABLE_CORE->win32_set_directory
+#define sqlite3_win32_set_directory8  SQLITE3MC_API_TABLE_CORE->win32_set_directory8
+#define sqlite3_win32_set_directory16 SQLITE3MC_API_TABLE_CORE->win32_set_directory16
+
+/* SQLite3 Multiple Ciphers API */
+
+#define sqlite3_activate_see        SQLITE3MC_API_TABLE_MC->activate_see
+#define sqlite3_key                 SQLITE3MC_API_TABLE_MC->key
+#define sqlite3_key_v2              SQLITE3MC_API_TABLE_MC->key_v2
+#define sqlite3_rekey               SQLITE3MC_API_TABLE_MC->rekey
+#define sqlite3_rekey_v2            SQLITE3MC_API_TABLE_MC->rekey_v2
+
+#define sqlite3mc_version           SQLITE3MC_API_TABLE_MC->mc_version
+#define sqlite3mc_cipher_count      SQLITE3MC_API_TABLE_MC->mc_cipher_count
+#define sqlite3mc_cipher_index      SQLITE3MC_API_TABLE_MC->mc_cipher_index
+#define sqlite3mc_cipher_name       SQLITE3MC_API_TABLE_MC->mc_cipher_name
+#define sqlite3mc_cipher_name_copy  SQLITE3MC_API_TABLE_MC->mc_cipher_name_copy
+#define sqlite3mc_config            SQLITE3MC_API_TABLE_MC->mc_config
+#define sqlite3mc_config_cipher     SQLITE3MC_API_TABLE_MC->mc_config_cipher
+#define sqlite3mc_codec_data        SQLITE3MC_API_TABLE_MC->mc_codec_data
+
+#define sqlite3mc_vfs_create        SQLITE3MC_API_TABLE_MC->mc_vfs_create
+#define sqlite3mc_vfs_destroy       SQLITE3MC_API_TABLE_MC->mc_vfs_destroy
+#define sqlite3mc_vfs_shutdown      SQLITE3MC_API_TABLE_MC->mc_vfs_shutdown
+
+#endif /* !SQLITE_CORE */
+
+#endif /* SQLITE3MC_USE_DISPATCH_TABLE */
+
+#endif /* SQLITE3MC_H_ */

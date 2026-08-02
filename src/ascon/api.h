@@ -7,7 +7,7 @@
 ** Remarks:     API functions adapted for use in SQLite3 Multiple Ciphers
 **              Combined symbols from AEAD and HASH
 ** Modified by: Ulrich Telle
-** Copyright:   (c) 2023-2023 Ulrich Telle
+** Copyright:   (c) 2023-2026 Ulrich Telle
 ** License:     MIT
 */
 
@@ -27,3 +27,7 @@
 #define ASCON_AEAD_NONCE_LEN CRYPTO_NPUBBYTES
 #define ASCON_AEAD_TAG_LEN CRYPTO_ABYTES
 #define ASCON_SALT_LEN CRYPTO_NPUBBYTES
+
+#ifndef ASCON_API
+#define ASCON_API
+#endif

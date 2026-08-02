@@ -10,6 +10,7 @@
 #include "printstate.h"
 #include "round.h"
 
+ASCON_API
 forceinline void ASCON_P12ROUNDS(ascon_state_t* s) {
   ASCON_ROUND(s, ASCON_RC0);
   ASCON_ROUND(s, ASCON_RC1);
@@ -25,6 +26,7 @@ forceinline void ASCON_P12ROUNDS(ascon_state_t* s) {
   ASCON_ROUND(s, ASCON_RCb);
 }
 
+ASCON_API
 forceinline void ASCON_P8ROUNDS(ascon_state_t* s) {
   ASCON_ROUND(s, ASCON_RC4);
   ASCON_ROUND(s, ASCON_RC5);
@@ -36,6 +38,7 @@ forceinline void ASCON_P8ROUNDS(ascon_state_t* s) {
   ASCON_ROUND(s, ASCON_RCb);
 }
 
+ASCON_API
 forceinline void ASCON_P6ROUNDS(ascon_state_t* s) {
   ASCON_ROUND(s, ASCON_RC6);
   ASCON_ROUND(s, ASCON_RC7);
@@ -47,6 +50,7 @@ forceinline void ASCON_P6ROUNDS(ascon_state_t* s) {
 
 #if ASCON_INLINE_PERM && ASCON_UNROLL_LOOPS
 
+ASCON_API
 forceinline void ASCON_P(ascon_state_t* s, int nr) {
   if (nr == 12) ASCON_P12ROUNDS(s);
   if (nr == 8) ASCON_P8ROUNDS(s);
@@ -55,10 +59,14 @@ forceinline void ASCON_P(ascon_state_t* s, int nr) {
 
 #elif !ASCON_INLINE_PERM && ASCON_UNROLL_LOOPS
 
+ASCON_API
 void ASCON_P12(ascon_state_t* s);
+ASCON_API
 void ASCON_P8(ascon_state_t* s);
+ASCON_API
 void ASCON_P6(ascon_state_t* s);
 
+ASCON_API
 forceinline void ASCON_P(ascon_state_t* s, int nr) {
   if (nr == 12) ASCON_P12(s);
   if (nr == 8) ASCON_P8(s);
@@ -67,10 +75,12 @@ forceinline void ASCON_P(ascon_state_t* s, int nr) {
 
 #elif ASCON_INLINE_PERM && !ASCON_UNROLL_LOOPS
 
+ASCON_API
 forceinline void ASCON_P(ascon_state_t* s, int nr) { ASCON_PROUNDS(s, nr); }
 
 #else /* !ASCON_INLINE_PERM && !ASCON_UNROLL_LOOPS */
 
+ASCON_API
 void ASCON_P(ascon_state_t* s, int nr);
 
 #endif

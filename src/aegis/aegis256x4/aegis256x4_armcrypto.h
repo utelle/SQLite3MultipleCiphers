@@ -11,6 +11,6 @@
 #include "../common/common.h"
 #include "implementations.h"
 
-extern struct aegis256x4_implementation aegis256x4_armcrypto_implementation;
+AEGIS_EXTERN struct aegis256x4_implementation aegis256x4_armcrypto_implementation;
 
 #endif /* AEGIS256X4_ARMCRYPTO_H */

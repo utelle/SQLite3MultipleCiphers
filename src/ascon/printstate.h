@@ -6,7 +6,9 @@
 #include "ascon.h"
 #include "word.h"
 
+ASCON_API
 void ascon_printword(const char* text, const uint64_t x);
+ASCON_API
 void ascon_printstate(const char* text, const ascon_state_t* s);
 
 #else

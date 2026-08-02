@@ -10,18 +10,21 @@
 */
 
 #ifndef AEGIS_API
-#define AEGIS_API
+#define AEGIS_API static
 #endif
 #ifndef AEGIS_PRIVATE
 #define AEGIS_PRIVATE static
+#endif
+#ifndef AEGIS_EXTERN
+#define AEGIS_EXTERN static
 #endif
 
 /* Namespacing to avoid conflicts with libsodium 1.0.21+ */
 
 /* Base Implementation Structs */
 #define aegis128l_implementation             sqlite3mc_aegis128l_implementation
-#define aegis128lx2_implementation           sqlite3mc_aegis128lx2_implementation
-#define aegis128lx4_implementation           sqlite3mc_aegis128lx4_implementation
+#define aegis128x2_implementation            sqlite3mc_aegis128x2_implementation
+#define aegis128x4_implementation            sqlite3mc_aegis128x4_implementation
 #define aegis256_implementation              sqlite3mc_aegis256_implementation
 #define aegis256x2_implementation            sqlite3mc_aegis256x2_implementation
 #define aegis256x4_implementation            sqlite3mc_aegis256x4_implementation

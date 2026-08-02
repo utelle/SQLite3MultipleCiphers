@@ -2,6 +2,10 @@
 #define ARGON2_API static
 #endif
 
+#ifndef ARGON2_EXTERN
+#define ARGON2_EXTERN static
+#endif
+
 #ifndef ARGON2_PRIVATE
 #define ARGON2_PRIVATE static
 #endif

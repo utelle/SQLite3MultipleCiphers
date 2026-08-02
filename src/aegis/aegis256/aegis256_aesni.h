@@ -11,6 +11,6 @@
 #include "../common/common.h"
 #include "implementations.h"
 
-extern struct aegis256_implementation aegis256_aesni_implementation;
+AEGIS_EXTERN struct aegis256_implementation aegis256_aesni_implementation;
 
 #endif /* AEGIS256_AESNI_H */

@@ -95,6 +95,7 @@ AEGIS_update(AEGIS_AES_BLOCK_T *const state, const AEGIS_AES_BLOCK_T d)
 
 #include "aegis256_common.h"
 
+AEGIS_API
 struct aegis256_implementation aegis256_aesni_implementation = {
 #include "../common/func_table.h"
 };

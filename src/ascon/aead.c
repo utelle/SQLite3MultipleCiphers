@@ -23,6 +23,7 @@
 
 #ifdef ASCON_AEAD_RATE
 
+ASCON_API
 forceinline void ascon_loadkey(ascon_key_t* key, const uint8_t* k) {
 #if CRYPTO_KEYBYTES == 16
   key->x[0] = ASCON_LOAD(k, 8);
@@ -34,6 +35,7 @@ forceinline void ascon_loadkey(ascon_key_t* key, const uint8_t* k) {
 #endif
 }
 
+ASCON_API
 forceinline void ascon_initaead(ascon_state_t* s, const ascon_key_t* key,
                                 const uint8_t* npub) {
 #if CRYPTO_KEYBYTES == 16
@@ -61,6 +63,7 @@ forceinline void ascon_initaead(ascon_state_t* s, const ascon_key_t* key,
   ascon_printstate("init 2nd key xor", s);
 }
 
+ASCON_API
 forceinline void ascon_adata(ascon_state_t* s, const uint8_t* ad,
                              uint64_t adlen) {
   const int nr = (ASCON_AEAD_RATE == 8) ? 6 : 8;
@@ -92,6 +95,7 @@ forceinline void ascon_adata(ascon_state_t* s, const uint8_t* ad,
   ascon_printstate("domain separation", s);
 }
 
+ASCON_API
 forceinline void ascon_encrypt(ascon_state_t* s, uint8_t* c, const uint8_t* m,
                                uint64_t mlen) {
   const int nr = (ASCON_AEAD_RATE == 8) ? 6 : 8;
@@ -127,6 +131,7 @@ forceinline void ascon_encrypt(ascon_state_t* s, uint8_t* c, const uint8_t* m,
   ascon_printstate("pad plaintext", s);
 }
 
+ASCON_API
 forceinline void ascon_decrypt(ascon_state_t* s, uint8_t* m, const uint8_t* c,
                                uint64_t clen) {
   const int nr = (ASCON_AEAD_RATE == 8) ? 6 : 8;
@@ -171,6 +176,7 @@ forceinline void ascon_decrypt(ascon_state_t* s, uint8_t* m, const uint8_t* c,
   ascon_printstate("pad ciphertext", s);
 }
 
+ASCON_API
 forceinline void ascon_final(ascon_state_t* s, const ascon_key_t* key) {
 #if CRYPTO_KEYBYTES == 16
   if (ASCON_AEAD_RATE == 8) {

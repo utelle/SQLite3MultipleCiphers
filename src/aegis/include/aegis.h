@@ -31,6 +31,9 @@
 #ifndef AEGIS_PRIVATE
 #define AEGIS_PRIVATE static
 #endif
+#ifndef AEGIS_EXTERN
+#define AEGIS_EXTERN extern
+#endif
 
 #include "aegis128l.h"
 #include "aegis128x2.h"

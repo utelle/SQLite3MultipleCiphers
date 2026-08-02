@@ -11,6 +11,6 @@
 #include "../common/common.h"
 #include "implementations.h"
 
-extern struct aegis128l_implementation aegis128l_altivec_implementation;
+AEGIS_EXTERN struct aegis128l_implementation aegis128l_altivec_implementation;
 
 #endif /* AEGIS128L_ALTIVEC_H */

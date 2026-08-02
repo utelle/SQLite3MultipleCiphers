@@ -8,6 +8,7 @@ The version entries are grouped by the release year.
 
 | SQLite3MC Version | SQLite Version |
 | :---: | :---: |
+| [2.5.0](https://github.com/utelle/SQLite3MultipleCiphers/releases/tag/v2.5.0) | [3.53.4](https://sqlite.org/releaselog/3_53_4.html) |
 | [2.4.0](https://github.com/utelle/SQLite3MultipleCiphers/releases/tag/v2.4.0) | [3.53.4](https://sqlite.org/releaselog/3_53_4.html) |
 | [2.3.6](https://github.com/utelle/SQLite3MultipleCiphers/releases/tag/v2.3.6) | [3.53.3](https://sqlite.org/releaselog/3_53_3.html) |
 | [2.3.5](https://github.com/utelle/SQLite3MultipleCiphers/releases/tag/v2.3.5) | [3.53.2](https://sqlite.org/releaselog/3_53_2.html) |

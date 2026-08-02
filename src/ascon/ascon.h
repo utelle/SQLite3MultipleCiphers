@@ -24,14 +24,20 @@ typedef union {
 
 #if !ASCON_INLINE_MODE
 
+ASCON_API
 void ascon_loadkey(ascon_key_t* key, const uint8_t* k);
+ASCON_API
 void ascon_initaead(ascon_state_t* s, const ascon_key_t* key,
                     const uint8_t* npub);
+ASCON_API
 void ascon_adata(ascon_state_t* s, const uint8_t* ad, uint64_t adlen);
+ASCON_API
 void ascon_encrypt(ascon_state_t* s, uint8_t* c, const uint8_t* m,
                    uint64_t mlen);
+ASCON_API
 void ascon_decrypt(ascon_state_t* s, uint8_t* m, const uint8_t* c,
                    uint64_t clen);
+ASCON_API
 void ascon_final(ascon_state_t* s, const ascon_key_t* k);
 
 #endif
@@ -42,8 +48,11 @@ void ascon_final(ascon_state_t* s, const ascon_key_t* k);
 
 #if !ASCON_INLINE_MODE
 
+ASCON_API
 void ascon_inithash(ascon_state_t* s);
+ASCON_API
 void ascon_absorb(ascon_state_t* s, const uint8_t* in, uint64_t inlen);
+ASCON_API
 void ascon_squeeze(ascon_state_t* s, uint8_t* out, uint64_t outlen);
 
 #endif

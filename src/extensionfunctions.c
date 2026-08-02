@@ -186,34 +186,34 @@ typedef struct map{
 /*
 ** creates a map given a comparison function
 */
-map map_make(cmp_func cmp);
+static map map_make(cmp_func cmp);
 
 /*
 ** inserts the element e into map m
 */
-void map_insert(map *m, void *e);
+static void map_insert(map *m, void *e);
 
 /*
 ** executes function iter over all elements in the map, in key increasing order
 */
-void map_iterate(map *m, map_iterator iter, void* p);
+static void map_iterate(map *m, map_iterator iter, void* p);
 
 /*
 ** frees all memory used by a map
 */
-void map_destroy(map *m);
+static void map_destroy(map *m);
 
 /*
 ** compares 2 integers
 ** to use with map_make
 */
-int int_cmp(const void *a, const void *b);
+static int int_cmp(const void *a, const void *b);
 
 /*
 ** compares 2 doubles
 ** to use with map_make
 */
-int double_cmp(const void *a, const void *b);
+static int double_cmp(const void *a, const void *b);
 
 #endif /* _MAP_H_ */
 
@@ -1755,6 +1755,7 @@ static void lastRowsFunc(sqlite3_context *context, int argc, sqlite3_value **arg
 ** functions.  This should be the only routine in this file with
 ** external linkage.
 */
+SQLITE_API
 int RegisterExtensionFunctions(sqlite3 *db){
   static const struct FuncDef {
      char *zName;

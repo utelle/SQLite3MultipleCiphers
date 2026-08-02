@@ -2,6 +2,7 @@
 
 #if !ASCON_INLINE_PERM && ASCON_UNROLL_LOOPS
 
+ASCON_API
 void P12(ascon_state_t* s) { P12ROUNDS(s); }
 
 #endif
@@ -11,6 +12,7 @@ void P12(ascon_state_t* s) { P12ROUNDS(s); }
      (defined(ASCON_PRF_ROUNDS) && ASCON_PRF_ROUNDS == 8)) &&  \
     !ASCON_INLINE_PERM && ASCON_UNROLL_LOOPS
 
+ASCON_API
 void P8(ascon_state_t* s) { P8ROUNDS(s); }
 
 #endif
@@ -18,12 +20,14 @@ void P8(ascon_state_t* s) { P8ROUNDS(s); }
 #if (defined(ASCON_AEAD_RATE) && ASCON_AEAD_RATE == 8) && \
     !ASCON_INLINE_PERM && ASCON_UNROLL_LOOPS
 
+ASCON_API
 void P6(ascon_state_t* s) { P6ROUNDS(s); }
 
 #endif
 
 #if !ASCON_INLINE_PERM && !ASCON_UNROLL_LOOPS
 
+ASCON_API
 void P(ascon_state_t* s, int nr) { PROUNDS(s, nr); }
 
 #endif
