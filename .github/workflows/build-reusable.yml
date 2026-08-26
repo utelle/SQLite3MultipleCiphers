@@ -763,7 +763,7 @@ jobs:
       - name: Setup Emscripten
         uses: emscripten-core/setup-emsdk@4528d102f7230f0e7b276855c01ea1159be0e984 # v16
         with:
-          version: latest
+          version: 6.0.2
 
       # -------------------------------------------------
       # Install WABT tools
@@ -878,6 +878,33 @@ jobs:
         run: |
           set -euo pipefail
           make dist dist.build=oz
+
+      # -------------------------------------------------
+      # Verify WASM output before packaging (issue #252 regression check)
+      # -------------------------------------------------
+      - name: Verify WASM build loads in a standard runtime
+        working-directory: sqlite/ext/wasm
+        run: |
+          set -euo pipefail
+          srcdir="sqlite-wasm-see-${SQLITE_VERSION_RAW}"
+
+          wasm_file="$(find "$srcdir" -name 'sqlite3.wasm' -print -quit)"
+          mjs_file="$(find "$srcdir" -name 'sqlite3.mjs' -print -quit)"
+
+          if [ -z "$wasm_file" ]; then
+            echo "::error::sqlite3.wasm not found under $srcdir - check dist layout"
+            exit 1
+          fi
+
+          echo "Testing $wasm_file"
+          node "$GITHUB_WORKSPACE/scripts/wasm-smoke-test.mjs" "$wasm_file"
+
+          if [ -n "$mjs_file" ]; then
+            echo "Testing $mjs_file"
+            node "$GITHUB_WORKSPACE/scripts/wasm-functional-test.mjs" "$mjs_file"
+          else
+            echo "::warning::sqlite3.mjs not found, skipping functional test"
+          fi
 
       # -------------------------------------------------
       # Package WASM binary ZIP
