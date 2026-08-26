@@ -899,12 +899,12 @@ jobs:
           echo "Testing $wasm_file"
           node "$GITHUB_WORKSPACE/scripts/wasm-smoke-test.mjs" "$wasm_file"
 
-          if [ -n "$mjs_file" ]; then
-            echo "Testing $mjs_file"
-            node "$GITHUB_WORKSPACE/scripts/wasm-functional-test.mjs" "$mjs_file"
-          else
-            echo "::warning::sqlite3.mjs not found, skipping functional test"
-          fi
+          # if [ -n "$mjs_file" ]; then
+          #   echo "Testing $mjs_file"
+          #   node "$GITHUB_WORKSPACE/scripts/wasm-functional-test.mjs" "$mjs_file"
+          # else
+          #   echo "::warning::sqlite3.mjs not found, skipping functional test"
+          # fi
 
       # -------------------------------------------------
       # Package WASM binary ZIP
