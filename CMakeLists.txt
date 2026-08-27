@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24.0.0)
-set(SQLITE3MC_VERSION "2.5.0")
+set(SQLITE3MC_VERSION "2.5.1")
 project(sqlite3mc VERSION ${SQLITE3MC_VERSION})
 
 # Helper macro
