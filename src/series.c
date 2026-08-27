@@ -162,7 +162,9 @@ SQLITE_EXTENSION_INIT1
 **   iOTerm = -9223372036854775808   iTerm = 9223372036854775807
 **   iOStep = -9223372036854775808   iStep = 9223372036854775808  bDesc = 0
 */
+#if 0
 typedef unsigned char u8;
+#endif
 typedef struct series_cursor series_cursor;
 struct series_cursor {
   sqlite3_vtab_cursor base;  /* Base class - must be first */

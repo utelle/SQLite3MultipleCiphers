@@ -217,7 +217,7 @@ softaes_block_encrypt(const SoftAesBlock block, const SoftAesBlock rk)
 }
 #else
 
-static uint32_t _aes_lut[256] __attribute__((visibility("hidden"))) = {
+static uint32_t _aes_lut[256] = {
     0xa56363c6, 0x847c7cf8, 0x997777ee, 0x8d7b7bf6, 0x0df2f2ff, 0xbd6b6bd6, 0xb16f6fde, 0x54c5c591,
     0x50303060, 0x03010102, 0xa96767ce, 0x7d2b2b56, 0x19fefee7, 0x62d7d7b5, 0xe6abab4d, 0x9a7676ec,
     0x45caca8f, 0x9d82821f, 0x40c9c989, 0x877d7dfa, 0x15fafaef, 0xeb5959b2, 0xc947478e, 0x0bf0f0fb,
