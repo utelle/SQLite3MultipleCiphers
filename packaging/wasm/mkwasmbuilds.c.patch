@@ -1,0 +1,11 @@
+--- ext/wasm/mkwasmbuilds.c
++++ ext/wasm/mkwasmbuilds.c
+@@ -497,7 +497,7 @@ static void mk_prologue(void){
+       ** here, only wasm file size.
+       */
+       "--enable-bulk-memory-opt " /* required */
+-      "--all-features "           /* required */
++      "--all-features --disable-compact-imports "           /* required */
+       "--post-emscripten "        /* Saves roughly 12kb */
+       "--strip-debug "            /* We already wasm-strip, but in
+                                   ** case this environment has no

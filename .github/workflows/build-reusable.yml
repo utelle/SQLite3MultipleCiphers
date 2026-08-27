@@ -850,6 +850,7 @@ jobs:
             ../packaging/wasm/GNUmakefile.patch
             ../packaging/wasm/EXPORTED_FUNCTIONS.c-pp.patch
             ../packaging/wasm/sqlite3-api-glue.c-pp.js.patch
+            ../packaging/wasm/mkwasmbuilds.c.patch
           )
 
           git apply --check --verbose -p0 "${PATCHES[@]}"
