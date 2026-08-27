@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.1] - 2026-08-27
+
+### Changed
+
+- Fix issue [#252](../../issues/252) - precompiled WASM fails due to compact import encoding
+
 ## [2.5.0] - 2026-08-02
 
 ### Changed
@@ -788,7 +794,8 @@ The following ciphers are supported:
 - AES 256 Bit CBC - SHA1/SHA256/SHA512 HMAC ([SQLCipher](https://www.zetetic.net/sqlcipher/), database versions 1, 2, 3, and 4)
 - RC4 - No HMAC ([System.Data.SQLite](http://system.data.sqlite.org))
 
-[Unreleased]: ../../compare/v2.5.0...HEAD
+[Unreleased]: ../../compare/v2.5.1...HEAD
+[2.5.1]: ../../compare/v2.5.0...v2.5.1
 [2.5.0]: ../../compare/v2.4.0...v2.5.0
 [2.4.0]: ../../compare/v2.3.6...v2.4.0
 [2.3.6]: ../../compare/v2.3.5...v2.3.6

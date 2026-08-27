@@ -10,12 +10,8 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version information
 
-* 2.5.0 - *August 2026*
-  - Adjusted visibility of internal functions and global data  
-    Many functions and global data of the AEGIS and Ascon crypto algorithms were visible to the linker possibly causing name clashes. They have been made consequently `static`.
-  - Added 2 compile time symbols, `SQLITE3MC_USE_DISPATCH_TABLE` and `SQLITE3MC_API_TABLE_PREFIX`
-    - Symbol `SQLITE3MC_USE_DISPATCH_TABLE` allows to effectively hide all SQLite API functions' symbols from the linker by establishing dispatch tables for calling the SQLite API functions. This avoids linker and runtime conflicts, if an application can't avoid to load multiple SQLite instances. In general, applications should avoid to load multiple instances of SQLite, because that can easily lead to database file corruption, if multiple SQLite instances access the same database file(s). However, if each SQLite instance only accesses a set of database files disjunct to each other, it is usually safe to have multiple SQLite instances in the same process.
-    - Symbol `SQLITE3MC_API_TABLE_PREFIX` allows to adjust the external names of the dispatch tables, so that even 2 instances of _SQLite3MC_ could operate in parallel, as long as they don't access the same database file(s). If the symbol is not defined, the default prefix `sqlite3mc` will be used.
+* 2.5.1 - *August 2026*
+  - Fix issue #252 (precompiled WASM fails due to compact import encoding)
 
 For further version information please consult the [CHANGELOG](CHANGELOG.md).
 
