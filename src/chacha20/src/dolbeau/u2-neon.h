@@ -40,7 +40,7 @@ while (bytes >= 128) {
     y_2 = orig2;
     y_3 = orig3b;
 
-    for (i = 0; i < ROUNDS; i += 2) {
+    for (i = 0; i < DOLBEAU_ROUNDS; i += 2) {
         VEC2_HALFROUND(x, 3, 1);
         VEC2_HALFROUND(y, 3, 1);
         VEC2_HALFROUND(x, 1, 3);

@@ -10,7 +10,7 @@ while (bytes >= 64) {
     x_2 = vld1q_u32(x + 8);
     x_3 = vld1q_u32(x + 12);
 
-    for (i = 0; i < ROUNDS; i += 2) {
+    for (i = 0; i < DOLBEAU_ROUNDS; i += 2) {
         x_0 = vaddq_u32(x_0, x_1);
         x_3 = veorq_u32(x_3, x_0);
         x_3 = rotl32_16_neon(x_3);
