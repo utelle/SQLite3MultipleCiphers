@@ -3,7 +3,9 @@
 
 #include "common.h"
 
+#if 0
 #include <intrin.h>
+#endif
 
 #if !(defined(__amd64) || defined(__amd64__) || defined(__x86_64__) || \
       defined(_M_X64))
