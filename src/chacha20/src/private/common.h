@@ -1,7 +1,9 @@
 #ifndef common_H
 #define common_H 1
 
-#if !defined(_MSC_VER) && !defined(DEV_MODE) && 1
+/* Remove warning  using "&& 0" */
+/* The development code (ChaCha20 AVX512F and NEON) are not enabled by default, but can be selected */
+#if !defined(_MSC_VER) && !defined(DEV_MODE) && 0
 # warning *** This is unstable, untested, development code.
 # warning *** It might not compile. It might not work as expected.
 # warning *** It might be totally insecure.
