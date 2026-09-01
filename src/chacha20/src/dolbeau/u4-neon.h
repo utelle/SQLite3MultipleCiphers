@@ -93,7 +93,7 @@ if (bytes >= 256) {
         x[12] = in1213 & 0xFFFFFFFF;
         x[13] = (in1213 >> 32) & 0xFFFFFFFF;
 
-        for (i = 0; i < ROUNDS; i += 2) {
+        for (i = 0; i < DOLBEAU_ROUNDS; i += 2) {
             VEC4_QUARTERROUND(0, 4, 8, 12);
             VEC4_QUARTERROUND(1, 5, 9, 13);
             VEC4_QUARTERROUND(2, 6, 10, 14);

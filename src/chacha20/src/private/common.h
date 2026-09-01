@@ -12,7 +12,7 @@
 # warning *** Alternatively, use the "stable" branch in the git repository.
 #endif
 
-#if !defined(_MSC_VER) && (!defined(CONFIGURED) || CONFIGURED != 1)
+#if !defined(_MSC_VER) && (!defined(CONFIGURED) || CONFIGURED != 1) && 0
 # warning *** The library is being compiled using an undocumented method.
 # warning *** This is not supported. It has not been tested, it might not
 # warning *** work as expected, and performance is likely to be suboptimal.

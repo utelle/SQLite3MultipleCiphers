@@ -37,3 +37,4 @@ typedef struct chacha_ctx {
 #include "src/stream_chacha20.c"
 
 #undef SODIUM_STATIC
+#undef CRYPTO_ALIGN

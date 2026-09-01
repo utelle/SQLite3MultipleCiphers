@@ -114,9 +114,12 @@ dolbeau_neon_stream_neon(unsigned char *c, unsigned long long clen, const unsign
 {
     struct chacha_ctx ctx;
 
+#if 0
+/* TODO: Handle short blocks */
     if (clen < MIN_VECTOR_BYTES) {
         return crypto_stream_chacha20_ref_implementation.stream(c, clen, n, k);
     }
+#endif
     COMPILER_ASSERT(crypto_stream_chacha20_KEYBYTES == 256 / 8);
     dolbeau_neon_chacha_keysetup(&ctx, k);
     dolbeau_neon_chacha_ivsetup(&ctx, n, NULL);
@@ -133,10 +136,13 @@ dolbeau_neon_stream_ietf_ext_neon(unsigned char *c, unsigned long long clen,
 {
     struct chacha_ctx ctx;
 
+#if 0
+/* TODO: Handle short blocks */
     if (clen < MIN_VECTOR_BYTES) {
         return crypto_stream_chacha20_ref_implementation.stream_ietf_ext(
             c, clen, n, k);
     }
+#endif
     COMPILER_ASSERT(crypto_stream_chacha20_KEYBYTES == 256 / 8);
     dolbeau_neon_chacha_keysetup(&ctx, k);
     dolbeau_neon_chacha_ietf_ivsetup(&ctx, n, NULL);
@@ -157,10 +163,13 @@ dolbeau_neon_stream_neon_xor_ic(unsigned char *c, const unsigned char *m,
     uint32_t          ic_high;
     uint32_t          ic_low;
 
+#if 0
+/* TODO: Handle short blocks */
     if (mlen < MIN_VECTOR_BYTES) {
         return crypto_stream_chacha20_ref_implementation.stream_xor_ic(
             c, m, mlen, n, ic, k);
     }
+#endif
     ic_high = (uint32_t) (ic >> 32);
     ic_low  = (uint32_t) ic;
     SODIUM_STORE32_LE(&ic_bytes[0], ic_low);
@@ -181,10 +190,13 @@ dolbeau_neon_stream_ietf_ext_neon_xor_ic(unsigned char *c, const unsigned char *
     struct chacha_ctx ctx;
     uint8_t           ic_bytes[4];
 
+#if 0
+/* TODO: Handle short blocks */
     if (mlen < MIN_VECTOR_BYTES) {
         return crypto_stream_chacha20_ref_implementation.stream_ietf_ext_xor_ic(
             c, m, mlen, n, ic, k);
     }
+#endif
     SODIUM_STORE32_LE(ic_bytes, ic);
     dolbeau_neon_chacha_keysetup(&ctx, k);
     dolbeau_neon_chacha_ietf_ivsetup(&ctx, n, ic_bytes);
