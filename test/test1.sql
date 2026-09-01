@@ -2,6 +2,7 @@
 pragma mc_chacha20_hwaccel;
 pragma mc_aes_info;
 pragma mc_cpu_info;
+pragma mc_chacha20_hwaccel=max;
 pragma cipher='sqlcipher';
 pragma legacy=4;
 pragma key='test1';

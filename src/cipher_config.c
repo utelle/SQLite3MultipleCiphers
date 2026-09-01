@@ -1008,10 +1008,10 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
     else if (sqlite3StrICmp(pragmaName, "mc_chacha20_hwaccel") == 0)
     {
       const char* option = (pragmaValue != NULL) ? pragmaValue : "";
-      option = sqlite3mcChaCha20HwConfig(option);
-      if (option != NULL)
+      const char* optionSelected = sqlite3mcChaCha20HwConfig(option);
+      if (optionSelected != NULL)
       {
-        ((char**)pArg)[0] = sqlite3_mprintf("%s", option);
+        ((char**)pArg)[0] = sqlite3_mprintf("%s", optionSelected);
         rc = SQLITE_OK;
       }
       else

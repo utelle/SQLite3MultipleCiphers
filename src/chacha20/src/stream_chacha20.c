@@ -185,8 +185,8 @@ crypto_stream_chacha20_keygen(unsigned char k[crypto_stream_chacha20_KEYBYTES])
 #define SQLITE3MC_CHACHA20_HWACCL_AUTO     5
 #define SQLITE3MC_CHACHA20_HWACCL_MAX      6
 
-/*                                         0      1        2       3          4       5     */
-static char* gChaCha20HwAccelOptions[] = { "off", "ssse3", "avx2", "avx512f", "neon", "auto" };
+/*                                         0      1        2       3          4       5       6 */
+static char* gChaCha20HwAccelOptions[] = { "off", "ssse3", "avx2", "avx512f", "neon", "auto", "max" };
 static int gChaCha20HwAccelRequest = SQLITE3MC_CHACHA20_HWACCL_AUTO;
 static int gChaCha20HwAccelSelected = SQLITE3MC_CHACHA20_HWACCL_UNKNOWN;
 
@@ -239,7 +239,7 @@ sqlite3mcChaCha20HwConfig(const char* option)
     /* Identify option */
     int optRequested = SQLITE3MC_CHACHA20_HWACCL_UNKNOWN;
     int k;
-    for (k = SQLITE3MC_CHACHA20_HWACCL_OFF; k < SQLITE3MC_CHACHA20_HWACCL_MAX; ++k)
+    for (k = SQLITE3MC_CHACHA20_HWACCL_OFF; k <= SQLITE3MC_CHACHA20_HWACCL_MAX; ++k)
     {
       if (sqlite3StrICmp(option, gChaCha20HwAccelOptions[k]) == 0)
       {
@@ -248,8 +248,9 @@ sqlite3mcChaCha20HwConfig(const char* option)
       }
     }
 
-    int valid = (optRequested == SQLITE3MC_CHACHA20_HWACCL_OFF) ||
+    int valid = (optRequested == SQLITE3MC_CHACHA20_HWACCL_OFF)  ||
                 (optRequested == SQLITE3MC_CHACHA20_HWACCL_AUTO) ||
+                (optRequested == SQLITE3MC_CHACHA20_HWACCL_MAX)  ||
                 (optRequested >= gChaCha20HwAccelMin && optRequested <= gChaCha20HwAccelMax);
     if (!valid)
       return NULL;
