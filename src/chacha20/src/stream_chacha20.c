@@ -3,6 +3,10 @@
 #include "private/common.h"
 #include "stream_chacha20.h"
 
+#if defined(__GNUC__)
+#  pragma GCC push_options
+#endif
+
 #if defined(SQLITE3MC_TARGET_X86)
 /* Original order: avx512, avx2, ssse3 */
 # include "dolbeau/chacha20_dolbeau-ssse3.c"
@@ -10,6 +14,10 @@
 # include "dolbeau/chacha20_dolbeau-avx512.c"
 #elif defined(SQLITE3MC_TARGET_ARM) && defined(__ARM_NEON)
 # include "dolbeau/chacha20_dolbeau-neon.c"
+#endif
+
+#if defined(__GNUC__)
+#  pragma GCC pop_options
 #endif
 
 static const crypto_stream_chacha20_implementation* sodium_chacha20_implementation = NULL;
@@ -259,7 +267,7 @@ sqlite3mcChaCha20HwConfig(const char* option)
   }
   else if (gChaCha20HwAccelSelected == SQLITE3MC_CHACHA20_HWACCL_UNKNOWN)
   {
-    gChaCha20HwAccelRequest = SQLITE3MC_CHACHA20_HWACCL_AUTO;
+    gChaCha20HwAccelRequest = gChaCha20HwAccelAuto;
     rc = crypto_stream_chacha20_pick_best_implementation();
   }
 

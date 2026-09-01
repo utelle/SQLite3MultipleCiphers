@@ -420,13 +420,15 @@ sqlite3mcHardwareInfo()
   {
     int k = 0;
     int offset = 0;
+    int writeDelim = 0;
     unsigned int features = sqlite3mcCpuFeatures();
     while (featureTags[k].flag != 0)
     {
       if (features & featureTags[k].flag)
       {
         offset += snprintf(hwInfoBuf + offset, sizeof(hwInfoBuf) - offset,
-                           (k == 0) ? "%s" : ", %s", featureTags[k].name);
+                           (writeDelim == 0) ? "%s" : ", %s", featureTags[k].name);
+        writeDelim = 1;
       }
       ++k;
     }
