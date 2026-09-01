@@ -85,7 +85,7 @@ dolbeau_neon_chacha_ivsetup(chacha_ctx *ctx, const uint8_t *iv, const uint8_t *c
 }
 
 static void
-chacha_ietf_ivsetup(chacha_ctx *ctx, const uint8_t *iv, const uint8_t *counter)
+dolbeau_neon_chacha_ietf_ivsetup(chacha_ctx *ctx, const uint8_t *iv, const uint8_t *counter)
 {
     ctx->input[12] = counter == NULL ? 0 : SODIUM_LOAD32_LE(counter);
     ctx->input[13] = SODIUM_LOAD32_LE(iv + 0);
