@@ -110,6 +110,8 @@ toUint32FromLE(const void* buffer)
 #if HAS_AES_HARDWARE == AES_HARDWARE_NI
 /* --- Implementation for AES-NI --- */
 
+#ifndef SQLITE3MC_COMPILER_HAS_ATTRIBUTE
+
 /* Define SQLITE3MC_COMPILER_HAS_ATTRIBUTE */
 #if defined(__has_attribute)
   #define SQLITE3MC_COMPILER_HAS_ATTRIBUTE(x) __has_attribute(x)
@@ -139,6 +141,8 @@ toUint32FromLE(const void* buffer)
 
 /* Define SQLITE3MC_FUNC_ISA_INLINE */
 #define SQLITE3MC_FUNC_ISA_INLINE(isa) SQLITE3MC_FUNC_ISA(isa) SQLITE3MC_FORCE_INLINE
+
+#endif
 
 #if 0
 

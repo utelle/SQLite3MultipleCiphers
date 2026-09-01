@@ -199,10 +199,42 @@ mcCpuFeaturesArm(void)
 ** Intel
 */
 
+/* Define SQLITE3MC_COMPILER_HAS_ATTRIBUTE */
+#if defined(__has_attribute)
+  #define SQLITE3MC_COMPILER_HAS_ATTRIBUTE(x) __has_attribute(x)
+  #define SQLITE3MC_COMPILER_ATTRIBUTE(x) __attribute__((x))
+#else
+  #define SQLITE3MC_COMPILER_HAS_ATTRIBUTE(x) 0
+  #define SQLITE3MC_COMPILER_ATTRIBUTE(x) /**/
+#endif
+
+/* Define SQLITE3MC_FORCE_INLINE */
+#if !defined(SQLITE3MC_FORCE_INLINE)
+  #if SQLITE3MC_COMPILER_HAS_ATTRIBUTE(always_inline)
+    #define SQLITE3MC_FORCE_INLINE inline SQLITE3MC_COMPILER_ATTRIBUTE(always_inline)
+  #elif defined(_MSC_VER)
+    #define SQLITE3MC_FORCE_INLINE __forceinline
+  #else
+    #define SQLITE3MC_FORCE_INLINE inline
+  #endif
+#endif
+
+/* Define SQLITE3MC_FUNC_ISA */
+#if SQLITE3MC_COMPILER_HAS_ATTRIBUTE(target)
+  #define SQLITE3MC_FUNC_ISA(isa) SQLITE3MC_COMPILER_ATTRIBUTE(target(isa))
+#else
+  #define SQLITE3MC_FUNC_ISA(isa)
+#endif
+
+/* Define SQLITE3MC_FUNC_ISA_INLINE */
+#define SQLITE3MC_FUNC_ISA_INLINE(isa) SQLITE3MC_FUNC_ISA(isa) SQLITE3MC_FORCE_INLINE
+
+
 #if defined(__clang__) || defined(__GNUC__)
 #include <cpuid.h>
 #include <immintrin.h>
 
+SQLITE3MC_FUNC_ISA("xsave")
 static unsigned int
 mcCpuFeaturesX86(void)
 {
