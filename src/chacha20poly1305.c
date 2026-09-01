@@ -75,8 +75,8 @@ static void chacha20_block(uint32_t x[16])
 }
 
 SQLITE_PRIVATE
-void chacha20_xor(void* buffer, size_t n, const uint8_t key[32],
-                  const uint8_t nonce[12], uint32_t counter)
+void sqleet_chacha20_xor(void* buffer, size_t n, const uint8_t key[32],
+                         const uint8_t nonce[12], uint32_t counter)
 {
   size_t i;
   union {
@@ -450,4 +450,25 @@ void chacha20_rng(void* out, size_t n)
 #if SQLITE_THREADSAFE
   sqlite3_mutex_leave(mutex);
 #endif
+}
+
+/*
+** Use the smallest SQLite page size, 512 bytes, as threshold for activating hardware acceleration.
+** Actually, the threshold should be at least 1024 bytes for AVX512.
+*/
+#define CHACHA20_THRESHOLD 512
+
+SQLITE_PRIVATE
+void chacha20_xor(void* buffer, size_t n, const uint8_t key[32],
+                  const uint8_t nonce[12], uint32_t counter)
+{
+  int rc = 0;
+  if (n >= CHACHA20_THRESHOLD && sqlite3mcChaCha20HwAccelerated())
+  {
+    rc = crypto_stream_chacha20_ietf_xor_ic(buffer, buffer, n, nonce, counter, key);
+  }
+  else
+  {
+    sqleet_chacha20_xor(buffer, n, key, nonce, counter);
+  }
 }

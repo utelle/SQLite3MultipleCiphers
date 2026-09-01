@@ -5,6 +5,7 @@ on:
     - main
     - aegis
     - register-dynamic-cipher
+    - hwaccel
   pull_request:
     branches:
     - main

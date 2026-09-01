@@ -7,6 +7,7 @@
 ** License:     MIT
 */
 
+#if 0
 /*
 ** Check whether the platform offers hardware support for AES
 */
@@ -81,6 +82,8 @@
 
 #endif /* SQLITE3MC_OMIT_AES_HARDWARE_SUPPORT */
 
+#endif /* 0 */
+
 #if defined(__GNUC__)
 #pragma GCC push_options
 #endif
@@ -137,6 +140,7 @@ toUint32FromLE(const void* buffer)
 /* Define SQLITE3MC_FUNC_ISA_INLINE */
 #define SQLITE3MC_FUNC_ISA_INLINE(isa) SQLITE3MC_FUNC_ISA(isa) SQLITE3MC_FORCE_INLINE
 
+#if 0
 
 /*
 ** Define function for detecting hardware AES support at runtime
@@ -170,6 +174,8 @@ aesHardwareCheck()
 }
 
 #endif /* defined(__clang__) || defined(__GNUC__) */
+
+#endif /* 0 */
 
 #if defined(__GNUC__)
 #pragma GCC push_options
@@ -472,6 +478,8 @@ aesDecryptCBC(const unsigned char* in,
 #include <arm_neon.h>
 #endif
 
+#if 0
+
 #if defined(__linux__) && (defined(__arm__) || defined(__aarch64__))
 
 #include <sys/auxv.h>
@@ -512,6 +520,8 @@ aesHardwareCheck()
 {
   return aesHardwareAvailableOnPlatform();
 }
+
+#endif /* 0 */
 
 /*
 ** Set up expanded key
@@ -803,17 +813,23 @@ aesDecryptCBC(const unsigned char* in,
 #else
 /* --- No AES hardware available --- */
 
+#if 0
+
 static int
 aesHardwareCheck()
 {
   return 0;
 }
 
+#endif /* 0 */
+
 #endif
 
 #if defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if 0
 
 /*
 ** The top-level selection function, caching the results of
@@ -831,3 +847,5 @@ aesHardwareAvailable()
   }
   return hwAvailable;
 }
+
+#endif /* 0 */

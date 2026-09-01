@@ -180,20 +180,30 @@ SQLITE_PRIVATE int sqlite3mcGetMemorySecurity();
 #endif
 
 /*
+** Check for hardware features
+*/
+#include "hwcheck.c"
+
+/*
 ** Crypto algorithms
 */
 #include "md5.c"
 #include "sha1.c"
 #include "sha2.c"
 
-#if HAVE_CIPHER_CHACHA20 || HAVE_CIPHER_SQLCIPHER || HAVE_CIPHER_ASCON128 || HAVE_CIPHER_AEGIS
-#include "fastpbkdf2.c"
-
 /* Prototypes for several crypto functions to make pedantic compilers happy */
 SQLITE_PRIVATE void chacha20_xor(void* data, size_t n, const uint8_t key[32], const uint8_t nonce[12], uint32_t counter);
 SQLITE_PRIVATE void poly1305(const uint8_t* msg, size_t n, const uint8_t key[32], uint8_t tag[16]);
 SQLITE_PRIVATE int poly1305_tagcmp(const uint8_t tag1[16], const uint8_t tag2[16]);
 SQLITE_PRIVATE void chacha20_rng(void* out, size_t n);
+
+SQLITE_PRIVATE void sqlite3mcSecureZeroMemory(void* v, size_t n);
+
+/* Hardware accelerated implementation of chacha20-poly1305 */
+#include "chacha20/libchacha20.c"
+
+#if HAVE_CIPHER_CHACHA20 || HAVE_CIPHER_SQLCIPHER || HAVE_CIPHER_ASCON128 || HAVE_CIPHER_AEGIS
+#include "fastpbkdf2.c"
 
 #include "chacha20poly1305.c"
 #endif

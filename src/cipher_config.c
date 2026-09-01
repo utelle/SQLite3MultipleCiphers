@@ -761,6 +761,15 @@ sqlite3mcConfigureFromUri(sqlite3* db, const char* zDbName, int configDefault)
   const char* dbFileName = zDbName;
   if (dbFileName != NULL)
   {
+    /* Handle ChaCha20 hardware acceleration option */
+    const char* chacha20HwAccelOption = sqlite3_uri_parameter(dbFileName, "mc_chacha20_hwaccel");
+    if (chacha20HwAccelOption != NULL && chacha20HwAccelOption[0] != 0)
+    {
+      const char* option = chacha20HwAccelOption;
+      option = sqlite3mcChaCha20HwConfig(option);
+      /* Invalid option values are ignored here. */
+    }
+
     /* Check whether cipher is specified */
     const char* cipherName = sqlite3_uri_parameter(dbFileName, "cipher");
     if (cipherName == NULL || cipherName[0] == 0)
@@ -983,6 +992,33 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
       int value = sqlite3mc_config(db, "mc_legacy_wal", walLegacy);
       ((char**)pArg)[0] = sqlite3_mprintf("%d", value);
       rc = SQLITE_OK;
+    }
+    else if (sqlite3StrICmp(pragmaName, "mc_aes_info") == 0)
+    {
+      const char* hwInfo = sqlite3mcHardwareInfo();
+      ((char**)pArg)[0] = sqlite3_mprintf("%s", aesHardwareAvailable() ? "hardware" : "software");
+      rc = SQLITE_OK;
+    }
+    else if (sqlite3StrICmp(pragmaName, "mc_cpu_info") == 0)
+    {
+      const char* hwInfo = sqlite3mcHardwareInfo();
+      ((char**)pArg)[0] = sqlite3_mprintf("%s", hwInfo);
+      rc = SQLITE_OK;
+    }
+    else if (sqlite3StrICmp(pragmaName, "mc_chacha20_hwaccel") == 0)
+    {
+      const char* option = (pragmaValue != NULL) ? pragmaValue : "";
+      option = sqlite3mcChaCha20HwConfig(option);
+      if (option != NULL)
+      {
+        ((char**)pArg)[0] = sqlite3_mprintf("%s", option);
+        rc = SQLITE_OK;
+      }
+      else
+      {
+        ((char**)pArg)[0] = sqlite3_mprintf("Invalid ChaCha20 hardware acceleration option: %s", option);
+        rc = SQLITE_ERROR;
+      }
     }
     else if (sqlite3StrICmp(pragmaName, "cipher_salt") == 0)
     {
