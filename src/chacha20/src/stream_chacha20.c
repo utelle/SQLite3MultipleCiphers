@@ -7,6 +7,9 @@
 #  pragma GCC push_options
 #endif
 
+/* libsodium reference implementation */
+#include "ref/chacha20_ref.c"
+
 #if defined(SQLITE3MC_TARGET_X86)
 /* Original order: avx512, avx2, ssse3 */
 # include "dolbeau/chacha20_dolbeau-ssse3.c"
@@ -317,9 +320,15 @@ crypto_stream_chacha20_pick_best_implementation(void)
     return 0;
   }
 #endif
-  /* Signal that no implementation with hardware support available */
-  /* In that case we use our own ChaCha20 implementation. */
-  sodium_chacha20_implementation = NULL;
+  sodium_chacha20_implementation = &crypto_stream_chacha20_ref_implementation;
   gChaCha20HwAccelSelected = SQLITE3MC_CHACHA20_HWACCL_OFF;
+
+  /* Signal that no implementation with hardware support available */
+#if 1
+  /* In that case we use our own ChaCha20 implementation. */
   return -1;
+#else
+  /* In that case use the libsodium ChaCha20 reference implementation. */
+  return 0;
+#endif
 }
