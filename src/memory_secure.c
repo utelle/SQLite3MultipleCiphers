@@ -20,12 +20,15 @@ SQLITE_PRIVATE void sqlite3mcSecureZeroMemory(void* v, size_t n)
 {
 #ifdef _WIN32
   SecureZeroMemory(v, n);
-#elif defined(__DARWIN__) || defined(__STDC_LIB_EXT1__)
-  /* memset_s() is available since OS X 10.9, */
-  /* and may be available on other platforms. */
+#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
+  memset_explicit(v, 0, n);
+#elif defined(__APPLE__) || defined(__STDC_LIB_EXT1__)
+  /* requires __STDC_WANT_LIB_EXT1__ 1 before <string.h> */
   memset_s(v, n, 0, n);
-#elif defined(__OpenBSD__) || (defined(__FreeBSD__) && __FreeBSD__ >= 11)
-  /* Non-standard function */
+#elif defined(__OpenBSD__) || defined(__NetBSD__) || defined(__DragonFly__) || \
+      (defined(__FreeBSD__) && __FreeBSD__ >= 11) || \
+      (defined(__GLIBC__) && (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 25))) || \
+      defined(__EMSCRIPTEN__) || defined(__wasi__) || defined(__ANDROID__)
   explicit_bzero(v, n);
 #else
   /* Generic implementation based on volatile pointers */
