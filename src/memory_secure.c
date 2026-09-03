@@ -23,7 +23,11 @@ SQLITE_PRIVATE void sqlite3mcSecureZeroMemory(void* v, size_t n)
 #elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
   memset_explicit(v, 0, n);
 #elif defined(__APPLE__) || defined(__STDC_LIB_EXT1__)
-  /* requires __STDC_WANT_LIB_EXT1__ 1 before <string.h> */
+  /* memset_s() is only declared by <string.h> when __STDC_WANT_LIB_EXT1__ is
+     set before the first inclusion, which we can't control in an amalgamation.
+     Declare it ourselves; errno_t is int and rsize_t is size_t, so this is a
+     compatible redeclaration if the header also provided it. */
+  extern int memset_s(void*, size_t, int, size_t);
   memset_s(v, n, 0, n);
 #elif defined(__OpenBSD__) || defined(__NetBSD__) || defined(__DragonFly__) || \
       (defined(__FreeBSD__) && __FreeBSD__ >= 11) || \
