@@ -13,12 +13,37 @@
 #define ROL32(x, c) (((x) << (c)) | ((x) >> (32-(c))))
 #define ROR32(x, c) (((x) >> (c)) | ((x) << (32-(c))))
 
-#define LOAD32_LE(p)            \
-  ( ((uint32_t)((p)[0]) <<  0)  \
-  | ((uint32_t)((p)[1]) <<  8)  \
-  | ((uint32_t)((p)[2]) << 16)  \
-  | ((uint32_t)((p)[3]) << 24)  \
-  )
+static inline uint32_t load32_le_(const void* p)
+{
+#if defined(__wasm__) || defined(_MSC_VER) \
+    || (defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
+  uint32_t v;
+  memcpy(&v, p, 4);
+  return v;
+#else
+  const uint8_t* b = (const uint8_t*)p;
+  return (uint32_t)b[0]
+       | (uint32_t)b[1] << 8
+       | (uint32_t)b[2] << 16
+       | (uint32_t)b[3] << 24;
+#endif
+}
+
+static inline void store32_le_(void* p, uint32_t v)
+{
+#if defined(__wasm__) || defined(_MSC_VER) \
+    || (defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
+  memcpy(p, &v, 4);
+#else
+  uint8_t* b = (uint8_t*)p;
+  b[0] = (uint8_t)(v);
+  b[1] = (uint8_t)(v >> 8);
+  b[2] = (uint8_t)(v >> 16);
+  b[3] = (uint8_t)(v >> 24);
+#endif
+}
+
+#define LOAD32_LE(p) load32_le_(p)
 #define LOAD32_BE(p)            \
   ( ((uint32_t)((p)[3]) <<  0)  \
   | ((uint32_t)((p)[2]) <<  8)  \
@@ -26,11 +51,7 @@
   | ((uint32_t)((p)[0]) << 24)  \
   )
 
-#define STORE32_LE(p, v)        \
-  (p)[0] = ((v) >>  0) & 0xFF;  \
-  (p)[1] = ((v) >>  8) & 0xFF;  \
-  (p)[2] = ((v) >> 16) & 0xFF;  \
-  (p)[3] = ((v) >> 24) & 0xFF;
+#define STORE32_LE(p, v) store32_le_((p), (v))
 #define STORE32_BE(p, v)        \
   (p)[3] = ((v) >>  0) & 0xFF;  \
   (p)[2] = ((v) >>  8) & 0xFF;  \
@@ -212,8 +233,77 @@ process_block:
   s4 = d4; STORE32_LE(tag + 12, s4);
 }
 
+#if defined(SQLITE3MC_TARGET_X86)
+
+#include <immintrin.h>
+
+SQLITE3MC_FUNC_ISA("sse2")
 SQLITE_PRIVATE
-int poly1305_tagcmp(const uint8_t tag1[16], const uint8_t tag2[16])
+int poly1305_tagcmp_sse2(const uint8_t tag1[16], const uint8_t tag2[16])
+{
+  __m128i tag1_vec = _mm_loadu_si128((const __m128i*)tag1);
+  __m128i tag2_vec = _mm_loadu_si128((const __m128i*)tag2);
+  __m128i tagDifference = _mm_xor_si128(tag1_vec, tag2_vec);
+
+  /* Horizontal OR-Reduktion der 128 Bit auf 32 Bit,
+     rein datenunabhängige Shift-/Or-Folge. */
+  tagDifference = _mm_or_si128(tagDifference, _mm_srli_si128(tagDifference, 8));
+  tagDifference = _mm_or_si128(tagDifference, _mm_srli_si128(tagDifference, 4));
+
+  return _mm_cvtsi128_si32(tagDifference) != 0;
+}
+
+SQLITE3MC_FUNC_ISA("sse4.1")
+SQLITE_PRIVATE
+int poly1305_tagcmp_sse41(const uint8_t tag1[16], const uint8_t tag2[16])
+{
+  __m128i tag1_vec = _mm_loadu_si128((const __m128i*)tag1);
+  __m128i tag2_vec = _mm_loadu_si128((const __m128i*)tag2);
+  __m128i tagDifference = _mm_xor_si128(tag1_vec, tag2_vec);
+  return !_mm_testz_si128(tagDifference, tagDifference);
+}
+
+#elif defined(SQLITE3MC_TARGET_ARM)
+
+#if defined(__ARM_NEON) || defined(__aarch64__) || defined(_M_ARM64) || defined(_M_ARM64EC)
+
+#  ifdef USE_ARM64_NEON_H
+#    include <arm64_neon.h>
+#  else
+#    include <arm_neon.h>
+#  endif
+
+SQLITE_PRIVATE
+int poly1305_tagcmp_neon(const uint8_t tag1[16], const uint8_t tag2[16])
+{
+  uint8x16_t tag1_vec = vld1q_u8(tag1);
+  uint8x16_t tag2_vec = vld1q_u8(tag2);
+  uint8x16_t tagDifference = veorq_u8(tag1_vec, tag2_vec);
+  return vmaxvq_u8(tagDifference) != 0;
+}
+
+#endif
+
+#elif defined(SQLITE3MC_TARGET_WASM)
+
+#if defined(__wasm_simd128__)
+
+#  include <wasm_simd128.h>
+
+SQLITE_PRIVATE
+int poly1305_tagcmp_wasm_simd(const uint8_t tag1[16], const uint8_t tag2[16])
+{
+  v128_t tagDifference =
+    wasm_v128_xor(wasm_v128_load(tag1), wasm_v128_load(tag2));
+  return wasm_v128_any_true(tagDifference);
+}
+
+#endif
+
+#endif
+
+SQLITE_PRIVATE
+int poly1305_tagcmp_scalar(const uint8_t tag1[16], const uint8_t tag2[16])
 {
   uint8_t d = 0;
   d |= tag1[ 0] ^ tag2[ 0];
@@ -233,6 +323,54 @@ int poly1305_tagcmp(const uint8_t tag1[16], const uint8_t tag2[16])
   d |= tag1[14] ^ tag2[14];
   d |= tag1[15] ^ tag2[15];
   return (int) d;
+}
+
+typedef int (*Poly1305_TagCmp_t)(const uint8_t tag1[16], const uint8_t tag2[16]);
+static Poly1305_TagCmp_t gPoly1305_tagcmp_impl = NULL;
+
+static void poly1305_tagcmp_pick_best()
+{
+  unsigned int features = sqlite3mcCpuFeatures();
+
+#if defined(SQLITE3MC_TARGET_X86)
+
+  if (features & SQLITE3MC_CPU_SSE41)
+    gPoly1305_tagcmp_impl = &poly1305_tagcmp_sse41;
+  else if (features & SQLITE3MC_CPU_SSE2)
+    gPoly1305_tagcmp_impl = &poly1305_tagcmp_sse2;
+  else
+    gPoly1305_tagcmp_impl = &poly1305_tagcmp_scalar;
+
+#elif defined(SQLITE3MC_TARGET_ARM)
+
+  if (features & SQLITE3MC_CPU_NEON)
+    gPoly1305_tagcmp_impl = &poly1305_tagcmp_neon;
+  else
+    gPoly1305_tagcmp_impl = &poly1305_tagcmp_scalar;
+
+#elif defined(SQLITE3MC_TARGET_WASM)
+
+#if defined(__wasm_simd128__)
+  gPoly1305_tagcmp_impl = &poly1305_tagcmp_wasm_simd;
+#else
+  gPoly1305_tagcmp_impl = &poly1305_tagcmp_scalar;
+#endif
+
+#else
+
+  gPoly1305_tagcmp_impl = &poly1305_tagcmp_scalar;
+  
+#endif
+}
+
+SQLITE_PRIVATE
+int poly1305_tagcmp(const uint8_t tag1[16], const uint8_t tag2[16])
+{
+  if (gPoly1305_tagcmp_impl == NULL)
+  {
+    poly1305_tagcmp_pick_best();
+  }
+  return (gPoly1305_tagcmp_impl)(tag1, tag2);
 }
 
 /*
