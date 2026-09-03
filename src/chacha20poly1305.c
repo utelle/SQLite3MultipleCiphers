@@ -13,12 +13,35 @@
 #define ROL32(x, c) (((x) << (c)) | ((x) >> (32-(c))))
 #define ROR32(x, c) (((x) >> (c)) | ((x) << (32-(c))))
 
-#define LOAD32_LE(p)            \
-  ( ((uint32_t)((p)[0]) <<  0)  \
-  | ((uint32_t)((p)[1]) <<  8)  \
-  | ((uint32_t)((p)[2]) << 16)  \
-  | ((uint32_t)((p)[3]) << 24)  \
-  )
+static inline uint32_t load32_le_(const void* p)
+{
+#if defined(__wasm__) || defined(_MSC_VER) \
+    || (defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
+  uint32_t v;
+  memcpy(&v, p, 4);
+  return v;
+#else
+  const uint8_t* b = (const uint8_t*)p;
+  return (uint32_t)b[0] | (uint32_t)b[1] << 8
+       | (uint32_t)b[2] << 16 | (uint32_t)b[3] << 24;
+#endif
+}
+
+static inline void store32_le_(void* p, uint32_t v)
+{
+#if defined(__wasm__) || defined(_MSC_VER) \
+    || (defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
+  memcpy(p, &v, 4);
+#else
+  uint8_t* b = (uint8_t*)p;
+  b[0] = (uint8_t)(v);
+  b[1] = (uint8_t)(v >> 8);
+  b[2] = (uint8_t)(v >> 16);
+  b[3] = (uint8_t)(v >> 24);
+#endif
+}
+
+#define LOAD32_LE(p) load32_le_(p)
 #define LOAD32_BE(p)            \
   ( ((uint32_t)((p)[3]) <<  0)  \
   | ((uint32_t)((p)[2]) <<  8)  \
@@ -26,11 +49,7 @@
   | ((uint32_t)((p)[0]) << 24)  \
   )
 
-#define STORE32_LE(p, v)        \
-  (p)[0] = ((v) >>  0) & 0xFF;  \
-  (p)[1] = ((v) >>  8) & 0xFF;  \
-  (p)[2] = ((v) >> 16) & 0xFF;  \
-  (p)[3] = ((v) >> 24) & 0xFF;
+#define STORE32_LE(p, v) store32_le_((p), (v))
 #define STORE32_BE(p, v)        \
   (p)[3] = ((v) >>  0) & 0xFF;  \
   (p)[2] = ((v) >>  8) & 0xFF;  \
