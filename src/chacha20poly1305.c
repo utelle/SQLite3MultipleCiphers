@@ -10,6 +10,12 @@
 #include "mystdint.h"
 #include <string.h>
 
+#if defined(__wasm_simd128__)
+#include <wasm_simd128.h>
+#elif defined(__SSE4_1__)
+#include <immintrin.h>
+#endif
+
 #define ROL32(x, c) (((x) << (c)) | ((x) >> (32-(c))))
 #define ROR32(x, c) (((x) >> (c)) | ((x) << (32-(c))))
 
@@ -215,6 +221,16 @@ process_block:
 SQLITE_PRIVATE
 int poly1305_tagcmp(const uint8_t tag1[16], const uint8_t tag2[16])
 {
+#if defined(__wasm_simd128__)
+  v128_t tagDifference = wasm_v128_xor(
+    wasm_v128_load(tag1), wasm_v128_load(tag2));
+  return wasm_v128_any_true(tagDifference);
+#elif defined(__SSE4_1__)
+  __m128i tag1_vec = _mm_loadu_si128((const __m128i*)tag1);
+  __m128i tag2_vec = _mm_loadu_si128((const __m128i*)tag2);
+  __m128i tagDifference = _mm_xor_si128(tag1_vec, tag2_vec);
+  return !_mm_testz_si128(tagDifference, tagDifference);
+#else
   uint8_t d = 0;
   d |= tag1[ 0] ^ tag2[ 0];
   d |= tag1[ 1] ^ tag2[ 1];
@@ -233,6 +249,7 @@ int poly1305_tagcmp(const uint8_t tag1[16], const uint8_t tag2[16])
   d |= tag1[14] ^ tag2[14];
   d |= tag1[15] ^ tag2[15];
   return (int) d;
+#endif
 }
 
 /*
