@@ -311,19 +311,16 @@ DecryptPageChaCha20Cipher(void* cipher, int page, unsigned char* data, int len, 
 
   if (nReserved > 0)
   {
-    int allzero = 0;
     /* Decrypt and verify MAC */
     memset(otk, 0, OTK_LEN_CHACHA20);
     counter = LOAD32_LE(data + n + PAGE_NONCE_LEN_CHACHA20 - 4) ^ page;
     chacha20_xor(otk, OTK_LEN_CHACHA20, chacha20Cipher->m_key, data + n, counter);
 
-    /* Determine MAC and decrypt */
-    allzero = chacha20_ismemset(data, 0, n);
-    poly1305(data, n + PAGE_NONCE_LEN_CHACHA20, otk, tag);
-    chacha20_xor(data + offset, n - offset, otk + 32, data + n, counter + 1);
-
+    /* Only calculate and verify MAC if required */
     if (hmacCheck != 0)
     {
+      poly1305(data, n + PAGE_NONCE_LEN_CHACHA20, otk, tag);
+      
       /* Verify the MAC */
       if (poly1305_tagcmp(data + n + PAGE_NONCE_LEN_CHACHA20, tag))
       {
@@ -335,11 +332,17 @@ DecryptPageChaCha20Cipher(void* cipher, int page, unsigned char* data, int len, 
         SQLITE3MC_DEBUG_HEX("decrypt data+n:", data + n, 16);
         SQLITE3MC_DEBUG_HEX("decrypt tag r:", data + n + PAGE_NONCE_LEN_CHACHA20, PAGE_TAG_LEN_CHACHA20);
         SQLITE3MC_DEBUG_HEX("decrypt tag c:", tag, PAGE_TAG_LEN_CHACHA20);
-        /* Bad MAC */
-        rc = (page == 1) ? SQLITE_NOTADB : SQLITE_CORRUPT;
+        
+        /* Bad MAC: Clean up and bail out BEFORE decrypting */
+        sqlite3mcSecureZeroMemory(otk, OTK_LEN_CHACHA20);
+        return (page == 1) ? SQLITE_NOTADB : SQLITE_CORRUPT;
       }
     }
-    if (page == 1 && usePlaintextHeader == 0 && rc == SQLITE_OK)
+
+    /* Decrypt only after MAC is verified (or if check is bypassed) */
+    chacha20_xor(data + offset, n - offset, otk + 32, data + n, counter + 1);
+
+    if (page == 1 && usePlaintextHeader == 0)
     {
       memcpy(data, SQLITE_FILE_HEADER, 16);
     }
