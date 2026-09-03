@@ -14,6 +14,8 @@
 #include <wasm_simd128.h>
 #elif defined(__SSE4_1__)
 #include <immintrin.h>
+#elif defined(__aarch64__)
+#include <arm_neon.h>
 #endif
 
 #define ROL32(x, c) (((x) << (c)) | ((x) >> (32-(c))))
@@ -230,6 +232,11 @@ int poly1305_tagcmp(const uint8_t tag1[16], const uint8_t tag2[16])
   __m128i tag2_vec = _mm_loadu_si128((const __m128i*)tag2);
   __m128i tagDifference = _mm_xor_si128(tag1_vec, tag2_vec);
   return !_mm_testz_si128(tagDifference, tagDifference);
+#elif defined(__aarch64__)
+  uint8x16_t tag1_vec = vld1q_u8(tag1);
+  uint8x16_t tag2_vec = vld1q_u8(tag2);
+  uint8x16_t tagDifference = veorq_u8(tag1_vec, tag2_vec);
+  return vmaxvq_u8(tagDifference) != 0;
 #else
   uint8_t d = 0;
   d |= tag1[ 0] ^ tag2[ 0];
