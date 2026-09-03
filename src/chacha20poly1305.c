@@ -15,7 +15,8 @@
 
 static inline uint32_t load32_le_(const void* p)
 {
-#if defined(__wasm__) || (defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
+#if defined(__wasm__) || defined(_MSC_VER) \
+    || (defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
   uint32_t v;
   memcpy(&v, p, 4);
   return v;
@@ -28,7 +29,8 @@ static inline uint32_t load32_le_(const void* p)
 
 static inline void store32_le_(void* p, uint32_t v)
 {
-#if defined(__wasm__) || (defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
+#if defined(__wasm__) || defined(_MSC_VER) \
+    || (defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
   memcpy(p, &v, 4);
 #else
   uint8_t* b = (uint8_t*)p;
