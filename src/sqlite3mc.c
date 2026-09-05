@@ -193,6 +193,8 @@ SQLITE_PRIVATE int sqlite3mcGetMemorySecurity();
 SQLITE_PRIVATE void chacha20_xor(void* data, size_t n, const uint8_t key[32], const uint8_t nonce[12], uint32_t counter);
 SQLITE_PRIVATE void poly1305(const uint8_t* msg, size_t n, const uint8_t key[32], uint8_t tag[16]);
 SQLITE_PRIVATE int poly1305_tagcmp(const uint8_t tag1[16], const uint8_t tag2[16]);
+SQLITE_PRIVATE int chacha20_poly1305_page_encrypt(void* buffer, size_t pageSize, const uint8_t otk[64], uint32_t counter);
+SQLITE_PRIVATE int chacha20_poly1305_page_decrypt(void* buffer, size_t pageSize, const uint8_t otk[64], uint32_t counter);
 SQLITE_PRIVATE void chacha20_rng(void* out, size_t n);
 
 #include "chacha20poly1305.c"
