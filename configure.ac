@@ -147,6 +147,54 @@ AS_IF([test "x$with_aes128cbc" = xno &&
        test "x$with_aegis" = xno],
        [AC_DEFINE([SQLITE_HAS_CODEC], [0], [All ciphers disabled so encryption is disabled])])
 
+dnl --- Editing/History for SQLite3MC shell ---
+
+AC_ARG_WITH([readline],
+  [AS_HELP_STRING([--with-readline],
+     [Command line editing via GNU readline @<:@default=check@:>@])],
+  [with_readline=$withval], [with_readline=check])
+
+AC_ARG_WITH([editline],
+  [AS_HELP_STRING([--with-editline],
+     [Command line editing via editline/libedit instead of readline @<:@default=no@:>@])],
+  [with_editline=$withval], [with_editline=no])
+
+SHELL_CFLAGS=""
+SHELL_LIBS=""
+have_editline_lib=no
+have_readline_lib=no
+
+dnl --- Check editline first, if explicitly requested ---
+AS_IF([test "x$with_editline" != "xno"], [
+  AC_CHECK_HEADER([editline/readline.h], [have_editline_header=yes], [have_editline_header=no])
+  AS_IF([test "x$have_editline_header" = "xyes"], [
+    AC_CHECK_LIB([edit], [readline], [have_editline_lib=yes], [have_editline_lib=no])
+  ])
+  AS_IF([test "x$have_editline_lib" != "xyes" && test "x$with_editline" = "xyes"], [
+    AC_MSG_ERROR([editline (libedit) angefordert, aber nicht gefunden])
+  ])
+])
+
+AS_IF([test "x$have_editline_lib" = "xyes"], [
+  SHELL_CFLAGS="-DHAVE_EDITLINE=1"
+  SHELL_LIBS="-ledit"
+], [test "x$with_readline" != "xno"], [
+  AC_CHECK_HEADER([readline/readline.h], [have_readline_header=yes], [have_readline_header=no])
+  AS_IF([test "x$have_readline_header" = "xyes"], [
+    dnl -lncurses als Fallback für ältere readline-Builds ohne eigene tgetent()
+    AC_CHECK_LIB([readline], [readline], [have_readline_lib=yes], [have_readline_lib=no], [-lncurses])
+  ])
+  AS_IF([test "x$have_readline_lib" = "xyes"], [
+    SHELL_CFLAGS="-DHAVE_READLINE=1"
+    SHELL_LIBS="-lreadline -lncurses"
+  ], [test "x$with_readline" = "xyes"], [
+    AC_MSG_ERROR([readline angefordert, aber nicht gefunden])
+  ])
+])
+
+AC_SUBST([SHELL_CFLAGS])
+AC_SUBST([SHELL_LIBS])
+
 dnl Check for zlib
 haveZLib=false
 AC_CHECK_HEADERS(zlib.h, [
