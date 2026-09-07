@@ -451,7 +451,7 @@ chacha20_poly1305_page_decrypt(void* buffer, size_t pageSize,
   * for correctness if entropy() is ever called with a larger buffer. */
 EM_JS(int, wasm_crypto_getrandom, (uint8_t* buf, size_t n),
 {
-  if (typeof crypto == = 'undefined' || !crypto.getRandomValues)
+  if (typeof crypto === 'undefined' || !crypto.getRandomValues)
     return -1;
   try
   {
