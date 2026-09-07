@@ -180,7 +180,7 @@ EncryptPageAscon128Cipher(void* cipher, int page, unsigned char* data, int len, 
 {
   Ascon128Cipher* ascon128Cipher = (Ascon128Cipher*) cipher;
   int rc = SQLITE_OK;
-  int nReserved = (reserved == 0) ? 0 : GetReservedAscon128Cipher(cipher);
+  int nReserved = GetReservedAscon128Cipher(cipher);
   int n = len - nReserved;
   uint64_t mlen = n;
   int usePlaintextHeader = 0;
@@ -205,45 +205,23 @@ EncryptPageAscon128Cipher(void* cipher, int page, unsigned char* data, int len, 
   }
 
   /* Check whether number of required reserved bytes and actually reserved bytes match */
-  if (nReserved > reserved)
+  if (nReserved != reserved)
   {
     return SQLITE_CORRUPT;
   }
 
-  if (nReserved > 0)
-  {
-    /* Encrypt and authenticate */
-    memset(otk, 0, ASCON_HASH_BYTES);
-    /* Generate nonce */
-    chacha20_rng(data + n + PAGE_TAG_LEN_ASCON128, PAGE_NONCE_LEN_ASCON128);
-    AsconGenOtk(otk, ascon128Cipher->m_key, data + n + PAGE_TAG_LEN_ASCON128, page);
+  /* Encrypt and authenticate */
+  memset(otk, 0, ASCON_HASH_BYTES);
+  /* Generate nonce */
+  chacha20_rng(data + n + PAGE_TAG_LEN_ASCON128, PAGE_NONCE_LEN_ASCON128);
+  AsconGenOtk(otk, ascon128Cipher->m_key, data + n + PAGE_TAG_LEN_ASCON128, page);
 
-    ascon_aead_encrypt(data + offset, data + n, data + offset, mlen - offset,
-                       NULL /* ad */, 0 /* adlen*/,
-                       data + n + PAGE_TAG_LEN_ASCON128, otk);
-    if (page == 1 && usePlaintextHeader == 0)
-    {
-      memcpy(data, ascon128Cipher->m_salt, SALTLENGTH_ASCON128);
-    }
-  }
-  else
+  ascon_aead_encrypt(data + offset, data + n, data + offset, mlen - offset,
+                     NULL /* ad */, 0 /* adlen*/,
+                     data + n + PAGE_TAG_LEN_ASCON128, otk);
+  if (page == 1 && usePlaintextHeader == 0)
   {
-    /* Encrypt only */
-    uint8_t nonce[PAGE_NONCE_LEN_ASCON128];
-    uint8_t dummyTag[PAGE_TAG_LEN_ASCON128];
-    memset(dummyTag, 0, PAGE_TAG_LEN_ASCON128);
-    memset(otk, 0, ASCON_HASH_BYTES);
-    sqlite3mcGenerateInitialVector(page, nonce);
-    AsconGenOtk(otk, ascon128Cipher->m_key, nonce, page);
-
-    /* Encrypt */
-    ascon_aead_encrypt(data + offset, dummyTag, data + offset, mlen - offset,
-                       NULL /* ad */, 0 /* adlen*/,
-                       nonce, otk);
-      if (page == 1 && usePlaintextHeader == 0)
-    {
-      memcpy(data, ascon128Cipher->m_salt, SALTLENGTH_ASCON128);
-    }
+    memcpy(data, ascon128Cipher->m_salt, SALTLENGTH_ASCON128);
   }
 
   /* Zero out otk array */
@@ -283,61 +261,39 @@ DecryptPageAscon128Cipher(void* cipher, int page, unsigned char* data, int len, 
   }
 
   /* Check whether number of required reserved bytes and actually reserved bytes match */
-  if (nReserved > reserved)
+  if (nReserved != reserved)
   {
     return (page == 1) ? SQLITE_NOTADB : SQLITE_CORRUPT;
   }
 
-  if (nReserved > 0)
-  {
-    /* Decrypt and verify MAC */
-    memset(otk, 0, ASCON_HASH_BYTES);
-    AsconGenOtk(otk, ascon128Cipher->m_key, data + n + PAGE_TAG_LEN_ASCON128, page);
+  /* Decrypt and verify MAC */
+  memset(otk, 0, ASCON_HASH_BYTES);
+  AsconGenOtk(otk, ascon128Cipher->m_key, data + n + PAGE_TAG_LEN_ASCON128, page);
 
-    /* Determine MAC and decrypt */
-    tagOk = ascon_aead_decrypt(data + offset, data + offset, clen - offset,
-                               NULL /* ad */, 0 /* adlen */,
-                               data + n, data + n + PAGE_TAG_LEN_ASCON128, otk);
-    if (hmacCheck != 0)
+  /* Determine MAC and decrypt */
+  tagOk = ascon_aead_decrypt(data + offset, data + offset, clen - offset,
+                             NULL /* ad */, 0 /* adlen */,
+                             data + n, data + n + PAGE_TAG_LEN_ASCON128, otk);
+  if (hmacCheck != 0)
+  {
+    /* Verify the MAC */
+    if (tagOk != 0)
     {
-      /* Verify the MAC */
-      if (tagOk != 0)
-      {
-        SQLITE3MC_DEBUG_LOG("decrypt: codec=%p page=%d\n", ascon128Cipher, page);
-        SQLITE3MC_DEBUG_HEX("decrypt key:", ascon128Cipher->m_key, 32);
-        SQLITE3MC_DEBUG_HEX("decrypt otk:", otk, 64);
-        SQLITE3MC_DEBUG_HEX("decrypt data+00:", data, 16);
-        SQLITE3MC_DEBUG_HEX("decrypt data+24:", data + 24, 16);
-        SQLITE3MC_DEBUG_HEX("decrypt data+n:", data + n, 16);
-        SQLITE3MC_DEBUG_HEX("decrypt tag r:", data + n + PAGE_NONCE_LEN_ASCON128, PAGE_TAG_LEN_ASCON128);
-        SQLITE3MC_DEBUG_HEX("decrypt tag c:", tag, PAGE_TAG_LEN_ASCON128);
-        /* Bad MAC */
-        rc = (page == 1) ? SQLITE_NOTADB : SQLITE_CORRUPT;
-      }
-    }
-    if (page == 1 && usePlaintextHeader == 0 && rc == SQLITE_OK)
-    {
-      memcpy(data, SQLITE_FILE_HEADER, 16);
+      SQLITE3MC_DEBUG_LOG("decrypt: codec=%p page=%d\n", ascon128Cipher, page);
+      SQLITE3MC_DEBUG_HEX("decrypt key:", ascon128Cipher->m_key, 32);
+      SQLITE3MC_DEBUG_HEX("decrypt otk:", otk, 64);
+      SQLITE3MC_DEBUG_HEX("decrypt data+00:", data, 16);
+      SQLITE3MC_DEBUG_HEX("decrypt data+24:", data + 24, 16);
+      SQLITE3MC_DEBUG_HEX("decrypt data+n:", data + n, 16);
+      SQLITE3MC_DEBUG_HEX("decrypt tag r:", data + n + PAGE_NONCE_LEN_ASCON128, PAGE_TAG_LEN_ASCON128);
+      SQLITE3MC_DEBUG_HEX("decrypt tag c:", tag, PAGE_TAG_LEN_ASCON128);
+      /* Bad MAC */
+      rc = (page == 1) ? SQLITE_NOTADB : SQLITE_CORRUPT;
     }
   }
-  else
+  if (page == 1 && usePlaintextHeader == 0 && rc == SQLITE_OK)
   {
-    /* Decrypt only */
-    uint8_t nonce[PAGE_NONCE_LEN_ASCON128];
-    uint8_t dummyTag[PAGE_TAG_LEN_ASCON128];
-    memset(dummyTag, 0, PAGE_TAG_LEN_ASCON128);
-    memset(otk, 0, ASCON_HASH_BYTES);
-    sqlite3mcGenerateInitialVector(page, nonce);
-    AsconGenOtk(otk, ascon128Cipher->m_key, nonce, page);
-
-    /* Decrypt */
-    tagOk = ascon_aead_decrypt(data + offset, data + offset, clen - offset,
-                               NULL /* ad */, 0 /* adlen */,
-                               dummyTag, nonce, otk);
-    if (page == 1 && usePlaintextHeader == 0)
-    {
-      memcpy(data, SQLITE_FILE_HEADER, 16);
-    }
+    memcpy(data, SQLITE_FILE_HEADER, 16);
   }
 
   /* Zero out otk array */

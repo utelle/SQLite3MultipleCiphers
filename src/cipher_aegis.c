@@ -313,7 +313,7 @@ EncryptPageAegisCipher(void* cipher, int page, unsigned char* data, int len, int
 {
   AegisCipher* aegisCipher = (AegisCipher*) cipher;
   int rc = SQLITE_OK;
-  int nReserved = (reserved == 0) ? 0 : GetReservedAegisCipher(cipher);
+  int nReserved = GetReservedAegisCipher(cipher);
   int n = len - nReserved;
   uint64_t mlen = n;
   int usePlaintextHeader = 0;
@@ -339,48 +339,26 @@ EncryptPageAegisCipher(void* cipher, int page, unsigned char* data, int len, int
   }
 
   /* Check whether number of required reserved bytes and actually reserved bytes match */
-  if (nReserved > reserved)
+  if (nReserved != reserved)
   {
     return SQLITE_CORRUPT;
   }
 
-  if (nReserved > 0)
-  {
-    /* Encrypt and authenticate */
+  /* Encrypt and authenticate */
 
-    /* Generate nonce */
-    chacha20_rng(data + n + PAGE_TAG_LEN_AEGIS, aegisCipher->m_nonceLength);
-    AegisGenOtk(aegisCipher, otk, aegisCipher->m_keyLength + aegisCipher->m_nonceLength,
-                data + n + PAGE_TAG_LEN_AEGIS, aegisCipher->m_nonceLength, page);
+  /* Generate nonce */
+  chacha20_rng(data + n + PAGE_TAG_LEN_AEGIS, aegisCipher->m_nonceLength);
+  AegisGenOtk(aegisCipher, otk, aegisCipher->m_keyLength + aegisCipher->m_nonceLength,
+              data + n + PAGE_TAG_LEN_AEGIS, aegisCipher->m_nonceLength, page);
 
-    mcAegisCryptFunctions[aegisCipher->m_aegisAlgorithm].encrypt(
-      data + offset, data + n, PAGE_TAG_LEN_AEGIS,
-      data + offset, mlen - offset, 
-      NULL, 0, otk + aegisCipher->m_keyLength, otk);
+  mcAegisCryptFunctions[aegisCipher->m_aegisAlgorithm].encrypt(
+    data + offset, data + n, PAGE_TAG_LEN_AEGIS,
+    data + offset, mlen - offset, 
+    NULL, 0, otk + aegisCipher->m_keyLength, otk);
     
-    if (page == 1 && usePlaintextHeader == 0)
-    {
-      memcpy(data, aegisCipher->m_salt, SALTLENGTH_AEGIS);
-    }
-  }
-  else
+  if (page == 1 && usePlaintextHeader == 0)
   {
-    /* Encrypt only */
-    uint8_t nonce[PAGE_NONCE_LEN_AEGIS_MAX];
-    AegisGenNonce(aegisCipher, nonce, aegisCipher->m_nonceLength, page);
-    AegisGenOtk(aegisCipher, otk, aegisCipher->m_keyLength + aegisCipher->m_nonceLength,
-                nonce, aegisCipher->m_nonceLength, page);
-
-    /* Encrypt */
-    mcAegisCryptFunctions[aegisCipher->m_aegisAlgorithm].encryptNoTag(
-      data + offset, 
-      data + offset, mlen - offset,
-      otk + aegisCipher->m_keyLength, otk);
-
-    if (page == 1 && usePlaintextHeader == 0)
-    {
-      memcpy(data, aegisCipher->m_salt, SALTLENGTH_AEGIS);
-    }
+    memcpy(data, aegisCipher->m_salt, SALTLENGTH_AEGIS);
   }
 
   /* Zero out otk array */
@@ -394,7 +372,7 @@ DecryptPageAegisCipher(void* cipher, int page, unsigned char* data, int len, int
 {
   AegisCipher* aegisCipher = (AegisCipher*) cipher;
   int rc = SQLITE_OK;
-  int nReserved = (reserved == 0) ? 0 : GetReservedAegisCipher(cipher);
+  int nReserved = GetReservedAegisCipher(cipher);
   int n = len - nReserved;
   uint64_t clen = n;
   int tagOk;
@@ -421,69 +399,47 @@ DecryptPageAegisCipher(void* cipher, int page, unsigned char* data, int len, int
   }
 
   /* Check whether number of required reserved bytes and actually reserved bytes match */
-  if (nReserved > reserved)
+  if (nReserved != reserved)
   {
     return (page == 1) ? SQLITE_NOTADB : SQLITE_CORRUPT;
   }
 
-  if (nReserved > 0)
+  /* Decrypt and verify MAC */
+  AegisGenOtk(aegisCipher, otk, aegisCipher->m_keyLength + aegisCipher->m_nonceLength,
+              data + n + PAGE_TAG_LEN_AEGIS, aegisCipher->m_nonceLength, page);
+
+  /* Determine MAC and decrypt */
+  if (hmacCheck != 0)
   {
-    /* Decrypt and verify MAC */
-    AegisGenOtk(aegisCipher, otk, aegisCipher->m_keyLength + aegisCipher->m_nonceLength,
-                data + n + PAGE_TAG_LEN_AEGIS, aegisCipher->m_nonceLength, page);
-
-    /* Determine MAC and decrypt */
-    if (hmacCheck != 0)
+    /* Verify the MAC */
+    tagOk = mcAegisCryptFunctions[aegisCipher->m_aegisAlgorithm].decrypt(
+              data + offset,
+              data + offset, clen - offset,
+              data + n, PAGE_TAG_LEN_AEGIS,
+              NULL, 0, otk + aegisCipher->m_keyLength, otk);
+    if (tagOk != 0)
     {
-      /* Verify the MAC */
-      tagOk = mcAegisCryptFunctions[aegisCipher->m_aegisAlgorithm].decrypt(
-                data + offset,
-                data + offset, clen - offset,
-                data + n, PAGE_TAG_LEN_AEGIS,
-                NULL, 0, otk + aegisCipher->m_keyLength, otk);
-      if (tagOk != 0)
-      {
-        SQLITE3MC_DEBUG_LOG("decrypt: codec=%p page=%d\n", aegisCipher, page);
-        SQLITE3MC_DEBUG_HEX("decrypt key:", aegisCipher->m_key, aegisCipher->m_keyLength);
-        SQLITE3MC_DEBUG_HEX("decrypt otk:", otk, 64);
-        SQLITE3MC_DEBUG_HEX("decrypt data+00:", data, 16);
-        SQLITE3MC_DEBUG_HEX("decrypt data+24:", data + 24, 16);
-        SQLITE3MC_DEBUG_HEX("decrypt data+n:", data + n, PAGE_TAG_LEN_AEGIS);
-        /* Bad MAC */
-        rc = (page == 1) ? SQLITE_NOTADB : SQLITE_CORRUPT;
-      }
-    }
-    else
-    {
-      mcAegisCryptFunctions[aegisCipher->m_aegisAlgorithm].decryptNoTag(
-        data + offset,
-        data + offset, clen - offset,
-        otk + aegisCipher->m_keyLength, otk);
-    }
-
-    if (page == 1 && usePlaintextHeader == 0 && rc == SQLITE_OK)
-    {
-      memcpy(data, SQLITE_FILE_HEADER, 16);
+      SQLITE3MC_DEBUG_LOG("decrypt: codec=%p page=%d\n", aegisCipher, page);
+      SQLITE3MC_DEBUG_HEX("decrypt key:", aegisCipher->m_key, aegisCipher->m_keyLength);
+      SQLITE3MC_DEBUG_HEX("decrypt otk:", otk, 64);
+      SQLITE3MC_DEBUG_HEX("decrypt data+00:", data, 16);
+      SQLITE3MC_DEBUG_HEX("decrypt data+24:", data + 24, 16);
+      SQLITE3MC_DEBUG_HEX("decrypt data+n:", data + n, PAGE_TAG_LEN_AEGIS);
+      /* Bad MAC */
+      rc = (page == 1) ? SQLITE_NOTADB : SQLITE_CORRUPT;
     }
   }
   else
   {
-    /* Decrypt only */
-    uint8_t nonce[PAGE_NONCE_LEN_AEGIS_MAX];
-    AegisGenNonce(aegisCipher, nonce, aegisCipher->m_nonceLength, page);
-    AegisGenOtk(aegisCipher, otk, aegisCipher->m_keyLength + aegisCipher->m_nonceLength,
-                nonce, aegisCipher->m_nonceLength, page);
-
-    /* Decrypt */
     mcAegisCryptFunctions[aegisCipher->m_aegisAlgorithm].decryptNoTag(
       data + offset,
       data + offset, clen - offset,
       otk + aegisCipher->m_keyLength, otk);
+  }
 
-    if (page == 1 && usePlaintextHeader == 0)
-    {
-      memcpy(data, SQLITE_FILE_HEADER, 16);
-    }
+  if (page == 1 && usePlaintextHeader == 0 && rc == SQLITE_OK)
+  {
+    memcpy(data, SQLITE_FILE_HEADER, 16);
   }
 
   /* Zero out otk array */
