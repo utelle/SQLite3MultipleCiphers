@@ -438,14 +438,82 @@ chacha20_poly1305_page_decrypt(void* buffer, size_t pageSize,
 /*
  * Platform-specific entropy functions for seeding RNG
  */
-#if defined(__WASM__)
+#if defined(__wasm__) || defined(__wasi__)
 
+#if defined(__EMSCRIPTEN__)
+#include <emscripten.h>
+
+ /* Calls the Web Crypto API directly instead of relying on an opaque
+  * getentropy() shim whose actual backing implementation cannot be
+  * verified from the C side. crypto.getRandomValues() is capped at
+  * 65536 bytes per call, so large requests are chunked; not relevant
+  * for this generator's actual usage (32/12/24-byte reads), but kept
+  * for correctness if entropy() is ever called with a larger buffer. */
+EM_JS(int, wasm_crypto_getrandom, (uint8_t* buf, size_t n),
+{
+  if (typeof crypto == = 'undefined' || !crypto.getRandomValues)
+    return -1;
+  try
+  {
+    var view = new Uint8Array(Module.HEAPU8.buffer, buf, n);
+    var chunk = 65536;
+    for (var i = 0; i < n; i += chunk)
+    {
+      crypto.getRandomValues(view.subarray(i, Math.min(i + chunk, n)));
+    }
+    return 0;
+  }
+  catch (e)
+  {
+    return -1;
+  }
+});
+
+static size_t entropy(void* buf, size_t n)
+{
+  size_t i;
+  if (wasm_crypto_getrandom((uint8_t*)buf, n) != 0)
+    return 0;
+  /* Defense in depth: reject an all-zero result. */
+  for (i = 0; i < n; i++)
+  {
+    if (((uint8_t*)buf)[i] != 0)
+      return n;
+  }
+  return (n == 0) ? n : 0;
+}
+
+#elif defined(__wasi__)
+#include <wasi/api.h>
+
+static size_t entropy(void* buf, size_t n)
+{
+  size_t i;
+  if (__wasi_random_get((uint8_t*)buf, n) != __WASI_ERRNO_SUCCESS)
+    return 0;
+  for (i = 0; i < n; i++)
+  {
+    if (((uint8_t*)buf)[i] != 0)
+      return n;
+  }
+  return (n == 0) ? n : 0;
+}
+#else
 extern int getentropy(void* buf, size_t n);
 
 static size_t entropy(void* buf, size_t n)
 {
-  return (getentropy(buf, n) == 0) ? n : 0;
+  size_t i;
+  if (getentropy(buf, n) != 0)
+    return 0;
+  for (i = 0; i < n; i++)
+  {
+    if (((uint8_t*)buf)[i] != 0)
+      return n;
+  }
+  return (n == 0) ? n : 0;
 }
+#endif
 
 #elif defined(_WIN32) || defined(__CYGWIN__)
 
@@ -619,10 +687,39 @@ void chacha20_rng(void* out, size_t n)
   static uint8_t key[32], nonce[12], buffer[64] = { 0 };
   static uint32_t counter = 0;
   static size_t available = 0;
-
+#if !defined(_WIN32) && !defined(__wasm__)
+  static pid_t pid = 0;
+  pid_t currentPid = getpid();
+#endif
 #if SQLITE_THREADSAFE
   sqlite3_mutex* mutex = sqlite3_mutex_alloc(SQLITE_MUTEX_STATIC_PRNG);
   sqlite3_mutex_enter(mutex);
+#endif
+#if !defined(_WIN32) && !defined(__wasm__)
+  /*
+   * Detect fork(): if the current process id differs from the pid
+   * recorded on the previous call, we are running in a freshly forked
+   * child that inherited the parent's generator state via copy-on-write
+   * memory -- the same key, nonce, counter, and any not-yet-consumed
+   * buffered keystream bytes. If left as-is, both parent and child would
+   * emit the identical keystream for every buffered/future byte until
+   * the next natural reseed, which is a nonce-reuse condition and
+   * breaks the security guarantees this generator is relied on for
+   * (e.g. per-page nonces). Forcing counter = 0 triggers a reseed from
+   * a fresh entropy() call on the next iteration, and clearing
+   * available discards any keystream bytes already buffered from the
+   * parent's state so they cannot be replayed in both processes.
+   * Not applicable on Windows, which has no fork() in the POSIX sense.
+   */
+  if (currentPid != pid)
+  {
+    /* Fork detected (or first call): force a reseed and discard any
+     * buffered output that might otherwise be replayed in both
+     * parent and child. */
+    pid = currentPid;
+    counter = 0;
+    available = 0;
+  }
 #endif
 
   while (n > 0)
