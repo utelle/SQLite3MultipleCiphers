@@ -347,6 +347,23 @@ GetHmacSizeSQLCipherCipher(int algorithm)
   return hmacSize;
 }
 
+/*
+** Compare two HMAC values in constant time, that is, without revealing
+** the position of the first differing byte through the execution time.
+** Returns 0 if both values are equal, 1 otherwise.
+*/
+static int
+CompareHmacSQLCipherCipher(const unsigned char* hmac1, const unsigned char* hmac2, int len)
+{
+  volatile unsigned char diff = 0;
+  int j;
+  for (j = 0; j < len; ++j)
+  {
+    diff |= hmac1[j] ^ hmac2[j];
+  }
+  return (diff != 0);
+}
+
 static int
 EncryptPageSQLCipherCipher(void* cipher, int page, unsigned char* data, int len, int reserved)
 {
@@ -482,7 +499,7 @@ DecryptPageSQLCipherCipher(void* cipher, int page, unsigned char* data, int len,
       memcpy(pgno_raw, &page, 4);
     }
     sqlcipher_hmac(sqlCipherCipher->m_hmacAlgorithm, sqlCipherCipher->m_hmacKey, KEYLENGTH_SQLCIPHER, data + offset, n + PAGE_NONCE_LEN_SQLCIPHER - offset, pgno_raw, 4, hmac_out);
-    hmacOk = (memcmp(data + n + PAGE_NONCE_LEN_SQLCIPHER, hmac_out, hmac_size) == 0);
+    hmacOk = (CompareHmacSQLCipherCipher(data + n + PAGE_NONCE_LEN_SQLCIPHER, hmac_out, hmac_size) == 0);
   }
 
   if (hmacOk != 0)
