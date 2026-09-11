@@ -29,11 +29,12 @@ SQLITE_PRIVATE void sqlite3mcSecureZeroMemory(void* v, size_t n)
      compatible redeclaration if the header also provided it. */
   extern int memset_s(void*, size_t, int, size_t);
   memset_s(v, n, 0, n);
+#elif defined(__ANDROID__) && __ANDROID_API__ >= 34
+  memset_explicit(v, 0, n);
 #elif defined(__OpenBSD__) || defined(__NetBSD__) || defined(__DragonFly__) || \
       (defined(__FreeBSD__) && __FreeBSD__ >= 11) || \
       (defined(__GLIBC__) && (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 25))) || \
-      defined(__EMSCRIPTEN__) || defined(__wasi__) || \
-      (defined(__ANDROID__) && __ANDROID_API__ >= 28)
+      defined(__EMSCRIPTEN__) || defined(__wasi__)
   explicit_bzero(v, n);
 #else
   /* Generic implementation based on volatile pointers */
