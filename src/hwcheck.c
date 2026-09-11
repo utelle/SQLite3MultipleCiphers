@@ -412,11 +412,15 @@ aesHardwareAvailable()
   static int hwAvailable = 0;
   if (!initialized)
   {
+#if HAS_AES_HARDWARE == AES_HARDWARE_NONE
+    hwAvailable = 0;
+#else
     unsigned int features = sqlite3mcCpuFeatures();
     int x86Ok = (features & (SQLITE3MC_CPU_AESNI | SQLITE3MC_CPU_SSE42))
              == (SQLITE3MC_CPU_AESNI | SQLITE3MC_CPU_SSE42);
     int armOk = (features & SQLITE3MC_CPU_ARMCRYPTO) != 0;
     hwAvailable = x86Ok || armOk;
+#endif
     initialized = 1;
   }
   return hwAvailable;
