@@ -92,7 +92,7 @@ sodium_load64_le(const uint8_t src[8])
 #endif
 }
 
-#define SODIUM_SODIUM_STORE64_LE(DST, W) sodium_store64_le((DST), (W))
+#define SODIUM_STORE64_LE(DST, W) sodium_store64_le((DST), (W))
 static inline void
 sodium_store64_le(uint8_t dst[8], uint64_t w)
 {

@@ -347,13 +347,30 @@ GetHmacSizeSQLCipherCipher(int algorithm)
   return hmacSize;
 }
 
+/*
+** Compare two HMAC values in constant time, that is, without revealing
+** the position of the first differing byte through the execution time.
+** Returns 0 if both values are equal, 1 otherwise.
+*/
+static int
+CompareHmacSQLCipherCipher(const unsigned char* hmac1, const unsigned char* hmac2, int len)
+{
+  volatile unsigned char diff = 0;
+  int j;
+  for (j = 0; j < len; ++j)
+  {
+    diff |= hmac1[j] ^ hmac2[j];
+  }
+  return (diff != 0);
+}
+
 static int
 EncryptPageSQLCipherCipher(void* cipher, int page, unsigned char* data, int len, int reserved)
 {
   SQLCipherCipher* sqlCipherCipher = (SQLCipherCipher*) cipher;
   int rc = SQLITE_OK;
   int legacy = sqlCipherCipher->m_legacy;
-  int nReserved = (reserved == 0 && legacy == 0) ? 0 : GetReservedSQLCipherCipher(cipher);
+  int nReserved = GetReservedSQLCipherCipher(cipher);
   int n = len - nReserved;
   int offset = 0;
   int blen;
@@ -379,28 +396,18 @@ EncryptPageSQLCipherCipher(void* cipher, int page, unsigned char* data, int len,
   }
 
   /* Check whether number of required reserved bytes and actually reserved bytes match */
-  if ((legacy == 0 && nReserved > reserved) || ((legacy != 0 && nReserved != reserved)))
+  if (nReserved != reserved)
   {
     return SQLITE_CORRUPT;
   }
 
   /* Generate nonce (64 bytes) */
   memset(iv, 0, 128);
-  if (nReserved > 0)
-  {
-    chacha20_rng(iv, 128);
-  }
-  else
-  {
-    sqlite3mcGenerateInitialVector(page, iv);
-  }
+  chacha20_rng(iv, 128);
 
   RijndaelInit(sqlCipherCipher->m_aes, RIJNDAEL_Direction_Mode_CBC, RIJNDAEL_Direction_Encrypt, sqlCipherCipher->m_key, RIJNDAEL_Direction_KeyLength_Key32Bytes, iv);
   blen = RijndaelBlockEncrypt(sqlCipherCipher->m_aes, data + offset, (n - offset) * 8, data + offset);
-  if (nReserved > 0)
-  {
-    memcpy(data + n, iv, nReserved);
-  }
+  memcpy(data + n, iv, nReserved);
   if (page == 1 && usePlaintextHeader == 0)
   {
     memcpy(data, sqlCipherCipher->m_salt, SALTLENGTH_SQLCIPHER);
@@ -438,7 +445,7 @@ DecryptPageSQLCipherCipher(void* cipher, int page, unsigned char* data, int len,
   SQLCipherCipher* sqlCipherCipher = (SQLCipherCipher*) cipher;
   int rc = SQLITE_OK;
   int legacy = sqlCipherCipher->m_legacy;
-  int nReserved = (reserved == 0 && legacy == 0) ? 0 : GetReservedSQLCipherCipher(cipher);
+  int nReserved = GetReservedSQLCipherCipher(cipher);
   int n = len - nReserved;
   int offset = 0;
   int hmacOk = 1;
@@ -465,20 +472,13 @@ DecryptPageSQLCipherCipher(void* cipher, int page, unsigned char* data, int len,
   }
 
   /* Check whether number of required reserved bytes and actually reserved bytes match */
-  if ((legacy == 0 && nReserved > reserved) || ((legacy != 0 && nReserved != reserved)))
+  if (nReserved != reserved)
   {
     return (page == 1) ? SQLITE_NOTADB : SQLITE_CORRUPT;
   }
 
   /* Get nonce from buffer */
-  if (nReserved > 0)
-  {
-    memcpy(iv, data + n, nReserved);
-  }
-  else
-  {
-    sqlite3mcGenerateInitialVector(page, iv);
-  }
+  memcpy(iv, data + n, nReserved);
 
   /* hmac check */
   if (sqlCipherCipher->m_hmacUse == 1 && nReserved > 0 && hmacCheck != 0)
@@ -499,7 +499,7 @@ DecryptPageSQLCipherCipher(void* cipher, int page, unsigned char* data, int len,
       memcpy(pgno_raw, &page, 4);
     }
     sqlcipher_hmac(sqlCipherCipher->m_hmacAlgorithm, sqlCipherCipher->m_hmacKey, KEYLENGTH_SQLCIPHER, data + offset, n + PAGE_NONCE_LEN_SQLCIPHER - offset, pgno_raw, 4, hmac_out);
-    hmacOk = (memcmp(data + n + PAGE_NONCE_LEN_SQLCIPHER, hmac_out, hmac_size) == 0);
+    hmacOk = (CompareHmacSQLCipherCipher(data + n + PAGE_NONCE_LEN_SQLCIPHER, hmac_out, hmac_size) == 0);
   }
 
   if (hmacOk != 0)
