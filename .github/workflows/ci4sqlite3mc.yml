@@ -44,6 +44,30 @@ jobs:
         ./sqlite3shell test/persons-ascon128-testkey.db3 ".read test/test4.sql"
         ./sqlite3shell dummy.db3 ".read test/sqlciphertest.sql"
 
+  android_build:
+    name: Android (API ${{ matrix.api-level }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        api-level: [21, 28, 30, 34]
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v7
+    - name: Set up Android NDK
+      id: setup-ndk
+      uses: nttld/setup-ndk@v1
+      with:
+        ndk-version: r28
+    - name: Configure
+      run: >
+        cmake -B build
+        -DCMAKE_TOOLCHAIN_FILE=${{ steps.setup-ndk.outputs.ndk-path }}/build/cmake/android.toolchain.cmake
+        -DANDROID_ABI=arm64-v8a
+        -DANDROID_PLATFORM=${{ matrix.api-level }}
+    - name: Build
+      run: cmake --build build
+
 #  host_qemu:
 #    runs-on: ubuntu-24.04
 #    strategy:
