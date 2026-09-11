@@ -7,83 +7,6 @@
 ** License:     MIT
 */
 
-#if 0
-/*
-** Check whether the platform offers hardware support for AES
-*/
-
-#define AES_HARDWARE_NONE  0
-#define AES_HARDWARE_NI    1
-#define AES_HARDWARE_NEON  2
-
-#ifndef SQLITE3MC_OMIT_AES_HARDWARE_SUPPORT
-
-#if defined __ARM_FEATURE_CRYPTO
-#define HAS_AES_HARDWARE AES_HARDWARE_NEON
-
-
-/* --- CLang --- */
-#elif defined(__clang__)
-
-#if __has_attribute(target) && __has_include(<wmmintrin.h>) && (defined(__x86_64__) || defined(__i386))
-#define HAS_AES_HARDWARE AES_HARDWARE_NI
-
-#elif __has_attribute(target) && __has_include(<arm_neon.h>) && (defined(__aarch64__))
-#define HAS_AES_HARDWARE AES_HARDWARE_NEON
-
-/* Crypto extension in AArch64 can be enabled using __attribute__((target)) */
-#define USE_CLANG_ATTR_TARGET_AARCH64
-
-#endif
-
-
-/* --- GNU C/C++ */
-#elif defined(__GNUC__)
-
-#if (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 4)) && (defined(__x86_64__) || defined(__i386))
-#define HAS_AES_HARDWARE AES_HARDWARE_NI
-#endif
-
-
-/* --- Visual C/C++ --- */
-#elif defined (_MSC_VER)
-
-/* Architecture: x86 or x86_64 */
-#if (defined(_M_X64) || defined(_M_IX86)) && _MSC_FULL_VER >= 150030729
-#define HAS_AES_HARDWARE AES_HARDWARE_NI
-
-/* Architecture: ARM 64-bit */
-#elif defined(_M_ARM64)
-#define HAS_AES_HARDWARE AES_HARDWARE_NEON
-
-/* Use header <arm64_neon.h> instead of <arm_neon.h> */
-#define USE_ARM64_NEON_H
-
-/* Architecture: ARM 32-bit */
-#elif defined _M_ARM
-#define HAS_AES_HARDWARE AES_HARDWARE_NEON
-
-/* The following #define is required to enable intrinsic definitions
-   that do not omit one of the parameters for vaes[ed]q_u8 */
-#define _ARM_USE_NEW_NEON_INTRINSICS
-
-#endif
-
-#else
-
-#define HAS_AES_HARDWARE AES_HARDWARE_NONE
-
-#endif
-
-#else /* SQLITE3MC_OMIT_AES_HARDWARE_SUPPORT defined */
-
-/* Omit AES hardware support */
-#define HAS_AES_HARDWARE AES_HARDWARE_NONE
-
-#endif /* SQLITE3MC_OMIT_AES_HARDWARE_SUPPORT */
-
-#endif /* 0 */
-
 #if defined(__GNUC__)
 #pragma GCC push_options
 #endif
@@ -109,77 +32,6 @@ toUint32FromLE(const void* buffer)
 
 #if HAS_AES_HARDWARE == AES_HARDWARE_NI
 /* --- Implementation for AES-NI --- */
-
-#ifndef SQLITE3MC_COMPILER_HAS_ATTRIBUTE
-
-/* Define SQLITE3MC_COMPILER_HAS_ATTRIBUTE */
-#if defined(__has_attribute)
-  #define SQLITE3MC_COMPILER_HAS_ATTRIBUTE(x) __has_attribute(x)
-  #define SQLITE3MC_COMPILER_ATTRIBUTE(x) __attribute__((x))
-#else
-  #define SQLITE3MC_COMPILER_HAS_ATTRIBUTE(x) 0
-  #define SQLITE3MC_COMPILER_ATTRIBUTE(x) /**/
-#endif
-
-/* Define SQLITE3MC_FORCE_INLINE */
-#if !defined(SQLITE3MC_FORCE_INLINE)
-  #if SQLITE3MC_COMPILER_HAS_ATTRIBUTE(always_inline)
-    #define SQLITE3MC_FORCE_INLINE inline SQLITE3MC_COMPILER_ATTRIBUTE(always_inline)
-  #elif defined(_MSC_VER)
-    #define SQLITE3MC_FORCE_INLINE __forceinline
-  #else
-    #define SQLITE3MC_FORCE_INLINE inline
-  #endif
-#endif
-
-/* Define SQLITE3MC_FUNC_ISA */
-#if SQLITE3MC_COMPILER_HAS_ATTRIBUTE(target)
-  #define SQLITE3MC_FUNC_ISA(isa) SQLITE3MC_COMPILER_ATTRIBUTE(target(isa))
-#else
-  #define SQLITE3MC_FUNC_ISA(isa)
-#endif
-
-/* Define SQLITE3MC_FUNC_ISA_INLINE */
-#define SQLITE3MC_FUNC_ISA_INLINE(isa) SQLITE3MC_FUNC_ISA(isa) SQLITE3MC_FORCE_INLINE
-
-#endif
-
-#if 0
-
-/*
-** Define function for detecting hardware AES support at runtime
-*/
-
-#if defined(__clang__) || defined(__GNUC__)
-/* Compiler CLang or GCC */
-
-#include <cpuid.h>
-
-static int
-aesHardwareCheck()
-{
-  unsigned int cpuInfo[4];
-  __cpuid(1, cpuInfo[0], cpuInfo[1], cpuInfo[2], cpuInfo[3]);
-  /* Check AES and SSE4.1 */
-  return (cpuInfo[2] & (1 << 25)) != 0 && (cpuInfo[2] & (1 << 19)) != 0;
-}
-
-#else /* !(defined(__clang__) || defined(__GNUC__)) */
-/* Compiler Visual C++ */
-
-#include <intrin.h>
-
-static int
-aesHardwareCheck()
-{
-  unsigned int CPUInfo[4];
-  __cpuid((int*) CPUInfo, 1);
-  return (CPUInfo[2] & (1 << 25)) != 0 && (CPUInfo[2] & (1 << 19)) != 0; /* Check AES and SSE4.1 */
-}
-
-#endif /* defined(__clang__) || defined(__GNUC__) */
-
-#endif /* 0 */
 
 #if defined(__GNUC__)
 #pragma GCC push_options
@@ -464,12 +316,12 @@ aesDecryptCBC(const unsigned char* in,
 /* --- Implementation for AES-NEON --- */
 
 /* Set target architecture manually, if necessary */
-#ifdef USE_CLANG_ATTR_TARGET_AARCH64
+#ifdef USE_ATTR_TARGET_AARCH64
 #define __ARM_NEON 1
 #define __ARM_FEATURE_CRYPTO 1
 #define __ARM_FEATURE_AES 1
-#define FUNC_ISA __attribute__ ((target("neon,crypto")))
-#endif /* USE_CLANG_ATTR_TARGET_AARCH64 */
+#define FUNC_ISA __attribute__ ((target("+crypto")))
+#endif /* USE_ATTR_TARGET_AARCH64 */
 
 /* FUNCtion attributes for ISA (Instruction Set Architecture) */
 #ifndef FUNC_ISA
@@ -481,51 +333,6 @@ aesDecryptCBC(const unsigned char* in,
 #else
 #include <arm_neon.h>
 #endif
-
-#if 0
-
-#if defined(__linux__) && (defined(__arm__) || defined(__aarch64__))
-
-#include <sys/auxv.h>
-#include <asm/hwcap.h>
-
-static int
-aesHardwareAvailableOnPlatform()
-{
-#if defined HWCAP_AES
-  return getauxval(AT_HWCAP) & HWCAP_AES;
-#elif defined HWCAP2_AES
-  return getauxval(AT_HWCAP2) & HWCAP2_AES;
-#else
-  return 0;
-#endif
-}
-
-#elif defined _M_ARM || defined _M_ARM64
-
-static int
-aesHardwareAvailableOnPlatform()
-{
-  return (int) IsProcessorFeaturePresent(PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE);
-}
-
-#else
-
-static int
-aesHardwareAvailableOnPlatform()
-{
-  return 0;
-}
-
-#endif
-
-static int
-aesHardwareCheck()
-{
-  return aesHardwareAvailableOnPlatform();
-}
-
-#endif /* 0 */
 
 /*
 ** Set up expanded key
@@ -817,39 +624,8 @@ aesDecryptCBC(const unsigned char* in,
 #else
 /* --- No AES hardware available --- */
 
-#if 0
-
-static int
-aesHardwareCheck()
-{
-  return 0;
-}
-
-#endif /* 0 */
-
 #endif
 
 #if defined(__GNUC__)
 #pragma GCC pop_options
 #endif
-
-#if 0
-
-/*
-** The top-level selection function, caching the results of
-** aesHardwareCheck() so it only has to run once.
-*/
-static int
-aesHardwareAvailable()
-{
-  static int initialized = 0;
-  static int hwAvailable = 0;
-  if (!initialized)
-  {
-    hwAvailable = aesHardwareCheck();
-    initialized = 1;
-  }
-  return hwAvailable;
-}
-
-#endif /* 0 */

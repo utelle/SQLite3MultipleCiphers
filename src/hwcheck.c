@@ -23,6 +23,36 @@
 #endif
 
 /*
+** Define SQLITE3MC_COMPILER_HAS_ATTRIBUTE / SQLITE3MC_FUNC_ISA etc.
+*/
+
+#if defined(__has_attribute)
+  #define SQLITE3MC_COMPILER_HAS_ATTRIBUTE(x) __has_attribute(x)
+  #define SQLITE3MC_COMPILER_ATTRIBUTE(x) __attribute__((x))
+#else
+  #define SQLITE3MC_COMPILER_HAS_ATTRIBUTE(x) 0
+  #define SQLITE3MC_COMPILER_ATTRIBUTE(x) /**/
+#endif
+
+#if !defined(SQLITE3MC_FORCE_INLINE)
+  #if SQLITE3MC_COMPILER_HAS_ATTRIBUTE(always_inline)
+    #define SQLITE3MC_FORCE_INLINE inline SQLITE3MC_COMPILER_ATTRIBUTE(always_inline)
+  #elif defined(_MSC_VER)
+    #define SQLITE3MC_FORCE_INLINE __forceinline
+  #else
+    #define SQLITE3MC_FORCE_INLINE inline
+  #endif
+#endif
+
+#if SQLITE3MC_COMPILER_HAS_ATTRIBUTE(target)
+  #define SQLITE3MC_FUNC_ISA(isa) SQLITE3MC_COMPILER_ATTRIBUTE(target(isa))
+#else
+  #define SQLITE3MC_FUNC_ISA(isa)
+#endif
+
+#define SQLITE3MC_FUNC_ISA_INLINE(isa) SQLITE3MC_FUNC_ISA(isa) SQLITE3MC_FORCE_INLINE
+
+/*
 ** Determine hardware support for AES
 */
 
@@ -42,7 +72,7 @@
 #    elif __has_attribute(target) && __has_include(<arm_neon.h>) && (defined(__aarch64__))
 #      define HAS_AES_HARDWARE AES_HARDWARE_NEON
        /* Crypto extension in AArch64 can be enabled using __attribute__((target)) */
-#      define USE_CLANG_ATTR_TARGET_AARCH64
+#      define USE_ATTR_TARGET_AARCH64
 #    endif
 #  elif defined(__GNUC__)
      /* --- GNU C/C++ */
@@ -50,6 +80,9 @@
 #      define HAS_AES_HARDWARE AES_HARDWARE_NI
 #    elif defined(__ARM_FEATURE_CRYPTO) && defined(__aarch64__)
 #      define HAS_AES_HARDWARE AES_HARDWARE_NEON
+#    elif (__GNUC__ >= 6) && defined(__aarch64__)
+#      define HAS_AES_HARDWARE AES_HARDWARE_NEON
+#      define USE_ATTR_TARGET_AARCH64
 #    endif
 #  elif defined (_MSC_VER)
      /* --- Visual C/C++ --- */
