@@ -1,6 +1,9 @@
-
 #include "onetimeauth_poly1305.h"
 #include "private/common.h"
+
+#if !defined(HAVE_TI_MODE) && defined(__SIZEOF_INT128__)
+#define HAVE_TI_MODE 1
+#endif
 
 #if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_ARM64)) && !defined(HAVE_TI_MODE)
 
