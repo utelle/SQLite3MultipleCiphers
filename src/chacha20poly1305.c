@@ -336,7 +336,7 @@ EM_JS(int, wasm_crypto_getrandom, (uint8_t* buf, size_t n),
     return -1;
   try
   {
-    var view = new Uint8Array(Module.HEAPU8.buffer, buf, n);
+    var view = new Uint8Array(HEAPU8.buffer, buf, n);
     var chunk = 65536;
     for (var i = 0; i < n; i += chunk)
     {
