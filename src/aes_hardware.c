@@ -41,6 +41,13 @@
 
 #if (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 4)) && (defined(__x86_64__) || defined(__i386))
 #define HAS_AES_HARDWARE AES_HARDWARE_NI
+
+#elif (__GNUC__ >= 6) && defined(__aarch64__)
+#define HAS_AES_HARDWARE AES_HARDWARE_NEON
+
+/* Crypto extension in AArch64 can be enabled using __attribute__((target)) */
+#define USE_GCC_ATTR_TARGET_AARCH64
+
 #endif
 
 
@@ -461,6 +468,10 @@ aesDecryptCBC(const unsigned char* in,
 #define FUNC_ISA __attribute__ ((target("neon,crypto")))
 #endif /* USE_CLANG_ATTR_TARGET_AARCH64 */
 
+#ifdef USE_GCC_ATTR_TARGET_AARCH64
+#define FUNC_ISA __attribute__ ((target("+crypto")))
+#endif /* USE_GCC_ATTR_TARGET_AARCH64 */
+
 /* FUNCtion attributes for ISA (Instruction Set Architecture) */
 #ifndef FUNC_ISA
 #define FUNC_ISA
@@ -495,6 +506,18 @@ static int
 aesHardwareAvailableOnPlatform()
 {
   return (int) IsProcessorFeaturePresent(PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE);
+}
+
+#elif defined(__APPLE__) && (defined(__aarch64__) || defined(__arm64__))
+
+/*
+** All 64-bit ARM processors used by Apple (A7 and later, M1 and later)
+** implement the ARMv8 cryptographic extensions
+*/
+static int
+aesHardwareAvailableOnPlatform()
+{
+  return 1;
 }
 
 #else
