@@ -15,16 +15,7 @@
 #include "../stream_chacha20.h"
 #include "chacha20_ref.h"
 
-#if 0
-struct chacha_ctx {
-    uint32_t input[16];
-};
-
-typedef struct chacha_ctx chacha_ctx;
-#endif
-
 #define SODIUM_U32C(v) (v##U)
-
 #define SODIUM_U32V(v) ((uint32_t)(v) &SODIUM_U32C(0xFFFFFFFF))
 
 #define SODIUM_ROTATE(v, c) (SODIUM_ROTL32(v, c))
@@ -221,44 +212,6 @@ sodium_chacha20_encrypt_bytes(chacha_ctx *ctx, const uint8_t *m, uint8_t *c,
 }
 
 static int
-sodium_stream_ref(unsigned char *c, unsigned long long clen, const unsigned char *n,
-           const unsigned char *k)
-{
-    struct chacha_ctx ctx;
-
-    if (!clen) {
-        return 0;
-    }
-    COMPILER_ASSERT(crypto_stream_chacha20_KEYBYTES == 256 / 8);
-    sodium_chacha_keysetup(&ctx, k);
-    sodium_chacha_ivsetup(&ctx, n, NULL);
-    memset(c, 0, clen);
-    sodium_chacha20_encrypt_bytes(&ctx, c, c, clen);
-    sodium_memzero(&ctx, sizeof ctx);
-
-    return 0;
-}
-
-static int
-sodium_stream_ietf_ext_ref(unsigned char *c, unsigned long long clen,
-                           const unsigned char *n, const unsigned char *k)
-{
-    struct chacha_ctx ctx;
-
-    if (!clen) {
-        return 0;
-    }
-    COMPILER_ASSERT(crypto_stream_chacha20_KEYBYTES == 256 / 8);
-    sodium_chacha_keysetup(&ctx, k);
-    sodium_chacha_ietf_ivsetup(&ctx, n, NULL);
-    memset(c, 0, clen);
-    sodium_chacha20_encrypt_bytes(&ctx, c, c, clen);
-    sodium_memzero(&ctx, sizeof ctx);
-
-    return 0;
-}
-
-static int
 sodium_stream_ref_xor_ic(unsigned char *c, const unsigned char *m,
                          unsigned long long mlen, const unsigned char *n, uint64_t ic,
                          const unsigned char *k)
@@ -305,8 +258,6 @@ sodium_stream_ietf_ext_ref_xor_ic(unsigned char *c, const unsigned char *m,
 
 struct crypto_stream_chacha20_implementation
     crypto_stream_chacha20_ref_implementation = {
-        .stream = sodium_stream_ref,
-        .stream_ietf_ext = sodium_stream_ietf_ext_ref,
         .stream_xor_ic = sodium_stream_ref_xor_ic,
         .stream_ietf_ext_xor_ic = sodium_stream_ietf_ext_ref_xor_ic
     };

@@ -164,8 +164,8 @@ void sqleet_chacha20_xor(void* buffer, size_t n, const uint8_t key[32],
  * Poly1305 authentication tags
  */
 SQLITE_PRIVATE
-void poly1305(const uint8_t* msg, size_t n, const uint8_t key[32],
-              uint8_t tag[16])
+void sqleet_poly1305(const uint8_t* msg, size_t n, const uint8_t key[32],
+                     uint8_t tag[16])
 {
   uint64_t d0, d1, d2, d3, d4;
   uint32_t h0, h1, h2, h3, h4;
@@ -325,116 +325,6 @@ int poly1305_tagcmp_scalar(const uint8_t tag1[16], const uint8_t tag2[16])
   return (int) d;
 }
 
-typedef int (*Poly1305_TagCmp_t)(const uint8_t tag1[16], const uint8_t tag2[16]);
-static Poly1305_TagCmp_t gPoly1305_tagcmp_impl = NULL;
-
-static void poly1305_tagcmp_pick_best()
-{
-  unsigned int features = sqlite3mcCpuFeatures();
-
-#if defined(SQLITE3MC_TARGET_X86)
-
-  if (features & SQLITE3MC_CPU_SSE41)
-    gPoly1305_tagcmp_impl = &poly1305_tagcmp_sse41;
-  else if (features & SQLITE3MC_CPU_SSE2)
-    gPoly1305_tagcmp_impl = &poly1305_tagcmp_sse2;
-  else
-    gPoly1305_tagcmp_impl = &poly1305_tagcmp_scalar;
-
-#elif defined(SQLITE3MC_TARGET_ARM)
-
-  if (features & SQLITE3MC_CPU_NEON)
-    gPoly1305_tagcmp_impl = &poly1305_tagcmp_neon;
-  else
-    gPoly1305_tagcmp_impl = &poly1305_tagcmp_scalar;
-
-#elif defined(SQLITE3MC_TARGET_WASM)
-
-#if defined(__wasm_simd128__)
-  gPoly1305_tagcmp_impl = &poly1305_tagcmp_wasm_simd;
-#else
-  gPoly1305_tagcmp_impl = &poly1305_tagcmp_scalar;
-#endif
-
-#else
-
-  gPoly1305_tagcmp_impl = &poly1305_tagcmp_scalar;
-  
-#endif
-}
-
-SQLITE_PRIVATE
-int poly1305_tagcmp(const uint8_t tag1[16], const uint8_t tag2[16])
-{
-  if (gPoly1305_tagcmp_impl == NULL)
-  {
-    poly1305_tagcmp_pick_best();
-  }
-  return (gPoly1305_tagcmp_impl)(tag1, tag2);
-}
-
-/*
- * Authenticated SQLite3MC pages without a plaintext prefix.
- *
- * pageSize includes the complete in-place buffer:
- *   [ encrypted payload | 16-byte nonce | 16-byte authentication tag ]
- * The caller initializes the nonce and derives the 64-byte one-time key:
- * otk[0..31] is the Poly1305 key; otk[32..63] is the ChaCha20 key.
- * counter is the first payload block counter, not the key-derivation counter.
- * The MAC covers the ciphertext and the complete 16-byte nonce. This is the
- * SQLite3MC page construction, not the RFC 8439 AEAD message format.
- *
- * Sizes must include the 32 reserved bytes and be multiples of 16. This also
- * permits future fused implementations without changing the calling contract.
- * Page 1 (header/salt handling) and unauthenticated pages are handled by the
- * caller. Key material must not overlap the page buffer.
- *
- * Invalid arguments leave the buffer unchanged. On authentication failure,
- * callers must discard the page: this scalar implementation leaves ciphertext
- * intact, but a future fused implementation may have overwritten it in place.
- */
-enum
-{
-  CHACHA20_POLY1305_OK = 0,
-  CHACHA20_POLY1305_INVALID_ARGUMENT = -1,
-  CHACHA20_POLY1305_AUTH_FAILED = 1
-};
-
-SQLITE_PRIVATE int
-chacha20_poly1305_page_encrypt(void* buffer, size_t pageSize,
-                             const uint8_t otk[64], uint32_t counter)
-{
-  uint8_t* page = (uint8_t*) buffer;
-  size_t payloadSize;
-  if (page == NULL || otk == NULL || pageSize < 32 || (pageSize & 15) != 0)
-    return CHACHA20_POLY1305_INVALID_ARGUMENT;
-
-  payloadSize = pageSize - 32;
-  chacha20_xor(page, payloadSize, otk + 32, page + payloadSize, counter);
-  poly1305(page, payloadSize + 16, otk, page + payloadSize + 16);
-  return CHACHA20_POLY1305_OK;
-}
-
-SQLITE_PRIVATE int
-chacha20_poly1305_page_decrypt(void* buffer, size_t pageSize,
-                             const uint8_t otk[64], uint32_t counter)
-{
-  uint8_t* page = (uint8_t*) buffer;
-  size_t payloadSize;
-  uint8_t tag[16];
-  if (page == NULL || otk == NULL || pageSize < 32 || (pageSize & 15) != 0)
-    return CHACHA20_POLY1305_INVALID_ARGUMENT;
-
-  payloadSize = pageSize - 32;
-  poly1305(page, payloadSize + 16, otk, tag);
-  if (poly1305_tagcmp(page + payloadSize + 16, tag) != 0)
-    return CHACHA20_POLY1305_AUTH_FAILED;
-
-  /* The scalar path verifies the MAC before exposing any plaintext. */
-  chacha20_xor(page, payloadSize, otk + 32, page + payloadSize, counter);
-  return CHACHA20_POLY1305_OK;
-}
-
 /*
  * Platform-specific entropy functions for seeding RNG
  */
@@ -451,7 +341,7 @@ chacha20_poly1305_page_decrypt(void* buffer, size_t pageSize,
   * for correctness if entropy() is ever called with a larger buffer. */
 EM_JS(int, wasm_crypto_getrandom, (uint8_t* buf, size_t n),
 {
-  if (typeof crypto === 'undefined' || !crypto.getRandomValues)
+  if (typeof crypto == = 'undefined' || !crypto.getRandomValues)
     return -1;
   try
   {
@@ -750,6 +640,10 @@ void chacha20_rng(void* out, size_t n)
 }
 
 /*
+** Switching to "best" chacha20 implementation
+*/
+
+/*
 ** Use the smallest SQLite page size, 512 bytes, as threshold for activating hardware acceleration.
 ** Actually, the threshold should be at least 1024 bytes for AVX512.
 */
@@ -768,4 +662,147 @@ void chacha20_xor(void* buffer, size_t n, const uint8_t key[32],
   {
     sqleet_chacha20_xor(buffer, n, key, nonce, counter);
   }
+}
+
+/*
+** Switching to "best" poly1305 implementation
+*/
+
+typedef void (*Poly1305_t)(const uint8_t* msg, size_t n, const uint8_t key[32], uint8_t tag[16]);
+static Poly1305_t gPoly1305_impl = NULL;
+
+SQLITE_PRIVATE
+void sse2_poly1305(const uint8_t* msg, size_t n, const uint8_t key[32], uint8_t tag[16])
+{
+  /* libsodium poly1305 with SSE2 */
+  int rc = crypto_onetimeauth_poly1305_sse2(tag, msg, n, key);
+}
+
+SQLITE_PRIVATE
+void donna_poly1305(const uint8_t* msg, size_t n, const uint8_t key[32], uint8_t tag[16])
+{
+  /* libsodium poly1305 with donna code (64 / 32 bit arithmetic) */
+  int rc = crypto_onetimeauth_poly1305_donna(tag, msg, n, key);
+}
+
+static void poly1305_pick_best()
+{
+  unsigned int features = sqlite3mcCpuFeatures();
+
+#if defined(SQLITE3MC_TARGET_X86)
+
+  if (features & SQLITE3MC_CPU_SSE2)
+    gPoly1305_impl = &sse2_poly1305;
+  else
+#if defined(__x86_64__) || defined(_M_X64) || defined(_M_AMD64)
+    gPoly1305_impl = &donna_poly1305;
+#else
+    gPoly1305_impl = &sqleet_poly1305;
+#endif
+
+#elif defined(SQLITE3MC_TARGET_ARM)
+
+#if defined(__aarch64__) || defined(_M_ARM64) || defined(_M_ARM64EC)
+  gPoly1305_impl = &donna_poly1305;
+#else
+  gPoly1305_impl = &sqleet_poly1305;
+#endif
+
+#elif defined(SQLITE3MC_TARGET_PPC)
+
+/*
+** TODO: verify that libsodium's donna version works for PPC,
+**       because the implementation makes use of uint128_t.
+*/
+
+#if defined(_ARCH_PPC64)
+  gPoly1305_impl = &donna_poly1305;
+#else
+  gPoly1305_impl = &sqleet_poly1305;
+#endif
+
+#elif defined(SQLITE3MC_TARGET_WASM)
+
+/*
+** TODO: verify that SSE2 version works at all for WASM,
+**       because the implementation makes use of uint128_t.
+*/
+
+#if defined(__wasm_simd128__)
+  gPoly1305_impl = &poly1305_sse2;
+#else
+  gPoly1305_impl = &sqleet_poly1305;
+#endif
+
+#else
+
+  gPoly1305_impl = &sqleet_poly1305;
+
+#endif
+}
+
+SQLITE_PRIVATE
+void poly1305(const uint8_t* msg, size_t n, const uint8_t key[32], uint8_t tag[16])
+{
+  if (gPoly1305_impl == NULL)
+  {
+    poly1305_pick_best();
+  }
+  (gPoly1305_impl)(msg, n, key, tag);
+  uint8_t tag_sqleet[16];
+  sqleet_poly1305(msg, n, key, tag_sqleet);
+  uint8_t tag_donna[16];
+  donna_poly1305(msg, n, key, tag_donna);
+}
+
+/*
+** Switching to "best" poly1305_tagcmp implementation
+*/
+
+typedef int (*Poly1305_TagCmp_t)(const uint8_t tag1[16], const uint8_t tag2[16]);
+static Poly1305_TagCmp_t gPoly1305_tagcmp_impl = NULL;
+
+static void poly1305_tagcmp_pick_best()
+{
+  unsigned int features = sqlite3mcCpuFeatures();
+
+#if defined(SQLITE3MC_TARGET_X86)
+
+  if (features & SQLITE3MC_CPU_SSE41)
+    gPoly1305_tagcmp_impl = &poly1305_tagcmp_sse41;
+  else if (features & SQLITE3MC_CPU_SSE2)
+    gPoly1305_tagcmp_impl = &poly1305_tagcmp_sse2;
+  else
+    gPoly1305_tagcmp_impl = &poly1305_tagcmp_scalar;
+
+#elif defined(SQLITE3MC_TARGET_ARM)
+
+  if (features & SQLITE3MC_CPU_NEON)
+    gPoly1305_tagcmp_impl = &poly1305_tagcmp_neon;
+  else
+    gPoly1305_tagcmp_impl = &poly1305_tagcmp_scalar;
+
+#elif defined(SQLITE3MC_TARGET_WASM)
+
+#if defined(__wasm_simd128__)
+  gPoly1305_tagcmp_impl = &poly1305_tagcmp_wasm_simd;
+#else
+  gPoly1305_tagcmp_impl = &poly1305_tagcmp_scalar;
+#endif
+
+#else
+
+  gPoly1305_tagcmp_impl = &poly1305_tagcmp_scalar;
+
+#endif
+}
+
+SQLITE_PRIVATE
+int poly1305_tagcmp(const uint8_t tag1[16], const uint8_t tag2[16])
+{
+  if (gPoly1305_tagcmp_impl == NULL)
+  {
+    poly1305_tagcmp_pick_best();
+  }
+  return (gPoly1305_tagcmp_impl)(tag1, tag2);
 }

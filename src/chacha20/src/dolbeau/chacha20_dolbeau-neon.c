@@ -22,12 +22,6 @@
 
 # define MIN_VECTOR_BYTES 128
 
-#if 0
-typedef struct chacha_ctx {
-    uint32_t input[16];
-} chacha_ctx;
-#endif
-
 static inline uint32x4_t
 rotl32_16_neon(uint32x4_t x)
 {
@@ -109,45 +103,6 @@ dolbeau_neon_chacha20_encrypt_bytes(chacha_ctx *ctx, const uint8_t *m, uint8_t *
 }
 
 static int
-dolbeau_neon_stream_neon(unsigned char *c, unsigned long long clen, const unsigned char *n,
-            const unsigned char *k)
-{
-    struct chacha_ctx ctx;
-
-    if (clen < MIN_VECTOR_BYTES) {
-        return crypto_stream_chacha20_ref_implementation.stream(c, clen, n, k);
-    }
-    COMPILER_ASSERT(crypto_stream_chacha20_KEYBYTES == 256 / 8);
-    dolbeau_neon_chacha_keysetup(&ctx, k);
-    dolbeau_neon_chacha_ivsetup(&ctx, n, NULL);
-    memset(c, 0, clen);
-    dolbeau_neon_chacha20_encrypt_bytes(&ctx, c, c, clen);
-    sodium_memzero(&ctx, sizeof ctx);
-
-    return 0;
-}
-
-static int
-dolbeau_neon_stream_ietf_ext_neon(unsigned char *c, unsigned long long clen,
-                     const unsigned char *n, const unsigned char *k)
-{
-    struct chacha_ctx ctx;
-
-    if (clen < MIN_VECTOR_BYTES) {
-        return crypto_stream_chacha20_ref_implementation.stream_ietf_ext(
-            c, clen, n, k);
-    }
-    COMPILER_ASSERT(crypto_stream_chacha20_KEYBYTES == 256 / 8);
-    dolbeau_neon_chacha_keysetup(&ctx, k);
-    dolbeau_neon_chacha_ietf_ivsetup(&ctx, n, NULL);
-    memset(c, 0, clen);
-    dolbeau_neon_chacha20_encrypt_bytes(&ctx, c, c, clen);
-    sodium_memzero(&ctx, sizeof ctx);
-
-    return 0;
-}
-
-static int
 dolbeau_neon_stream_neon_xor_ic(unsigned char *c, const unsigned char *m,
                    unsigned long long mlen, const unsigned char *n,
                    uint64_t ic, const unsigned char *k)
@@ -196,8 +151,6 @@ dolbeau_neon_stream_ietf_ext_neon_xor_ic(unsigned char *c, const unsigned char *
 
 struct crypto_stream_chacha20_implementation
     crypto_stream_chacha20_dolbeau_neon_implementation = {
-        .stream                 = dolbeau_neon_stream_neon,
-        .stream_ietf_ext        = dolbeau_neon_stream_ietf_ext_neon,
         .stream_xor_ic          = dolbeau_neon_stream_neon_xor_ic,
         .stream_ietf_ext_xor_ic = dolbeau_neon_stream_ietf_ext_neon_xor_ic
     };

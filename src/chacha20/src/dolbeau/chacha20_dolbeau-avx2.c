@@ -30,12 +30,6 @@
 #  define DOLBEAU_ROUNDS 20
 #endif
 
-#if 0
-typedef struct chacha_ctx {
-    uint32_t input[16];
-} chacha_ctx;
-#endif
-
 static void
 dolbeau_avx2_chacha_keysetup(chacha_ctx *ctx, const uint8_t *k)
 {
@@ -87,44 +81,6 @@ dolbeau_avx2_chacha20_encrypt_bytes(chacha_ctx *ctx, const uint8_t *m, uint8_t *
 }
 
 static int
-dolbeau_avx2_stream_ref(unsigned char *c, unsigned long long clen, const unsigned char *n,
-                        const unsigned char *k)
-{
-    struct chacha_ctx ctx;
-
-    if (!clen) {
-        return 0;
-    }
-    COMPILER_ASSERT(crypto_stream_chacha20_KEYBYTES == 256 / 8);
-    dolbeau_avx2_chacha_keysetup(&ctx, k);
-    dolbeau_avx2_chacha_ivsetup(&ctx, n, NULL);
-    memset(c, 0, clen);
-    dolbeau_avx2_chacha20_encrypt_bytes(&ctx, c, c, clen);
-    sodium_memzero(&ctx, sizeof ctx);
-
-    return 0;
-}
-
-static int
-dolbeau_avx2_stream_ietf_ext_ref(unsigned char *c, unsigned long long clen,
-                    const unsigned char *n, const unsigned char *k)
-{
-    struct chacha_ctx ctx;
-
-    if (!clen) {
-        return 0;
-    }
-    COMPILER_ASSERT(crypto_stream_chacha20_KEYBYTES == 256 / 8);
-    dolbeau_avx2_chacha_keysetup(&ctx, k);
-    dolbeau_avx2_chacha_ietf_ivsetup(&ctx, n, NULL);
-    memset(c, 0, clen);
-    dolbeau_avx2_chacha20_encrypt_bytes(&ctx, c, c, clen);
-    sodium_memzero(&ctx, sizeof ctx);
-
-    return 0;
-}
-
-static int
 dolbeau_avx2_stream_ref_xor_ic(unsigned char *c, const unsigned char *m,
                   unsigned long long mlen, const unsigned char *n, uint64_t ic,
                   const unsigned char *k)
@@ -171,8 +127,6 @@ dolbeau_avx2_stream_ietf_ext_ref_xor_ic(unsigned char *c, const unsigned char *m
 
 struct crypto_stream_chacha20_implementation
     crypto_stream_chacha20_dolbeau_avx2_implementation = {
-        .stream                 = dolbeau_avx2_stream_ref,
-        .stream_ietf_ext        = dolbeau_avx2_stream_ietf_ext_ref,
         .stream_xor_ic          = dolbeau_avx2_stream_ref_xor_ic,
         .stream_ietf_ext_xor_ic = dolbeau_avx2_stream_ietf_ext_ref_xor_ic
     };

@@ -25,52 +25,6 @@
 
 static const crypto_stream_chacha20_implementation* sodium_chacha20_implementation = NULL;
 
-#if 0
-/* Functions not used in SQLite3MC context */
-
-size_t
-crypto_stream_chacha20_keybytes(void) {
-    return crypto_stream_chacha20_KEYBYTES;
-}
-
-size_t
-crypto_stream_chacha20_noncebytes(void) {
-    return crypto_stream_chacha20_NONCEBYTES;
-}
-
-size_t
-crypto_stream_chacha20_messagebytes_max(void)
-{
-    return crypto_stream_chacha20_MESSAGEBYTES_MAX;
-}
-
-size_t
-crypto_stream_chacha20_ietf_keybytes(void) {
-    return crypto_stream_chacha20_ietf_KEYBYTES;
-}
-
-size_t
-crypto_stream_chacha20_ietf_noncebytes(void) {
-    return crypto_stream_chacha20_ietf_NONCEBYTES;
-}
-
-size_t
-crypto_stream_chacha20_ietf_messagebytes_max(void)
-{
-    return crypto_stream_chacha20_ietf_MESSAGEBYTES_MAX;
-}
-#endif
-
-int
-crypto_stream_chacha20(unsigned char *c, unsigned long long clen,
-                       const unsigned char *n, const unsigned char *k)
-{
-    if (clen > crypto_stream_chacha20_MESSAGEBYTES_MAX) {
-        sodium_misuse(); /* LCOV_EXCL_LINE */
-    }
-    return sodium_chacha20_implementation->stream(c, clen, n, k);
-}
-
 int
 crypto_stream_chacha20_xor_ic(unsigned char *c, const unsigned char *m,
                               unsigned long long mlen,
@@ -81,27 +35,6 @@ crypto_stream_chacha20_xor_ic(unsigned char *c, const unsigned char *m,
         sodium_misuse(); /* LCOV_EXCL_LINE */
     }
     return sodium_chacha20_implementation->stream_xor_ic(c, m, mlen, n, ic, k);
-}
-
-int
-crypto_stream_chacha20_xor(unsigned char *c, const unsigned char *m,
-                           unsigned long long mlen, const unsigned char *n,
-                           const unsigned char *k)
-{
-    if (mlen > crypto_stream_chacha20_MESSAGEBYTES_MAX) {
-        sodium_misuse(); /* LCOV_EXCL_LINE */
-    }
-    return sodium_chacha20_implementation->stream_xor_ic(c, m, mlen, n, 0U, k);
-}
-
-int
-crypto_stream_chacha20_ietf_ext(unsigned char *c, unsigned long long clen,
-                                const unsigned char *n, const unsigned char *k)
-{
-    if (clen > crypto_stream_chacha20_MESSAGEBYTES_MAX) {
-        sodium_misuse(); /* LCOV_EXCL_LINE */
-    }
-    return sodium_chacha20_implementation->stream_ietf_ext(c, clen, n, k);
 }
 
 int
@@ -116,27 +49,6 @@ crypto_stream_chacha20_ietf_ext_xor_ic(unsigned char *c, const unsigned char *m,
     return sodium_chacha20_implementation->stream_ietf_ext_xor_ic(c, m, mlen, n, ic, k);
 }
 
-static int
-crypto_stream_chacha20_ietf_ext_xor(unsigned char *c, const unsigned char *m,
-                                    unsigned long long mlen, const unsigned char *n,
-                                    const unsigned char *k)
-{
-    if (mlen > crypto_stream_chacha20_MESSAGEBYTES_MAX) {
-        sodium_misuse(); /* LCOV_EXCL_LINE */
-    }
-    return sodium_chacha20_implementation->stream_ietf_ext_xor_ic(c, m, mlen, n, 0U, k);
-}
-
-int
-crypto_stream_chacha20_ietf(unsigned char *c, unsigned long long clen,
-                            const unsigned char *n, const unsigned char *k)
-{
-    if (clen > crypto_stream_chacha20_ietf_MESSAGEBYTES_MAX) {
-        sodium_misuse(); /* LCOV_EXCL_LINE */
-    }
-    return crypto_stream_chacha20_ietf_ext(c, clen, n, k);
-}
-
 int
 crypto_stream_chacha20_ietf_xor_ic(unsigned char *c, const unsigned char *m,
                                    unsigned long long mlen,
@@ -149,30 +61,6 @@ crypto_stream_chacha20_ietf_xor_ic(unsigned char *c, const unsigned char *m,
     }
     return crypto_stream_chacha20_ietf_ext_xor_ic(c, m, mlen, n, ic, k);
 }
-
-int
-crypto_stream_chacha20_ietf_xor(unsigned char *c, const unsigned char *m,
-                                unsigned long long mlen, const unsigned char *n,
-                                const unsigned char *k)
-{
-    if (mlen > crypto_stream_chacha20_ietf_MESSAGEBYTES_MAX) {
-        sodium_misuse(); /* LCOV_EXCL_LINE */
-    }
-    return crypto_stream_chacha20_ietf_ext_xor(c, m, mlen, n, k);
-}
-
-void
-crypto_stream_chacha20_ietf_keygen(unsigned char k[crypto_stream_chacha20_ietf_KEYBYTES])
-{
-    randombytes_buf(k, crypto_stream_chacha20_ietf_KEYBYTES);
-}
-
-void
-crypto_stream_chacha20_keygen(unsigned char k[crypto_stream_chacha20_KEYBYTES])
-{
-    randombytes_buf(k, crypto_stream_chacha20_KEYBYTES);
-}
-
 
 #define SQLITE3MC_CHACHA20_HWACCL_UNKNOWN -1
 #define SQLITE3MC_CHACHA20_HWACCL_OFF      0
