@@ -695,14 +695,20 @@ static void poly1305_pick_best()
 
 #if defined(SQLITE3MC_TARGET_X86)
 
+#if defined(HAVE_TI_MODE) || defined(SQLITE3MC_POLY1305_HAVE_128BIT)
   if (features & SQLITE3MC_CPU_SSE2)
+  {
     gPoly1305_impl = &sse2_poly1305;
+  }
   else
+#endif
+  {
 #if defined(__x86_64__) || defined(_M_X64) || defined(_M_AMD64)
     gPoly1305_impl = &donna_poly1305;
 #else
     gPoly1305_impl = &sqleet_poly1305;
 #endif
+  }
 
 #elif defined(SQLITE3MC_TARGET_ARM)
 
@@ -727,16 +733,7 @@ static void poly1305_pick_best()
 
 #elif defined(SQLITE3MC_TARGET_WASM)
 
-/*
-** TODO: verify that SSE2 version works at all for WASM,
-**       because the implementation makes use of uint128_t.
-*/
-
-#if defined(__wasm_simd128__)
-  gPoly1305_impl = &poly1305_sse2;
-#else
   gPoly1305_impl = &sqleet_poly1305;
-#endif
 
 #else
 
