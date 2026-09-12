@@ -671,12 +671,16 @@ void chacha20_xor(void* buffer, size_t n, const uint8_t key[32],
 typedef void (*Poly1305_t)(const uint8_t* msg, size_t n, const uint8_t key[32], uint8_t tag[16]);
 static Poly1305_t gPoly1305_impl = NULL;
 
+#if defined(SQLITE3MC_TARGET_X86)
+
 SQLITE_PRIVATE
 void sse2_poly1305(const uint8_t* msg, size_t n, const uint8_t key[32], uint8_t tag[16])
 {
   /* libsodium poly1305 with SSE2 */
   int rc = crypto_onetimeauth_poly1305_sse2(tag, msg, n, key);
 }
+
+#endif
 
 SQLITE_PRIVATE
 void donna_poly1305(const uint8_t* msg, size_t n, const uint8_t key[32], uint8_t tag[16])
