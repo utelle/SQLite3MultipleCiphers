@@ -30,6 +30,9 @@ typedef unsigned __int128 uint128_t;
 # else
 typedef unsigned uint128_t __attribute__((mode(TI)));
 # endif
+#if !defined(HAVE_TI_MODE)
+#define HAVE_TI_MODE 1
+#endif
 #endif
 
 #ifdef _MSC_VER
