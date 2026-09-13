@@ -12,8 +12,14 @@
 
 #if defined(__ARM_NEON) || defined(__arm__) || defined(__aarch64__) || defined(_M_ARM) || defined(_M_ARM64) || defined(_M_ARM64EC)
 #  define SQLITE3MC_TARGET_ARM 1
+#  if defined(__aarch64__) || defined(_M_ARM64) || defined(_M_ARM64EC)
+#    define SQLITE3MC_TARGET_ARM64 1
+#  endif
 #elif defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64) || defined(_M_AMD64)
 #  define SQLITE3MC_TARGET_X86 1
+#  if defined(__x86_64__) || defined(_M_X64) || defined(_M_AMD64)
+#    define SQLITE3MC_TARGET_X86_64 1
+#  endif
 #elif defined(__powerpc__) || defined(__PPC__) || defined(_ARCH_PPC) || defined(_ARCH_PPC64)
 #  define SQLITE3MC_TARGET_PPC 1
 #elif defined(__wasm__) || defined(__wasi__)
@@ -363,8 +369,8 @@ mcCpuFeaturesPpc(void)
 static unsigned int
 mcCpuFeaturesWasm(void)
 {
-#if defined(__wasm_simd128__)
-  return SQLITE3MC_CPU_SSE2 | SQLITE3MC_CPU_SSSE3; /* funktional aequivalente Ebene: 128-Bit-Generic-SIMD */
+#if defined(__wasm_simd128__) && defined(__SSS3E__)
+  return SQLITE3MC_CPU_SSE2 | SQLITE3MC_CPU_SSSE3; /* functional equivalent level: 128-bit generic SIMD */
 #else
   return SQLITE3MC_CPU_NONE;
 #endif
@@ -382,7 +388,7 @@ mcCpuFeaturesDetect(void)
 #elif defined(SQLITE3MC_TARGET_X86)
   unsigned int features = mcCpuFeaturesX86();
 # if defined(__x86_64__) || defined(_M_X64) || defined(_M_AMD64)
-  features |= SQLITE3MC_CPU_SSE2; /* zusaetzlich architektonisch garantiert */
+  features |= SQLITE3MC_CPU_SSE2;
 # endif
   return features;
 #elif defined(SQLITE3MC_TARGET_PPC)

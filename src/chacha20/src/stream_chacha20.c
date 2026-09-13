@@ -10,14 +10,14 @@
 /* libsodium reference implementation */
 #include "ref/chacha20_ref.c"
 
-#if defined(SQLITE3MC_TARGET_X86) || (defined(SQLITE3MC_TARGET_WASM) && defined(__wasm_simd128__))
+#if defined(SQLITE3MC_TARGET_X86) || (defined(SQLITE3MC_TARGET_WASM) && defined(__wasm_simd128__) && defined(__SSS3E__))
 /* Original order: avx512, avx2, ssse3 */
 # include "dolbeau/chacha20_dolbeau-ssse3.c"
 #if defined(SQLITE3MC_TARGET_X86)
 # include "dolbeau/chacha20_dolbeau-avx2.c"
 # include "dolbeau/chacha20_dolbeau-avx512.c"
 #endif
-#elif defined(SQLITE3MC_TARGET_ARM) && defined(__ARM_NEON)
+#elif defined(SQLITE3MC_TARGET_ARM64) && defined(__ARM_NEON)
 # include "dolbeau/chacha20_dolbeau-neon.c"
 #endif
 
@@ -102,7 +102,7 @@ static int gChaCha20HwAccelSelected = SQLITE3MC_CHACHA20_HWACCL_UNKNOWN;
 static int gChaCha20HwAccelMin = SQLITE3MC_CHACHA20_HWACCL_SSSE3;
 static int gChaCha20HwAccelMax = SQLITE3MC_CHACHA20_HWACCL_AVX512;
 static int gChaCha20HwAccelAuto = SQLITE3MC_CHACHA20_HWACCL_AVX2;
-#elif defined(SQLITE3MC_TARGET_ARM)
+#elif defined(SQLITE3MC_TARGET_ARM64)
 static int gChaCha20HwAccelMin = SQLITE3MC_CHACHA20_HWACCL_NEON;
 static int gChaCha20HwAccelMax = SQLITE3MC_CHACHA20_HWACCL_NEON;
 static int gChaCha20HwAccelAuto = SQLITE3MC_CHACHA20_HWACCL_OFF;
@@ -192,7 +192,7 @@ crypto_stream_chacha20_pick_best_implementation(void)
     return 0;
   }
 #endif
-#if defined(SQLITE3MC_TARGET_X86) || (defined(SQLITE3MC_TARGET_WASM) && defined(__wasm_simd128__))
+#if defined(SQLITE3MC_TARGET_X86) || (defined(SQLITE3MC_TARGET_WASM) && defined(__wasm_simd128__) && defined(__SSS3E__))
   if (gChaCha20HwAccelRequest >= SQLITE3MC_CHACHA20_HWACCL_SSSE3 &&
       sqlite3mcCpuFeatures() & SQLITE3MC_CPU_SSSE3)
   {
@@ -201,7 +201,7 @@ crypto_stream_chacha20_pick_best_implementation(void)
     return 0;
   }
 #endif
-#ifdef SQLITE3MC_TARGET_ARM
+#if defined(SQLITE3MC_TARGET_ARM64) && defined(__ARM_NEON)
   if (gChaCha20HwAccelRequest >= SQLITE3MC_CHACHA20_HWACCL_NEON &&
       sqlite3mcCpuFeatures() & SQLITE3MC_CPU_NEON)
   {
