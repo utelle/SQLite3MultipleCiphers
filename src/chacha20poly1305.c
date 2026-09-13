@@ -341,7 +341,7 @@ int poly1305_tagcmp_scalar(const uint8_t tag1[16], const uint8_t tag2[16])
   * for correctness if entropy() is ever called with a larger buffer. */
 EM_JS(int, wasm_crypto_getrandom, (uint8_t* buf, size_t n),
 {
-  if (typeof crypto == = 'undefined' || !crypto.getRandomValues)
+  if (typeof crypto === 'undefined' || !crypto.getRandomValues)
     return -1;
   try
   {
@@ -750,10 +750,6 @@ void poly1305(const uint8_t* msg, size_t n, const uint8_t key[32], uint8_t tag[1
     poly1305_pick_best();
   }
   (gPoly1305_impl)(msg, n, key, tag);
-  uint8_t tag_sqleet[16];
-  sqleet_poly1305(msg, n, key, tag_sqleet);
-  uint8_t tag_donna[16];
-  donna_poly1305(msg, n, key, tag_donna);
 }
 
 /*

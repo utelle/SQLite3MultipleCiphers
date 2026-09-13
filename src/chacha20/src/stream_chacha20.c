@@ -10,11 +10,13 @@
 /* libsodium reference implementation */
 #include "ref/chacha20_ref.c"
 
-#if defined(SQLITE3MC_TARGET_X86)
+#if defined(SQLITE3MC_TARGET_X86) || (defined(SQLITE3MC_TARGET_WASM) && defined(__wasm_simd128__))
 /* Original order: avx512, avx2, ssse3 */
 # include "dolbeau/chacha20_dolbeau-ssse3.c"
+#if defined(SQLITE3MC_TARGET_X86)
 # include "dolbeau/chacha20_dolbeau-avx2.c"
 # include "dolbeau/chacha20_dolbeau-avx512.c"
+#endif
 #elif defined(SQLITE3MC_TARGET_ARM) && defined(__ARM_NEON)
 # include "dolbeau/chacha20_dolbeau-neon.c"
 #endif
@@ -174,7 +176,6 @@ sqlite3mcChaCha20HwConfig(const char* option)
 SODIUM_EXPORT int
 crypto_stream_chacha20_pick_best_implementation(void)
 {
-#if defined(SQLITE3MC_TARGET_X86) || defined(SQLITE3MC_TARGET_WASM)
 #if defined(SQLITE3MC_TARGET_X86)
   if (gChaCha20HwAccelRequest >= SQLITE3MC_CHACHA20_HWACCL_AVX512 &&
       sqlite3mcCpuFeatures() & SQLITE3MC_CPU_AVX512F)
@@ -191,6 +192,7 @@ crypto_stream_chacha20_pick_best_implementation(void)
     return 0;
   }
 #endif
+#if defined(SQLITE3MC_TARGET_X86) || (defined(SQLITE3MC_TARGET_WASM) && defined(__wasm_simd128__))
   if (gChaCha20HwAccelRequest >= SQLITE3MC_CHACHA20_HWACCL_SSSE3 &&
       sqlite3mcCpuFeatures() & SQLITE3MC_CPU_SSSE3)
   {

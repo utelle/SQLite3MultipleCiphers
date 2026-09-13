@@ -364,7 +364,7 @@ static unsigned int
 mcCpuFeaturesWasm(void)
 {
 #if defined(__wasm_simd128__)
-  return SQLITE3MC_CPU_SSE2; /* funktional aequivalente Ebene: 128-Bit-Generic-SIMD */
+  return SQLITE3MC_CPU_SSE2 | SQLITE3MC_CPU_SSSE3; /* funktional aequivalente Ebene: 128-Bit-Generic-SIMD */
 #else
   return SQLITE3MC_CPU_NONE;
 #endif
