@@ -263,9 +263,7 @@ int poly1305_tagcmp_sse41(const uint8_t tag1[16], const uint8_t tag2[16])
   return !_mm_testz_si128(tagDifference, tagDifference);
 }
 
-#elif defined(SQLITE3MC_TARGET_ARM)
-
-#if defined(__ARM_NEON) || defined(__aarch64__) || defined(_M_ARM64) || defined(_M_ARM64EC)
+#elif defined(SQLITE3MC_TARGET_ARM64)
 
 #  ifdef USE_ARM64_NEON_H
 #    include <arm64_neon.h>
@@ -281,8 +279,6 @@ int poly1305_tagcmp_neon(const uint8_t tag1[16], const uint8_t tag2[16])
   uint8x16_t tagDifference = veorq_u8(tag1_vec, tag2_vec);
   return vmaxvq_u8(tagDifference) != 0;
 }
-
-#endif
 
 #elif defined(SQLITE3MC_TARGET_WASM)
 
@@ -831,7 +827,7 @@ static void poly1305_tagcmp_pick_best()
   else
     gPoly1305_tagcmp_impl = &poly1305_tagcmp_scalar;
 
-#elif defined(SQLITE3MC_TARGET_ARM)
+#elif defined(SQLITE3MC_TARGET_ARM64)
 
   if (features & SQLITE3MC_CPU_NEON)
     gPoly1305_tagcmp_impl = &poly1305_tagcmp_neon;
