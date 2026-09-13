@@ -473,12 +473,52 @@ static size_t entropy(void* buf, size_t n)
 #include <unistd.h>
 
 #ifdef __linux__
+#include <poll.h>
 #include <sys/ioctl.h>
 /* musl does not have <linux/random.h> so let's define RNDGETENTCNT here */
 #ifndef RNDGETENTCNT
 #define RNDGETENTCNT _IOR('R', 0x00, int)
 #endif
+
+/* Waits until the kernel's random pool is initialized, as libsodium does */
+static int wait_for_random_pool(void)
+{
+  struct pollfd pfd;
+  int fd, ret;
+
+  do
+  {
+    fd = open("/dev/random", O_RDONLY, 0);
+  }
+  while (fd == -1 && errno == EINTR);
+  if (fd == -1)
+    return 0;  /* no /dev/random: don't block, like libsodium */
+
+  /* /dev/random becomes readable once the pool is initialized */
+  pfd.fd = fd;
+  pfd.events = POLLIN;
+  pfd.revents = 0;
+  do
+  {
+    ret = poll(&pfd, 1, -1);
+  }
+  while (ret == -1 && (errno == EINTR || errno == EAGAIN));
+  close(fd);
+  return (ret == 1) ? 0 : -1;
+}
 #endif
+
+/* Returns 1 if all n bytes are zero */
+static int is_all_zero(const void* buf, size_t n)
+{
+  size_t i;
+  for (i = 0; i < n; i++)
+  {
+    if (((const uint8_t*) buf)[i] != 0)
+      return 0;
+  }
+  return 1;
+}
 
 /* Returns the number of urandom bytes read (either 0 or n) */
 static size_t read_urandom(void* buf, size_t n)
@@ -488,6 +528,12 @@ static size_t read_urandom(void* buf, size_t n)
   int fd, count;
   struct stat st;
   int errnold = errno;
+
+#ifdef __linux__
+  /* Unlike getrandom(), /dev/urandom does not wait for the pool */
+  if (wait_for_random_pool() != 0)
+    goto fail;
+#endif
 
   do
   {
@@ -524,13 +570,10 @@ static size_t read_urandom(void* buf, size_t n)
   close(fd);
 
   /* Verify that the random device returned non-zero data */
-  for (i = 0; i < n; i++)
+  if (!is_all_zero(buf, n))
   {
-    if (((uint8_t*) buf)[i] != 0)
-    {
-      errno = errnold;
-      return n;
-    }
+    errno = errnold;
+    return n;
   }
 
   /* Tiny n may unintentionally fall through! */
@@ -549,16 +592,32 @@ fail:
   #endif
 #endif
 
+#if defined(__linux__) && defined(SYS_getrandom)
+/* Returns the number of getrandom() bytes read (either 0 or n) */
+static size_t read_getrandom(void* buf, size_t n)
+{
+  size_t i = 0;
+  int errnold = errno;
+  while (i < n)
+  {
+    long ret = syscall(SYS_getrandom, (char*) buf + i, n - i, 0);
+    if (ret > 0)
+      i += (size_t) ret;  /* short read: continue */
+    else if (ret != -1 || errno != EINTR)
+      break;              /* interrupted: retry; any other error: give up */
+  }
+  errno = errnold;
+  return (i == n) ? n : 0;
+}
+#endif
+
 static size_t entropy(void* buf, size_t n)
 {
 #if defined(__APPLE__) && defined(HAVE_COMMONCRYPTO_COMMONRANDOM_H)
-  if (CCRandomGenerateBytes(buf, n) == kCCSuccess)
+  if (CCRandomGenerateBytes(buf, n) == kCCSuccess && !is_all_zero(buf, n))
     return n;
 #elif defined(__linux__) && defined(SYS_getrandom)
-  if (syscall(SYS_getrandom, buf, n, 0) == n)
-    return n;
-#elif defined(__linux__) && defined(SYS_getentropy)
-  if (syscall(SYS_getentropy, buf, n) == 0)
+  if (read_getrandom(buf, n) == n && !is_all_zero(buf, n))
     return n;
 #endif
   return read_urandom(buf, n);
