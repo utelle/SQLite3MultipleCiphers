@@ -89,7 +89,7 @@ runs:
 
     - name: Submit signing request (SignPath)
       if: ${{ inputs.mode != 'sanity' }}
-      uses: signpath/github-action-submit-signing-request@c92b958760219087e01f8d67a1669ed57afe2627 # v2.3
+      uses: signpath/github-action-submit-signing-request@f6d04783b4569d051e0c80105fe66e82819d0092 # v3.0
       with:
         api-token: '${{ inputs.api-token }}'
         organization-id: '${{ inputs.organization-id }}'
