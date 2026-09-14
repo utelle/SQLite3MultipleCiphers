@@ -353,6 +353,12 @@ static const char* VLE_CONTEXT_KEY = "vle_context";
 
 // ---------- Helper Functions ----------
 
+static void vle_freeContext(void* ctx)
+{
+  sqlite3mcSecureZeroMemory(ctx, sizeof(VleContext));
+  sqlite3_free(ctx);
+}
+
 static VleContext* vle_getContext(sqlite3* db)
 {
   VleContext* ctx = sqlite3_get_clientdata(db, VLE_CONTEXT_KEY);
@@ -364,7 +370,7 @@ static VleContext* vle_getContext(sqlite3* db)
     ctx->flags = 0;
     ctx->nonceLen = VLE_NONCE_LEN;
     ctx->tagLen = VLE_TAG_LEN;
-    sqlite3_set_clientdata(db, VLE_CONTEXT_KEY, ctx, sqlite3_free);
+    sqlite3_set_clientdata(db, VLE_CONTEXT_KEY, ctx, vle_freeContext);
   }
   return ctx;
 }
