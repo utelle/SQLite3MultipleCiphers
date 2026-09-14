@@ -43,6 +43,10 @@ jobs:
         ./sqlite3shell test/persons-aegis-testkey.db3 ".read test/test3.sql"
         ./sqlite3shell test/persons-ascon128-testkey.db3 ".read test/test4.sql"
         ./sqlite3shell dummy.db3 ".read test/sqlciphertest.sql"
+    - name: Crypto tests
+      run: |
+        make cryptotest
+        ./cryptotest
 
   android_build:
     name: Android (API ${{ matrix.api-level }})

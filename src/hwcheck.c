@@ -369,7 +369,7 @@ mcCpuFeaturesPpc(void)
 static unsigned int
 mcCpuFeaturesWasm(void)
 {
-#if defined(__wasm_simd128__) && defined(__SSS3E__)
+#if defined(__wasm_simd128__) && defined(__SSSE3__)
   return SQLITE3MC_CPU_SSE2 | SQLITE3MC_CPU_SSSE3; /* functional equivalent level: 128-bit generic SIMD */
 #else
   return SQLITE3MC_CPU_NONE;
