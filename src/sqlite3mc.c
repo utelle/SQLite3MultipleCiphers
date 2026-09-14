@@ -207,6 +207,7 @@ SQLITE_PRIVATE void sqlite3mcSecureZeroMemory(void* v, size_t n);
 #if HAVE_CIPHER_CHACHA20 || HAVE_CIPHER_SQLCIPHER || HAVE_CIPHER_ASCON128 || HAVE_CIPHER_AEGIS
 #include "fastpbkdf2.c"
 
+#include "csprng_entropy.c"
 #include "chacha20poly1305.c"
 #endif
 
