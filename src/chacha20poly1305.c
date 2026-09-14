@@ -363,32 +363,6 @@ void sse2_poly1305(const uint8_t* msg, size_t n, const uint8_t key[32], uint8_t 
 }
 
 #endif
-#if !defined(_WIN32) && !defined(__wasm__)
-  /*
-   * Detect fork(): if the current process id differs from the pid
-   * recorded on the previous call, we are running in a freshly forked
-   * child that inherited the parent's generator state via copy-on-write
-   * memory -- the same key, nonce, counter, and any not-yet-consumed
-   * buffered keystream bytes. If left as-is, both parent and child would
-   * emit the identical keystream for every buffered/future byte until
-   * the next natural reseed, which is a nonce-reuse condition and
-   * breaks the security guarantees this generator is relied on for
-   * (e.g. per-page nonces). Forcing counter = 0 triggers a reseed from
-   * a fresh entropy() call on the next iteration, and clearing
-   * available discards any keystream bytes already buffered from the
-   * parent's state so they cannot be replayed in both processes.
-   * Not applicable on Windows, which has no fork() in the POSIX sense.
-   */
-  if (currentPid != pid)
-  {
-    /* Fork detected (or first call): force a reseed and discard any
-     * buffered output that might otherwise be replayed in both
-     * parent and child. */
-    pid = currentPid;
-    counter = 0;
-    available = 0;
-  }
-#endif
 
 SQLITE_PRIVATE
 void donna_poly1305(const uint8_t* msg, size_t n, const uint8_t key[32], uint8_t tag[16])
