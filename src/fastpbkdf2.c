@@ -20,6 +20,9 @@
 #include "sha1.h"
 #include "sha2.h"
 
+/* Defined in memory_secure.c */
+SQLITE_PRIVATE void sqlite3mcSecureZeroMemory(void* v, size_t n);
+
 /* --- MSVC doesn't support C99 --- */
 #if defined(_MSC_VER) && !defined(__clang__)
 #define restrict
@@ -175,7 +178,10 @@ static inline void md_pad(uint8_t *block, size_t blocksz, size_t used, size_t ms
       /* And outer. */                                                        \
       _init(&ctx->outer);                                                     \
       _update(&ctx->outer, blk_outer, sizeof blk_outer);                      \
+      sqlite3mcSecureZeroMemory(blk_inner, sizeof blk_inner);                 \
+      sqlite3mcSecureZeroMemory(blk_outer, sizeof blk_outer);                 \
     }                                                                         \
+    sqlite3mcSecureZeroMemory(k, sizeof k);                                   \
   }                                                                           \
                                                                               \
   static inline void HMAC_UPDATE(_name)(HMAC_CTX(_name) *ctx,                 \
@@ -238,6 +244,9 @@ static inline void md_pad(uint8_t *block, size_t blocksz, size_t used, size_t ms
                                                                               \
     /* Reform result into output buffer. */                                   \
     _xtract(&result, out);                                                    \
+    sqlite3mcSecureZeroMemory(Ublock, sizeof Ublock);                         \
+    sqlite3mcSecureZeroMemory(&ctx, sizeof ctx);                              \
+    sqlite3mcSecureZeroMemory(&result, sizeof result);                        \
   }                                                                           \
                                                                               \
   static inline void PBKDF2(_name)(const uint8_t *pw, size_t npw,             \
@@ -268,7 +277,9 @@ static inline void md_pad(uint8_t *block, size_t blocksz, size_t used, size_t ms
       offset = (counter - 1) * _hashsz;                                       \
       taken = MIN(nout - offset, _hashsz);                                    \
       memcpy(out + offset, block, taken);                                     \
+      sqlite3mcSecureZeroMemory(block, sizeof block);                         \
     }                                                                         \
+    sqlite3mcSecureZeroMemory(&ctx, sizeof ctx);                              \
   }
 
 static inline void sha1_extract(sha1_ctx *restrict ctx, uint8_t *restrict out)
@@ -451,6 +462,7 @@ void sqlcipher_hmac(int algorithm, unsigned char* key, int nkey, unsigned char* 
         HMAC_sha1_update(&hctx, in2, in2_sz);
       }
       HMAC_sha1_final(&hctx, out);
+      sqlite3mcSecureZeroMemory(&hctx, sizeof(hctx));
     }
     break;
 
@@ -464,6 +476,7 @@ void sqlcipher_hmac(int algorithm, unsigned char* key, int nkey, unsigned char* 
         HMAC_sha256_update(&hctx, in2, in2_sz);
       }
       HMAC_sha256_final(&hctx, out);
+      sqlite3mcSecureZeroMemory(&hctx, sizeof(hctx));
     }
     break;
 
@@ -478,6 +491,7 @@ void sqlcipher_hmac(int algorithm, unsigned char* key, int nkey, unsigned char* 
         HMAC_sha512_update(&hctx, in2, in2_sz);
       }
       HMAC_sha512_final(&hctx, out);
+      sqlite3mcSecureZeroMemory(&hctx, sizeof(hctx));
     }
     break;
   }

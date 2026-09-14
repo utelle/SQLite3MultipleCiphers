@@ -233,7 +233,7 @@ sqlite3mcCodecTerm(Codec* codec)
     globalCodecDescriptorTable[codec->m_writeCipherType - 1].m_freeCipher(codec->m_writeCipher);
     codec->m_writeCipher = NULL;
   }
-  memset(codec, 0, sizeof(Codec));
+  sqlite3mcSecureZeroMemory(codec, sizeof(Codec));
 }
 
 SQLITE_PRIVATE void
