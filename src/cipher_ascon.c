@@ -235,7 +235,7 @@ DecryptPageAscon128Cipher(void* cipher, int page, unsigned char* data, int len, 
 {
   Ascon128Cipher* ascon128Cipher = (Ascon128Cipher*) cipher;
   int rc = SQLITE_OK;
-  int nReserved = (reserved == 0) ? 0 : GetReservedAscon128Cipher(cipher);
+  int nReserved = GetReservedAscon128Cipher(cipher);
   int n = len - nReserved;
   uint64_t clen = n;
   int tagOk;

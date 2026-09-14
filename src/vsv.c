@@ -1770,11 +1770,11 @@ static int vsvtabColumn(
 #else
                         if (!hasExtended) {
                             if (sizeof(long double) > sizeof(double)) {
-                                volatile unsigned long long i = ULLONG_MAX;
+                                volatile unsigned long long j = ULLONG_MAX;
                                 volatile long double l;
                                 volatile double d;
-                                l = i;
-                                d = i;
+                                l = j;
+                                d = j;
                                 hasExtended = (d == l) ? -1 : 1;
                             } else {
                                 hasExtended = -1;

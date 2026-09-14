@@ -22,8 +22,10 @@ static inline uint32_t load32_le_(const void* p)
   return v;
 #else
   const uint8_t* b = (const uint8_t*)p;
-  return (uint32_t)b[0] | (uint32_t)b[1] << 8
-       | (uint32_t)b[2] << 16 | (uint32_t)b[3] << 24;
+  return (uint32_t)b[0]
+       | (uint32_t)b[1] << 8
+       | (uint32_t)b[2] << 16
+       | (uint32_t)b[3] << 24;
 #endif
 }
 
@@ -94,8 +96,8 @@ static void chacha20_block(uint32_t x[16])
 }
 
 SQLITE_PRIVATE
-void chacha20_xor(void* buffer, size_t n, const uint8_t key[32],
-                  const uint8_t nonce[12], uint32_t counter)
+void sqleet_chacha20_xor(void* buffer, size_t n, const uint8_t key[32],
+                         const uint8_t nonce[12], uint32_t counter)
 {
   size_t i;
   union {
@@ -162,8 +164,8 @@ void chacha20_xor(void* buffer, size_t n, const uint8_t key[32],
  * Poly1305 authentication tags
  */
 SQLITE_PRIVATE
-void poly1305(const uint8_t* msg, size_t n, const uint8_t key[32],
-              uint8_t tag[16])
+void sqleet_poly1305(const uint8_t* msg, size_t n, const uint8_t key[32],
+                     uint8_t tag[16])
 {
   uint64_t d0, d1, d2, d3, d4;
   uint32_t h0, h1, h2, h3, h4;
@@ -231,8 +233,73 @@ process_block:
   s4 = d4; STORE32_LE(tag + 12, s4);
 }
 
+#if defined(SQLITE3MC_TARGET_X86)
+
+#include <immintrin.h>
+
+SQLITE3MC_FUNC_ISA("sse2")
 SQLITE_PRIVATE
-int poly1305_tagcmp(const uint8_t tag1[16], const uint8_t tag2[16])
+int poly1305_tagcmp_sse2(const uint8_t tag1[16], const uint8_t tag2[16])
+{
+  __m128i tag1_vec = _mm_loadu_si128((const __m128i*)tag1);
+  __m128i tag2_vec = _mm_loadu_si128((const __m128i*)tag2);
+  __m128i tagDifference = _mm_xor_si128(tag1_vec, tag2_vec);
+
+  /* Horizontal OR-Reduktion der 128 Bit auf 32 Bit,
+     rein datenunabhängige Shift-/Or-Folge. */
+  tagDifference = _mm_or_si128(tagDifference, _mm_srli_si128(tagDifference, 8));
+  tagDifference = _mm_or_si128(tagDifference, _mm_srli_si128(tagDifference, 4));
+
+  return _mm_cvtsi128_si32(tagDifference) != 0;
+}
+
+SQLITE3MC_FUNC_ISA("sse4.1")
+SQLITE_PRIVATE
+int poly1305_tagcmp_sse41(const uint8_t tag1[16], const uint8_t tag2[16])
+{
+  __m128i tag1_vec = _mm_loadu_si128((const __m128i*)tag1);
+  __m128i tag2_vec = _mm_loadu_si128((const __m128i*)tag2);
+  __m128i tagDifference = _mm_xor_si128(tag1_vec, tag2_vec);
+  return !_mm_testz_si128(tagDifference, tagDifference);
+}
+
+#elif defined(SQLITE3MC_TARGET_ARM64)
+
+#  ifdef USE_ARM64_NEON_H
+#    include <arm64_neon.h>
+#  else
+#    include <arm_neon.h>
+#  endif
+
+SQLITE_PRIVATE
+int poly1305_tagcmp_neon(const uint8_t tag1[16], const uint8_t tag2[16])
+{
+  uint8x16_t tag1_vec = vld1q_u8(tag1);
+  uint8x16_t tag2_vec = vld1q_u8(tag2);
+  uint8x16_t tagDifference = veorq_u8(tag1_vec, tag2_vec);
+  return vmaxvq_u8(tagDifference) != 0;
+}
+
+#elif defined(SQLITE3MC_TARGET_WASM)
+
+#if defined(__wasm_simd128__)
+
+#  include <wasm_simd128.h>
+
+SQLITE_PRIVATE
+int poly1305_tagcmp_wasm_simd(const uint8_t tag1[16], const uint8_t tag2[16])
+{
+  v128_t tagDifference =
+    wasm_v128_xor(wasm_v128_load(tag1), wasm_v128_load(tag2));
+  return wasm_v128_any_true(tagDifference);
+}
+
+#endif
+
+#endif
+
+SQLITE_PRIVATE
+int poly1305_tagcmp_scalar(const uint8_t tag1[16], const uint8_t tag2[16])
 {
   uint8_t d = 0;
   d |= tag1[ 0] ^ tag2[ 0];
@@ -255,388 +322,46 @@ int poly1305_tagcmp(const uint8_t tag1[16], const uint8_t tag2[16])
 }
 
 /*
- * Authenticated SQLite3MC pages without a plaintext prefix.
- *
- * pageSize includes the complete in-place buffer:
- *   [ encrypted payload | 16-byte nonce | 16-byte authentication tag ]
- * The caller initializes the nonce and derives the 64-byte one-time key:
- * otk[0..31] is the Poly1305 key; otk[32..63] is the ChaCha20 key.
- * counter is the first payload block counter, not the key-derivation counter.
- * The MAC covers the ciphertext and the complete 16-byte nonce. This is the
- * SQLite3MC page construction, not the RFC 8439 AEAD message format.
- *
- * Sizes must include the 32 reserved bytes and be multiples of 16. This also
- * permits future fused implementations without changing the calling contract.
- * Page 1 (header/salt handling) and unauthenticated pages are handled by the
- * caller. Key material must not overlap the page buffer.
- *
- * Invalid arguments leave the buffer unchanged. On authentication failure,
- * callers must discard the page: this scalar implementation leaves ciphertext
- * intact, but a future fused implementation may have overwritten it in place.
- */
-enum
-{
-  CHACHA20_POLY1305_OK = 0,
-  CHACHA20_POLY1305_INVALID_ARGUMENT = -1,
-  CHACHA20_POLY1305_AUTH_FAILED = 1
-};
-
-SQLITE_PRIVATE int
-chacha20_poly1305_page_encrypt(void* buffer, size_t pageSize,
-                             const uint8_t otk[64], uint32_t counter)
-{
-  uint8_t* page = (uint8_t*) buffer;
-  size_t payloadSize;
-  if (page == NULL || otk == NULL || pageSize < 32 || (pageSize & 15) != 0)
-    return CHACHA20_POLY1305_INVALID_ARGUMENT;
-
-  payloadSize = pageSize - 32;
-  chacha20_xor(page, payloadSize, otk + 32, page + payloadSize, counter);
-  poly1305(page, payloadSize + 16, otk, page + payloadSize + 16);
-  return CHACHA20_POLY1305_OK;
-}
-
-SQLITE_PRIVATE int
-chacha20_poly1305_page_decrypt(void* buffer, size_t pageSize,
-                             const uint8_t otk[64], uint32_t counter)
-{
-  uint8_t* page = (uint8_t*) buffer;
-  size_t payloadSize;
-  uint8_t tag[16];
-  if (page == NULL || otk == NULL || pageSize < 32 || (pageSize & 15) != 0)
-    return CHACHA20_POLY1305_INVALID_ARGUMENT;
-
-  payloadSize = pageSize - 32;
-  poly1305(page, payloadSize + 16, otk, tag);
-  if (poly1305_tagcmp(page + payloadSize + 16, tag) != 0)
-    return CHACHA20_POLY1305_AUTH_FAILED;
-
-  /* The scalar path verifies the MAC before exposing any plaintext. */
-  chacha20_xor(page, payloadSize, otk + 32, page + payloadSize, counter);
-  return CHACHA20_POLY1305_OK;
-}
-
-/*
- * Platform-specific entropy functions for seeding RNG
- */
-#if defined(__wasm__) || defined(__wasi__)
-
-#if defined(__EMSCRIPTEN__)
-#include <emscripten.h>
-
- /* Calls the Web Crypto API directly instead of relying on an opaque
-  * getentropy() shim whose actual backing implementation cannot be
-  * verified from the C side. crypto.getRandomValues() is capped at
-  * 65536 bytes per call, so large requests are chunked; not relevant
-  * for this generator's actual usage (32/12/24-byte reads), but kept
-  * for correctness if entropy() is ever called with a larger buffer. */
-EM_JS(int, wasm_crypto_getrandom, (uint8_t* buf, size_t n),
-{
-  if (typeof crypto === 'undefined' || !crypto.getRandomValues)
-    return -1;
-  try
-  {
-    var view = new Uint8Array(HEAPU8.buffer, buf, n);
-    var chunk = 65536;
-    for (var i = 0; i < n; i += chunk)
-    {
-      crypto.getRandomValues(view.subarray(i, Math.min(i + chunk, n)));
-    }
-    return 0;
-  }
-  catch (e)
-  {
-    return -1;
-  }
-});
-
-static size_t entropy(void* buf, size_t n)
-{
-  size_t i;
-  if (wasm_crypto_getrandom((uint8_t*)buf, n) != 0)
-    return 0;
-  /* Defense in depth: reject an all-zero result. */
-  for (i = 0; i < n; i++)
-  {
-    if (((uint8_t*)buf)[i] != 0)
-      return n;
-  }
-  return (n == 0) ? n : 0;
-}
-
-#elif defined(__wasi__)
-#include <wasi/api.h>
-
-static size_t entropy(void* buf, size_t n)
-{
-  size_t i;
-  if (__wasi_random_get((uint8_t*)buf, n) != __WASI_ERRNO_SUCCESS)
-    return 0;
-  for (i = 0; i < n; i++)
-  {
-    if (((uint8_t*)buf)[i] != 0)
-      return n;
-  }
-  return (n == 0) ? n : 0;
-}
-#else
-extern int getentropy(void* buf, size_t n);
-
-static size_t entropy(void* buf, size_t n)
-{
-  size_t i;
-  if (getentropy(buf, n) != 0)
-    return 0;
-  for (i = 0; i < n; i++)
-  {
-    if (((uint8_t*)buf)[i] != 0)
-      return n;
-  }
-  return (n == 0) ? n : 0;
-}
-#endif
-
-#elif defined(_WIN32) || defined(__CYGWIN__)
-
-#if SQLITE3MC_USE_RAND_S
-
-/* Force header stdlib.h to define rand_s() */
-#if !defined(_CRT_RAND_S)
-#define _CRT_RAND_S
-#endif
-#include <stdlib.h>
-
-/*
-  Provide declaration of rand_s() for MinGW-32 (not 64).
-  MinGW-32 didn't declare it prior to version 5.3.0.
+** Switching to "best" chacha20 implementation
 */
-#if defined(__MINGW32__) && defined(__MINGW32_VERSION) && __MINGW32_VERSION < 5003000L && !defined(__MINGW64_VERSION_MAJOR)
-__declspec(dllimport) int rand_s(unsigned int *);
-#endif
-
-static size_t entropy(void* buf, size_t n)
-{
-  size_t totalBytes = 0;
-  while (totalBytes < n)
-  {
-    unsigned int random32 = 0;
-    size_t j = 0;
-
-    if (rand_s(&random32))
-    {
-      /* rand_s failed */
-      return 0;
-    }
-
-    for (; (j < sizeof(random32)) && (totalBytes < n); j++, totalBytes++)
-    {
-      const uint8_t random8 = (uint8_t)(random32 >> (j * 8));
-      ((uint8_t*) buf)[totalBytes] = random8;
-    }
-  }
-  return n;
-}
-
-#else
-
-#include <windows.h>
-#define RtlGenRandom SystemFunction036
-BOOLEAN NTAPI RtlGenRandom(PVOID RandomBuffer, ULONG RandomBufferLength);
-#pragma comment(lib, "advapi32.lib")
-static size_t entropy(void* buf, size_t n)
-{
-  return RtlGenRandom(buf, (ULONG) n) ? n : 0;
-}
-
-#endif
-
-#elif defined(__linux__) || defined(__unix__) || defined(__APPLE__) || defined(__QNX__)
-
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
-#include <errno.h>
-#include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/stat.h>
-#include <sys/syscall.h>
-#include <unistd.h>
-
-#ifdef __linux__
-#include <poll.h>
-#include <sys/ioctl.h>
-/* musl does not have <linux/random.h> so let's define RNDGETENTCNT here */
-#ifndef RNDGETENTCNT
-#define RNDGETENTCNT _IOR('R', 0x00, int)
-#endif
-
-/* Waits until the kernel's random pool is initialized, as libsodium does */
-static int wait_for_random_pool(void)
-{
-  struct pollfd pfd;
-  int fd, ret;
-
-  do
-  {
-    fd = open("/dev/random", O_RDONLY, 0);
-  }
-  while (fd == -1 && errno == EINTR);
-  if (fd == -1)
-    return 0;  /* no /dev/random: don't block, like libsodium */
-
-  /* /dev/random becomes readable once the pool is initialized */
-  pfd.fd = fd;
-  pfd.events = POLLIN;
-  pfd.revents = 0;
-  do
-  {
-    ret = poll(&pfd, 1, -1);
-  }
-  while (ret == -1 && (errno == EINTR || errno == EAGAIN));
-  close(fd);
-  return (ret == 1) ? 0 : -1;
-}
-#endif
-
-/* Returns 1 if all n bytes are zero */
-static int is_all_zero(const void* buf, size_t n)
-{
-  size_t i;
-  for (i = 0; i < n; i++)
-  {
-    if (((const uint8_t*) buf)[i] != 0)
-      return 0;
-  }
-  return 1;
-}
-
-/* Returns the number of urandom bytes read (either 0 or n) */
-static size_t read_urandom(void* buf, size_t n)
-{
-  size_t i;
-  ssize_t ret;
-  int fd, count;
-  struct stat st;
-  int errnold = errno;
-
-#ifdef __linux__
-  /* Unlike getrandom(), /dev/urandom does not wait for the pool */
-  if (wait_for_random_pool() != 0)
-    goto fail;
-#endif
-
-  do
-  {
-    fd = open("/dev/urandom", O_RDONLY, 0);
-  }
-  while (fd == -1 && errno == EINTR);
-  if (fd == -1)
-    goto fail;
-  fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) | FD_CLOEXEC);
-
-  /* Check the sanity of the device node */
-  if (fstat(fd, &st) == -1 || !S_ISCHR(st.st_mode)
-                         #ifdef __linux__
-                           || ioctl(fd, RNDGETENTCNT, &count) == -1
-                         #endif
-     )
-  {
-    close(fd);
-    goto fail;
-  }
-
-  /* Read bytes */
-  for (i = 0; i < n; i += ret)
-  {
-    while ((ret = read(fd, (char *)buf + i, n - i)) == -1)
-    {
-      if (errno != EAGAIN && errno != EINTR)
-      {
-        close(fd);
-        goto fail;
-      }
-    }
-  }
-  close(fd);
-
-  /* Verify that the random device returned non-zero data */
-  if (!is_all_zero(buf, n))
-  {
-    errno = errnold;
-    return n;
-  }
-
-  /* Tiny n may unintentionally fall through! */
-fail:
-  fprintf(stderr, "bad /dev/urandom RNG\n");
-  abort(); /* PANIC! */
-  return 0;
-}
-
-#if defined(__APPLE__)
-  #if defined(__clang__) || defined(__GNUC__)
-    #if __has_include(<CommonCrypto/CommonRandom.h>)
-      #include <CommonCrypto/CommonRandom.h>
-      #define HAVE_COMMONCRYPTO_COMMONRANDOM_H 1
-    #endif
-  #endif
-#endif
-
-#if defined(__linux__) && defined(SYS_getrandom)
-/* Returns the number of getrandom() bytes read (either 0 or n) */
-static size_t read_getrandom(void* buf, size_t n)
-{
-  size_t i = 0;
-  int errnold = errno;
-  while (i < n)
-  {
-    long ret = syscall(SYS_getrandom, (char*) buf + i, n - i, 0);
-    if (ret > 0)
-      i += (size_t) ret;  /* short read: continue */
-    else if (ret != -1 || errno != EINTR)
-      break;              /* interrupted: retry; any other error: give up */
-  }
-  errno = errnold;
-  return (i == n) ? n : 0;
-}
-#endif
-
-static size_t entropy(void* buf, size_t n)
-{
-#if defined(__APPLE__) && defined(HAVE_COMMONCRYPTO_COMMONRANDOM_H)
-  if (CCRandomGenerateBytes(buf, n) == kCCSuccess && !is_all_zero(buf, n))
-    return n;
-#elif defined(__linux__) && defined(SYS_getrandom)
-  if (read_getrandom(buf, n) == n && !is_all_zero(buf, n))
-    return n;
-#endif
-  return read_urandom(buf, n);
-}
-
-#else
-# error "Secure pseudorandom number generator not implemented for this OS"
-#endif
 
 /*
- * ChaCha20 random number generator with fast key erasure: each refill
- * replaces the key with the first 32 bytes of new keystream.
- */
-#define CHACHA20_RNG_RESEED_INTERVAL 16384 /* refills (3.5 MiB of output) */
+** Use the smallest SQLite page size, 512 bytes, as threshold for activating hardware acceleration.
+** Actually, the threshold should be at least 1024 bytes for AVX512.
+*/
+#define CHACHA20_THRESHOLD 512
 
 SQLITE_PRIVATE
-void chacha20_rng(void* out, size_t n)
+void chacha20_xor(void* buffer, size_t n, const uint8_t key[32],
+                  const uint8_t nonce[12], uint32_t counter)
 {
-  static uint8_t key[32], nonce[12], buffer[256] = { 0 };
-  static uint32_t counter = 0;
-  static size_t available = 0;
-#if !defined(_WIN32) && !defined(__wasm__)
-  static pid_t pid = 0;
-  pid_t currentPid = getpid();
-#endif
-#if SQLITE_THREADSAFE
-  sqlite3_mutex* mutex = sqlite3_mutex_alloc(SQLITE_MUTEX_STATIC_PRNG);
-  sqlite3_mutex_enter(mutex);
+  int rc = 0;
+  if (n >= CHACHA20_THRESHOLD && sqlite3mcChaCha20HwAccelerated())
+  {
+    rc = crypto_stream_chacha20_ietf_xor_ic(buffer, buffer, n, nonce, counter, key);
+  }
+  else
+  {
+    sqleet_chacha20_xor(buffer, n, key, nonce, counter);
+  }
+}
+
+/*
+** Switching to "best" poly1305 implementation
+*/
+
+typedef void (*Poly1305_t)(const uint8_t* msg, size_t n, const uint8_t key[32], uint8_t tag[16]);
+static Poly1305_t gPoly1305_impl = NULL;
+
+#if defined(SQLITE3MC_TARGET_X86)
+
+SQLITE_PRIVATE
+void sse2_poly1305(const uint8_t* msg, size_t n, const uint8_t key[32], uint8_t tag[16])
+{
+  /* libsodium poly1305 with SSE2 */
+  int rc = crypto_onetimeauth_poly1305_sse2(tag, msg, n, key);
+}
+
 #endif
 #if !defined(_WIN32) && !defined(__wasm__)
   /*
@@ -665,36 +390,124 @@ void chacha20_rng(void* out, size_t n)
   }
 #endif
 
-  while (n > 0)
+SQLITE_PRIVATE
+void donna_poly1305(const uint8_t* msg, size_t n, const uint8_t key[32], uint8_t tag[16])
+{
+  /* libsodium poly1305 with donna code (64 / 32 bit arithmetic) */
+  int rc = crypto_onetimeauth_poly1305_donna(tag, msg, n, key);
+}
+
+static void poly1305_pick_best()
+{
+  unsigned int features = sqlite3mcCpuFeatures();
+
+#if defined(SQLITE3MC_TARGET_X86)
+
+#if defined(HAVE_TI_MODE) || defined(SQLITE3MC_POLY1305_HAVE_128BIT)
+  if (features & SQLITE3MC_CPU_SSE2)
   {
-    size_t m;
-    if (available == 0)
-    {
-      if (counter == 0)
-      {
-        if (entropy(key, sizeof(key)) != sizeof(key))
-          abort();
-        if (entropy(nonce, sizeof(nonce)) != sizeof(nonce))
-          abort();
-      }
-      memset(buffer, 0, sizeof(buffer));
-      chacha20_xor(buffer, sizeof(buffer), key, nonce, 0);
-      /* The first 32 bytes become the next key */
-      memcpy(key, buffer, sizeof(key));
-      memset(buffer, 0, sizeof(key));
-      available = sizeof(buffer) - sizeof(key);
-      counter = (counter + 1) % CHACHA20_RNG_RESEED_INTERVAL;
-    }
-    m = (available < n) ? available : n;
-    memcpy(out, buffer + (sizeof(buffer) - available), m);
-    /* Wipe handed-out bytes */
-    memset(buffer + (sizeof(buffer) - available), 0, m);
-    out = (uint8_t*)out + m;
-    available -= m;
-    n -= m;
+    gPoly1305_impl = &sse2_poly1305;
+  }
+  else
+#endif
+  {
+#if defined(__x86_64__) || defined(_M_X64) || defined(_M_AMD64)
+    gPoly1305_impl = &donna_poly1305;
+#else
+    gPoly1305_impl = &sqleet_poly1305;
+#endif
   }
 
-#if SQLITE_THREADSAFE
-  sqlite3_mutex_leave(mutex);
+#elif defined(SQLITE3MC_TARGET_ARM)
+
+#if defined(__aarch64__) || defined(_M_ARM64) || defined(_M_ARM64EC)
+  gPoly1305_impl = &donna_poly1305;
+#else
+  gPoly1305_impl = &sqleet_poly1305;
 #endif
+
+#elif defined(SQLITE3MC_TARGET_PPC)
+
+/*
+** TODO: verify that libsodium's donna version works for PPC,
+**       because the implementation makes use of uint128_t.
+*/
+
+#if defined(_ARCH_PPC64)
+  gPoly1305_impl = &donna_poly1305;
+#else
+  gPoly1305_impl = &sqleet_poly1305;
+#endif
+
+#elif defined(SQLITE3MC_TARGET_WASM)
+
+  gPoly1305_impl = &sqleet_poly1305;
+
+#else
+
+  gPoly1305_impl = &sqleet_poly1305;
+
+#endif
+}
+
+SQLITE_PRIVATE
+void poly1305(const uint8_t* msg, size_t n, const uint8_t key[32], uint8_t tag[16])
+{
+  if (gPoly1305_impl == NULL)
+  {
+    poly1305_pick_best();
+  }
+  (gPoly1305_impl)(msg, n, key, tag);
+}
+
+/*
+** Switching to "best" poly1305_tagcmp implementation
+*/
+
+typedef int (*Poly1305_TagCmp_t)(const uint8_t tag1[16], const uint8_t tag2[16]);
+static Poly1305_TagCmp_t gPoly1305_tagcmp_impl = NULL;
+
+static void poly1305_tagcmp_pick_best()
+{
+  unsigned int features = sqlite3mcCpuFeatures();
+
+#if defined(SQLITE3MC_TARGET_X86)
+
+  if (features & SQLITE3MC_CPU_SSE41)
+    gPoly1305_tagcmp_impl = &poly1305_tagcmp_sse41;
+  else if (features & SQLITE3MC_CPU_SSE2)
+    gPoly1305_tagcmp_impl = &poly1305_tagcmp_sse2;
+  else
+    gPoly1305_tagcmp_impl = &poly1305_tagcmp_scalar;
+
+#elif defined(SQLITE3MC_TARGET_ARM64)
+
+  if (features & SQLITE3MC_CPU_NEON)
+    gPoly1305_tagcmp_impl = &poly1305_tagcmp_neon;
+  else
+    gPoly1305_tagcmp_impl = &poly1305_tagcmp_scalar;
+
+#elif defined(SQLITE3MC_TARGET_WASM)
+
+#if defined(__wasm_simd128__)
+  gPoly1305_tagcmp_impl = &poly1305_tagcmp_wasm_simd;
+#else
+  gPoly1305_tagcmp_impl = &poly1305_tagcmp_scalar;
+#endif
+
+#else
+
+  gPoly1305_tagcmp_impl = &poly1305_tagcmp_scalar;
+
+#endif
+}
+
+SQLITE_PRIVATE
+int poly1305_tagcmp(const uint8_t tag1[16], const uint8_t tag2[16])
+{
+  if (gPoly1305_tagcmp_impl == NULL)
+  {
+    poly1305_tagcmp_pick_best();
+  }
+  return (gPoly1305_tagcmp_impl)(tag1, tag2);
 }

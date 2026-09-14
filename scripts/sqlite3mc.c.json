@@ -17,7 +17,16 @@
 		"aegis/aegis128x4/aegis128x4_common.h",
 		"aegis/aegis256/aegis256_common.h",
 		"aegis/aegis256x2/aegis256x2_common.h",
-		"aegis/aegis256x4/aegis256x4_common.h"
+		"aegis/aegis256x4/aegis256x4_common.h",
+		"chacha20/src/dolbeau/u0.h",
+		"chacha20/src/dolbeau/u1.h",
+		"chacha20/src/dolbeau/u4.h",
+		"chacha20/src/dolbeau/u8.h",
+		"chacha20/src/dolbeau/u16.h",
+		"chacha20/src/dolbeau/u0-neon.h",
+		"chacha20/src/dolbeau/u1-neon.h",
+		"chacha20/src/dolbeau/u2-neon.h",
+		"chacha20/src/dolbeau/u4-neon.h"
 	],
 	"exclude_files": [
 	]

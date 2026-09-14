@@ -444,7 +444,7 @@ LIBSODIUM_CHACHA20(chacha20LibsodiumSsse3, crypto_stream_chacha20_dolbeau_ssse3_
 LIBSODIUM_CHACHA20(chacha20LibsodiumAvx2, crypto_stream_chacha20_dolbeau_avx2_implementation)
 LIBSODIUM_CHACHA20(chacha20LibsodiumAvx512, crypto_stream_chacha20_dolbeau_avx512_implementation)
 #endif
-#if defined(SQLITE3MC_TARGET_ARM) && defined(__ARM_NEON)
+#if defined(SQLITE3MC_TARGET_ARM64) && defined(__ARM_NEON)
 LIBSODIUM_CHACHA20(chacha20LibsodiumNeon, crypto_stream_chacha20_dolbeau_neon_implementation)
 #endif
 
@@ -460,7 +460,7 @@ static const ChaCha20Implementation chacha20List[] =
   { "libsodium avx2",   chacha20LibsodiumAvx2,   SQLITE3MC_CPU_AVX2 },
   { "libsodium avx512", chacha20LibsodiumAvx512, SQLITE3MC_CPU_AVX512F },
 #endif
-#if defined(SQLITE3MC_TARGET_ARM) && defined(__ARM_NEON)
+#if defined(SQLITE3MC_TARGET_ARM64) && defined(__ARM_NEON)
   { "libsodium neon",   chacha20LibsodiumNeon,   SQLITE3MC_CPU_NEON },
 #endif
 #endif
@@ -623,7 +623,7 @@ static const TagCompareImplementation tagCompareList[] =
 #if defined(SQLITE3MC_TARGET_X86)
   { "sse2",            poly1305_tagcmp_sse2,      SQLITE3MC_CPU_SSE2 },
   { "sse41",           poly1305_tagcmp_sse41,     SQLITE3MC_CPU_SSE41 },
-#elif defined(SQLITE3MC_TARGET_ARM) && (defined(__ARM_NEON) || defined(__aarch64__) || defined(_M_ARM64) || defined(_M_ARM64EC))
+#elif defined(SQLITE3MC_TARGET_ARM64) && defined(__ARM_NEON)
   { "neon",            poly1305_tagcmp_neon,      SQLITE3MC_CPU_NEON },
 #elif defined(SQLITE3MC_TARGET_WASM) && defined(__wasm_simd128__)
   { "wasm simd",       poly1305_tagcmp_wasm_simd, 0 },
