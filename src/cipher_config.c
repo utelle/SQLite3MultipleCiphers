@@ -1074,6 +1074,7 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
         unsigned char* zHexKey = sqlite3_malloc(nValue/2);
         sqlite3mcConvertHex2Bin((const unsigned char*) pragmaValue, nValue, zHexKey);
         rc = sqlite3_key_v2(db, zDbName, zHexKey, nValue/2);
+        sqlite3mcSecureZeroMemory(zHexKey, nValue/2);
         sqlite3_free(zHexKey);
         if (rc == SQLITE_OK)
         {
@@ -1124,6 +1125,7 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
         unsigned char* zHexKey = sqlite3_malloc(nValue/2);
         sqlite3mcConvertHex2Bin((const unsigned char*) pragmaValue, nValue, zHexKey);
         rc = sqlite3_rekey_v2(db, zDbName, zHexKey, nValue/2);
+        sqlite3mcSecureZeroMemory(zHexKey, nValue/2);
         sqlite3_free(zHexKey);
         if (rc == SQLITE_OK)
         {
@@ -1289,6 +1291,7 @@ sqlite3mcCodecQueryParameters(sqlite3* db, const char* zDb, const char* zUri)
       if ((i & 1) != 0) zDecoded[i/2] = iByte;
     }
     sqlite3_key_v2(db, zDb, zDecoded, i/2);
+    sqlite3mcSecureZeroMemory(zDecoded, nKey);
     sqlite3_free(zDecoded);
   }
   else if ((zKey = sqlite3_uri_parameter(zUri, "key")) != 0)
