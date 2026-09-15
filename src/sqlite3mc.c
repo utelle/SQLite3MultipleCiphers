@@ -134,6 +134,13 @@ SQLITE_API LPWSTR sqlite3_win32_utf8_to_unicode(const char*);
 #endif
 
 /*
+** Keep temporary data in memory by default, because temporary files are not encrypted
+*/
+#ifndef SQLITE_TEMP_STORE
+#define SQLITE_TEMP_STORE 2
+#endif
+
+/*
 ** Include SQLite3 amalgamation
 */
 #include "sqlite3patched.c"
