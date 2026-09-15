@@ -211,21 +211,6 @@ enum
 };
 
 static int
-chacha20_poly1305_page_encrypt(void* buffer, size_t pageSize,
-  const uint8_t otk[64], uint32_t counter)
-{
-  uint8_t* page = (uint8_t*)buffer;
-  size_t payloadSize;
-  if (page == NULL || otk == NULL || pageSize < 32 || (pageSize & 15) != 0)
-    return CHACHA20_POLY1305_INVALID_ARGUMENT;
-
-  payloadSize = pageSize - 32;
-  chacha20_xor(page, payloadSize, otk + 32, page + payloadSize, counter);
-  poly1305(page, payloadSize + 16, otk, page + payloadSize + 16);
-  return CHACHA20_POLY1305_OK;
-}
-
-static int
 EncryptPageChaCha20Cipher(void* cipher, int page, unsigned char* data, int len, int reserved)
 {
   ChaCha20Cipher* chacha20Cipher = (ChaCha20Cipher*) cipher;
@@ -268,26 +253,12 @@ EncryptPageChaCha20Cipher(void* cipher, int page, unsigned char* data, int len, 
   counter = LOAD32_LE(data + n + PAGE_NONCE_LEN_CHACHA20 - 4) ^ page;
   chacha20_xor(otk, OTK_LEN_CHACHA20, chacha20Cipher->m_key, data + n, counter);
 
-  if (page != 1)
+  chacha20_xor(data + offset, n - offset, otk + 32, data + n, counter + 1);
+  if (page == 1 && usePlaintextHeader == 0)
   {
-    int result = chacha20_poly1305_page_encrypt(data, (size_t) len, otk, counter + 1);
-    if (result != CHACHA20_POLY1305_OK)
-    {
-      assert(result == CHACHA20_POLY1305_INVALID_ARGUMENT);
-      sqlite3mcSecureZeroMemory(otk, OTK_LEN_CHACHA20);
-      return SQLITE_MISUSE;
-    }
+    memcpy(data, chacha20Cipher->m_salt, SALTLENGTH_CHACHA20);
   }
-  else
-  {
-    /* Page 1 authenticates the salt/header as well as the ciphertext. */
-    chacha20_xor(data + offset, n - offset, otk + 32, data + n, counter + 1);
-    if (usePlaintextHeader == 0)
-    {
-      memcpy(data, chacha20Cipher->m_salt, SALTLENGTH_CHACHA20);
-    }
-    poly1305(data, n + PAGE_NONCE_LEN_CHACHA20, otk, data + n + PAGE_NONCE_LEN_CHACHA20);
-  }
+  poly1305(data, n + PAGE_NONCE_LEN_CHACHA20, otk, data + n + PAGE_NONCE_LEN_CHACHA20);
 
   /* Zero out otk array */
   sqlite3mcSecureZeroMemory(otk, OTK_LEN_CHACHA20);
@@ -306,26 +277,6 @@ chacha20_ismemset(const void* v, unsigned char value, int len)
   }
 
   return (result != 0);
-}
-
-static int
-chacha20_poly1305_page_decrypt(void* buffer, size_t pageSize,
-  const uint8_t otk[64], uint32_t counter)
-{
-  uint8_t* page = (uint8_t*)buffer;
-  size_t payloadSize;
-  uint8_t tag[16];
-  if (page == NULL || otk == NULL || pageSize < 32 || (pageSize & 15) != 0)
-    return CHACHA20_POLY1305_INVALID_ARGUMENT;
-
-  payloadSize = pageSize - 32;
-  poly1305(page, payloadSize + 16, otk, tag);
-  if (poly1305_tagcmp(page + payloadSize + 16, tag) != 0)
-    return CHACHA20_POLY1305_AUTH_FAILED;
-
-  /* The scalar path verifies the MAC before exposing any plaintext. */
-  chacha20_xor(page, payloadSize, otk + 32, page + payloadSize, counter);
-  return CHACHA20_POLY1305_OK;
 }
 
 static int
@@ -366,73 +317,38 @@ DecryptPageChaCha20Cipher(void* cipher, int page, unsigned char* data, int len, 
     return (page == 1) ? SQLITE_NOTADB : SQLITE_CORRUPT;
   }
 
-  /* Decrypt and verify MAC */
+  /* Determine and verify MAC */
   memset(otk, 0, OTK_LEN_CHACHA20);
   counter = LOAD32_LE(data + n + PAGE_NONCE_LEN_CHACHA20 - 4) ^ page;
   chacha20_xor(otk, OTK_LEN_CHACHA20, chacha20Cipher->m_key, data + n, counter);
 
-  if (page != 1 && hmacCheck != 0)
+  poly1305(data, n + PAGE_NONCE_LEN_CHACHA20, otk, tag);
+  if (hmacCheck != 0)
   {
-    int result = chacha20_poly1305_page_decrypt(data, (size_t) len, otk, counter + 1);
-    if (result != CHACHA20_POLY1305_OK)
+    /* Verify the MAC */
+    if (poly1305_tagcmp(data + n + PAGE_NONCE_LEN_CHACHA20, tag))
     {
-      if (result != CHACHA20_POLY1305_AUTH_FAILED)
-      {
-        assert(result == CHACHA20_POLY1305_INVALID_ARGUMENT);
-        sqlite3mcSecureZeroMemory(otk, OTK_LEN_CHACHA20);
-        return SQLITE_MISUSE;
-      }
-
       SQLITE3MC_DEBUG_LOG("decrypt: codec=%p page=%d\n", chacha20Cipher, page);
       SQLITE3MC_DEBUG_HEX("decrypt key:", chacha20Cipher->m_key, 32);
       SQLITE3MC_DEBUG_HEX("decrypt otk:", otk, OTK_LEN_CHACHA20);
       SQLITE3MC_DEBUG_HEX("decrypt data+00:", data, 16);
       SQLITE3MC_DEBUG_HEX("decrypt data+24:", data + 24, 16);
       SQLITE3MC_DEBUG_HEX("decrypt data+n:", data + n, 16);
-#ifdef SQLITE3MC_DEBUG_DATA
-      poly1305(data, n + PAGE_NONCE_LEN_CHACHA20, otk, tag);
       SQLITE3MC_DEBUG_HEX("decrypt tag r:", data + n + PAGE_NONCE_LEN_CHACHA20, PAGE_TAG_LEN_CHACHA20);
       SQLITE3MC_DEBUG_HEX("decrypt tag c:", tag, PAGE_TAG_LEN_CHACHA20);
-#endif
-
-      /* A future fused implementation may already have overwritten data. */
-      sqlite3mcSecureZeroMemory(otk, OTK_LEN_CHACHA20);
-      sqlite3mcSecureZeroMemory(data, len);
-      return SQLITE_CORRUPT;
+      /* Bad MAC */
+      rc = (page == 1) ? SQLITE_NOTADB : SQLITE_CORRUPT;
     }
   }
-  else
+
+  /* Decrypt only after MAC is verified (or if check is bypassed). */
+  if (rc == SQLITE_OK)
   {
-    /* Preserve page-1 handling and the explicit MAC-check bypass. */
-    if (hmacCheck != 0)
-    {
-      poly1305(data, n + PAGE_NONCE_LEN_CHACHA20, otk, tag);
-
-      /* Verify the MAC */
-      if (poly1305_tagcmp(data + n + PAGE_NONCE_LEN_CHACHA20, tag))
-      {
-        SQLITE3MC_DEBUG_LOG("decrypt: codec=%p page=%d\n", chacha20Cipher, page);
-        SQLITE3MC_DEBUG_HEX("decrypt key:", chacha20Cipher->m_key, 32);
-        SQLITE3MC_DEBUG_HEX("decrypt otk:", otk, OTK_LEN_CHACHA20);
-        SQLITE3MC_DEBUG_HEX("decrypt data+00:", data, 16);
-        SQLITE3MC_DEBUG_HEX("decrypt data+24:", data + 24, 16);
-        SQLITE3MC_DEBUG_HEX("decrypt data+n:", data + n, 16);
-        SQLITE3MC_DEBUG_HEX("decrypt tag r:", data + n + PAGE_NONCE_LEN_CHACHA20, PAGE_TAG_LEN_CHACHA20);
-        SQLITE3MC_DEBUG_HEX("decrypt tag c:", tag, PAGE_TAG_LEN_CHACHA20);
-
-        /* Bad MAC: Clean up and bail out BEFORE decrypting */
-        sqlite3mcSecureZeroMemory(otk, OTK_LEN_CHACHA20);
-        return (page == 1) ? SQLITE_NOTADB : SQLITE_CORRUPT;
-      }
-    }
-
-    /* Decrypt only after MAC is verified (or if check is bypassed). */
     chacha20_xor(data + offset, n - offset, otk + 32, data + n, counter + 1);
-  }
-
-  if (page == 1 && usePlaintextHeader == 0)
-  {
-    memcpy(data, SQLITE_FILE_HEADER, 16);
+    if (page == 1 && usePlaintextHeader == 0)
+    {
+      memcpy(data, SQLITE_FILE_HEADER, 16);
+    }
   }
 
   /* Zero out otk array */
