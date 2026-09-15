@@ -8,6 +8,21 @@
 */
 
 /*
+** Keep temporary data in memory by default
+**
+** Temporary files (for example temporary tables, sort data and transient
+** databases) are not encrypted. The default applies only if SQLITE_TEMP_STORE
+** is not defined. Possible values:
+**   0 = always use temporary files
+**   1 = use temporary files, unless PRAGMA temp_store=MEMORY (SQLite's default)
+**   2 = use memory, unless PRAGMA temp_store=FILE
+**   3 = always use memory
+*/
+#ifndef SQLITE_TEMP_STORE
+#define SQLITE_TEMP_STORE 2
+#endif
+
+/*
 ** If SQLite functions should be called through a dispatch table,
 ** thus hiding all SQLite function symbols from the linker,
 ** define the symbol SQLITE3MC_USE_DISPATCH_TABLE.
