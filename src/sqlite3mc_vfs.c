@@ -816,7 +816,7 @@ static int mcIoRead(sqlite3_file* pFile, void* buffer, int count, sqlite3_int64 
 {
   sqlite3mc_file* mcFile = (sqlite3mc_file*) pFile;
   int rc = REALFILE(pFile)->pMethods->xRead(REALFILE(pFile), buffer, count, offset);
-  if (rc == SQLITE_IOERR_SHORT_READ)
+  if (rc != SQLITE_OK)
   {
     return rc;
   }
