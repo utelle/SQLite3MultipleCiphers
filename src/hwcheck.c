@@ -471,6 +471,7 @@ sqlite3mcHardwareInfo()
       {
         offset += snprintf(hwInfoBuf + offset, sizeof(hwInfoBuf) - offset,
                            (writeDelim == 0) ? "%s" : ", %s", featureTags[k].name);
+        if (offset >= sizeof(hwInfoBuf)) break;
         writeDelim = 1;
       }
       ++k;
