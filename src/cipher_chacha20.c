@@ -183,33 +183,6 @@ GenerateKeyChaCha20Cipher(void* cipher, char* userPassword, int passwordLength, 
   SQLITE3MC_DEBUG_HEX("generate salt:", chacha20Cipher->m_salt, SALTLENGTH_CHACHA20);
 }
 
-/*
- * Authenticated SQLite3MC pages without a plaintext prefix.
- *
- * pageSize includes the complete in-place buffer:
- *   [ encrypted payload | 16-byte nonce | 16-byte authentication tag ]
- * The caller initializes the nonce and derives the 64-byte one-time key:
- * otk[0..31] is the Poly1305 key; otk[32..63] is the ChaCha20 key.
- * counter is the first payload block counter, not the key-derivation counter.
- * The MAC covers the ciphertext and the complete 16-byte nonce. This is the
- * SQLite3MC page construction, not the RFC 8439 AEAD message format.
- *
- * Sizes must include the 32 reserved bytes and be multiples of 16. This also
- * permits future fused implementations without changing the calling contract.
- * Page 1 (header/salt handling) and unauthenticated pages are handled by the
- * caller. Key material must not overlap the page buffer.
- *
- * Invalid arguments leave the buffer unchanged. On authentication failure,
- * callers must discard the page: this scalar implementation leaves ciphertext
- * intact, but a future fused implementation may have overwritten it in place.
- */
-enum
-{
-  CHACHA20_POLY1305_OK = 0,
-  CHACHA20_POLY1305_INVALID_ARGUMENT = -1,
-  CHACHA20_POLY1305_AUTH_FAILED = 1
-};
-
 static int
 EncryptPageChaCha20Cipher(void* cipher, int page, unsigned char* data, int len, int reserved)
 {
