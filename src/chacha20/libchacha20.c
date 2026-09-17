@@ -35,14 +35,6 @@ typedef struct chacha_ctx {
 } chacha_ctx;
 
 #include "src/stream_chacha20.c"
-
-/*
-** Support functions for XChaCha20
-** TODO: Implement XChaCha20 cipher scheme
-*/
-#include "src/core_hchacha20.c"
-#include "src/stream_xchacha20.c"
-
 #include "src/onetimeauth_poly1305.c"
 
 #undef SODIUM_STATIC
