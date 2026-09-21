@@ -48,6 +48,14 @@ jobs:
         make cryptotest
         ./cryptotest
 
+    - name: Temporary file tests
+      run: |
+        make tempfiletest
+        ./tempfiletest 20000
+        ./tempfiletest 20000 1 faults
+        ./tempfiletest 20000 1 db4096
+        ./tempfiletest 20000 1 chunk faults
+
   android_build:
     name: Android (API ${{ matrix.api-level }})
     runs-on: ubuntu-latest
