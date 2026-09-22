@@ -568,3 +568,111 @@ project "sqlite3mc_shellicu"
     else
       targetdir "bin/gcc/lib/release"
     end
+
+-- SQLite3 Test Crypto
+project "sqlite3mc_test_crypto"
+  kind "ConsoleApp"
+  language "C++"
+
+  if (is_msvc) then
+    local prj = project()
+    prj.filename = "sqlite3mc_" .. vc_with_ver .. "_test_crypto"
+    if (msvc_useProps) then
+      wxUseProps(true)
+    end
+  else
+    toolset("gcc")
+  end
+  makesettings { "include config.gcc" }
+
+  vpaths {
+    ["Header Files"] = { "**.h" },
+    ["Source Files"] = { "**.c", "**.rc" }
+  }
+  files { "test/cryptotest.c", "src/sqlite3mc_test.rc" }
+  characterset ("Unicode")
+  staticruntime "On"
+  includedirs { "src", "src/aegis/include", "src/argon2/include" }
+
+  location( BUILDDIR )
+
+  defines {
+    "SQLITE3MC_USE_MINIZ=$(SQLITE3MC_USE_MINIZ)",
+    "SQLITE_SHELL_IS_UTF8=1",
+    "SQLITE_ENABLE_SESSION=1",
+    "SQLITE_ENABLE_DBPAGE_VTAB=1"
+  }
+
+  -- Intermediate directory
+  if (is_msvc) then
+    objdir (BUILDDIR .. "/obj/" .. vc_with_ver)
+  else
+    objdir (BUILDDIR .. "/obj/gcc")
+  end
+  -- Target directory
+  filter { "configurations:Debug*" }
+    if (is_msvc) then
+      targetdir ("bin/" .. vc_with_ver .. "/lib/debug")
+    else
+      targetdir "bin/gcc/lib/debug"
+    end
+  filter { "configurations:Release*" }
+    if (is_msvc) then
+      targetdir ("bin/" .. vc_with_ver .. "/lib/release")
+    else
+      targetdir "bin/gcc/lib/release"
+    end
+
+-- SQLite3 Test Tempfile
+project "sqlite3mc_test_tempfile"
+  kind "ConsoleApp"
+  language "C++"
+
+  if (is_msvc) then
+    local prj = project()
+    prj.filename = "sqlite3mc_" .. vc_with_ver .. "_test_tempfile"
+    if (msvc_useProps) then
+      wxUseProps(true)
+    end
+  else
+    toolset("gcc")
+  end
+  makesettings { "include config.gcc" }
+
+  vpaths {
+    ["Header Files"] = { "**.h" },
+    ["Source Files"] = { "**.c", "**.rc" }
+  }
+  files { "test/tempfiletest.c", "src/sqlite3mc_test.rc" }
+  characterset ("Unicode")
+  staticruntime "On"
+  includedirs { "src", "src/aegis/include", "src/argon2/include" }
+
+  location( BUILDDIR )
+
+  defines {
+    "SQLITE3MC_USE_MINIZ=$(SQLITE3MC_USE_MINIZ)",
+    "SQLITE_SHELL_IS_UTF8=1",
+    "SQLITE_ENABLE_SESSION=1",
+    "SQLITE_ENABLE_DBPAGE_VTAB=1"
+  }
+
+  -- Intermediate directory
+  if (is_msvc) then
+    objdir (BUILDDIR .. "/obj/" .. vc_with_ver)
+  else
+    objdir (BUILDDIR .. "/obj/gcc")
+  end
+  -- Target directory
+  filter { "configurations:Debug*" }
+    if (is_msvc) then
+      targetdir ("bin/" .. vc_with_ver .. "/lib/debug")
+    else
+      targetdir "bin/gcc/lib/debug"
+    end
+  filter { "configurations:Release*" }
+    if (is_msvc) then
+      targetdir ("bin/" .. vc_with_ver .. "/lib/release")
+    else
+      targetdir "bin/gcc/lib/release"
+    end

@@ -20,7 +20,7 @@
 ** The content in this amalgamation comes from Fossil check-in
 ** bf7c7f30031888f4e796e429ab3978879485 with changes in files:
 **
-**    
+**
 */
 #ifndef SQLITE_AMALGAMATION
 #define SQLITE_CORE 1
@@ -14668,7 +14668,7 @@ struct fts5_api {
 
 /******** End of fts5.h *********/
 #endif /* SQLITE3_H */
- 
+
 /* Function prototypes of SQLite3 Multiple Ciphers */
 SQLITE_PRIVATE int sqlite3mcCheckVfs(const char*);
 SQLITE_PRIVATE int sqlite3mcFileControlPragma(sqlite3*, const char*, int, void*);
@@ -14677,6 +14677,8 @@ SQLITE_PRIVATE int sqlite3mcHandleMainKey(sqlite3*, const char*);
 typedef struct PgHdr PgHdrMC;
 SQLITE_PRIVATE void* sqlite3mcPagerCodec(PgHdrMC* pPg);
 typedef struct Pager PagerMC;
+SQLITE_PRIVATE int sqlite3mcOpenTempFile(PagerMC* pPager, sqlite3_file* pFile);
+SQLITE_PRIVATE int sqlite3mcOpenTempJournal(sqlite3* pDb, sqlite3_file* pFile);
 SQLITE_PRIVATE int sqlite3mcPagerHasCodec(PagerMC* pPager);
 SQLITE_PRIVATE void sqlite3mcInitMemoryMethods();
 SQLITE_PRIVATE int sqlite3mcIsBackupSupported(sqlite3*, const char*, sqlite3*, const char*);
@@ -60362,6 +60364,7 @@ struct Pager {
 #ifdef SQLITE_ENABLE_SETLK_TIMEOUT
   sqlite3 *dbWal;
 #endif
+  sqlite3* mcDb;
 };
 
 /*
@@ -63402,6 +63405,7 @@ static int pagerOpentemp(
             SQLITE_OPEN_EXCLUSIVE | SQLITE_OPEN_DELETEONCLOSE;
   rc = sqlite3OsOpen(pPager->pVfs, 0, pFile, vfsFlags, 0);
   assert( rc!=SQLITE_OK || isOpen(pFile) );
+  sqlite3mcOpenTempFile(pPager, pFile);
   return rc;
 }
 
@@ -64234,6 +64238,7 @@ static int openSubJournal(Pager *pPager){
       nStmtSpill = -1;
     }
     rc = sqlite3JournalOpen(pPager->pVfs, 0, pPager->sjfd, flags, nStmtSpill);
+    sqlite3mcOpenTempFile(pPager, pPager->sjfd);
   }
   return rc;
 }
@@ -65577,6 +65582,7 @@ static int pager_open_journal(Pager *pPager){
           rc = sqlite3JournalOpen (
               pVfs, pPager->zJournal, pPager->jfd, flags, nSpill
           );
+          sqlite3mcOpenTempFile(pPager, pPager->jfd);
         }
       }
       assert( rc!=SQLITE_OK || isOpen(pPager->jfd) );
@@ -75932,6 +75938,7 @@ SQLITE_PRIVATE int sqlite3BtreeOpen(
     rc = sqlite3PagerOpen(pVfs, &pBt->pPager, zFilename,
                           sizeof(MemPage), flags, vfsFlags, pageReinit);
     if( rc==SQLITE_OK ){
+      pBt->pPager->mcDb = db;
       sqlite3PagerSetMmapLimit(pBt->pPager, db->szMmap);
       rc = sqlite3PagerReadFileheader(pBt->pPager,sizeof(zDbHeader),zDbHeader);
     }
@@ -107897,6 +107904,7 @@ static int vdbeSorterOpenTempFile(
   );
   if( rc==SQLITE_OK ){
     i64 max = SQLITE_MAX_MMAP_SIZE;
+    sqlite3mcOpenTempJournal(db, *ppFd);
     sqlite3OsFileControlHint(*ppFd, SQLITE_FCNTL_MMAP_SIZE, (void*)&max);
     if( nExtend>0 ){
       vdbeSorterExtendFile(db, *ppFd, nExtend);

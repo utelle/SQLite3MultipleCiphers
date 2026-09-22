@@ -37,6 +37,7 @@ struct sqlite3mc_file
   sqlite3mc_file* pMainDb;     /* Main database to which this one is attached */
   Codec* codec;                /* Codec if encrypted */
   int pageNo;                  /* Page number (in case of journal files) */
+  int pageSize;                /* Page size of temporary or transient database */
   mcTempCipher* tempCipher;    /* Cipher of a temporary file opened without a name */
 };
 
@@ -155,7 +156,7 @@ struct mcTempCipher
 /*
 ** Create the cipher of a temporary file with a fresh random key
 */
-static mcTempCipher* mcTempCreate(void)
+static mcTempCipher* mcTempCipherCreate(void)
 {
   mcTempCipher* pTemp = (mcTempCipher*) sqlite3_malloc(sizeof(mcTempCipher));
   if (pTemp != NULL)
@@ -171,7 +172,7 @@ static mcTempCipher* mcTempCreate(void)
 /*
 ** Wipe and release the cipher of a temporary file
 */
-static void mcTempFree(mcTempCipher* pTemp)
+static void mcTempCipherFree(mcTempCipher* pTemp)
 {
   if (pTemp != NULL)
   {
@@ -188,7 +189,7 @@ static void mcTempFree(mcTempCipher* pTemp)
 /*
 ** The work buffer is allocated when the first write has settled the block size
 */
-static int mcTempBuffer(mcTempCipher* pTemp)
+static int mcTempBufferAllocated(mcTempCipher* pTemp)
 {
   if (pTemp->buffer == NULL)
   {
@@ -209,7 +210,7 @@ static sqlite3_int64 mcTempSlot(mcTempCipher* pTemp, sqlite3_int64 iBlock)
 /*
 ** Payload bytes of a block that belong to the file
 */
-static int mcTempValid(mcTempCipher* pTemp, sqlite3_int64 iBlock)
+static int mcTempBlockValid(mcTempCipher* pTemp, sqlite3_int64 iBlock)
 {
   sqlite3_int64 start = iBlock * pTemp->blockSize;
   if (pTemp->size <= start) return 0;
@@ -220,7 +221,7 @@ static int mcTempValid(mcTempCipher* pTemp, sqlite3_int64 iBlock)
 ** Blocks whose rewrite failed are unreadable; if there are more of them than
 ** can be remembered, the whole file is treated as unreadable
 */
-static int mcTempIsBroken(mcTempCipher* pTemp, sqlite3_int64 iBlock)
+static int mcTempBlockIsBroken(mcTempCipher* pTemp, sqlite3_int64 iBlock)
 {
   int i;
   if (pTemp->allBroken) return 1;
@@ -231,9 +232,9 @@ static int mcTempIsBroken(mcTempCipher* pTemp, sqlite3_int64 iBlock)
   return 0;
 }
 
-static void mcTempMarkBroken(mcTempCipher* pTemp, sqlite3_int64 iBlock)
+static void mcTempBlockMarkBroken(mcTempCipher* pTemp, sqlite3_int64 iBlock)
 {
-  if (mcTempIsBroken(pTemp, iBlock)) return;
+  if (mcTempBlockIsBroken(pTemp, iBlock)) return;
   if (pTemp->nBroken < MC_TEMP_MAX_BROKEN) pTemp->aBroken[pTemp->nBroken++] = iBlock;
   else pTemp->allBroken = 1;
 }
@@ -255,8 +256,10 @@ static void mcTempClearBrokenFrom(mcTempCipher* pTemp, sqlite3_int64 iFirst)
   int i;
   for (i = 0; i < pTemp->nBroken; )
   {
-    if (pTemp->aBroken[i] >= iFirst) pTemp->aBroken[i] = pTemp->aBroken[--pTemp->nBroken];
-    else i++;
+    if (pTemp->aBroken[i] >= iFirst)
+      pTemp->aBroken[i] = pTemp->aBroken[--pTemp->nBroken];
+    else
+      i++;
   }
 }
 
@@ -331,7 +334,7 @@ static void mcTempDropTail(sqlite3mc_file* mcFile)
   {
     if (pReal->pMethods->xWrite(pReal, zero, MC_TEMP_HEADER, b * slot) != SQLITE_OK)
     {
-      mcTempMarkBroken(pTemp, b);
+      mcTempBlockMarkBroken(pTemp, b);
       pTemp->tailStale = 1;
     }
     b++;
@@ -355,16 +358,16 @@ static int mcTempRead(sqlite3mc_file* mcFile, void* buffer, int count, sqlite3_i
     sqlite3_int64 iBlock = pos / pTemp->blockSize;
     int iOff = (int) (pos % pTemp->blockSize);
     int n = (pTemp->blockSize - iOff < end - pos) ? pTemp->blockSize - iOff : (int) (end - pos);
-    int nValid = mcTempValid(pTemp, iBlock);
+    int nValid = mcTempBlockValid(pTemp, iBlock);
     int nDecrypt = 0;
     uint8_t* data = (uint8_t*) buffer + (pos - offset);
 
-    if (mcTempIsBroken(pTemp, iBlock)) return SQLITE_IOERR_READ;
+    if (mcTempBlockIsBroken(pTemp, iBlock)) return SQLITE_IOERR_READ;
     if (iOff < nValid)
     {
       int nRead = MC_TEMP_HEADER + iOff + n;
       sqlite3_uint64 counter;
-      if (mcTempBuffer(pTemp) != SQLITE_OK) return SQLITE_NOMEM;
+      if (mcTempBufferAllocated(pTemp) != SQLITE_OK) return SQLITE_NOMEM;
       int rcRead = pReal->pMethods->xRead(pReal, pTemp->buffer, nRead, mcTempSlot(pTemp, iBlock));
       if (rcRead != SQLITE_OK && rcRead != SQLITE_IOERR_SHORT_READ) return rcRead;
       counter = mcTempCounterOf(pTemp->buffer);
@@ -413,7 +416,7 @@ static int mcTempFillTail(sqlite3mc_file* mcFile, sqlite3_int64 iBlock)
   sqlite3_int64 iLast = (pTemp->size > 0) ? (pTemp->size - 1) / pTemp->blockSize : -1;
   int nValid, nFill;
   if (iLast < 0 || iLast >= iBlock) return SQLITE_OK;
-  nValid = mcTempValid(pTemp, iLast);
+  nValid = mcTempBlockValid(pTemp, iLast);
   if (nValid == 0 || nValid == pTemp->blockSize) return SQLITE_OK;
   for (nFill = pTemp->blockSize - nValid; nFill > 0; )
   {
@@ -435,14 +438,16 @@ static int mcTempWrite(sqlite3mc_file* mcFile, const void* buffer, int count, sq
   sqlite3_int64 pos, end = offset + count;
   int rc;
   assert(offset >= 0 && count >= 0);
-  if (pTemp->buffer == NULL && (mcFile->openFlags & (SQLITE_OPEN_TEMP_DB | SQLITE_OPEN_TRANSIENT_DB)) &&
+  if (pTemp->buffer == NULL &&
+      (mcFile->openFlags & (SQLITE_OPEN_TEMP_DB | SQLITE_OPEN_TRANSIENT_DB)) &&
       count >= 512 && count <= MC_TEMP_MAX_BLOCK && (count & (count - 1)) == 0 && offset % count == 0)
   {
     /* A database uses its page size as block size, so that writing a page
     ** never rewrites another; the first write tells the size */
     pTemp->blockSize = count;
   }
-  if (mcTempBuffer(pTemp) != SQLITE_OK) return SQLITE_NOMEM;
+  if (mcTempBufferAllocated(pTemp) != SQLITE_OK) return SQLITE_NOMEM;
+
   if (offset > pTemp->size)
   {
     /* Only the last block of a file may be incomplete, and nothing that a
@@ -456,7 +461,7 @@ static int mcTempWrite(sqlite3mc_file* mcFile, const void* buffer, int count, sq
     sqlite3_int64 iBlock = pos / pTemp->blockSize;
     int iOff = (int) (pos % pTemp->blockSize);
     int n = (pTemp->blockSize - iOff < end - pos) ? pTemp->blockSize - iOff : (int) (end - pos);
-    int nValid = mcTempValid(pTemp, iBlock);
+    int nValid = mcTempBlockValid(pTemp, iBlock);
     sqlite3_uint64 counter;
     int iStart;  /* First byte of the block to encrypt and write */
     int nKeep;   /* Bytes at the start of the block whose content is kept */
@@ -477,7 +482,7 @@ static int mcTempWrite(sqlite3mc_file* mcFile, const void* buffer, int count, sq
       if (nValid > 0 && (iOff > 0 || iOff + n < nValid))
       {
         sqlite3_uint64 old;
-        if (mcTempIsBroken(pTemp, iBlock)) return SQLITE_IOERR_WRITE;
+        if (mcTempBlockIsBroken(pTemp, iBlock)) return SQLITE_IOERR_WRITE;
         nKeep = nValid;
         rc = pReal->pMethods->xRead(pReal, pTemp->buffer, MC_TEMP_HEADER + nKeep, mcTempSlot(pTemp, iBlock));
         if (rc != SQLITE_OK) return (rc == SQLITE_IOERR_SHORT_READ) ? SQLITE_IOERR_READ : rc;
@@ -502,7 +507,7 @@ static int mcTempWrite(sqlite3mc_file* mcFile, const void* buffer, int count, sq
       ** already valid, reading the block fails until it is written completely
       ** again, because half of it may still be encrypted with the old counter
       ** value. */
-      if (iStart < nValid) mcTempMarkBroken(pTemp, iBlock);
+      if (iStart < nValid) mcTempBlockMarkBroken(pTemp, iBlock);
       mcTempDropTail(mcFile);
       return rc;
     }
@@ -751,6 +756,71 @@ SQLITE_PRIVATE Codec* sqlite3mcGetMainCodec(sqlite3* db)
   return sqlite3mcGetCodec(db, "main");
 }
 
+SQLITE_PRIVATE int sqlite3mcIsAnyDbEncrypted(sqlite3* db)
+{
+  int encrypted = -1;
+  if (db != NULL)
+  {
+    int nDb = db->nDb;
+    int j;
+    encrypted = 0;
+    for (j = 0; j < nDb; ++j)
+    {
+      if (j == 1) continue;
+      Codec* codec = sqlite3mcGetCodec(db, db->aDb[j].zDbSName);
+      if (codec != NULL && sqlite3mcIsEncrypted(codec))
+      {
+        encrypted = 1;
+        break;
+      }
+    }
+  }
+  return encrypted;
+}
+
+SQLITE_PRIVATE int sqlite3mcOpenTempFile(Pager* pPager, sqlite3_file* pFile)
+{
+  if (pFile != NULL &&
+      (pFile->pMethods == &mcIoMethodsGlobal1 ||
+       pFile->pMethods == &mcIoMethodsGlobal2 ||
+       pFile->pMethods == &mcIoMethodsGlobal3))
+  {
+    sqlite3mc_file* mcFile = (sqlite3mc_file*)pFile;
+    mcFile->pageSize = (int)pPager->pageSize;
+
+    if (sqlite3mcIsAnyDbEncrypted(pPager->mcDb) == 0)
+    {
+      /* Remove temp cipher, if no database within this connection is encrypted */
+      if (mcFile->tempCipher != NULL)
+      {
+        mcTempCipherFree(mcFile->tempCipher);
+        mcFile->tempCipher = 0;
+      }
+    }
+  }
+  return 0;
+}
+
+SQLITE_PRIVATE int sqlite3mcOpenTempJournal(sqlite3* pDb, sqlite3_file* pFile)
+{
+  if (pFile != NULL &&
+      (pFile->pMethods == &mcIoMethodsGlobal1 ||
+       pFile->pMethods == &mcIoMethodsGlobal2 ||
+       pFile->pMethods == &mcIoMethodsGlobal3))
+  {
+    sqlite3mc_file* mcFile = (sqlite3mc_file*)pFile;
+    if (sqlite3mcIsAnyDbEncrypted(pDb) == 0)
+    {
+      if (mcFile->tempCipher != NULL)
+      {
+        mcTempCipherFree(mcFile->tempCipher);
+        mcFile->tempCipher = 0;
+      }
+    }
+  }
+  return 0;
+}
+
 SQLITE_PRIVATE int sqlite3mcIsBackupSupported(sqlite3* pSrc, const char* zSrc, sqlite3* pDest, const char* zDest)
 {
   int ok = 1;
@@ -872,9 +942,29 @@ static int mcVfsOpen(sqlite3_vfs* pVfs, const char* zName, sqlite3_file* pFile, 
   mcFile->pageNo = 0;
   mcFile->tempCipher = 0;
 
+  /*
+  ** For every file one of the following open flags is set.
+  ** If a valid filename is given, encryption is fully under
+  ** user/applicationcontrol (PRAGMA key). If the filename
+  ** is not given, the file is a temporary file. Encryption
+  ** will be enabled, if at least one database belonging to
+  ** the current connection is encrypted.
+  **
+  ** Typically with filename:
+  **   - SQLITE_OPEN_MAIN_DB
+  **   - SQLITE_OPEN_MAIN_JOURNAL
+  **   - SQLITE_OPEN_SUBJOURNAL
+  **   - SQLITE_OPEN_SUPER_JOURNAL
+  **   - SQLITE_OPEN_WAL
+  **
+  ** Always without filename:
+  **   - SQLITE_OPEN_TEMP_DB      (block size = page size)
+  **   - SQLITE_OPEN_TRANSIENT_DB (block size = page size)
+  **   - SQLITE_OPEN_TEMP_JOURNAL (default block size)
+  */
   if (SQLITE3MC_ENCRYPT_TEMP_FILES && zName == NULL)
   {
-    mcFile->tempCipher = mcTempCreate();
+    mcFile->tempCipher = mcTempCipherCreate();
     if (mcFile->tempCipher == NULL) return SQLITE_NOMEM;
   }
 
@@ -885,19 +975,6 @@ static int mcVfsOpen(sqlite3_vfs* pVfs, const char* zName, sqlite3_file* pFile, 
       mcFile->zFileName = zName;
       SQLITE3MC_DEBUG_LOG("mcVfsOpen MAIN: mcFile=%p fileName=%s\n", mcFile, mcFile->zFileName);
     }
-    else if (flags & SQLITE_OPEN_TEMP_DB)
-    {
-      mcFile->zFileName = zName;
-      SQLITE3MC_DEBUG_LOG("mcVfsOpen TEMP: mcFile=%p fileName=%s\n", mcFile, mcFile->zFileName);
-    }
-#if 0
-    else if (flags & SQLITE_OPEN_TRANSIENT_DB)
-    {
-      /*
-      ** TODO: When does SQLite open a transient DB? Could/Should it be encrypted?
-      */
-    }
-#endif
     else if (flags & SQLITE_OPEN_MAIN_JOURNAL)
     {
       const char* dbFileName = sqlite3_filename_database(zName);
@@ -905,14 +982,6 @@ static int mcVfsOpen(sqlite3_vfs* pVfs, const char* zName, sqlite3_file* pFile, 
       mcFile->zFileName = zName;
       SQLITE3MC_DEBUG_LOG("mcVfsOpen MAIN Journal: mcFile=%p fileName=%s dbFileName=%s\n", mcFile, mcFile->zFileName, dbFileName);
     }
-#if 0
-    else if (flags & SQLITE_OPEN_TEMP_JOURNAL)
-    {
-      /*
-      ** TODO: When does SQLite open a temporary journal? Could/Should it be encrypted?
-      */
-    }
-#endif
     else if (flags & SQLITE_OPEN_SUBJOURNAL)
     {
       const char* dbFileName = sqlite3_filename_database(zName);
@@ -921,10 +990,10 @@ static int mcVfsOpen(sqlite3_vfs* pVfs, const char* zName, sqlite3_file* pFile, 
       SQLITE3MC_DEBUG_LOG("mcVfsOpen SUB Journal: mcFile=%p fileName=%s dbFileName=%s\n", mcFile, mcFile->zFileName, dbFileName);
     }
 #if 0
-    else if (flags & SQLITE_OPEN_MASTER_JOURNAL)
+    else if (flags & SQLITE_OPEN_SUPER_JOURNAL)
     {
       /*
-      ** Master journal contains only administrative information
+      ** Super journal contains only administrative information
       ** No encryption necessary
       */
     }
@@ -961,7 +1030,7 @@ static int mcVfsOpen(sqlite3_vfs* pVfs, const char* zName, sqlite3_file* pFile, 
   }
   else
   {
-    mcTempFree(mcFile->tempCipher);
+    mcTempCipherFree(mcFile->tempCipher);
     mcFile->tempCipher = 0;
   }
   return rc;
@@ -1067,7 +1136,7 @@ static int mcIoClose(sqlite3_file* pFile)
     sqlite3mcCodecFree(p->codec);
     p->codec = 0;
   }
-  mcTempFree(p->tempCipher);
+  mcTempCipherFree(p->tempCipher);
   p->tempCipher = 0;
 
   assert(p->pMainNext == 0 && p->pVfsMC->pMain != p);
@@ -1289,6 +1358,7 @@ static int mcIoRead(sqlite3_file* pFile, void* buffer, int count, sqlite3_int64 
   {
     return mcTempRead(mcFile, buffer, count, offset);
   }
+
   rc = REALFILE(pFile)->pMethods->xRead(REALFILE(pFile), buffer, count, offset);
   if (rc != SQLITE_OK)
   {
@@ -1299,43 +1369,19 @@ static int mcIoRead(sqlite3_file* pFile, void* buffer, int count, sqlite3_int64 
   {
     rc = mcReadMainDb(pFile, buffer, count, offset);
   }
-#if 0
-  else if (mcFile->openFlags & SQLITE_OPEN_TEMP_DB)
-  {
-    /*
-    ** TODO: Could/Should a temporary database file be encrypted?
-    */
-  }
-#endif
-#if 0
-  else if (mcFile->openFlags & SQLITE_OPEN_TRANSIENT_DB)
-  {
-    /*
-    ** TODO: Could/Should a transient database file be encrypted?
-    */
-  }
-#endif
   else if (mcFile->openFlags & SQLITE_OPEN_MAIN_JOURNAL)
   {
     rc = mcReadMainJournal(pFile, buffer, count, offset);
   }
-#if 0
-  else if (mcFile->openFlags & SQLITE_OPEN_TEMP_JOURNAL)
-  {
-    /*
-    ** TODO: Could/Should a temporary journal file be encrypted?
-    */
-  }
-#endif
   else if (mcFile->openFlags & SQLITE_OPEN_SUBJOURNAL)
   {
     rc = mcReadSubJournal(pFile, buffer, count, offset);
   }
 #if 0
-  else if (mcFile->openFlags & SQLITE_OPEN_MASTER_JOURNAL)
+  else if (mcFile->openFlags & SQLITE_OPEN_SUPER_JOURNAL)
   {
     /*
-    ** Master journal contains only administrative information
+    ** Super journal contains only administrative information
     ** No encryption necessary
     */
   }
@@ -1600,43 +1646,19 @@ static int mcIoWrite(sqlite3_file* pFile, const void* buffer, int count, sqlite3
   {
     rc = mcWriteMainDb(pFile, buffer, count, offset);
   }
-#if 0
-  else if (mcFile->openFlags & SQLITE_OPEN_TEMP_DB)
-  {
-    /*
-    ** TODO: Could/Should a temporary database file be encrypted?
-    */
-  }
-#endif
-#if 0
-  else if (mcFile->openFlags & SQLITE_OPEN_TRANSIENT_DB)
-  {
-    /*
-    ** TODO: Could/Should a transient database file be encrypted?
-    */
-  }
-#endif
   else if (mcFile->openFlags & SQLITE_OPEN_MAIN_JOURNAL)
   {
     rc = mcWriteMainJournal(pFile, buffer, count, offset);
   }
-#if 0
-  else if (mcFile->openFlags & SQLITE_OPEN_TEMP_JOURNAL)
-  {
-    /*
-    ** TODO: Could/Should a temporary journal file be encrypted?
-    */
-  }
-#endif
   else if (mcFile->openFlags & SQLITE_OPEN_SUBJOURNAL)
   {
     rc = mcWriteSubJournal(pFile, buffer, count, offset);
 }
 #if 0
-  else if (mcFile->openFlags & SQLITE_OPEN_MASTER_JOURNAL)
+  else if (mcFile->openFlags & SQLITE_OPEN_SUPER_JOURNAL)
   {
     /*
-    ** Master journal contains only administrative information
+    ** Super journal contains only administrative information
     ** No encryption necessary
     */
   }

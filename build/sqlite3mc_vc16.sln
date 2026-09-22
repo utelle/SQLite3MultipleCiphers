@@ -13,6 +13,10 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sqlite3mc_shell", "sqlite3m
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sqlite3mc_shellicu", "sqlite3mc_vc16_shellicu.vcxproj", "{D2CF021B-BEB3-C370-2714-BEC31317AEF2}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sqlite3mc_test_crypto", "sqlite3mc_vc16_test_crypto.vcxproj", "{D9F0300A-455D-EC04-0E51-84627A7C0E6D}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sqlite3mc_test_tempfile", "sqlite3mc_vc16_test_tempfile.vcxproj", "{2EF8D405-9A2F-1D9D-A339-81C00FF04396}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -69,6 +73,22 @@ Global
 		{D2CF021B-BEB3-C370-2714-BEC31317AEF2}.Release|Win32.Build.0 = Release|Win32
 		{D2CF021B-BEB3-C370-2714-BEC31317AEF2}.Release|x64.ActiveCfg = Release|x64
 		{D2CF021B-BEB3-C370-2714-BEC31317AEF2}.Release|x64.Build.0 = Release|x64
+		{D9F0300A-455D-EC04-0E51-84627A7C0E6D}.Debug|Win32.ActiveCfg = Debug|Win32
+		{D9F0300A-455D-EC04-0E51-84627A7C0E6D}.Debug|Win32.Build.0 = Debug|Win32
+		{D9F0300A-455D-EC04-0E51-84627A7C0E6D}.Debug|x64.ActiveCfg = Debug|x64
+		{D9F0300A-455D-EC04-0E51-84627A7C0E6D}.Debug|x64.Build.0 = Debug|x64
+		{D9F0300A-455D-EC04-0E51-84627A7C0E6D}.Release|Win32.ActiveCfg = Release|Win32
+		{D9F0300A-455D-EC04-0E51-84627A7C0E6D}.Release|Win32.Build.0 = Release|Win32
+		{D9F0300A-455D-EC04-0E51-84627A7C0E6D}.Release|x64.ActiveCfg = Release|x64
+		{D9F0300A-455D-EC04-0E51-84627A7C0E6D}.Release|x64.Build.0 = Release|x64
+		{2EF8D405-9A2F-1D9D-A339-81C00FF04396}.Debug|Win32.ActiveCfg = Debug|Win32
+		{2EF8D405-9A2F-1D9D-A339-81C00FF04396}.Debug|Win32.Build.0 = Debug|Win32
+		{2EF8D405-9A2F-1D9D-A339-81C00FF04396}.Debug|x64.ActiveCfg = Debug|x64
+		{2EF8D405-9A2F-1D9D-A339-81C00FF04396}.Debug|x64.Build.0 = Debug|x64
+		{2EF8D405-9A2F-1D9D-A339-81C00FF04396}.Release|Win32.ActiveCfg = Release|Win32
+		{2EF8D405-9A2F-1D9D-A339-81C00FF04396}.Release|Win32.Build.0 = Release|Win32
+		{2EF8D405-9A2F-1D9D-A339-81C00FF04396}.Release|x64.ActiveCfg = Release|x64
+		{2EF8D405-9A2F-1D9D-A339-81C00FF04396}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
