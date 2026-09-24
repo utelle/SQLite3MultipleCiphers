@@ -780,21 +780,28 @@ SQLITE_PRIVATE int sqlite3mcIsAnyDbEncrypted(sqlite3* db)
 
 SQLITE_PRIVATE int sqlite3mcOpenTempFile(Pager* pPager, sqlite3_file* pFile)
 {
-  if (pFile != NULL &&
-      (pFile->pMethods == &mcIoMethodsGlobal1 ||
-       pFile->pMethods == &mcIoMethodsGlobal2 ||
-       pFile->pMethods == &mcIoMethodsGlobal3))
+  if (pFile != NULL && pPager != NULL)
   {
-    sqlite3mc_file* mcFile = (sqlite3mc_file*)pFile;
-    mcFile->pageSize = (int)pPager->pageSize;
-
-    if (sqlite3mcIsAnyDbEncrypted(pPager->mcDb) == 0)
+    if (sqlite3JournalIsInMemory(pFile))
     {
-      /* Remove temp cipher, if no database within this connection is encrypted */
-      if (mcFile->tempCipher != NULL)
+      MemJournal* pMemJournal = (MemJournal*)pFile;
+      pMemJournal->mcDb = pPager->mcDb;
+    }
+    else if (pFile->pMethods == &mcIoMethodsGlobal1 ||
+             pFile->pMethods == &mcIoMethodsGlobal2 ||
+             pFile->pMethods == &mcIoMethodsGlobal3)
+    {
+      sqlite3mc_file* mcFile = (sqlite3mc_file*)pFile;
+      mcFile->pageSize = (int)pPager->pageSize;
+
+      if (sqlite3mcIsAnyDbEncrypted(pPager->mcDb) == 0)
       {
-        mcTempCipherFree(mcFile->tempCipher);
-        mcFile->tempCipher = 0;
+        /* Remove temp cipher, if no database within this connection is encrypted */
+        if (mcFile->tempCipher != NULL)
+        {
+          mcTempCipherFree(mcFile->tempCipher);
+          mcFile->tempCipher = 0;
+        }
       }
     }
   }

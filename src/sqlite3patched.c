@@ -20,7 +20,7 @@
 ** The content in this amalgamation comes from Fossil check-in
 ** bf7c7f30031888f4e796e429ab3978879485 with changes in files:
 **
-**
+**    
 */
 #ifndef SQLITE_AMALGAMATION
 #define SQLITE_CORE 1
@@ -14668,7 +14668,7 @@ struct fts5_api {
 
 /******** End of fts5.h *********/
 #endif /* SQLITE3_H */
-
+ 
 /* Function prototypes of SQLite3 Multiple Ciphers */
 SQLITE_PRIVATE int sqlite3mcCheckVfs(const char*);
 SQLITE_PRIVATE int sqlite3mcFileControlPragma(sqlite3*, const char*, int, void*);
@@ -109892,6 +109892,7 @@ struct MemJournal {
   int flags;                      /* xOpen flags */
   sqlite3_vfs *pVfs;              /* The "real" underlying VFS */
   const char *zJournal;           /* Name of the journal file */
+  sqlite3* mcDb;
 };
 
 /*
@@ -109965,6 +109966,7 @@ static int memjrnlCreateFile(MemJournal *p){
   memset(p, 0, sizeof(MemJournal));
   rc = sqlite3OsOpen(copy.pVfs, copy.zJournal, pReal, copy.flags, 0);
   if( rc==SQLITE_OK ){
+    sqlite3mcOpenTempJournal(copy.mcDb, pReal);
     int nChunk = copy.nChunkSize;
     i64 iOff = 0;
     FileChunk *pIter;
