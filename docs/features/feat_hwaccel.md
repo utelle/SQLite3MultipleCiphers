@@ -36,7 +36,7 @@ The result is a string containing a list of the detected CPU features.
 
 | Feature Id  | Platform    |
 | :---        | :---        |
-| `sse2"      | x86, x86_64 |
+| `sse2`      | x86, x86_64 |
 | `ssse3`     | x86, x86_64 |
 | `sse41`     | x86, x86_64 |
 | `sse42`     | x86, x86_64 |
