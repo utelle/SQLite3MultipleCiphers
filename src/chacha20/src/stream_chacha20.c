@@ -122,6 +122,7 @@ sqlite3mcChaCha20HwAccelerated()
   int rc = 0;
   if (gChaCha20HwAccelSelected == SQLITE3MC_CHACHA20_HWACCL_UNKNOWN)
   {
+    gChaCha20HwAccelRequest = gChaCha20HwAccelAuto;
     rc = crypto_stream_chacha20_pick_best_implementation();
   }
   return gChaCha20HwAccelSelected > 0;

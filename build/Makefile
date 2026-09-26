@@ -15,6 +15,8 @@ ifeq ($(config),debug_win32)
   sqlite3mc_libicu_config = debug_win32
   sqlite3mc_dllicu_config = debug_win32
   sqlite3mc_shellicu_config = debug_win32
+  sqlite3mc_test_crypto_config = debug_win32
+  sqlite3mc_test_tempfile_config = debug_win32
 
 else ifeq ($(config),debug_x64)
   sqlite3mc_lib_config = debug_x64
@@ -23,6 +25,8 @@ else ifeq ($(config),debug_x64)
   sqlite3mc_libicu_config = debug_x64
   sqlite3mc_dllicu_config = debug_x64
   sqlite3mc_shellicu_config = debug_x64
+  sqlite3mc_test_crypto_config = debug_x64
+  sqlite3mc_test_tempfile_config = debug_x64
 
 else ifeq ($(config),release_win32)
   sqlite3mc_lib_config = release_win32
@@ -31,6 +35,8 @@ else ifeq ($(config),release_win32)
   sqlite3mc_libicu_config = release_win32
   sqlite3mc_dllicu_config = release_win32
   sqlite3mc_shellicu_config = release_win32
+  sqlite3mc_test_crypto_config = release_win32
+  sqlite3mc_test_tempfile_config = release_win32
 
 else ifeq ($(config),release_x64)
   sqlite3mc_lib_config = release_x64
@@ -39,12 +45,14 @@ else ifeq ($(config),release_x64)
   sqlite3mc_libicu_config = release_x64
   sqlite3mc_dllicu_config = release_x64
   sqlite3mc_shellicu_config = release_x64
+  sqlite3mc_test_crypto_config = release_x64
+  sqlite3mc_test_tempfile_config = release_x64
 
 else
   $(error "invalid configuration $(config)")
 endif
 
-PROJECTS := sqlite3mc_lib sqlite3mc_dll sqlite3mc_shell sqlite3mc_libicu sqlite3mc_dllicu sqlite3mc_shellicu
+PROJECTS := sqlite3mc_lib sqlite3mc_dll sqlite3mc_shell sqlite3mc_libicu sqlite3mc_dllicu sqlite3mc_shellicu sqlite3mc_test_crypto sqlite3mc_test_tempfile
 
 .PHONY: all clean help $(PROJECTS) 
 
@@ -86,6 +94,18 @@ ifneq (,$(sqlite3mc_shellicu_config))
 	@${MAKE} --no-print-directory -C . -f sqlite3mc_shellicu.make config=$(sqlite3mc_shellicu_config)
 endif
 
+sqlite3mc_test_crypto:
+ifneq (,$(sqlite3mc_test_crypto_config))
+	@echo "==== Building sqlite3mc_test_crypto ($(sqlite3mc_test_crypto_config)) ===="
+	@${MAKE} --no-print-directory -C . -f sqlite3mc_test_crypto.make config=$(sqlite3mc_test_crypto_config)
+endif
+
+sqlite3mc_test_tempfile:
+ifneq (,$(sqlite3mc_test_tempfile_config))
+	@echo "==== Building sqlite3mc_test_tempfile ($(sqlite3mc_test_tempfile_config)) ===="
+	@${MAKE} --no-print-directory -C . -f sqlite3mc_test_tempfile.make config=$(sqlite3mc_test_tempfile_config)
+endif
+
 clean:
 	@${MAKE} --no-print-directory -C . -f sqlite3mc_lib.make clean
 	@${MAKE} --no-print-directory -C . -f sqlite3mc_dll.make clean
@@ -93,6 +113,8 @@ clean:
 	@${MAKE} --no-print-directory -C . -f sqlite3mc_libicu.make clean
 	@${MAKE} --no-print-directory -C . -f sqlite3mc_dllicu.make clean
 	@${MAKE} --no-print-directory -C . -f sqlite3mc_shellicu.make clean
+	@${MAKE} --no-print-directory -C . -f sqlite3mc_test_crypto.make clean
+	@${MAKE} --no-print-directory -C . -f sqlite3mc_test_tempfile.make clean
 
 help:
 	@echo "Usage: make [config=name] [target]"
@@ -112,5 +134,7 @@ help:
 	@echo "   sqlite3mc_libicu"
 	@echo "   sqlite3mc_dllicu"
 	@echo "   sqlite3mc_shellicu"
+	@echo "   sqlite3mc_test_crypto"
+	@echo "   sqlite3mc_test_tempfile"
 	@echo ""
 	@echo "For more information, see https://github.com/premake/premake-core/wiki"

@@ -6,6 +6,7 @@ on:
     - aegis
     - register-dynamic-cipher
     - hwaccel
+    - temp-crypt
   pull_request:
     branches:
     - main
@@ -47,6 +48,14 @@ jobs:
       run: |
         make cryptotest
         ./cryptotest
+
+    - name: Temporary file tests
+      run: |
+        make tempfiletest
+        ./tempfiletest 20000
+        ./tempfiletest 20000 1 faults
+        ./tempfiletest 20000 1 db4096
+        ./tempfiletest 20000 1 chunk faults
 
   android_build:
     name: Android (API ${{ matrix.api-level }})

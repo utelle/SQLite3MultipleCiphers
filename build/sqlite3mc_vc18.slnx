@@ -17,4 +17,8 @@
   </Project>
   <Project Path="sqlite3mc_vc18_shellicu.vcxproj" Id="D2CF021B-BEB3-C370-2714-BEC31317AEF2">
   </Project>
+  <Project Path="sqlite3mc_vc18_test_crypto.vcxproj" Id="D9F0300A-455D-EC04-0E51-84627A7C0E6D">
+  </Project>
+  <Project Path="sqlite3mc_vc18_test_tempfile.vcxproj" Id="2EF8D405-9A2F-1D9D-A339-81C00FF04396">
+  </Project>
 </Solution>
