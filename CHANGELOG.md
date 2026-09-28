@@ -7,11 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added hardware acceleration for _chacha20_ and _poly1305_ algorithms (adopted from [libsodium](https://github.com/jedisct1/libsodium)
+- Added new pragmas `mc_cpu_info`, `mc_aes_info`, and `mc_chacha20_hwaccel`
+- Added readline/editline support for SQLite3MC shell on Linux platforms
+- Added tests for the cryptographic primitives (contributed by @mtrossbach)
+- Added encryption of temporary files with a random key per file (@utelle and @mtrossbach)
+
+### Changed
+
+- Reordered MAC verification and decryption process (decrypt only after successful verification of MAC)
+- Removed unconditional define for symbol `SQLITE3MC_ENABLE_VLE`
+- Modernized `sqlite3mcSecureZeroMemory()` (contributed by @matbech)
+- Improved random number generator
+- Removed dead code (issue [#256](../../issues/256))  
+  The use case that HMACs are not generated and stored in the database for cipher schemes which include a HMAC is not supported any longer. Actually, this feature was not operational since SQLite3MC was separated from wxSQLite3.
+- Compare SQLCipher HMAC values in constant time (contributed by @mtrossbach)
+- Adjusted target attribute for GCC for AES on aarch64  
+  The target attribute _"+crypto"_ was not set even if `aarch64` hardware was detected. That is, AES hardware support was not used on `aarch64` platforms (see PR [#262](../../pull/262)).
+- Hardened the Linux entropy source (contributed by @mtrossbach)
+- Use fast key erasure in the ChaCha20 random number generator (contributed by @mtrossbach)
+- Keep temporary data in memory unless `SQLITE_TEMP_STORE` is explicitly set
+
+### Fixed
+
+- Fixed issue [#263](../../issues/263) - The not existing function `explicit_bzero()` was referenced for Android API 28+. Use function `memset_explicit()` for Android API 34+.
+- Fixed issue [#265](../../pull/265) - Fix WASM entropy source when HEAPU8 is not exported (contributed by @mtrossbach)
+- Fixed issue [#272](../../pull/272) - Do not drop read errors of the real file (contributed by @mtrossbach)
+
 ## [2.5.1] - 2026-08-27
 
 ### Changed
 
-- Fix issue [#252](../../issues/252) - precompiled WASM fails due to compact import encoding
+- Fixed issue [#252](../../issues/252) - precompiled WASM fails due to compact import encoding
 
 ## [2.5.0] - 2026-08-02
 
