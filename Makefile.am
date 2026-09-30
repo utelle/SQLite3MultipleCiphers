@@ -164,8 +164,8 @@ sqlite3shell_LDFLAGS += -no-install
 
 endif
 
-# Tests for the cryptographic primitives (not installed, built like the shell).
-check_PROGRAMS = cryptotest tempfiletest
+# Test programs (not installed, built like the shell).
+check_PROGRAMS = cryptotest tempfiletest oomtest
 cryptotest_SOURCES = test/cryptotest.c
 cryptotest_CFLAGS = $(sqlite3shell_CFLAGS)
 cryptotest_LDADD = $(sqlite3shell_LDADD)
@@ -174,3 +174,7 @@ tempfiletest_SOURCES = test/tempfiletest.c
 tempfiletest_CFLAGS = $(sqlite3shell_CFLAGS)
 tempfiletest_LDADD = $(sqlite3shell_LDADD)
 tempfiletest_LDFLAGS = $(sqlite3shell_LDFLAGS)
+oomtest_SOURCES = test/oomtest.c
+oomtest_CFLAGS = $(sqlite3shell_CFLAGS)
+oomtest_LDADD = $(sqlite3shell_LDADD)
+oomtest_LDFLAGS = $(sqlite3shell_LDFLAGS)

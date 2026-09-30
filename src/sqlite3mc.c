@@ -426,10 +426,9 @@ mcRegisterCodecExtensions(sqlite3* db, char** pzErrMsg, const sqlite3_api_routin
   rc = (codecParameterTable != NULL) ? SQLITE_OK : SQLITE_NOMEM;
   if (rc == SQLITE_OK)
   {
-    sqlite3_set_clientdata(db, globalConfigTableName, codecParameterTable, sqlite3mcFreeCodecParameterTable);
+    /* On failure this frees the table */
+    rc = sqlite3_set_clientdata(db, globalConfigTableName, codecParameterTable, sqlite3_free);
   }
-
-  rc = (codecParameterTable != NULL) ? SQLITE_OK : SQLITE_NOMEM;
   if (rc == SQLITE_OK)
   {
     rc = sqlite3_create_function(db, "sqlite3mc_config", 1, SQLITE_UTF8 | SQLITE_DETERMINISTIC,
@@ -513,11 +512,23 @@ sqlite3mcGetGlobalCipherCount()
   return cipherCount;
 }
 
+static void
+mcFreeCipherParams(CipherParams* params)
+{
+  int k;
+  for (k = 0; params[k].m_name[0] != 0; ++k)
+  {
+    sqlite3_free((char*) params[k].m_name);
+  }
+  sqlite3_free(params);
+}
+
 static int
 sqlite3mcRegisterCipher(const CipherDescriptor* desc, const CipherParams* params, int makeDefault)
 {
-  int rc;
   int np;
+  int n;
+  char* cipherName;
   CipherParams* cipherParams;
 
   /* Sanity checks */
@@ -567,60 +578,55 @@ sqlite3mcRegisterCipher(const CipherDescriptor* desc, const CipherParams* params
 
   /* Sanity checks were successful, now register cipher */
 
+  if (globalCipherCount >= CODEC_COUNT_MAX)
+    return SQLITE_NOMEM;
+
   cipherParams = (CipherParams*) sqlite3_malloc((np+1) * sizeof(CipherParams));
   if (!cipherParams)
     return SQLITE_NOMEM;
 
-  /* Check for */
-  if (globalCipherCount < CODEC_COUNT_MAX)
+  /* Copy parameters before touching the global tables, so that a failure leaves them unchanged */
+  for (n = 0; n < np; ++n)
   {
-    int n;
-    char* cipherName;
-    ++globalCipherCount;
-    cipherName = globalCipherNameTable[globalCipherCount].m_name;
-    strcpy(cipherName, desc->m_name);
-
-    globalCodecDescriptorTable[globalCipherCount - 1] = *desc;
-    globalCodecDescriptorTable[globalCipherCount - 1].m_name = cipherName;
-
-    globalCodecParameterTable[globalCipherCount].m_name = cipherName;
-    globalCodecParameterTable[globalCipherCount].m_id = globalCipherCount;
-    globalCodecParameterTable[globalCipherCount].m_params = cipherParams;
-
-    /* Copy parameters */
-    for (n = 0; n < np; ++n)
-    {
-      char* paramName = (char*) sqlite3_malloc((int)strlen(params[n].m_name) + 1);
-      strcpy(paramName, params[n].m_name);
-      cipherParams[n] = params[n];
-      cipherParams[n].m_name = paramName;
-    }
-    /* Add sentinel */
     cipherParams[n] = params[n];
-    cipherParams[n].m_name = globalSentinelName;
-
-    /* Make cipher default, if requested */
-    if (makeDefault)
+    cipherParams[n].m_name = sqlite3_mprintf("%s", params[n].m_name);
+    if (!cipherParams[n].m_name)
     {
-      CipherParams* param = globalCodecParameterTable[0].m_params;
-      for (; param->m_name[0] != 0; ++param)
-      {
-        if (sqlite3_stricmp("cipher", param->m_name) == 0) break;
-      }
-      if (param->m_name[0] != 0)
-      {
-        param->m_value = param->m_default = globalCipherCount;
-      }
+      cipherParams[n].m_name = globalSentinelName;
+      mcFreeCipherParams(cipherParams);
+      return SQLITE_NOMEM;
     }
-
-    rc = SQLITE_OK;
   }
-  else
+  /* Add sentinel */
+  cipherParams[n] = params[n];
+  cipherParams[n].m_name = globalSentinelName;
+
+  ++globalCipherCount;
+  cipherName = globalCipherNameTable[globalCipherCount].m_name;
+  strcpy(cipherName, desc->m_name);
+
+  globalCodecDescriptorTable[globalCipherCount - 1] = *desc;
+  globalCodecDescriptorTable[globalCipherCount - 1].m_name = cipherName;
+
+  globalCodecParameterTable[globalCipherCount].m_name = cipherName;
+  globalCodecParameterTable[globalCipherCount].m_id = globalCipherCount;
+  globalCodecParameterTable[globalCipherCount].m_params = cipherParams;
+
+  /* Make cipher default, if requested */
+  if (makeDefault)
   {
-    rc = SQLITE_NOMEM;
+    CipherParams* param = globalCodecParameterTable[0].m_params;
+    for (; param->m_name[0] != 0; ++param)
+    {
+      if (sqlite3_stricmp("cipher", param->m_name) == 0) break;
+    }
+    if (param->m_name[0] != 0)
+    {
+      param->m_value = param->m_default = globalCipherCount;
+    }
   }
 
-  return rc;
+  return SQLITE_OK;
 }
 
 SQLITE_API int
@@ -682,13 +688,7 @@ sqlite3mcTermCipherTables()
   {
     if (globalCodecParameterTable[n].m_name[0] != 0)
     {
-      int k;
-      CipherParams* params = globalCodecParameterTable[n].m_params;
-      for (k = 0; params[k].m_name[0] != 0; ++k)
-      {
-        sqlite3_free((char*) params[k].m_name);
-      }
-      sqlite3_free(globalCodecParameterTable[n].m_params);
+      mcFreeCipherParams(globalCodecParameterTable[n].m_params);
     }
   }
   globalCipherCount = 0;
@@ -754,6 +754,11 @@ sqlite3mc_initialize(const char* arg)
       /* Add encryption VFS shim to default VFS */
       rc = sqlite3mc_vfs_create(NULL, 1);
     }
+  }
+  if (rc != SQLITE_OK)
+  {
+    /* SQLite does not call sqlite3mc_shutdown after a failed initialization */
+    sqlite3mcTermCipherTables();
   }
   return rc;
 }

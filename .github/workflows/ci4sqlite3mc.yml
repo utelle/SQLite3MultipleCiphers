@@ -57,6 +57,11 @@ jobs:
         ./tempfiletest 20000 1 db4096
         ./tempfiletest 20000 1 chunk faults
 
+    - name: Allocation failure tests
+      run: |
+        make oomtest
+        ./oomtest
+
   android_build:
     name: Android (API ${{ matrix.api-level }})
     runs-on: ubuntu-latest

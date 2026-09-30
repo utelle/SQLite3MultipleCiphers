@@ -67,61 +67,37 @@ sqlite3mcCloneCodecParameterTable()
   /* Count number of codecs and cipher parameters */
   int nTables = 0;
   int nParams = 0;
-  int j, k, n;
+  int j, n;
+  int offset = 0;
   CipherParams* cloneCipherParams;
   CodecParameter* cloneCodecParams;
 
   for (j = 0; globalCodecParameterTable[j].m_name[0] != 0; ++j)
   {
     CipherParams* params = globalCodecParameterTable[j].m_params;
-    for (k = 0; params[k].m_name[0] != 0; ++k);
-    nParams += k;
+    for (n = 0; params[n].m_name[0] != 0; ++n);
+    nParams += n;
   }
   nTables = j;
 
-  /* Allocate memory for cloned codec parameter tables (including sentinel for each table) */
-  cloneCipherParams = (CipherParams*) sqlite3_malloc((nParams + nTables) * sizeof(CipherParams));
-  cloneCodecParams = (CodecParameter*) sqlite3_malloc((nTables + 1) * sizeof(CodecParameter));
+  /* The table array and all parameter arrays, each with its sentinel, share one allocation */
+  cloneCodecParams = (CodecParameter*) sqlite3_malloc((nTables + 1) * sizeof(CodecParameter) +
+                                                      (nParams + nTables) * sizeof(CipherParams));
+  if (cloneCodecParams == NULL)
+    return NULL;
+  cloneCipherParams = (CipherParams*) &cloneCodecParams[nTables + 1];
 
-  /* Create copy of tables */
-  if (cloneCodecParams != NULL)
+  for (j = 0; j < nTables; ++j)
   {
-    int offset = 0;
-    for (j = 0; j < nTables; ++j)
-    {
-      CipherParams* params = globalCodecParameterTable[j].m_params;
-      cloneCodecParams[j].m_name = globalCodecParameterTable[j].m_name;
-      cloneCodecParams[j].m_id = globalCodecParameterTable[j].m_id;
-      cloneCodecParams[j].m_params = &cloneCipherParams[offset];
-      for (n = 0; params[n].m_name[0] != 0; ++n);
-      /* Copy all parameters of the current table (including sentinel) */
-      for (k = 0; k <= n; ++k)
-      {
-        cloneCipherParams[offset + k].m_name     = params[k].m_name;
-        cloneCipherParams[offset + k].m_value    = params[k].m_value;
-        cloneCipherParams[offset + k].m_default  = params[k].m_default;
-        cloneCipherParams[offset + k].m_minValue = params[k].m_minValue;
-        cloneCipherParams[offset + k].m_maxValue = params[k].m_maxValue;
-      }
-      offset += (n + 1);
-    }
-    cloneCodecParams[nTables].m_name = globalCodecParameterTable[nTables].m_name;
-    cloneCodecParams[nTables].m_id = globalCodecParameterTable[nTables].m_id;
-    cloneCodecParams[nTables].m_params = NULL;
+    CipherParams* params = globalCodecParameterTable[j].m_params;
+    for (n = 0; params[n].m_name[0] != 0; ++n);
+    memcpy(&cloneCipherParams[offset], params, (n + 1) * sizeof(CipherParams));
+    cloneCodecParams[j] = globalCodecParameterTable[j];
+    cloneCodecParams[j].m_params = &cloneCipherParams[offset];
+    offset += n + 1;
   }
-  else
-  {
-    sqlite3_free(cloneCipherParams);
-  }
+  cloneCodecParams[nTables] = globalCodecParameterTable[nTables];
   return cloneCodecParams;
-}
-
-SQLITE_PRIVATE void
-sqlite3mcFreeCodecParameterTable(void* ptr)
-{
-  CodecParameter* codecParams = (CodecParameter*)ptr;
-  sqlite3_free(codecParams[0].m_params);
-  sqlite3_free(codecParams);
 }
 
 static const CipherDescriptor mcSentinelDescriptor =
