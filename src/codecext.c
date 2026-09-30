@@ -206,7 +206,7 @@ mcAdjustBtree(Btree* pBt, int nPageSize, int nReserved, int isLegacy)
   return rc;
 }
 
-static int
+SQLITE_PRIVATE int
 sqlite3mcCodecAttach(sqlite3* db, int nDb, const char* zPath, const void* zKey, int nKey)
 {
   /* Attach a key to a database. */
