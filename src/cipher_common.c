@@ -84,7 +84,7 @@ sqlite3mcCloneCodecParameterTable()
   cloneCodecParams = (CodecParameter*) sqlite3_malloc((nTables + 1) * sizeof(CodecParameter));
 
   /* Create copy of tables */
-  if (cloneCodecParams != NULL)
+  if (cloneCodecParams != NULL && cloneCipherParams != NULL)
   {
     int offset = 0;
     for (j = 0; j < nTables; ++j)
@@ -111,7 +111,9 @@ sqlite3mcCloneCodecParameterTable()
   }
   else
   {
+    sqlite3_free(cloneCodecParams);
     sqlite3_free(cloneCipherParams);
+    cloneCodecParams = NULL;
   }
   return cloneCodecParams;
 }
