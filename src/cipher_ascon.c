@@ -127,7 +127,7 @@ GenerateKeyAscon128Cipher(void* cipher, char* userPassword, int passwordLength, 
 {
   Ascon128Cipher* ascon128Cipher = (Ascon128Cipher*) cipher;
 
-  int keyOnly = 1;
+  int keyOnly = 0;
   if (rekey == 2)
   {
     /* (rekey == 2) means database is in WAL mode, thus don't change the cipher salt */

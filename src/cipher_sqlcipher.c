@@ -243,7 +243,7 @@ GenerateKeySQLCipherCipher(void* cipher, char* userPassword, int passwordLength,
 {
   SQLCipherCipher* sqlCipherCipher = (SQLCipherCipher*) cipher;
 
-  int keyOnly = 1;
+  int keyOnly = 0;
   if (rekey == 2)
   {
     /* (rekey == 2) means database is in WAL mode, thus don't change the cipher salt */
