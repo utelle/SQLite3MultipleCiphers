@@ -331,6 +331,27 @@ static size_t entropy(void* buf, size_t n)
 
 #if SQLITE3MC_USE_OS_RNG
 
+#if defined(_WIN32)
+/*
+ * On Windows, BCryptGenRandom fills the whole buffer in one call, while
+ * rand_s delivers only 4 bytes per call. It is also available to UWP apps.
+ * MinGW builds have to link with -lbcrypt.
+ */
+#include <windows.h>
+#include <bcrypt.h>
+#if defined(_MSC_VER)
+#pragma comment(lib, "bcrypt.lib")
+#endif
+
+static size_t osRandom(void* buf, size_t n)
+{
+  NTSTATUS status = BCryptGenRandom(NULL, (PUCHAR) buf, (ULONG) n, BCRYPT_USE_SYSTEM_PREFERRED_RNG);
+  return BCRYPT_SUCCESS(status) ? n : 0;
+}
+#else
+#define osRandom entropy
+#endif
+
 /*
  * Every random value is taken directly from the operating system,
  * without a generator of our own in between. entropy() rejects an
@@ -340,7 +361,7 @@ static size_t entropy(void* buf, size_t n)
 SQLITE_PRIVATE
 void chacha20_rng(void* out, size_t n)
 {
-  if (n > 0 && entropy(out, n) != n)
+  if (n > 0 && osRandom(out, n) != n)
     abort();
 }
 
