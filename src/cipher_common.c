@@ -428,6 +428,11 @@ SQLITE_PRIVATE int
 sqlite3mcGetPageSizeReadCipher(Codec* codec)
 {
   int pageSize = (codec->m_hasReadCipher  && codec->m_readCipher != NULL) ? globalCodecDescriptorTable[codec->m_readCipherType - 1].m_getPageSize(codec->m_readCipher) : -1;
+  if (codec->m_btShared != NULL &&
+      pageSize != codec->m_btShared->pageSize)
+  {
+    pageSize = codec->m_btShared->pageSize;
+  }
   return pageSize;
 }
 
@@ -435,6 +440,11 @@ SQLITE_PRIVATE int
 sqlite3mcGetPageSizeWriteCipher(Codec* codec)
 {
   int pageSize = (codec->m_hasWriteCipher && codec->m_writeCipher != NULL) ? globalCodecDescriptorTable[codec->m_writeCipherType - 1].m_getPageSize(codec->m_writeCipher) : -1;
+  if (codec->m_btShared != NULL &&
+      pageSize != codec->m_btShared->pageSize)
+  {
+    pageSize = codec->m_btShared->pageSize;
+  }
   return pageSize;
 }
 
