@@ -35,6 +35,7 @@ sqlite3mcBtreeSetPageSize(Btree* p, int pageSize, int nReserve, int iFix)
   {
     assert((pageSize & 7) == 0);
     assert(!pBt->pCursor);
+    if( nReserve>32 && pageSize==512 ) pageSize = 1024;
     pBt->pageSize = (u32)pageSize;
     freeTempSpace(pBt);
   }
@@ -201,7 +202,7 @@ mcAdjustBtree(Btree* pBt, int nPageSize, int nReserved, int isLegacy)
     {
       pBt->pBt->btsFlags &= ~BTS_PAGESIZE_FIXED;
     }
-    rc = sqlite3BtreeSetPageSize(pBt, pagesize, reserved, 0);
+    rc = sqlite3mcBtreeSetPageSize(pBt, pagesize, reserved, 0);
   }
   return rc;
 }
