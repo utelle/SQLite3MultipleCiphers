@@ -778,6 +778,12 @@ SQLITE_PRIVATE int sqlite3mcIsAnyDbEncrypted(sqlite3* db)
   return encrypted;
 }
 
+static int mcCheckEncryptTempDb(sqlite3mc_file* mcFile, sqlite3* db)
+{
+  int encryptTempDb = sqlite3mc_config(db, "encrypt_temp_db", -1);
+  return (mcFile->openFlags & SQLITE_OPEN_TEMP_DB) && encryptTempDb != 0;
+}
+
 SQLITE_PRIVATE int sqlite3mcOpenTempFile(Pager* pPager, sqlite3_file* pFile)
 {
   if (pFile != NULL && pPager != NULL)
@@ -794,7 +800,8 @@ SQLITE_PRIVATE int sqlite3mcOpenTempFile(Pager* pPager, sqlite3_file* pFile)
       sqlite3mc_file* mcFile = (sqlite3mc_file*)pFile;
       mcFile->pageSize = (int)pPager->pageSize;
 
-      if (sqlite3mcIsAnyDbEncrypted(pPager->mcDb) == 0)
+      int forceEncrypt = mcCheckEncryptTempDb(mcFile, pPager->mcDb);
+      if (!forceEncrypt && sqlite3mcIsAnyDbEncrypted(pPager->mcDb) == 0)
       {
         /* Remove temp cipher, if no database within this connection is encrypted */
         if (mcFile->tempCipher != NULL)
@@ -816,7 +823,8 @@ SQLITE_PRIVATE int sqlite3mcOpenTempJournal(sqlite3* pDb, sqlite3_file* pFile)
        pFile->pMethods == &mcIoMethodsGlobal3))
   {
     sqlite3mc_file* mcFile = (sqlite3mc_file*)pFile;
-    if (sqlite3mcIsAnyDbEncrypted(pDb) == 0)
+    int forceEncrypt = mcCheckEncryptTempDb(mcFile, pDb);
+    if (!forceEncrypt && sqlite3mcIsAnyDbEncrypted(pDb) == 0)
     {
       if (mcFile->tempCipher != NULL)
       {

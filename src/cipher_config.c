@@ -95,10 +95,15 @@ sqlite3mc_config(sqlite3* db, const char* paramName, int newValue)
     {
       int allowChange = 1;
 
-      /* Allow cipher change only if new cipher is actually available */
       if (sqlite3_stricmp(paramName, "cipher") == 0)
       {
+        /* Allow cipher change only if new cipher is actually available */
         allowChange = newValue > 0 && newValue <= cipherCount;
+      }
+      else if (sqlite3_stricmp(paramName, "encrypt_temp_db") == 0)
+      {
+        /* Allow only to enable unconditional encryption of temporary database */
+        allowChange = newValue > 0;
       }
 
       if (allowChange)
@@ -770,6 +775,10 @@ sqlite3mcConfigureFromUri(sqlite3* db, const char* zDbName, int configDefault)
       /* Invalid option values are ignored here. */
     }
 
+    /* Enable unconditional encryption of temporary databases */
+    int encryptTempDb = sqlite3_uri_boolean(dbFileName, "encrypt_temp_db", 0);
+    sqlite3mc_config(db, "encrypt_temp_db", encryptTempDb);
+
     /* Check whether cipher is specified */
     const char* cipherName = sqlite3_uri_parameter(dbFileName, "cipher");
     if (cipherName == NULL || cipherName[0] == 0)
@@ -983,6 +992,13 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
     {
       int hmacCheck = (pragmaValue != NULL) ? sqlite3GetBoolean(pragmaValue, 1) : -1;
       int value = sqlite3mc_config(db, "hmac_check", hmacCheck);
+      ((char**)pArg)[0] = sqlite3_mprintf("%d", value);
+      rc = SQLITE_OK;
+    }
+    else if (sqlite3StrICmp(pragmaName, "encrypt_temp_db") == 0)
+    {
+      int encryptTempDb = (pragmaValue != NULL) ? sqlite3GetBoolean(pragmaValue, 0) : -1;
+      int value = sqlite3mc_config(db, "encrypt_temp_db", encryptTempDb);
       ((char**)pArg)[0] = sqlite3_mprintf("%d", value);
       rc = SQLITE_OK;
     }

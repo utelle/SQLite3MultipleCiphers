@@ -25,6 +25,7 @@ static CipherParams commonParams[] =
 {
   { "cipher",          CODEC_TYPE_UNKNOWN,   CODEC_TYPE_UNKNOWN, 1,      CODEC_COUNT_MAX },
   { "hmac_check",                       1,                    1, 0,                    1 },
+  { "encrypt_temp_db",                  0,                    0, 0,                    1 },
   { "mc_legacy_wal", SQLITE3MC_LEGACY_WAL, SQLITE3MC_LEGACY_WAL, 0,                    1 },
   CIPHER_PARAMS_SENTINEL
 };
