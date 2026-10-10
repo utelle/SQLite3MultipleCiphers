@@ -1,9 +1,9 @@
 {
   "version": "2.6.0",
   "sqlite": {
-    "version": "3.53.4",
+    "version": "3.54.0",
     "android": {
-      "check-in": "f292d23180"
+      "check-in": "22a6fc95c9"
     },
     "sources": {
       "official": {
