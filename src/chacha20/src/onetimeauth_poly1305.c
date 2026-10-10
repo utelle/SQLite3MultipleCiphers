@@ -76,14 +76,11 @@ u128_shr(uint128_t v, int shift)
 #endif
 
 #include "donna/poly1305_donna.c"
+
 #if defined(SQLITE3MC_TARGET_X86)
-/*
-#if defined(HAVE_TI_MODE) && defined(HAVE_EMMINTRIN_H)
-*/
+#if defined(HAVE_TI_MODE) || defined(SQLITE3MC_POLY1305_HAVE_128BIT)
 
 #include "sse2/poly1305_sse2.c"
 
-/*
 #endif
-*/
 #endif

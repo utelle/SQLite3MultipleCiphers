@@ -354,6 +354,7 @@ typedef void (*Poly1305_t)(const uint8_t* msg, size_t n, const uint8_t key[32], 
 static Poly1305_t gPoly1305_impl = NULL;
 
 #if defined(SQLITE3MC_TARGET_X86)
+#if defined(HAVE_TI_MODE) || defined(SQLITE3MC_POLY1305_HAVE_128BIT)
 
 SQLITE_PRIVATE
 void sse2_poly1305(const uint8_t* msg, size_t n, const uint8_t key[32], uint8_t tag[16])
@@ -362,6 +363,7 @@ void sse2_poly1305(const uint8_t* msg, size_t n, const uint8_t key[32], uint8_t 
   int rc = crypto_onetimeauth_poly1305_sse2(tag, msg, n, key);
 }
 
+#endif
 #endif
 
 SQLITE_PRIVATE
