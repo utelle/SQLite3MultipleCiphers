@@ -507,37 +507,33 @@ jobs:
       # near-identical, if-guarded MSYS2 setup steps).
       matrix:
         include:
-          - sys: mingw32
-            id: win32
+          - id: win32
             platform: Win32
-            msys-install: mingw-w64-i686-toolchain
+            dlltool_machine: i386
             dll_suffix: ""
             exe_suffix: ""
             icu: false
             icu_path: ""
 
-          - sys: mingw32
-            id: icu-win32
+          - id: icu-win32
             platform: Win32
-            msys-install: mingw-w64-i686-toolchain
+            dlltool_machine: i386
             dll_suffix: "_icu"
             exe_suffix: "icu"
             icu: true
             icu_path: "win32/bin"
 
-          - sys: mingw64
-            id: win64
+          - id: win64
             platform: Win64
-            msys-install: mingw-w64-x86_64-toolchain
+            dlltool_machine: i386:x86-64
             dll_suffix: "_x64"
             exe_suffix: "_x64"
             icu: false
             icu_path: ""
 
-          - sys: mingw64
-            id: icu-win64
+          - id: icu-win64
             platform: Win64
-            msys-install: mingw-w64-x86_64-toolchain
+            dlltool_machine: i386:x86-64
             dll_suffix: "_icu_x64"
             exe_suffix: "icu_x64"
             icu: true
@@ -583,10 +579,11 @@ jobs:
       - name: Setup MSYS2
         uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
         with:
-          msystem: ${{matrix.sys}}
+          msystem: UCRT64
           update: true
-          install: ${{ matrix.msys-install }}
-
+          pacboy: >-
+            binutils:p
+            tools-git:p
       # -------------------------------------------------
       # Generate MinGW import library
       # -------------------------------------------------
@@ -610,7 +607,7 @@ jobs:
 
           echo "Call dlltool"
 
-          dlltool -d "$def" -l "$lib"
+          dlltool -m "${{ matrix.dlltool_machine }}" -d "$def" -l "$lib"
 
       # -------------------------------------------------
       # Collect all required files into staging
