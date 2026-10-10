@@ -10,10 +10,12 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version information
 
-* 2.5.1 - *August 2026*
-  - Fix issue #252 (precompiled WASM fails due to compact import encoding)
+* 2.6.0 - *October 2026*
+  - Based on SQLite version 3.54.0
+  - Added encryption of temporary files with a random key per file
+  - Fixed several bugs
 
-For further version information please consult the [CHANGELOG](CHANGELOG.md).
+For details and further version information please consult the [CHANGELOG](CHANGELOG.md).
 
 ## How to participate and/or contribute
 

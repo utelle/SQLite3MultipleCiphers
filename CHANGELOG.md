@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.0] - 2026-10-10
+
 ### Added
 
 - Added hardware acceleration for _chacha20_ and _poly1305_ algorithms (adopted from [libsodium](https://github.com/jedisct1/libsodium)
@@ -14,9 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added readline/editline support for SQLite3MC shell on Linux platforms
 - Added tests for the cryptographic primitives (contributed by @mtrossbach)
 - Added encryption of temporary files with a random key per file (@utelle and @mtrossbach)
+- Added pragma `encrypt_temp_db` for forcing encryption of temporary database files
 
 ### Changed
 
+- Based on SQLite version 3.54.0
 - Reordered MAC verification and decryption process (decrypt only after successful verification of MAC)
 - Removed unconditional define for symbol `SQLITE3MC_ENABLE_VLE`
 - Modernized `sqlite3mcSecureZeroMemory()` (contributed by @matbech)
@@ -35,6 +39,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed issue [#263](../../issues/263) - The not existing function `explicit_bzero()` was referenced for Android API 28+. Use function `memset_explicit()` for Android API 34+.
 - Fixed issue [#265](../../pull/265) - Fix WASM entropy source when HEAPU8 is not exported (contributed by @mtrossbach)
 - Fixed issue [#272](../../pull/272) - Do not drop read errors of the real file (contributed by @mtrossbach)
+- Fixed issue [#280](../../issues/280) - Improved check for compatibility with SQLite's backup feature
+- Fixed issue [#282](../../issues/282) - Improved handling of legacy cipher modes
+- Fixed issue [#283](../../issues/283) - Salt in raw key now takes precedence over salt in the database header.
+
 
 ## [2.5.1] - 2026-08-27
 
@@ -823,7 +831,8 @@ The following ciphers are supported:
 - AES 256 Bit CBC - SHA1/SHA256/SHA512 HMAC ([SQLCipher](https://www.zetetic.net/sqlcipher/), database versions 1, 2, 3, and 4)
 - RC4 - No HMAC ([System.Data.SQLite](http://system.data.sqlite.org))
 
-[Unreleased]: ../../compare/v2.5.1...HEAD
+[Unreleased]: ../../compare/v2.6.0...HEAD
+[2.6.0]: ../../compare/v2.5.1...v2.6.0
 [2.5.1]: ../../compare/v2.5.0...v2.5.1
 [2.5.0]: ../../compare/v2.4.0...v2.5.0
 [2.4.0]: ../../compare/v2.3.6...v2.4.0
