@@ -37,7 +37,6 @@ proc sqlite-custom-flags {} {
 
   return {
    {*} {
-     column-metadata=1  => {Disable column meta data}
      secure-delete=1    => {Disable secure delete}
      use-uri=1          => {Disable URI filenames}
      aes-hw-support=1   => {Disable AES hardware support}
