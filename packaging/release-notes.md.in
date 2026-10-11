@@ -46,7 +46,10 @@ This release contains the following precompiled binaries:
 - Source code amalgamation (_amalgamation_) - a single C source file and a single C header file,
 - Source code amalgamation (_autoconf_) - a single C source file and a single C header file - including a `configure` script for POSIX compliant systems,
 - Precompiled SQLite Android library (see [SQLite Android Bindings](https://www.sqlite.org/android/doc/trunk/www/index.wiki)),
-- Precompiled bundle of `sqlite3.wasm` and its JavaScript APIs, ready for use in web applications (see [SQLite3 WebAssembly](https://sqlite.org/wasm/)).
+- Precompiled bundles of `sqlite3.wasm` and its JavaScript APIs, ready for use in web applications (see [SQLite3 WebAssembly](https://sqlite.org/wasm/)), in two variants:
+  - `*-wasm.zip`: baseline build, runs in any WebAssembly runtime,
+  - `*-wasm-simd128.zip`: build with [WebAssembly SIMD128](https://github.com/WebAssembly/simd) enabled for better performance (e.g. for ChaCha20); requires a runtime with SIMD support (current versions of Chrome, Firefox, Safari and Node.js).
+  The variant is fixed at build time. Applications that need to support both should select the matching binary when loading the module, e.g. via feature detection (`WebAssembly.validate()` or the [wasm-feature-detect](https://github.com/GoogleChromeLabs/wasm-feature-detect) library).
 
 ## Verification
 

@@ -706,10 +706,24 @@ jobs:
 #########################################################
 
   build-wasm:
-    name: Build SQLite3MC WASM
+    name: Build SQLite3MC WASM (${{ matrix.variant }})
     needs: amalgamate
     runs-on: ubuntu-latest
     timeout-minutes: 90
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: baseline
+            suffix: ""
+            emcc_cflags: ""
+          - variant: simd128
+            suffix: "-simd128"
+            emcc_cflags: "-msimd128 -mssse3"
+
+    env:
+      VARIANT_SUFFIX: ${{ matrix.suffix }}
 
     outputs:
       artifact-name: sqlite-wasm-binaries
@@ -803,6 +817,7 @@ jobs:
       # Upload SQLite amalgamation for comparison
       # -------------------------------------------------
       - name: Upload SQLite amalgamation for comparison
+        if: matrix.variant == 'baseline'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: sqlite-compare
@@ -872,10 +887,30 @@ jobs:
       # Build SQLite WASM
       # -------------------------------------------------
       - name: Build SQLite WASM
+        env:
+          EMCC_CFLAGS: ${{ matrix.emcc_cflags }}
         working-directory: sqlite/ext/wasm
         run: |
           set -euo pipefail
           make dist dist.build=oz
+
+      # -------------------------------------------------
+      # Verify SIMD instructions match variant
+      # -------------------------------------------------
+      - name: Verify SIMD instructions match variant
+        working-directory: sqlite/ext/wasm
+        run: |
+          set -euo pipefail
+          srcdir="sqlite-wasm-see-${SQLITE_VERSION_RAW}"
+          wasm_file="$(find "$srcdir" -name 'sqlite3.wasm' -print -quit)"
+          count="$(wasm-objdump -d "$wasm_file" | grep -Ec 'v128\.|i8x16\.|i16x8\.|i32x4\.|i64x2\.' || true)"
+          echo "SIMD instruction count: $count"
+          if [ "${{ matrix.variant }}" = "simd128" ] && [ "$count" -eq 0 ]; then
+            echo "::error::simd128 variant contains no SIMD instructions"; exit 1
+          fi
+          if [ "${{ matrix.variant }}" = "baseline" ] && [ "$count" -ne 0 ]; then
+            echo "::error::baseline variant unexpectedly contains SIMD instructions"; exit 1
+          fi
 
       # -------------------------------------------------
       # Verify WASM output before packaging (issue #252 regression check)
@@ -912,8 +947,8 @@ jobs:
         run: |
           set -euo pipefail
           srcdir="sqlite-wasm-see-${SQLITE_VERSION_RAW}"
-          dstdir="sqlite3mc-wasm-${SQLITE_VERSION_RAW}"
-          zipname="sqlite3mc-${SQLITE3MC_VERSION}-sqlite-${SQLITE_VERSION}-wasm.zip"
+          dstdir="sqlite3mc-wasm-${SQLITE_VERSION_RAW}${VARIANT_SUFFIX}"
+          zipname="sqlite3mc-${SQLITE3MC_VERSION}-sqlite-${SQLITE_VERSION}-wasm${VARIANT_SUFFIX}.zip"
           mv "$srcdir" "$dstdir"
           zip -qr "$zipname" "$dstdir"
 
@@ -923,7 +958,7 @@ jobs:
       - name: Upload build artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: sqlite3mc-wasm
+          name: sqlite3mc-wasm{{ matrix.suffix }}
           path: sqlite/ext/wasm/sqlite3mc*.zip
 
 #########################################################
