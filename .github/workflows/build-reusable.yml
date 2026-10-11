@@ -958,7 +958,7 @@ jobs:
       - name: Upload build artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: sqlite3mc-wasm{{ matrix.suffix }}
+          name: sqlite3mc-wasm${{ matrix.suffix }}
           path: sqlite/ext/wasm/sqlite3mc*.zip
 
 #########################################################
