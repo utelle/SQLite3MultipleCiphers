@@ -1842,7 +1842,7 @@ proc proj-setup-autoreconfig {defName} {
 }
 
 #
-# @prop-append-to defineName args...
+# @prop-define-append defineName args...
 #
 # A proxy for Autosetup's [define-append]. Appends all non-empty $args
 # to [define-append $defineName].
@@ -1873,7 +1873,7 @@ proc proj-define-append {defineName args} {
 # but it is technically correct and still relevant on some
 # environments.
 #
-# See: proj-append-to
+# See: proj-define-append
 #
 proc proj-define-amend {args} {
   set defName ""
@@ -2028,7 +2028,7 @@ array set proj__Cache {}
 # Returns a cache key for the given argument:
 #
 #   integer: relative call stack levels to get the scope name of for
-#   use as a key. [proj-scope [expr {1 + $arg + addLevel}]] is
+#   use as a key. [proj-scope [expr {1 + $arg + $addLevel}]] is
 #   then used to generate the key. i.e. the default of 0 uses the
 #   calling scope's name as the key.
 #
@@ -2226,7 +2226,7 @@ proc proj-coalesce {args} {
 #
 # Pragmas:
 #
-# Passing :PRAGMAS to this function may modify how it works. The
+# The prototype list may contain :PRAGMAS to modify how it works. The
 # following pragmas are supported (note the leading ":"):
 #
 #   :all-flags indicates that the whole input list should be scanned,
