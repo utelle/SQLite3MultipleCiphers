@@ -24,7 +24,7 @@
 
 #define COMPILER_ASSERT(X) (void) sizeof(char[(X) ? 1 : -1])
 
-#if defined(__SIZEOF_INT128__) || defined(__clang__) || defined(__GNUC__)
+#if defined(__SIZEOF_INT128__)
 # if defined(__SIZEOF_INT128__)
 typedef unsigned __int128 uint128_t;
 # else

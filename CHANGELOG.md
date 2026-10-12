@@ -7,7 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.6.0] - 2026-10-10
+## [2.6.1] - 2026-10-12
+
+### Fixed
+
+- Fixed build failure with older Emscripten versions (for example, emsdk 2.0.23 as used for .NET 6.0 WebAssembly): `explicit_bzero()` is now only used with Emscripten 3.x or newer. Older versions fall back to the generic implementation in `sqlite3mcSecureZeroMemory()`.
+- Fixed build failure on 32-bit targets (for example, armhf) caused by the 128-bit integer type used in the _poly1305_ code: the 128-bit type (and the 64-bit _poly1305_ implementation based on it) is now only used if the compiler provides `__int128` (`__SIZEOF_INT128__` is defined). Otherwise, the 32-bit implementation is used.
+
+## [2.6.0] - 2026-10-12
 
 ### Added
 
@@ -831,7 +838,8 @@ The following ciphers are supported:
 - AES 256 Bit CBC - SHA1/SHA256/SHA512 HMAC ([SQLCipher](https://www.zetetic.net/sqlcipher/), database versions 1, 2, 3, and 4)
 - RC4 - No HMAC ([System.Data.SQLite](http://system.data.sqlite.org))
 
-[Unreleased]: ../../compare/v2.6.0...HEAD
+[Unreleased]: ../../compare/v2.6.1...HEAD
+[2.6.1]: ../../compare/v2.6.0...v2.6.1
 [2.6.0]: ../../compare/v2.5.1...v2.6.0
 [2.5.1]: ../../compare/v2.5.0...v2.5.1
 [2.5.0]: ../../compare/v2.4.0...v2.5.0

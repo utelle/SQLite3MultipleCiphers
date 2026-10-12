@@ -10,10 +10,10 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version information
 
-* 2.6.0 - *October 2026*
+* 2.6.1 - *October 2026*
   - Based on SQLite version 3.54.0
-  - Added encryption of temporary files with a random key per file
-  - Fixed several bugs
+  - Fixed build failure with older Emscripten versions
+  - Fixed build failure on 32-bit targets
 
 For details and further version information please consult the [CHANGELOG](CHANGELOG.md).
 

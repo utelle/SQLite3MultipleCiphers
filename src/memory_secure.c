@@ -34,7 +34,7 @@ SQLITE_PRIVATE void sqlite3mcSecureZeroMemory(void* v, size_t n)
 #elif defined(__OpenBSD__) || defined(__NetBSD__) || defined(__DragonFly__) || \
       (defined(__FreeBSD__) && __FreeBSD__ >= 11) || \
       (defined(__GLIBC__) && (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 25))) || \
-      defined(__EMSCRIPTEN__) || defined(__wasi__)
+      (defined(__EMSCRIPTEN__) && defined(__EMSCRIPTEN_major__) && __EMSCRIPTEN_major__ >= 3) || defined(__wasi__)
   explicit_bzero(v, n);
 #else
   /* Generic implementation based on volatile pointers */
