@@ -14,7 +14,7 @@
  */
 #if defined(__wasm__) || defined(__wasi__)
 
-#if defined(__EMSCRIPTEN__)
+#if defined(__EMSCRIPTEN__) && !defined(SQLITE3MC_WASM_USE_GETENTROPY)
 #include <emscripten.h>
 
  /* Calls the Web Crypto API directly instead of relying on an opaque
@@ -57,7 +57,7 @@ static size_t entropy(void* buf, size_t n)
   return (n == 0) ? n : 0;
 }
 
-#elif defined(__wasi__)
+#elif defined(__wasi__) && !defined(SQLITE3MC_WASM_USE_GETENTROPY)
 #include <wasi/api.h>
 
 static size_t entropy(void* buf, size_t n)

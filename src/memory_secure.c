@@ -20,8 +20,6 @@ SQLITE_PRIVATE void sqlite3mcSecureZeroMemory(void* v, size_t n)
 {
 #ifdef _WIN32
   SecureZeroMemory(v, n);
-#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
-  memset_explicit(v, 0, n);
 #elif defined(__APPLE__) || defined(__STDC_LIB_EXT1__)
   /* memset_s() is only declared by <string.h> when __STDC_WANT_LIB_EXT1__ is
      set before the first inclusion, which we can't control in an amalgamation.
@@ -36,6 +34,8 @@ SQLITE_PRIVATE void sqlite3mcSecureZeroMemory(void* v, size_t n)
       (defined(__GLIBC__) && (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 25))) || \
       (defined(__EMSCRIPTEN__) && defined(__EMSCRIPTEN_major__) && __EMSCRIPTEN_major__ >= 3) || defined(__wasi__)
   explicit_bzero(v, n);
+#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
+  memset_explicit(v, 0, n);
 #else
   /* Generic implementation based on volatile pointers */
   static void* (* const volatile memset_sec)(void*, int, size_t) = &memset;
