@@ -72454,6 +72454,7 @@ static void lockBtreeMutex(Btree *p){
 
   sqlite3_mutex_enter(p->pBt->mutex);
   p->pBt->db = p->db;
+      if (p->pBt->pPager) p->pBt->pPager->mcDb = p->db;
   p->locked = 1;
 }
 
@@ -72534,6 +72535,7 @@ static void SQLITE_NOINLINE btreeLockCarefully(Btree *p){
   */
   if( sqlite3_mutex_try(p->pBt->mutex)==SQLITE_OK ){
     p->pBt->db = p->db;
+      if (p->pBt->pPager) p->pBt->pPager->mcDb = p->db;
     p->locked = 1;
     return;
   }
@@ -72699,6 +72701,7 @@ SQLITE_PRIVATE int sqlite3SchemaMutexHeld(sqlite3 *db, int iDb, Schema *pSchema)
 
 SQLITE_PRIVATE void sqlite3BtreeEnter(Btree *p){
   p->pBt->db = p->db;
+      if (p->pBt->pPager) p->pBt->pPager->mcDb = p->db;
 }
 SQLITE_PRIVATE void sqlite3BtreeEnterAll(sqlite3 *db){
   int i;
@@ -72706,6 +72709,7 @@ SQLITE_PRIVATE void sqlite3BtreeEnterAll(sqlite3 *db){
     Btree *p = db->aDb[i].pBt;
     if( p ){
       p->pBt->db = p->db;
+      if (p->pBt->pPager) p->pBt->pPager->mcDb = p->db;
     }
   }
 }
@@ -75447,7 +75451,6 @@ SQLITE_PRIVATE int sqlite3BtreeOpen(
     rc = sqlite3PagerOpen(pVfs, &pBt->pPager, zFilename,
                           sizeof(MemPage), flags, vfsFlags, pageReinit);
     if( rc==SQLITE_OK ){
-      pBt->pPager->mcDb = db;
       sqlite3PagerSetMmapLimit(pBt->pPager, db->szMmap);
       rc = sqlite3PagerReadFileheader(pBt->pPager,sizeof(zDbHeader),zDbHeader);
     }

@@ -780,7 +780,7 @@ SQLITE_PRIVATE int sqlite3mcIsAnyDbEncrypted(sqlite3* db)
 
 static int mcCheckEncryptTempDb(sqlite3mc_file* mcFile, sqlite3* db)
 {
-  int encryptTempDb = sqlite3mc_config(db, "encrypt_temp_db", -1);
+  int encryptTempDb = (db != NULL) ? sqlite3mc_config(db, "encrypt_temp_db", -1) : -1;
   return (mcFile->openFlags & SQLITE_OPEN_TEMP_DB) && encryptTempDb != 0;
 }
 
@@ -792,6 +792,7 @@ SQLITE_PRIVATE int sqlite3mcOpenTempFile(Pager* pPager, sqlite3_file* pFile)
     {
       MemJournal* pMemJournal = (MemJournal*)pFile;
       pMemJournal->mcDb = pPager->mcDb;
+      pPager->mcDb = NULL;
     }
     else if (pFile->pMethods == &mcIoMethodsGlobal1 ||
              pFile->pMethods == &mcIoMethodsGlobal2 ||
@@ -810,6 +811,7 @@ SQLITE_PRIVATE int sqlite3mcOpenTempFile(Pager* pPager, sqlite3_file* pFile)
           mcFile->tempCipher = 0;
         }
       }
+      pPager->mcDb = NULL;
     }
   }
   return 0;
@@ -848,7 +850,7 @@ SQLITE_PRIVATE int sqlite3mcIsBackupSupported(sqlite3* pSrc, const char* zSrc, s
       /* Both databases have a codec, are encrypted, and have the same page size */
       ok = sqlite3mcIsEncrypted(codecSrc) && sqlite3mcIsEncrypted(codecDest) &&
            (sqlite3mcGetPageSizeReadCipher(codecSrc) == sqlite3mcGetPageSizeWriteCipher(codecDest)) &&
-           (sqlite3mcGetReadReserved(codecSrc) == sqlite3mcGetWriteReserved(codecDest));
+           (sqlite3mcGetReservedReadCipher(codecSrc) == sqlite3mcGetReservedWriteCipher(codecDest));
     }
     else
     {
