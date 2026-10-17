@@ -16,11 +16,32 @@
 #include <winbase.h>
 #endif
 
+#if defined(__APPLE__)
+  /* memset_s is available on macOS >= 10.9, iOS >= 7.0, tvOS >= 9.0, watchOS >= 2.0.
+     Older targets (e.g. PowerPC Mac OS X 10.4/10.5) lack it. If no version
+     macro is defined, assume it is NOT available and use the fallback. */
+  #if defined(__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__) && \
+      __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1090
+    #define SQLITE3MC_HAVE_MEMSET_S 1
+  #elif defined(__ENVIRONMENT_IPHONE_OS_VERSION_MIN_REQUIRED__) && \
+        __ENVIRONMENT_IPHONE_OS_VERSION_MIN_REQUIRED__ >= 70000
+    #define SQLITE3MC_HAVE_MEMSET_S 1
+  #elif defined(__ENVIRONMENT_TV_OS_VERSION_MIN_REQUIRED__) && \
+        __ENVIRONMENT_TV_OS_VERSION_MIN_REQUIRED__ >= 90000
+    #define SQLITE3MC_HAVE_MEMSET_S 1
+  #elif defined(__ENVIRONMENT_WATCH_OS_VERSION_MIN_REQUIRED__) && \
+        __ENVIRONMENT_WATCH_OS_VERSION_MIN_REQUIRED__ >= 20000
+    #define SQLITE3MC_HAVE_MEMSET_S 1
+  #endif
+#elif defined(__STDC_LIB_EXT1__)
+  #define SQLITE3MC_HAVE_MEMSET_S 1
+#endif
+
 SQLITE_PRIVATE void sqlite3mcSecureZeroMemory(void* v, size_t n)
 {
 #ifdef _WIN32
   SecureZeroMemory(v, n);
-#elif defined(__APPLE__) || defined(__STDC_LIB_EXT1__)
+#elif defined(SQLITE3MC_HAVE_MEMSET_S)
   /* memset_s() is only declared by <string.h> when __STDC_WANT_LIB_EXT1__ is
      set before the first inclusion, which we can't control in an amalgamation.
      Declare it ourselves; errno_t is int and rsize_t is size_t, so this is a
