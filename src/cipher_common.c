@@ -296,7 +296,19 @@ sqlite3mcSetupWriteCipher(Codec* codec, int cipherType, char* userPassword, int 
   codec->m_writeCipher = globalCodecDescriptorTable[codec->m_writeCipherType-1].m_allocateCipher(codec->m_db);
   if (codec->m_writeCipher != NULL)
   {
-    unsigned char* keySalt = (codec->m_hasKeySalt != 0) ? codec->m_keySalt : NULL;
+    /*
+    ** Check for salt
+    ** 1. rekey salt (via pragma)
+    ** 2. cipher_salt (via pragma or URI parameter)
+    */
+    unsigned char rekeySalt[16];
+    unsigned char* rekeySaltHex = sqlite3_get_clientdata(codec->m_db, "sqlite3mc_rekey_salt");
+    if (rekeySaltHex != NULL)
+    {
+      sqlite3mcConvertHex2Bin(rekeySaltHex, 32, rekeySalt);
+    }
+    unsigned char* keySalt = (rekeySaltHex != NULL) ? rekeySalt :
+                             (codec->m_hasKeySalt != 0) ? codec->m_keySalt : NULL;
     sqlite3mcGenerateWriteKey(codec, userPassword, passwordLength, keySalt, usesWal);
   }
   else

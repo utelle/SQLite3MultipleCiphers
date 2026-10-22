@@ -49,6 +49,7 @@ sqlite3mcBtreeSetPageSize(Btree* p, int pageSize, int nReserve, int iFix)
 /*
 ** Include a "special" version of the VACUUM command
 */
+#include "btreecopyfile.c"
 #include "rekeyvacuum.c"
 
 #include "cipher_common.h"
@@ -391,6 +392,40 @@ sqlite3_key_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
   return rc;
 }
 
+static
+sqlite3mcRekeySetFinalCipher(int rc, Codec* codec)
+{
+  int ret = SQLITE_OK;
+  if (rc == SQLITE_OK || rc == SQLITE_DONE)
+  {
+    /* Set read key equal to write key if necessary */
+    if (sqlite3mcHasWriteCipher(codec))
+    {
+      /* Set Read cipher equal to Write cipher */
+      ret = sqlite3mcCopyCipher(codec, 0);
+      sqlite3mcSetHasReadCipher(codec, 1);
+    }
+    else
+    {
+      sqlite3mcSetIsEncrypted(codec, 0);
+    }
+  }
+  else
+  {
+    /* Restore write key if necessary */
+    if (sqlite3mcHasReadCipher(codec))
+    {
+      ret = sqlite3mcCopyCipher(codec, 1);
+    }
+    else
+    {
+      sqlite3mcSetIsEncrypted(codec, 0);
+    }
+  }
+  if (ret != SQLITE_OK) rc = ret;
+  return rc;
+}
+
 SQLITE_API int
 sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
 {
@@ -485,7 +520,7 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
           /* Use VACUUM to change the number of reserved bytes */
           sqlite3mcSetReadReserved(codec, nReserved);
           sqlite3mcSetWriteReserved(codec, nReservedWriteCipher);
-          rc = sqlite3mcRunVacuumForRekey(&err, db, dbIndex, NULL, nReservedWriteCipher);
+          rc = sqlite3mcRunVacuumForRekey(codec, &err, db, dbIndex, NULL, nReservedWriteCipher);
           goto leave_rekey;
         }
       }
@@ -518,7 +553,7 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
       err = NULL;
       sqlite3mcSetReadReserved(codec, nReserved);
       sqlite3mcSetWriteReserved(codec, 0);
-      rc = sqlite3mcRunVacuumForRekey(&err, db, dbIndex, NULL, 0);
+      rc = sqlite3mcRunVacuumForRekey(codec, &err, db, dbIndex, NULL, 0);
       goto leave_rekey;
     }
   }
@@ -539,7 +574,7 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
           err = NULL;
           sqlite3mcSetReadReserved(codec, nReserved);
           sqlite3mcSetWriteReserved(codec, nReservedWriteCipher);
-          rc = sqlite3mcRunVacuumForRekey(&err, db, dbIndex, NULL, nReservedWriteCipher);
+          rc = sqlite3mcRunVacuumForRekey(codec, &err, db, dbIndex, NULL, nReservedWriteCipher);
           goto leave_rekey;
         }
       }
@@ -585,6 +620,7 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
     }
   }
 
+  rc = sqlite3mcRekeySetFinalCipher(rc, codec);
   if (rc == SQLITE_OK)
   {
     /* Commit transaction if all pages could be rewritten */
@@ -602,13 +638,8 @@ leave_rekey:
 /*leave_final:*/
   if (rc == SQLITE_OK)
   {
-    /* Set read key equal to write key if necessary */
     if (sqlite3mcHasWriteCipher(codec))
     {
-      /* Set Read cipher equal to Write cipher */
-      sqlite3mcCopyCipher(codec, 0);
-      sqlite3mcSetHasReadCipher(codec, 1);
-
       /* Enforce page size and number of reserved bytes per page */
       int pageSize = sqlite3mcGetPageSizeWriteCipher(codec);
       int reserved = sqlite3mcGetReservedWriteCipher(codec);
@@ -622,12 +653,7 @@ leave_rekey:
   }
   else
   {
-    /* Restore write key if necessary */
-    if (sqlite3mcHasReadCipher(codec))
-    {
-      sqlite3mcCopyCipher(codec, 1);
-    }
-    else
+    if (!sqlite3mcHasReadCipher(codec))
     {
       sqlite3mcSetIsEncrypted(codec, 0);
     }

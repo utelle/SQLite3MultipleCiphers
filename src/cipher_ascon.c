@@ -128,21 +128,13 @@ GenerateKeyAscon128Cipher(void* cipher, char* userPassword, int passwordLength, 
   Ascon128Cipher* ascon128Cipher = (Ascon128Cipher*) cipher;
 
   int keyOnly = 0;
-  if (rekey == 2)
-  {
-    /* (rekey == 2) means database is in WAL mode, thus don't change the cipher salt */
-    rekey = (cipherSalt != NULL) ? 0 : 1;
-  }
-  if (rekey || cipherSalt == NULL)
+  if (cipherSalt == NULL)
   {
     chacha20_rng(ascon128Cipher->m_salt, SALTLENGTH_ASCON128);
-    keyOnly = 0;
   }
   else
   {
     memcpy(ascon128Cipher->m_salt, cipherSalt, SALTLENGTH_ASCON128);
-    if (ascon128Cipher->m_plaintextHeaderSize > 0)
-      keyOnly = 0;
   }
 
   /* Bypass key derivation, if raw key (and optionally salt) are given */

@@ -150,21 +150,13 @@ GenerateKeyChaCha20Cipher(void* cipher, char* userPassword, int passwordLength, 
   ChaCha20Cipher* chacha20Cipher = (ChaCha20Cipher*) cipher;
 
   int keyOnly = 0;
-  if (rekey == 2)
-  {
-    /* (rekey == 2) means database is in WAL mode, thus don't change the cipher salt */
-    rekey = (cipherSalt != NULL) ? 0 : 1;
-  }
-  if (rekey || cipherSalt == NULL)
+  if (cipherSalt == NULL)
   {
     chacha20_rng(chacha20Cipher->m_salt, SALTLENGTH_CHACHA20);
-    keyOnly = 0;
   }
   else
   {
     memcpy(chacha20Cipher->m_salt, cipherSalt, SALTLENGTH_CHACHA20);
-    if (chacha20Cipher->m_plaintextHeaderSize > 0)
-      keyOnly = 0;
   }
 
   /* Bypass key derivation, if raw key (and optionally salt) are given */

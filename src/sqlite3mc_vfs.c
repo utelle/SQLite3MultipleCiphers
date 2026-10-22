@@ -36,8 +36,11 @@ struct sqlite3mc_file
   sqlite3mc_file* pMainNext;   /* Next main db file */
   sqlite3mc_file* pMainDb;     /* Main database to which this one is attached */
   Codec* codec;                /* Codec if encrypted */
-  int pageNo;                  /* Page number (in case of journal files) */
+  unsigned int pageNo;         /* Page number (in case of journal files) */
   int pageSize;                /* Page size of temporary or transient database */
+  sqlite3_int64 pageNoOffset;  /* Offset of the last page number seen in the main journal */
+  int afterPage;               /* Last operation processed a page; a following */
+                               /* 4-byte operation is the record checksum */
   mcTempCipher* tempCipher;    /* Cipher of a temporary file opened without a name */
 };
 
@@ -792,7 +795,9 @@ SQLITE_PRIVATE int sqlite3mcOpenTempFile(Pager* pPager, sqlite3_file* pFile)
     {
       MemJournal* pMemJournal = (MemJournal*)pFile;
       pMemJournal->mcDb = pPager->mcDb;
+#if 0
       pPager->mcDb = NULL;
+#endif
     }
     else if (pFile->pMethods == &mcIoMethodsGlobal1 ||
              pFile->pMethods == &mcIoMethodsGlobal2 ||
@@ -811,7 +816,9 @@ SQLITE_PRIVATE int sqlite3mcOpenTempFile(Pager* pPager, sqlite3_file* pFile)
           mcFile->tempCipher = 0;
         }
       }
+#if 0
       pPager->mcDb = NULL;
+#endif
     }
   }
   return 0;
@@ -957,6 +964,9 @@ static int mcVfsOpen(sqlite3_vfs* pVfs, const char* zName, sqlite3_file* pFile, 
   mcFile->pMainDb = 0;
   mcFile->pMainNext = 0;
   mcFile->pageNo = 0;
+  mcFile->pageSize = 0;
+  mcFile->pageNoOffset = 0;
+  mcFile->afterPage = 0;
   mcFile->tempCipher = 0;
 
   /*
@@ -1187,7 +1197,7 @@ static int mcReadMainDb(sqlite3_file* pFile, void* buffer, int count, sqlite3_in
       /*
       ** Read partial page
       */
-      int pageNo = 0;
+      unsigned int pageNo = 0;
       void* bufferDecrypted = 0;
       const sqlite3_int64 prevOffset = offset - deltaOffset;
       unsigned char* pageBuffer = sqlite3mcGetPageBuffer(mcFile->codec);
@@ -1229,9 +1239,9 @@ static int mcReadMainDb(sqlite3_file* pFile, void* buffer, int count, sqlite3_in
       ** This would allow to remove the page loop below.
       */
       unsigned char* data = (unsigned char*) buffer;
-      int pageNo = offset / pageSize + 1;
-      int nPages = count / pageSize;
-      int iPage;
+      unsigned int pageNo = offset / pageSize + 1;
+      unsigned int nPages = count / pageSize;
+      unsigned int iPage;
       for (iPage = 0; iPage < nPages; ++iPage)
       {
         void* bufferDecrypted = sqlite3mcCodec(mcFile->codec, data, pageNo, 3);
@@ -1246,6 +1256,136 @@ static int mcReadMainDb(sqlite3_file* pFile, void* buffer, int count, sqlite3_in
 }
 
 /*
+** Returns 1, if the first MC_PAGE1_CHECK_SIZE bytes of page 1 look like the page 1
+** of an unencrypted SQLite database. Only rules are used, that SQLite requires
+** when it opens a database (lockBtree) or that hold for every valid b-tree page.
+** Rules, that SQLite doesn't enforce (for example the number of fragmented
+** bytes), are not used, so that a valid database is never regarded as encrypted.
+**
+** Page 1 is the root page of the table sqlite_schema, so its b-tree header
+** (at offset 100) belongs to a table b-tree: interior page (0x05, header size 12)
+** or leaf page (0x0d, header size 8).
+*/
+
+#define MC_VALID_SIZE(x) ((x) >= 512 && (x) <= 65536 && (((x) & ((x) - 1)) == 0))
+
+static int mcPage1LooksPlain(const unsigned char* p)
+{
+  static const unsigned char magic[16] = "SQLite format 3";
+  unsigned int pageSize, usable, hdrSize, freeBlock, nCell, cellStart;
+
+  if (memcmp(p, magic, 16) != 0) return 0;
+  /* Payload fractions: must be 64, 32, 32. */
+  if (p[21] != 64 || p[22] != 32 || p[23] != 32) return 0;
+  /* File format versions: 1 or 2 */
+  if ((p[18] != 1 && p[18] != 2) || (p[19] != 1 && p[19] != 2)) return 0;
+  /* Page size (the value 1 stands for 65536); usable size must be at least 480 */
+  pageSize = ((unsigned int) p[16] << 8) | p[17];
+  if (pageSize == 1) pageSize = 65536;
+  if (!MC_VALID_SIZE(pageSize)) return 0;
+  usable = pageSize - p[20];
+  if (usable < 480) return 0;
+  /* B-tree header: type, first free block, number of cells, start of cell content */
+  if (p[100] != 0x0d && p[100] != 0x05) return 0;
+  hdrSize = (p[100] == 0x05) ? 12 : 8;
+  freeBlock = ((unsigned int) p[101] << 8) | p[102];
+  nCell = ((unsigned int) p[103] << 8) | p[104];
+  cellStart = ((unsigned int) p[105] << 8) | p[106];
+  if (cellStart == 0) cellStart = 65536;
+  if (cellStart < 100 + hdrSize + 2 * nCell || cellStart > usable) return 0;
+  if (freeBlock != 0 && (freeBlock < 100 + hdrSize || freeBlock > usable - 4)) return 0;
+  return 1;
+}
+
+/*
+** Check whether main database seems to be encrypted
+**
+** A database looks encrypted, if page 1 does not start with the
+** SQLite magic string (except for databases with a plaintext header).
+** An empty file, a file shorter than 16 bytes or a file starting
+** with zero bytes is not considered to be encrypted.
+**
+** Returns 1, if the main database file of the journal is encrypted
+*/
+
+/* Database header (100 bytes) and the b-tree page header (8 bytes) of page 1 */
+#define MC_PAGE1_CHECK_SIZE 108
+
+static int mcMainDbLooksEncrypted(sqlite3mc_file* mcFile)
+{
+  unsigned char page1[MC_PAGE1_CHECK_SIZE];
+  int j;
+  int allZero = 1;
+  sqlite3_file* mainFile = (sqlite3_file*)mcFile->pMainDb;
+  sqlite3_file* realMainFile = REALFILE(mainFile);
+  int rc = realMainFile->pMethods->xRead(realMainFile, page1, MC_PAGE1_CHECK_SIZE, 0);
+  if (rc != SQLITE_OK)
+  {
+    /* Includes SQLITE_IOERR_SHORT_READ: nothing to judge on */
+    return 0;
+  }
+  for (j = 0; j < 16; ++j)
+  {
+    if (page1[j] != 0)
+    {
+      allZero = 0;
+      break;
+    }
+  }
+  if (allZero)
+  {
+    return 0;
+  }
+  return !mcPage1LooksPlain(page1);
+}
+
+/*
+** Returns 1, if the records of the (hot) journal can't be shown to be plaintext.
+** Returns 0, if
+** - the journal has no valid header (SQLite doesn't roll it back anyway), or
+** - the journal has no complete first record, or
+** - the first record is page 1 starting with the SQLite magic string
+**   (the journal of a plain database, for example while it is being
+**   encrypted with rekey).
+**
+** Journal header: 0: magic (8), 8: record count, 12: checksum nonce,
+** 16: initial db size, 20: sector size, 24: page size.
+** The first record (page number, 4 bytes, followed by the page) starts
+** directly after the header, that is at offset 'sector size'.
+*/
+static int mcJournalRecordsMayBeEncrypted(sqlite3_file* pFile)
+{
+  static const unsigned char journalMagic[8] = { 0xd9, 0xd5, 0x05, 0xf9, 0x20, 0xa1, 0x63, 0xd7 };
+  sqlite3_file* realJournal = REALFILE(pFile);
+  unsigned char header[28];
+  unsigned char pgno[4];
+  unsigned char content[MC_PAGE1_CHECK_SIZE];
+  unsigned int sectorSize, pageSize;
+
+  if (realJournal->pMethods->xRead(realJournal, header, 28, 0) != SQLITE_OK ||
+    memcmp(header, journalMagic, 8) != 0)
+  {
+    return 0;
+  }
+  sectorSize = sqlite3Get4byte(header + 20);
+  pageSize = sqlite3Get4byte(header + 24);
+  if (!MC_VALID_SIZE(sectorSize) || !MC_VALID_SIZE(pageSize))
+  {
+    return 0;
+  }
+  if (realJournal->pMethods->xRead(realJournal, pgno, 4, sectorSize) != SQLITE_OK ||
+      realJournal->pMethods->xRead(realJournal, content, MC_PAGE1_CHECK_SIZE, (sqlite3_int64)sectorSize + 4) != SQLITE_OK)
+  {
+    return 0;
+  }
+  if (sqlite3Get4byte(pgno) == 1 && mcPage1LooksPlain(content))
+  {
+    return 0;
+  }
+  return 1;
+}
+
+/*
 ** Read operation on main journal file
 */
 static int mcReadMainJournal(sqlite3_file* pFile, const void* buffer, int count, sqlite3_int64 offset)
@@ -1257,25 +1397,58 @@ static int mcReadMainJournal(sqlite3_file* pFile, const void* buffer, int count,
   if (codec != 0 && sqlite3mcIsEncrypted(codec))
   {
     const int pageSize = sqlite3mcGetPageSize(codec);
+    /*
+    ** The page number is only valid for the operation that directly follows it.
+    ** Take it over and invalidate it for all following operations.
+    */
+    const unsigned int pageNo = mcFile->pageNo;
+    const int afterPage = mcFile->afterPage;
+    mcFile->pageNo = 0;
+    mcFile->afterPage = 0;
 
-    if (count == pageSize && mcFile->pageNo != 0)
+    if (count == pageSize && pageNo != 0 && offset == mcFile->pageNoOffset + 4)
     {
       /*
       ** Decrypt the page buffer, but only if the page number is valid
       */
       void* bufferDecrypted = sqlite3mcCodec(codec, (char*) buffer, mcFile->pageNo, 3);
       rc = sqlite3mcGetCodecLastError(codec);
-      mcFile->pageNo = 0;
+      mcFile->afterPage = 1;
     }
-    else if (count == 4)
+    else if (count == 4 && !afterPage)
     {
       /*
       ** SQLite always reads the page number from the journal file
       ** immediately before the corresponding page content is read.
+      ** (A 4-byte read directly after a page is the record checksum.)
       */
       mcFile->pageNo = sqlite3Get4byte(buffer);
+      mcFile->pageNoOffset = offset;
     }
   }
+  else if (offset == 0 && count == 1 &&
+           ((const unsigned char*)buffer)[0] != 0 &&
+           mcFile->pMainDb != 0 &&
+           mcMainDbLooksEncrypted(mcFile) &&
+           mcJournalRecordsMayBeEncrypted(pFile))
+  {
+    /*
+    ** This is the check whether a journal is hot: SQLite reads the first byte
+    ** of an existing journal (count == 1, offset 0), if no other connection
+    ** holds a lock on the database. A first byte of 0 (for example a journal
+    ** kept with journal_mode=PERSIST) means: not hot. Only a journal that is
+    ** hot candidate is examined, other journal accesses (ROLLBACK of the
+    ** current transaction, ...) are not affected.
+    **
+    ** No key (yet), but the database is encrypted: The journal records are
+    ** encrypted as well, their checksums can't be verified. Refuse the access
+    ** to keep the journal for a later attempt with the key.
+    ** (A journal with plaintext records, for example from an interrupted
+    ** encryption of a plain database, is passed through for the rollback.)
+    */
+    rc = SQLITE_NOTADB;
+  }
+
   return rc;
 }
 
@@ -1291,22 +1464,33 @@ static int mcReadSubJournal(sqlite3_file* pFile, const void* buffer, int count, 
   if (codec != 0 && sqlite3mcIsEncrypted(codec))
   {
     const int pageSize = sqlite3mcGetPageSize(codec);
+    /*
+    ** The page number is only valid for the operation that directly follows it.
+    ** Take it over and invalidate it for all following operations.
+    */
+    const unsigned int pageNo = (unsigned int)mcFile->pageNo;
+    const int afterPage = mcFile->afterPage;
+    mcFile->pageNo = 0;
+    mcFile->afterPage = 0;
 
-    if (count == pageSize && mcFile->pageNo != 0)
+    if (count == pageSize && pageNo != 0 && offset == mcFile->pageNoOffset + 4)
     {
       /*
       ** Decrypt the page buffer, but only if the page number is valid
       */
       void* bufferDecrypted = sqlite3mcCodec(codec, (char*) buffer, mcFile->pageNo, 3);
       rc = sqlite3mcGetCodecLastError(codec);
+      mcFile->afterPage = 1;
     }
-    else if (count == 4)
+    else if (count == 4 && !afterPage)
     {
       /*
       ** SQLite always reads the page number from the journal file
       ** immediately before the corresponding page content is read.
+      ** (A 4-byte read directly after a page is the record checksum.)
       */
       mcFile->pageNo = sqlite3Get4byte(buffer);
+      mcFile->pageNoOffset = offset;
     }
   }
   return rc;
@@ -1327,7 +1511,7 @@ static int mcReadWal(sqlite3_file* pFile, const void* buffer, int count, sqlite3
 
     if (count == pageSize)
     {
-      int pageNo = 0;
+      unsigned int pageNo = 0;
       unsigned char ac[4];
 
       /*
@@ -1352,7 +1536,7 @@ static int mcReadWal(sqlite3_file* pFile, const void* buffer, int count, sqlite3
     }
     else if (codec->m_walLegacy != 0 && count == pageSize + walFrameHeaderSize)
     {
-      int pageNo = sqlite3Get4byte(buffer);
+      unsigned int pageNo = sqlite3Get4byte(buffer);
 
       /*
       ** Decrypt page content if page number is valid
@@ -1443,9 +1627,9 @@ static int mcWriteMainDb(sqlite3_file* pFile, const void* buffer, int count, sql
       ** This would allow to remove the page loop below.
       */
       char* data = (char*) buffer;
-      int pageNo = offset / pageSize + 1;
-      int nPages = count / pageSize;
-      int iPage;
+      unsigned int pageNo = offset / pageSize + 1;
+      unsigned int nPages = count / pageSize;
+      unsigned int iPage;
       for (iPage = 0; iPage < nPages; ++iPage)
       {
         void* bufferEncrypted = sqlite3mcCodec(mcFile->codec, data, pageNo, 6);
@@ -1478,29 +1662,40 @@ static int mcWriteMainJournal(sqlite3_file* pFile, const void* buffer, int count
   if (codec != 0 && sqlite3mcIsEncrypted(codec))
   {
     const int pageSize = sqlite3mcGetPageSize(codec);
-    const int frameSize = pageSize + 4 + 4;
+    /*
+    ** The page number is only valid for the operation that directly follows it.
+    ** Take it over and invalidate it for all following operations.
+    */
+    const unsigned int pageNo = mcFile->pageNo;
+    const int afterPage = mcFile->afterPage;
+    mcFile->pageNo = 0;
+    mcFile->afterPage = 0;
 
-    if (count == pageSize && mcFile->pageNo != 0)
+    if (count == pageSize && pageNo != 0 && offset == mcFile->pageNoOffset + 4)
     {
       /*
       ** Encrypt the page buffer, but only if the page number is valid
       */
       void* bufferEncrypted = sqlite3mcCodec(codec, (char*) buffer, mcFile->pageNo, 7);
       rc = REALFILE(pFile)->pMethods->xWrite(REALFILE(pFile), bufferEncrypted, pageSize, offset);
+      mcFile->afterPage = (rc == SQLITE_OK) ? 1 : 0;
     }
     else
     {
       /*
-      ** Write buffer without encryption
+      ** Write buffer without encryption. This includes journal headers,
+      ** even if they are as large as a page (sector size >= page size).
       */
       rc = REALFILE(pFile)->pMethods->xWrite(REALFILE(pFile), buffer, count, offset);
-      if (count == 4)
+      if (rc == SQLITE_OK && count == 4 && !afterPage)
       {
         /*
         ** SQLite always writes the page number to the journal file
         ** immediately before the corresponding page content is written.
+        ** (A 4-byte write directly after a page is the record checksum.)
         */
-        mcFile->pageNo = (rc == SQLITE_OK) ? sqlite3Get4byte(buffer) : 0;
+        mcFile->pageNo = sqlite3Get4byte(buffer);
+        mcFile->pageNoOffset = offset;
       }
     }
   }
@@ -1526,9 +1721,14 @@ static int mcWriteSubJournal(sqlite3_file* pFile, const void* buffer, int count,
   if (codec != 0 && sqlite3mcIsEncrypted(codec))
   {
     const int pageSize = sqlite3mcGetPageSize(codec);
-    const int frameSize = pageSize + 4;
+    /*
+    ** The page number is only valid for the operation that directly follows it.
+    ** Take it over and invalidate it for all following operations.
+    */
+    const unsigned int pageNo = (unsigned int)mcFile->pageNo;
+    mcFile->pageNo = 0;
 
-    if (count == pageSize && mcFile->pageNo != 0)
+    if (count == pageSize && pageNo != 0 && offset == mcFile->pageNoOffset + 4)
     {
       /*
       ** Encrypt the page buffer, but only if the page number is valid
@@ -1549,6 +1749,7 @@ static int mcWriteSubJournal(sqlite3_file* pFile, const void* buffer, int count,
         ** immediately before the corresponding page content is written.
         */
         mcFile->pageNo = (rc == SQLITE_OK) ? sqlite3Get4byte(buffer) : 0;
+        mcFile->pageNoOffset = offset;
       }
     }
   }
@@ -1577,7 +1778,7 @@ static int mcWriteWal(sqlite3_file* pFile, const void* buffer, int count, sqlite
 
     if (count == pageSize)
     {
-      int pageNo = 0;
+      unsigned int pageNo = 0;
       unsigned char ac[4];
 
       /*

@@ -1099,6 +1099,62 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
         rc = SQLITE_ERROR;
       }
     }
+    else if (sqlite3StrICmp(pragmaName, "rekey_salt") == 0)
+    {
+      if (pragmaValue && *pragmaValue != 0)
+      {
+        if (sqlite3StrICmp(pragmaValue, "on") == 0 || sqlite3StrICmp(pragmaValue, "true") == 0 ||
+            sqlite3StrICmp(pragmaValue, "yes") == 0 || sqlite3StrICmp(pragmaValue, "1") == 0)
+        {
+          char* rekeySalt = NULL;
+          char saltHex[33];
+          unsigned char saltRaw[16];
+          int j;
+          chacha20_rng(saltRaw, 16);
+          for (j = 0; j < 16; ++j)
+            sprintf(&saltHex[2*j], "%02x", saltRaw[j]);
+          rekeySalt = sqlite3_mprintf("%s", saltHex);
+          if (rekeySalt == NULL || sqlite3_set_clientdata(db, "sqlite3mc_rekey_salt", rekeySalt, sqlite3_free) != SQLITE_OK)
+          {
+            ((char**)pArg)[0] = sqlite3_mprintf("Out of memory. Rekey salt not saved.");
+            rc = SQLITE_ERROR;
+          }
+          else
+          {
+            ((char**)pArg)[0] = sqlite3_mprintf("%s", saltHex);
+            rc = SQLITE_OK;
+          }
+        }
+        else if (sqlite3StrICmp(pragmaValue, "off") == 0 || sqlite3StrICmp(pragmaValue, "false") == 0 ||
+                 sqlite3StrICmp(pragmaValue, "no") == 0 || sqlite3StrICmp(pragmaValue, "0") == 0)
+        {
+          if (sqlite3_set_clientdata(db, "sqlite3mc_rekey_salt", NULL, NULL) != SQLITE_OK)
+          {
+            ((char**)pArg)[0] = sqlite3_mprintf("Error on removing rekey salt.");
+            rc = SQLITE_ERROR;
+          }
+          else
+          {
+            ((char**)pArg)[0] = sqlite3_mprintf("Rekey salt removed.");
+            rc = SQLITE_OK;
+          }
+        }
+        else
+        {
+          ((char**)pArg)[0] = sqlite3_mprintf("Invalid option '%s'.", pragmaValue);
+          rc = SQLITE_ERROR;
+        }
+      }
+      else
+      {
+        char* rekeySalt = sqlite3_get_clientdata(db, "sqlite3mc_rekey_salt");
+        if (rekeySalt)
+        {
+          ((char**)pArg)[0] = sqlite3_mprintf("%s", rekeySalt);
+          rc = SQLITE_OK;
+        }
+      }
+    }
     else if (sqlite3StrICmp(pragmaName, "key") == 0)
     {
       rc = sqlite3_key_v2(db, zDbName, pragmaValue, -1);
