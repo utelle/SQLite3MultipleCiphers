@@ -392,7 +392,7 @@ sqlite3_key_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
   return rc;
 }
 
-static
+static int
 sqlite3mcRekeySetFinalCipher(int rc, Codec* codec)
 {
   int ret = SQLITE_OK;
