@@ -220,16 +220,19 @@ jobs:
           dest_sqlite="${{ env.SQLITE_PATH }}/sqlite3patched.c"
           dest_shell="${{ env.SQLITE_PATH }}/shell.c"
           dest_rekey="${{ env.SQLITE_PATH }}/rekeyvacuum.c"
+          dest_btree="${{ env.SQLITE_PATH }}/btreecopyfile.c"
 
           # Make sure that scripts are executable
           chmod +x scripts/patchsqlite3.sh
           chmod +x scripts/patchshell.sh
           chmod +x scripts/rekeyvacuum.sh
+          chmod +x scripts/btreecopyfile.sh
           ls -l scripts/
 
           bash scripts/patchsqlite3.sh $sqlite_src > $dest_sqlite
           bash scripts/patchshell.sh $shell_src > $dest_shell
           bash scripts/rekeyvacuum.sh $sqlite_src > $dest_rekey
+          bash scripts/btreecopyfile.sh $sqlite_src > $dest_btree
 
           cp "$sqlite_src" "$SQLITE_PATH/"
           cp "$shell_src" "$SQLITE_PATH/shell-orig.c"
@@ -252,6 +255,7 @@ jobs:
           FILES=(
             "sqlite3patched.c"
             "rekeyvacuum.c"
+            "btreecopyfile.c"
             "shell.c"
           )
 
@@ -302,6 +306,7 @@ jobs:
             "sqlite3.c:sqlite3patched.c"
             "shell-orig.c:shell.c"
             "../src/rekeyvacuum.c:rekeyvacuum.c"
+            "../src/btreecopyfile.c:btreecopyfile.c"
           )
 
           for pair in "${COMPARE_PAIRS[@]}"; do
@@ -360,7 +365,7 @@ jobs:
           set -euo pipefail
 
           echo "Copying files into src/ ..."
-          for f in sqlite3.c sqlite3.h sqlite3ext.h sqlite3patched.c rekeyvacuum.c shell.c; do
+          for f in sqlite3.c sqlite3.h sqlite3ext.h sqlite3patched.c rekeyvacuum.c btreecopyfile.c shell.c; do
             echo "Copying $f"
             cp -f "$SQLITE_PATH/$f" src/
           done
@@ -409,6 +414,7 @@ jobs:
           git add src/sqlite3patched.c
           git add src/shell.c
           git add src/rekeyvacuum.c
+          git add src/btreecopyfile.c
 
           if git diff --cached --quiet; then
             echo "No changes to commit"
