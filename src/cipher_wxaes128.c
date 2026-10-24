@@ -40,7 +40,7 @@ typedef struct _AES128Cipher
   int       m_legacyPageSize;
   int       m_keyLength;
   uint8_t   m_key[KEYLENGTH_AES128];
-  Rijndael* m_aes;
+  AesCtx*   m_aes;
 } AES128Cipher;
 
 static void*
@@ -49,12 +49,12 @@ AllocateAES128Cipher(sqlite3* db)
   AES128Cipher* aesCipher = (AES128Cipher*) sqlite3_malloc(sizeof(AES128Cipher));
   if (aesCipher != NULL)
   {
-    aesCipher->m_aes = (Rijndael*) sqlite3_malloc(sizeof(Rijndael));
+    aesCipher->m_aes = (AesCtx*) sqlite3_malloc(sizeof(AesCtx));
     if (aesCipher->m_aes != NULL)
     {
       aesCipher->m_keyLength = KEYLENGTH_AES128;
       memset(aesCipher->m_key, 0, KEYLENGTH_AES128);
-      RijndaelCreate(aesCipher->m_aes);
+      sqlite3mcAesCbcWipe(aesCipher->m_aes);
     }
     else
     {
@@ -75,7 +75,7 @@ static void
 FreeAES128Cipher(void* cipher)
 {
   AES128Cipher* localCipher = (AES128Cipher*) cipher;
-  sqlite3mcSecureZeroMemory(localCipher->m_aes, sizeof(Rijndael));
+  sqlite3mcSecureZeroMemory(localCipher->m_aes, sizeof(AesCtx));
   sqlite3_free(localCipher->m_aes);
   sqlite3mcSecureZeroMemory(localCipher, sizeof(AES128Cipher));
   sqlite3_free(localCipher);
@@ -90,8 +90,8 @@ CloneAES128Cipher(void* cipherTo, void* cipherFrom)
   aesCipherTo->m_legacyPageSize = aesCipherFrom->m_legacyPageSize;
   aesCipherTo->m_keyLength = aesCipherFrom->m_keyLength;
   memcpy(aesCipherTo->m_key, aesCipherFrom->m_key, KEYLENGTH_AES128);
-  RijndaelInvalidate(aesCipherTo->m_aes);
-  RijndaelInvalidate(aesCipherFrom->m_aes);
+  sqlite3mcAesCbcWipe(aesCipherTo->m_aes);
+  sqlite3mcAesCbcWipe(aesCipherFrom->m_aes);
 }
 
 static int

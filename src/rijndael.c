@@ -79,10 +79,12 @@
 #define TEST_AES_HW_DEBUG_HEX(DESC,BUFFER,LEN)
 #endif
 
+#if 0
 /*
 ** Use AES hardware support if available
 */
 #include "aes_hardware.c"
+#endif
 
 static UINT8 S[256]=
 {
@@ -1070,7 +1072,7 @@ int RijndaelInit(Rijndael* rijndael, int mode, int dir, UINT8* key, int keyLen, 
 
   if (!key) return RIJNDAEL_BAD_KEY;
 
-#if HAS_AES_HARDWARE
+#if HAS_AES_HARDWARE && 0
   if (aesHardwareAvailable())
   {
     if (rijndael->m_direction == RIJNDAEL_Direction_Encrypt)
@@ -1148,7 +1150,7 @@ int RijndaelBlockEncrypt(Rijndael* rijndael, UINT8* input, int inputLen, UINT8* 
       }
     break;
     case RIJNDAEL_Direction_Mode_CBC:
-#if HAS_AES_HARDWARE
+#if HAS_AES_HARDWARE && 0
       if (aesHardwareAvailable())
       {
 #ifndef TEST_AES_HW
@@ -1342,7 +1344,7 @@ int RijndaelBlockDecrypt(Rijndael* rijndael, UINT8* input, int inputLen, UINT8* 
       }
     break;
     case RIJNDAEL_Direction_Mode_CBC:
-#if HAS_AES_HARDWARE
+#if HAS_AES_HARDWARE && 0
       if (aesHardwareAvailable())
       {
 #ifndef TEST_AES_HW

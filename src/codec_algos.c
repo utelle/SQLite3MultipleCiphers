@@ -92,7 +92,7 @@ sqlite3mcGenerateInitialVector(int seed, unsigned char iv[16])
 #if HAVE_CIPHER_AES_128_CBC
 
 SQLITE_PRIVATE int
-sqlite3mcAES128(Rijndael* aesCtx, int page, int encrypt, unsigned char encryptionKey[KEYLENGTH_AES128],
+sqlite3mcAES128(AesCtx* aesCtx, int page, int encrypt, unsigned char encryptionKey[KEYLENGTH_AES128],
                 unsigned char* datain, int datalen, unsigned char* dataout)
 {
   int rc = SQLITE_OK;
@@ -122,22 +122,34 @@ sqlite3mcAES128(Rijndael* aesCtx, int page, int encrypt, unsigned char encryptio
 
   sqlite3mcGetMD5Binary(nkey, nkeylen, pagekey);
   sqlite3mcGenerateInitialVector(page, initial);
+
+  int flags = (encrypt) ? AES_FOR_ENCRYPT : AES_FOR_DECRYPT;
+  sqlite3mcAesCbcInit(aesCtx, pagekey, KEYLENGTH_AES128, flags);
+#if 0
   RijndaelInit(aesCtx, RIJNDAEL_Direction_Mode_CBC, direction, pagekey, RIJNDAEL_Direction_KeyLength_Key16Bytes, initial);
+#endif
   if (encrypt)
   {
+    sqlite3mcAesCbcEncrypt(aesCtx, initial, datain, datalen);
+#if 0
     len = RijndaelBlockEncrypt(aesCtx, datain, datalen*8, dataout);
+#endif
   }
   else
   {
+    sqlite3mcAesCbcDecrypt(aesCtx, initial, datain, datalen);
+#if 0
     len = RijndaelBlockDecrypt(aesCtx, datain, datalen*8, dataout);
+#endif
   }
-
+#if 0
   /* It is a good idea to check the error code */
   if (len < 0)
   {
     /* AES: Error on encrypting. */
     rc = SQLITE_ERROR;
   }
+#endif
   return rc;
 }
 
@@ -146,7 +158,7 @@ sqlite3mcAES128(Rijndael* aesCtx, int page, int encrypt, unsigned char encryptio
 #if HAVE_CIPHER_AES_256_CBC
 
 SQLITE_PRIVATE int
-sqlite3mcAES256(Rijndael* aesCtx, int page, int encrypt, unsigned char encryptionKey[KEYLENGTH_AES256],
+sqlite3mcAES256(AesCtx* aesCtx, int page, int encrypt, unsigned char encryptionKey[KEYLENGTH_AES256],
                 unsigned char* datain, int datalen, unsigned char* dataout)
 {
   int rc = SQLITE_OK;
@@ -176,22 +188,34 @@ sqlite3mcAES256(Rijndael* aesCtx, int page, int encrypt, unsigned char encryptio
 
   sqlite3mcGetSHABinary(nkey, nkeylen, pagekey);
   sqlite3mcGenerateInitialVector(page, initial);
+
+  int flags = (encrypt) ? AES_FOR_ENCRYPT : AES_FOR_DECRYPT;
+  sqlite3mcAesCbcInit(aesCtx, pagekey, KEYLENGTH_AES256, flags);
+#if 0
   RijndaelInit(aesCtx, RIJNDAEL_Direction_Mode_CBC, direction, pagekey, RIJNDAEL_Direction_KeyLength_Key32Bytes, initial);
+#endif
   if (encrypt)
   {
+    sqlite3mcAesCbcEncrypt(aesCtx, initial, datain, datalen);
+#if 0
     len = RijndaelBlockEncrypt(aesCtx, datain, datalen*8, dataout);
+#endif
   }
   else
   {
+    sqlite3mcAesCbcDecrypt(aesCtx, initial, datain, datalen);
+#if 0
     len = RijndaelBlockDecrypt(aesCtx, datain, datalen*8, dataout);
+#endif
   }
-
+#if 0
   /* It is a good idea to check the error code */
   if (len < 0)
   {
     /* AES: Error on encrypting. */
     rc = SQLITE_ERROR;
   }
+#endif
   return rc;
 }
 

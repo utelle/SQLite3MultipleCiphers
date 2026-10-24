@@ -235,6 +235,12 @@ mcRegisterCodecExtensions(sqlite3* db, char** pzErrMsg, const sqlite3_api_routin
 */
 #if HAVE_CIPHER_AES_128_CBC || HAVE_CIPHER_AES_256_CBC || HAVE_CIPHER_SQLCIPHER
 #include "rijndael.c"
+#include "aes_hardware.c"
+#include "aes_hw_blocks.c"
+#include "aes_rijndael.c"
+#include "aes_vpaes.c"
+#include "aes_core.c"
+#include "aes_gcm.c"
 #endif
 
 #if HAVE_CIPHER_AEGIS

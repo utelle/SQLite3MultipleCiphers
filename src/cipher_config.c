@@ -1011,14 +1011,32 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
     }
     else if (sqlite3StrICmp(pragmaName, "mc_aes_info") == 0)
     {
-      const char* hwInfo = sqlite3mcHardwareInfo();
       ((char**)pArg)[0] = sqlite3_mprintf("%s", aesHardwareAvailable() ? "hardware" : "software");
       rc = SQLITE_OK;
     }
+    else if (sqlite3StrICmp(pragmaName, "mc_aes_backend_info") == 0)
+    {
+      ((char**)pArg)[0] = sqlite3_mprintf("%s", aesBackendInfo());
+      rc = SQLITE_OK;
+    }
+    else if (sqlite3StrICmp(pragmaName, "mc_aes_backend") == 0)
+    {
+      const char* backendName = aesRequestBackend(pragmaValue);
+      if (backendName != NULL)
+      {
+        ((char**)pArg)[0] = sqlite3_mprintf("%s", backendName);
+        rc = SQLITE_OK;
+      }
+      else
+      {
+        ((char**)pArg)[0] = sqlite3_mprintf("No AES backend available");
+        rc = SQLITE_ERROR;
+      }
+    }
     else if (sqlite3StrICmp(pragmaName, "mc_cpu_info") == 0)
     {
-      const char* hwInfo = sqlite3mcHardwareInfo();
-      ((char**)pArg)[0] = sqlite3_mprintf("%s", hwInfo);
+      const char* aesInfo = aesBackendInfo();
+      ((char**)pArg)[0] = sqlite3_mprintf("%s", aesInfo);
       rc = SQLITE_OK;
     }
     else if (sqlite3StrICmp(pragmaName, "mc_chacha20_hwaccel") == 0)

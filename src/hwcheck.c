@@ -135,6 +135,8 @@
 #define SQLITE3MC_CPU_NEON      0x0100
 #define SQLITE3MC_CPU_ARMCRYPTO 0x0200
 #define SQLITE3MC_CPU_ALTIVEC   0x0400
+#define SQLITE3MC_CPU_PCLMUL    0x0800   /* x86: PCLMULQDQ (carry-less multiplication), used by GHASH */
+#define SQLITE3MC_CPU_ARMPMULL  0x1000   /* AArch64: PMULL on 64-bit polynomials (crypto extension), used by GHASH */
 
 #if defined(SQLITE3MC_TARGET_ARM)
 /*
@@ -153,6 +155,18 @@ aesHardwareAvailableOnPlatform()
   return getauxval(AT_HWCAP) & HWCAP_AES;
 #elif defined HWCAP2_AES
   return getauxval(AT_HWCAP2) & HWCAP2_AES;
+#else
+  return 0;
+#endif
+}
+
+static int
+pmullHardwareAvailableOnPlatform()
+{
+#if defined HWCAP_PMULL
+  return (getauxval(AT_HWCAP) & HWCAP_PMULL) != 0;
+#elif defined HWCAP2_PMULL
+  return (getauxval(AT_HWCAP2) & HWCAP2_PMULL) != 0;
 #else
   return 0;
 #endif
@@ -177,6 +191,10 @@ aesHardwareAvailableOnPlatform()
 #  define HWCAP_AES (1UL << 3)
 #endif
 
+#ifndef HWCAP_PMULL
+#  define HWCAP_PMULL (1UL << 4)
+#endif
+
 static int
 aesHardwareAvailableOnPlatform()
 {
@@ -190,12 +208,31 @@ aesHardwareAvailableOnPlatform()
 #endif    
 }
 
+static int
+pmullHardwareAvailableOnPlatform()
+{
+#ifdef HAVE_ELF_AUX_INFO
+  unsigned long hwcap;
+  if (elf_aux_info(AT_HWCAP, &hwcap, sizeof(hwcap)) != 0)
+    return 0;
+  return (hwcap & HWCAP_PMULL) != 0;
+#else
+  return 0;
+#endif
+}
+
 #  elif defined(__APPLE__) && defined(__aarch64__)     /* macOS/iOS Apple Silicon */
 
 static int
 aesHardwareAvailableOnPlatform()
 {
   return 1;   /* ARMv8-Crypto mandatory on Apple Silicon */
+}
+
+static int
+pmullHardwareAvailableOnPlatform()
+{
+  return 1;   /* PMULL is part of the crypto extension of Apple Silicon */
 }
 
 #  elif defined(_WIN32) && (defined _M_ARM || defined _M_ARM64 || defined(_M_ARM64EC))
@@ -206,10 +243,23 @@ aesHardwareAvailableOnPlatform()
   return (int) IsProcessorFeaturePresent(PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE);
 }
 
+static int
+pmullHardwareAvailableOnPlatform()
+{
+  /* PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE covers AES, PMULL, SHA-1 and SHA-256 */
+  return (int) IsProcessorFeaturePresent(PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE);
+}
+
 #  else
 
 static int
 aesHardwareAvailableOnPlatform()
+{
+  return 0;
+}
+
+static int
+pmullHardwareAvailableOnPlatform()
 {
   return 0;
 }
@@ -230,6 +280,8 @@ mcCpuFeaturesArm(void)
 #endif
   if (aesHardwareAvailableOnPlatform())
     features |= SQLITE3MC_CPU_ARMCRYPTO;
+  if (pmullHardwareAvailableOnPlatform())
+    features |= SQLITE3MC_CPU_ARMPMULL;
   return features;
 }
 
@@ -283,6 +335,7 @@ mcCpuFeaturesX86(void)
   if (__get_cpuid(1, &eax, &ebx, &ecx, &edx))
   {
     if (edx & (1u << 26)) features |= SQLITE3MC_CPU_SSE2;
+    if (ecx & (1u <<  1)) features |= SQLITE3MC_CPU_PCLMUL;
     if (ecx & (1u <<  9)) features |= SQLITE3MC_CPU_SSSE3;
     if (ecx & (1u << 19)) features |= SQLITE3MC_CPU_SSE41;
     if (ecx & (1u << 20)) features |= SQLITE3MC_CPU_SSE42;
@@ -318,6 +371,7 @@ mcCpuFeaturesX86(void)
 
   __cpuid(cpuInfo, 1);
   if (cpuInfo[3] & (1u << 26)) features |= SQLITE3MC_CPU_SSE2;
+  if (cpuInfo[2] & (1u <<  1)) features |= SQLITE3MC_CPU_PCLMUL;
   if (cpuInfo[2] & (1u <<  9)) features |= SQLITE3MC_CPU_SSSE3;
   if (cpuInfo[2] & (1u << 19)) features |= SQLITE3MC_CPU_SSE41;
   if (cpuInfo[2] & (1u << 20)) features |= SQLITE3MC_CPU_SSE42;
@@ -454,6 +508,8 @@ sqlite3mcHardwareInfo()
   { SQLITE3MC_CPU_NEON,      "neon"      },
   { SQLITE3MC_CPU_ARMCRYPTO, "armcrypto" },
   { SQLITE3MC_CPU_ALTIVEC,   "altivec"   },
+  { SQLITE3MC_CPU_PCLMUL,    "pclmul"    },
+  { SQLITE3MC_CPU_ARMPMULL,  "armpmull"  },
   { 0,                       ""          }  /* Sentinel, do NOT delete */
   };
   static char hwInfoBuf[256];
@@ -476,6 +532,7 @@ sqlite3mcHardwareInfo()
       }
       ++k;
     }
+    hwInfoBuilt = 1;
   }
   return hwInfoBuf;
 }
