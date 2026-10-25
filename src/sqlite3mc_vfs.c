@@ -1627,11 +1627,14 @@ static int mcWriteMainDb(sqlite3_file* pFile, const void* buffer, int count, sql
       {
         void* bufferEncrypted = sqlite3mcCodec(mcFile->codec, data, pageNo, 6);
         rc = sqlite3mcGetCodecLastError(mcFile->codec);
+        if (rc == SQLITE_OK)
+        {
+          rc = REALFILE(pFile)->pMethods->xWrite(REALFILE(pFile), bufferEncrypted, pageSize, offset);
+        }
         if (rc != SQLITE_OK)
         {
           break;
         }
-        rc = REALFILE(pFile)->pMethods->xWrite(REALFILE(pFile), bufferEncrypted, pageSize, offset);
         data += pageSize;
         offset += pageSize;
         ++pageNo;
@@ -1808,7 +1811,7 @@ static int mcWriteWal(sqlite3_file* pFile, const void* buffer, int count, sqlite
         ** Encrypt the page buffer, but only if the page number is valid
         */
         void* bufferEncrypted = sqlite3mcCodec(codec, (char*) buffer, pageNo, 7);
-        rc = sqlite3mcGetCodecLastError(mcFile->codec);
+        rc = sqlite3mcGetCodecLastError(codec);
         if (rc == SQLITE_OK)
         {
           rc = REALFILE(pFile)->pMethods->xWrite(REALFILE(pFile), bufferEncrypted, pageSize, offset);
@@ -1831,10 +1834,14 @@ static int mcWriteWal(sqlite3_file* pFile, const void* buffer, int count, sqlite
         ** Encrypt the page buffer, but only if the page number is valid
         */
         void* bufferEncrypted = sqlite3mcCodec(codec, (char*)buffer+walFrameHeaderSize, pageNo, 7);
-        rc = REALFILE(pFile)->pMethods->xWrite(REALFILE(pFile), buffer, walFrameHeaderSize, offset);
+        rc = sqlite3mcGetCodecLastError(mcFile->codec);
         if (rc == SQLITE_OK)
         {
-          rc = REALFILE(pFile)->pMethods->xWrite(REALFILE(pFile), bufferEncrypted, pageSize, offset + walFrameHeaderSize);
+          rc = REALFILE(pFile)->pMethods->xWrite(REALFILE(pFile), buffer, walFrameHeaderSize, offset);
+          if (rc == SQLITE_OK)
+          {
+            rc = REALFILE(pFile)->pMethods->xWrite(REALFILE(pFile), bufferEncrypted, pageSize, offset + walFrameHeaderSize);
+          }
         }
       }
       else

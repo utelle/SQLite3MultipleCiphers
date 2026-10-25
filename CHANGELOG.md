@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Based on SQLite version 3.54.1
+- Updated several SQLite extensions
+- Added return type to function `sqlite3mcRekeySetFinalCipher`
+
+### Fixed
+
+- Resolved the following issues:  
+  1. Rollback journal used wrong page number value (only trunk affected)
+  2. Partial page read error silently dropped
+  3. Legacy WAL frame write discarded write result code
+  4. Encryption errors on writing not propagated
+  5. Memory leak in sqlite3_rekey_v2
+  6. Error reporting from pragma handling had a latent crash risk
+- Fixed issues [#291](../../issues/291), [#292](../../issues/292), [#293](../../issues/293), and [#294](../../issues/294)  
+  - Do not change salt on rekeying, unless explicitly requested (pragma rekey_salt)
+  - Added checks to identify encrypted database and hot journal to prevent removing a valid journal
+-  Fixed issues [#280](../../issues/#280) - Check in backup procedure corrected
+
 ## [2.6.1] - 2026-10-12
 
 ### Fixed
