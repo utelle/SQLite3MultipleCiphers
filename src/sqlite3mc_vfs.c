@@ -929,7 +929,7 @@ SQLITE_PRIVATE void* sqlite3mcPagerCodec(PgHdrMC* pPg)
     {
       int rc;
       aData = sqlite3mcCodec(codec, pPg->pData, pPg->pgno, 6);
-      rc = sqlite3mcGetCodecLastError(mcFile->codec);
+      rc = sqlite3mcGetCodecLastError(codec);
       if (rc != SQLITE_OK)
       {
         aData = 0;
@@ -1834,7 +1834,7 @@ static int mcWriteWal(sqlite3_file* pFile, const void* buffer, int count, sqlite
         ** Encrypt the page buffer, but only if the page number is valid
         */
         void* bufferEncrypted = sqlite3mcCodec(codec, (char*)buffer+walFrameHeaderSize, pageNo, 7);
-        rc = sqlite3mcGetCodecLastError(mcFile->codec);
+        rc = sqlite3mcGetCodecLastError(codec);
         if (rc == SQLITE_OK)
         {
           rc = REALFILE(pFile)->pMethods->xWrite(REALFILE(pFile), buffer, walFrameHeaderSize, offset);
