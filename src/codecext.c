@@ -529,6 +529,10 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
         /* Pagesize cannot be changed for an encrypted database */
         rc = SQLITE_ERROR;
         err = "Rekeying failed. Pagesize cannot be changed for an encrypted database.";
+        if (codecAllocated)
+        {
+          sqlite3mcCodecFree(codec);
+        }
         goto leave_rekey;
       }
     }
@@ -669,7 +673,7 @@ leave_rekey:
   }
   if (rc != SQLITE_OK && err != NULL)
   {
-    sqlite3ErrorWithMsg(db, rc, err);
+    sqlite3ErrorWithMsg(db, rc, "%s", err);
   }
   return rc;
 }

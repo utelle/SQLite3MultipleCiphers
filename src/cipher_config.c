@@ -1169,7 +1169,7 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
           const char* z = (const char*)sqlite3_value_text(db->pErr);
           if (z && sqlite3Strlen30(z) > 0)
           {
-            ((char**)pArg)[0] = sqlite3_mprintf(z);
+            ((char**)pArg)[0] = sqlite3_mprintf("%s", z);
           }
         }
       }
@@ -1195,7 +1195,7 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
             const char* z = (const char*)sqlite3_value_text(db->pErr);
             if (z && sqlite3Strlen30(z) > 0)
             {
-              ((char**)pArg)[0] = sqlite3_mprintf(z);
+              ((char**)pArg)[0] = sqlite3_mprintf("%s", z);
             }
           }
         }
@@ -1220,7 +1220,7 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
           const char* z = (const char*) sqlite3_value_text(db->pErr);
           if (z && sqlite3Strlen30(z) > 0)
           {
-            ((char**)pArg)[0] = sqlite3_mprintf(z);
+            ((char**)pArg)[0] = sqlite3_mprintf("%s", z);
           }
         }
       }
@@ -1246,7 +1246,7 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
             const char* z = (const char*)sqlite3_value_text(db->pErr);
             if (z && sqlite3Strlen30(z) > 0)
             {
-              ((char**)pArg)[0] = sqlite3_mprintf(z);
+              ((char**)pArg)[0] = sqlite3_mprintf("%s", z);
             }
           }
         }
