@@ -282,17 +282,6 @@ GenerateKeyAegisCipher(void* cipher, char* userPassword, int passwordLength, int
 }
 
 static int
-AegisGenNonce(AegisCipher* aegisCipher, uint8_t* out, int outLength, int page)
-{
-  uint8_t nonce[PAGE_NONCE_LEN_AEGIS_MAX];
-  memset(nonce, 0, PAGE_NONCE_LEN_AEGIS_MAX);
-  STORE32_LE(out, page);
-  STORE32_LE(out + 4, page);
-  mcAegisCryptFunctions[aegisCipher->m_aegisAlgorithm].stream(out, outLength, nonce, aegisCipher->m_key);
-  return 0;
-}
-
-static int
 AegisGenOtk(AegisCipher* aegisCipher, uint8_t* out, int outLength, uint8_t* nonce, int nonceLength, int page)
 {
   mcAegisCryptFunctions[aegisCipher->m_aegisAlgorithm].stream(out, outLength, nonce, aegisCipher->m_key);

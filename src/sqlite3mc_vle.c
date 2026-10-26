@@ -247,7 +247,7 @@ vle_getScope(sqlite3_value* argv, const unsigned char** scope, int* scopeLen)
       *scope = (const unsigned char*) sqlite3_value_blob(argv);
     }
   }
-  if (scopeLen == 0)
+  if (*scopeLen == 0)
   {
     *scopeLen = (int) strlen(VLE_DEFAULT_SCOPE);
     *scope = (const unsigned char*) VLE_DEFAULT_SCOPE;
@@ -365,12 +365,15 @@ static VleContext* vle_getContext(sqlite3* db)
   if (!ctx)
   {
     ctx = sqlite3_malloc(sizeof(VleContext));
-    memset(ctx, 0, sizeof(VleContext));
-    ctx->algorithm = CODEC_TYPE_CHACHA20;
-    ctx->flags = 0;
-    ctx->nonceLen = VLE_NONCE_LEN;
-    ctx->tagLen = VLE_TAG_LEN;
-    sqlite3_set_clientdata(db, VLE_CONTEXT_KEY, ctx, vle_freeContext);
+    if (ctx != NULL)
+    {
+      memset(ctx, 0, sizeof(VleContext));
+      ctx->algorithm = CODEC_TYPE_CHACHA20;
+      ctx->flags = 0;
+      ctx->nonceLen = VLE_NONCE_LEN;
+      ctx->tagLen = VLE_TAG_LEN;
+      sqlite3_set_clientdata(db, VLE_CONTEXT_KEY, ctx, vle_freeContext);
+    }
   }
   return ctx;
 }
@@ -490,6 +493,12 @@ static void vle_setKey(sqlite3_context* ctx, int argc, sqlite3_value** argv)
 {
   sqlite3* db = sqlite3_context_db_handle(ctx);
   VleContext* vle = vle_getContext(db);
+  if (vle == NULL)
+  {
+    sqlite3_result_error_nomem(ctx);
+    return;
+  }
+
   if (argc < 1)
   {
     sqlite3_result_error(ctx, "The key parameter is required", -1);
@@ -542,13 +551,12 @@ static void vle_setKey(sqlite3_context* ctx, int argc, sqlite3_value** argv)
     int algorithmType = sqlite3_value_type(argv[2]);
     if (algorithmType == SQLITE_TEXT)
     {
-      int algorithmLen = sqlite3_value_bytes(argv[2]);
       const char* algorithm = (const char*) sqlite3_value_text(argv[2]);
-      if (sqlite3_strnicmp(algorithm, "chacha20", algorithmLen) == 0)
+      if (sqlite3_stricmp(algorithm, "chacha20") == 0)
       {
         vle->algorithm = CODEC_TYPE_CHACHA20;
       }
-      else if (sqlite3_strnicmp(algorithm, "ascon128", algorithmLen) == 0)
+      else if (sqlite3_stricmp(algorithm, "ascon128") == 0)
       {
         vle->algorithm = CODEC_TYPE_ASCON128;
       }
@@ -660,6 +668,11 @@ vle_encrypt(sqlite3_context* ctx, int argc, sqlite3_value** argv)
 {
   sqlite3* db = sqlite3_context_db_handle(ctx);
   VleContext* vle = vle_getContext(db);
+  if (vle == NULL)
+  {
+    sqlite3_result_error_nomem(ctx);
+    return;
+  }
   if (argc < 1)
   {
     sqlite3_result_error(ctx, "sqlite3mc_vle_encrypt requires a value", -1);
@@ -712,7 +725,7 @@ vle_encrypt(sqlite3_context* ctx, int argc, sqlite3_value** argv)
 
   /* Output SQLite value type and value */
   ciphertext[0] = (uint8_t) sqlite3_value_type(argv[0]);
-  memcpy(ciphertext + 1, payload, payloadLen + 1);
+  memcpy(ciphertext + 1, payload, payloadLen);
 
   /* Encrypt */
   vle_aeadEncrypt(vle,
@@ -730,6 +743,11 @@ vle_decrypt(sqlite3_context* ctx, int argc, sqlite3_value** argv)
 {
   sqlite3* db = sqlite3_context_db_handle(ctx);
   VleContext* vle = vle_getContext(db);
+  if (vle == NULL)
+  {
+    sqlite3_result_error_nomem(ctx);
+    return;
+  }
 
   /* Check type of value parameter, must be blob */
   if (argc < 1 || sqlite3_value_type(argv[0]) != SQLITE_BLOB)
@@ -753,7 +771,8 @@ vle_decrypt(sqlite3_context* ctx, int argc, sqlite3_value** argv)
   /* Retrieve value */
   int blobLen = sqlite3_value_bytes(argv[0]);
   const unsigned char* blob = (const unsigned char*) sqlite3_value_blob(argv[0]);
-  if (blobLen < sizeof(VleHeader))
+
+  if (blobLen < (int) sizeof(VleHeader) + (int) vle->nonceLen + (int) vle->tagLen + 1)
   {
     sqlite3_result_error(ctx, "Encrypted content too short", -1);
     return;
@@ -774,6 +793,7 @@ vle_decrypt(sqlite3_context* ctx, int argc, sqlite3_value** argv)
   if (hdr.magic != VLE_MAGIC)
   {
     sqlite3_result_error(ctx, "Invalid VLE header in encrypted value", -1);
+    sqlite3_free(buffer);
     return;
   }
 
@@ -796,10 +816,13 @@ vle_decrypt(sqlite3_context* ctx, int argc, sqlite3_value** argv)
   if (rc != SQLITE_OK)
   {
     sqlite3_result_error(ctx, "AEAD authentication failed", -1);
+    sqlite3_free(buffer);
+    return;
   }
 
   /* Unpack value and set return value */
   vle_unpackValue(ctx, &hdr, ciphertext, payloadLen);
+  sqlite3_free(buffer);
 }
 
 /*

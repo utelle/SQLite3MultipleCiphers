@@ -408,18 +408,24 @@ sqlite3mc_codec_data(sqlite3* db, const char* zDbName, const char* paramName)
           {
             int j;
             result = sqlite3_malloc(32 + 1);
-            for (j = 0; j < 16; ++j)
+            if (result != NULL)
             {
-              result[j * 2] = hexdigits[(salt[j] >> 4) & 0x0F];
-              result[j * 2 + 1] = hexdigits[(salt[j]) & 0x0F];
+              for (j = 0; j < 16; ++j)
+              {
+                result[j * 2] = hexdigits[(salt[j] >> 4) & 0x0F];
+                result[j * 2 + 1] = hexdigits[(salt[j]) & 0x0F];
+              }
+              result[32] = '\0';
             }
-            result[32] = '\0';
           }
           else
           {
             result = sqlite3_malloc(16 + 1);
-            memcpy(result, salt, 16);
-            result[16] = '\0';
+            if (result != NULL)
+            {
+              memcpy(result, salt, 16);
+              result[16] = '\0';
+            }
           }
         }
       }
@@ -1073,6 +1079,11 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
           {
             ((char**)pArg)[0] = sqlite3_mprintf("%s", cipherSalt);
           }
+          else
+          {
+            ((char**)pArg)[0] = sqlite3_mprintf("");
+          }
+          rc = SQLITE_OK;
         }
       }
       else if (sqlite3mcIsEncrypted(codec) && sqlite3mcHasWriteCipher(codec))
@@ -1088,7 +1099,11 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
           char* cipherSalt = (char*) sqlite3mc_codec_data(db, (zDbName) ? zDbName : "main", "cipher_salt");
           if (cipherSalt)
           {
-            ((char**)pArg)[0] = cipherSalt;
+            ((char**)pArg)[0] = sqlite3_mprintf("%s", cipherSalt);;
+          }
+          else
+          {
+            ((char**)pArg)[0] = sqlite3_mprintf("");
           }
           rc = SQLITE_OK;
         }
@@ -1180,24 +1195,31 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
       if (((nValue & 1) == 0) && (sqlite3mcIsHexKey((const unsigned char*) pragmaValue, nValue) != 0))
       {
         unsigned char* zHexKey = sqlite3_malloc(nValue/2);
-        sqlite3mcConvertHex2Bin((const unsigned char*) pragmaValue, nValue, zHexKey);
-        rc = sqlite3_key_v2(db, zDbName, zHexKey, nValue/2);
-        sqlite3mcSecureZeroMemory(zHexKey, nValue/2);
-        sqlite3_free(zHexKey);
-        if (rc == SQLITE_OK)
+        if (zHexKey != NULL)
         {
-          ((char**)pArg)[0] = sqlite3_mprintf("ok");
+          sqlite3mcConvertHex2Bin((const unsigned char*)pragmaValue, nValue, zHexKey);
+          rc = sqlite3_key_v2(db, zDbName, zHexKey, nValue / 2);
+          sqlite3mcSecureZeroMemory(zHexKey, nValue / 2);
+          sqlite3_free(zHexKey);
+          if (rc == SQLITE_OK)
+          {
+            ((char**)pArg)[0] = sqlite3_mprintf("ok");
+          }
+          else
+          {
+            if (db->pErr)
+            {
+              const char* z = (const char*)sqlite3_value_text(db->pErr);
+              if (z && sqlite3Strlen30(z) > 0)
+              {
+                ((char**)pArg)[0] = sqlite3_mprintf("%s", z);
+              }
+            }
+          }
         }
         else
         {
-          if (db->pErr)
-          {
-            const char* z = (const char*)sqlite3_value_text(db->pErr);
-            if (z && sqlite3Strlen30(z) > 0)
-            {
-              ((char**)pArg)[0] = sqlite3_mprintf("%s", z);
-            }
-          }
+          rc = SQLITE_NOMEM;
         }
       }
       else
@@ -1231,24 +1253,31 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
       if (((nValue & 1) == 0) && (sqlite3mcIsHexKey((const unsigned char*) pragmaValue, nValue) != 0))
       {
         unsigned char* zHexKey = sqlite3_malloc(nValue/2);
-        sqlite3mcConvertHex2Bin((const unsigned char*) pragmaValue, nValue, zHexKey);
-        rc = sqlite3_rekey_v2(db, zDbName, zHexKey, nValue/2);
-        sqlite3mcSecureZeroMemory(zHexKey, nValue/2);
-        sqlite3_free(zHexKey);
-        if (rc == SQLITE_OK)
+        if (zHexKey != NULL)
         {
-          ((char**)pArg)[0] = sqlite3_mprintf("ok");
+          sqlite3mcConvertHex2Bin((const unsigned char*)pragmaValue, nValue, zHexKey);
+          rc = sqlite3_rekey_v2(db, zDbName, zHexKey, nValue / 2);
+          sqlite3mcSecureZeroMemory(zHexKey, nValue / 2);
+          sqlite3_free(zHexKey);
+          if (rc == SQLITE_OK)
+          {
+            ((char**)pArg)[0] = sqlite3_mprintf("ok");
+          }
+          else
+          {
+            if (db->pErr)
+            {
+              const char* z = (const char*)sqlite3_value_text(db->pErr);
+              if (z && sqlite3Strlen30(z) > 0)
+              {
+                ((char**)pArg)[0] = sqlite3_mprintf("%s", z);
+              }
+            }
+          }
         }
         else
         {
-          if (db->pErr)
-          {
-            const char* z = (const char*)sqlite3_value_text(db->pErr);
-            if (z && sqlite3Strlen30(z) > 0)
-            {
-              ((char**)pArg)[0] = sqlite3_mprintf("%s", z);
-            }
-          }
+          rc = SQLITE_NOMEM;
         }
       }
       else
@@ -1392,15 +1421,29 @@ sqlite3mcCodecQueryParameters(sqlite3* db, const char* zDb, const char* zUri)
     u8 iByte;
     int i;
     int nKey = sqlite3Strlen30(zKey);
-    char* zDecoded = sqlite3_malloc(nKey);
-    for (i = 0, iByte = 0; i < nKey && sqlite3Isxdigit(zKey[i]); i++)
+    if (((nKey & 1) == 0) && (sqlite3mcIsHexKey((const unsigned char*)zKey, nKey) != 0))
     {
-      iByte = (iByte << 4) + sqlite3HexToInt(zKey[i]);
-      if ((i & 1) != 0) zDecoded[i/2] = iByte;
+      char* zDecoded = sqlite3_malloc(nKey);
+      if (zDecoded != NULL)
+      {
+        for (i = 0, iByte = 0; i < nKey && sqlite3Isxdigit(zKey[i]); i++)
+        {
+          iByte = (iByte << 4) + sqlite3HexToInt(zKey[i]);
+          if ((i & 1) != 0) zDecoded[i / 2] = iByte;
+        }
+        sqlite3_key_v2(db, zDb, zDecoded, i / 2);
+        sqlite3mcSecureZeroMemory(zDecoded, nKey);
+        sqlite3_free(zDecoded);
+      }
+      else
+      {
+        rc = 0;
+      }
     }
-    sqlite3_key_v2(db, zDb, zDecoded, i/2);
-    sqlite3mcSecureZeroMemory(zDecoded, nKey);
-    sqlite3_free(zDecoded);
+    else
+    {
+      rc = 0;
+    }
   }
   else if ((zKey = sqlite3_uri_parameter(zUri, "key")) != 0)
   {

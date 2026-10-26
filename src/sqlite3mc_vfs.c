@@ -795,6 +795,7 @@ SQLITE_PRIVATE int sqlite3mcOpenTempFile(Pager* pPager, sqlite3_file* pFile)
     {
       MemJournal* pMemJournal = (MemJournal*)pFile;
       pMemJournal->mcDb = pPager->mcDb;
+      pPager->mcDb = NULL;
     }
     else if (pFile->pMethods == &mcIoMethodsGlobal1 ||
              pFile->pMethods == &mcIoMethodsGlobal2 ||
@@ -813,6 +814,7 @@ SQLITE_PRIVATE int sqlite3mcOpenTempFile(Pager* pPager, sqlite3_file* pFile)
           mcFile->tempCipher = 0;
         }
       }
+      pPager->mcDb = NULL;
     }
   }
   return 0;
