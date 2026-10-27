@@ -706,6 +706,22 @@ sqlite3mcTermCipherTables()
   globalCipherCount = 0;
 }
 
+/*
+** sqlite3mc_initialize is SQLITE_PRIVATE (normally static) and is called
+** exclusively from the patched sqlite3_initialize, under the init mutex
+** and before isInit is set. The accessors for the global cipher tables
+** first call sqlite3_initialize and therefore cannot run in parallel with
+** initialization; subsequent changes (sqlite3mc_register_cipher) are
+** serialized under SQLITE_MUTEX_STATIC_MAIN.
+**
+** sqlite3mc_shutdown is called from the patched sqlite3_shutdown before all
+** other components are cleaned up; it does not acquire any mutexes and
+** performs a complete cleanup (including ciphers registered at runtime);
+* it is subject to the sqlite3_shutdown contract that no other thread is
+** using SQLite. Calling sqlite3_initialize again performs a complete
+** reinitialization. An atexit handler is intentionally not registered.
+*/
+
 SQLITE_PRIVATE int
 sqlite3mc_initialize(const char* arg)
 {

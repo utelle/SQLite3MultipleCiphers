@@ -238,7 +238,7 @@ GetSaltSQLCipherCipher(void* cipher)
   return sqlCipherCipher->m_salt;
 }
 
-static void
+static int
 GenerateKeySQLCipherCipher(void* cipher, char* userPassword, int passwordLength, int rekey, unsigned char* cipherSalt)
 {
   SQLCipherCipher* sqlCipherCipher = (SQLCipherCipher*) cipher;
@@ -317,6 +317,7 @@ GenerateKeySQLCipherCipher(void* cipher, char* userPassword, int passwordLength,
         break;
     }
   }
+  return SQLITE_OK;
 }
 
 static int

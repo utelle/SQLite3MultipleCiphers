@@ -115,9 +115,9 @@ SQLITE_PRIVATE const AegisCryptFunctions mcAegisCryptFunctions[] =
 
 SQLITE_PRIVATE CipherParams mcAegisParams[] =
 {
-  { "tcost",                 AEGIS_TCOST_DEFAULT,     AEGIS_TCOST_DEFAULT,     1,                   0x7fffffff },
-  { "mcost",                 AEGIS_MCOST_DEFAULT,     AEGIS_MCOST_DEFAULT,     1,                   0x7fffffff },
-  { "pcost",                 AEGIS_PCOST_DEFAULT,     AEGIS_PCOST_DEFAULT,     1,                   0x7fffffff },
+  { "tcost",                 AEGIS_TCOST_DEFAULT,     AEGIS_TCOST_DEFAULT,     ARGON2_MIN_TIME,     0x7fffffff },
+  { "mcost",                 AEGIS_MCOST_DEFAULT,     AEGIS_MCOST_DEFAULT,     ARGON2_MIN_MEMORY,   0x7fffffff },
+  { "pcost",                 AEGIS_PCOST_DEFAULT,     AEGIS_PCOST_DEFAULT,     ARGON2_MAX_LANES,    ARGON2_MAX_LANES},
   { "algorithm",             AEGIS_ALGORITHM_DEFAULT, AEGIS_ALGORITHM_DEFAULT, AEGIS_ALGORITHM_MIN, AEGIS_ALGORITHM_MAX },
   { "plaintext_header_size", 0,                       0,                       0, 100 /* restrict to db header size */ },
   CIPHER_PARAMS_SENTINEL
@@ -248,10 +248,11 @@ GetSaltAegisCipher(void* cipher)
   return aegisCipher->m_salt;
 }
 
-static void
+static int
 GenerateKeyAegisCipher(void* cipher, char* userPassword, int passwordLength, int rekey, unsigned char* cipherSalt)
 {
   AegisCipher* aegisCipher = (AegisCipher*) cipher;
+  int rc = ARGON2_OK;
 
   int keyOnly = 0;
   if (cipherSalt == NULL)
@@ -269,16 +270,17 @@ GenerateKeyAegisCipher(void* cipher, char* userPassword, int passwordLength, int
                                       aegisCipher->m_key, aegisCipher->m_salt);
   if (!bypass)
   {
-    int rc = argon2id_hash_raw((uint32_t) aegisCipher->m_argon2Tcost,
-                               (uint32_t) aegisCipher->m_argon2Mcost,
-                               (uint32_t) aegisCipher->m_argon2Pcost,
-                               userPassword, passwordLength,
-                               aegisCipher->m_salt, SALTLENGTH_AEGIS,
-                               aegisCipher->m_key, aegisCipher->m_keyLength);
+    rc = argon2id_hash_raw((uint32_t) aegisCipher->m_argon2Tcost,
+                           (uint32_t) aegisCipher->m_argon2Mcost,
+                           (uint32_t) aegisCipher->m_argon2Pcost,
+                           userPassword, passwordLength,
+                           aegisCipher->m_salt, SALTLENGTH_AEGIS,
+                           aegisCipher->m_key, aegisCipher->m_keyLength);
   }
   SQLITE3MC_DEBUG_LOG("generate: codec=%p pFile=%p\n", aegisCipher, fd);
   SQLITE3MC_DEBUG_HEX("generate  key:", aegisCipher->m_key, aegisCipher->m_keyLength);
   SQLITE3MC_DEBUG_HEX("generate salt:", aegisCipher->m_salt, SALTLENGTH_AEGIS);
+  return (rc == ARGON2_OK) ? SQLITE_OK : SQLITE_ERROR;
 }
 
 static int

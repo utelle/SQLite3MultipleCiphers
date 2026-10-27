@@ -135,7 +135,7 @@ GetSaltAES256Cipher(void* cipher)
   return NULL;
 }
 
-static void
+static int
 GenerateKeyAES256Cipher(void* cipher, char* userPassword, int passwordLength, int rekey, unsigned char* cipherSalt)
 {
   AES256Cipher* aesCipher = (AES256Cipher*) cipher;
@@ -153,6 +153,7 @@ GenerateKeyAES256Cipher(void* cipher, char* userPassword, int passwordLength, in
     sha256(digest, KEYLENGTH_AES256, digest);
   }
   memcpy(aesCipher->m_key, digest, aesCipher->m_keyLength);
+  return SQLITE_OK;
 }
 
 static int

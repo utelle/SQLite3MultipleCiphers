@@ -142,6 +142,8 @@ vle_findOption(const VleOptionDef* table, const char* name, int nameLength)
   const VleOptionDef* opt;
   for (opt = table; opt->name != 0; opt++)
   {
+    if (strlen(opt->name) != nameLength)
+      continue;
     if (sqlite3_strnicmp(opt->name, name, nameLength) == 0)
       return opt;
   }
@@ -423,16 +425,16 @@ vle_packValue(sqlite3_value* val, unsigned char** out, int* out_len)
       return SQLITE_MISUSE;
   }
 
-  *out = sqlite3_malloc(payloadLen);
-  if (!*out)
-  {
-    return SQLITE_NOMEM;
-  }
   if (payloadLen > 0)
   {
+    *out = sqlite3_malloc(payloadLen);
+    if (!*out)
+    {
+      return SQLITE_NOMEM;
+    }
     memcpy(*out, payload, payloadLen);
+    *out_len = payloadLen;
   }
-  *out_len = payloadLen;
   return SQLITE_OK;
 }
 
@@ -452,6 +454,7 @@ vle_unpackValue(sqlite3_context* ctx, VleHeader* hdr, const unsigned char* buffe
 
     case SQLITE_INTEGER:
     {
+      if (payloadLen != 8) return SQLITE_CORRUPT;
       int64_t v = (int64_t) vle_readU64BE(payload);
       sqlite3_result_int64(ctx, v);
       break;
@@ -459,6 +462,7 @@ vle_unpackValue(sqlite3_context* ctx, VleHeader* hdr, const unsigned char* buffe
 
     case SQLITE_FLOAT:
     {
+      if (payloadLen != 8) return SQLITE_CORRUPT;
       uint64_t bits = vle_readU64BE(payload);
       double d;
       memcpy(&d, &bits, 8);
@@ -467,17 +471,25 @@ vle_unpackValue(sqlite3_context* ctx, VleHeader* hdr, const unsigned char* buffe
     }
 
     case SQLITE_TEXT:
-      sqlite3_result_text(ctx,
-                          (const char*) payload,
-                          payloadLen,
-                          SQLITE_TRANSIENT);
-      break;
+      if (payloadLen > 0)
+      {
+        sqlite3_result_text(ctx, (const char*) payload, payloadLen, SQLITE_TRANSIENT);
+      }
+      else
+      {
+        sqlite3_result_text(ctx, "", payloadLen, SQLITE_TRANSIENT);
+      }
+  break;
 
     case SQLITE_BLOB:
-      sqlite3_result_blob(ctx,
-                          payload,
-                          payloadLen,
-                          SQLITE_TRANSIENT);
+      if (payloadLen > 0)
+      {
+        sqlite3_result_blob(ctx, payload, payloadLen, SQLITE_TRANSIENT);
+      }
+      else
+      {
+        sqlite3_result_zeroblob(ctx, 0);
+      }
       break;
 
     default:
@@ -491,6 +503,7 @@ vle_unpackValue(sqlite3_context* ctx, VleHeader* hdr, const unsigned char* buffe
 
 static void vle_setKey(sqlite3_context* ctx, int argc, sqlite3_value** argv)
 {
+  VleContext vleNew;
   sqlite3* db = sqlite3_context_db_handle(ctx);
   VleContext* vle = vle_getContext(db);
   if (vle == NULL)
@@ -498,6 +511,9 @@ static void vle_setKey(sqlite3_context* ctx, int argc, sqlite3_value** argv)
     sqlite3_result_error_nomem(ctx);
     return;
   }
+
+  /* Copy current VLE context to temporary context */
+  vleNew = *vle;
 
   if (argc < 1)
   {
@@ -542,10 +558,10 @@ static void vle_setKey(sqlite3_context* ctx, int argc, sqlite3_value** argv)
 
   unsigned char digest[SHA256_DIGEST_SIZE];
   sha256(salt, saltLen, digest);
-  memcpy(vle->salt, digest, sizeof(vle->salt));
+  memcpy(vleNew.salt, digest, sizeof(vleNew.salt));
 
   /* Algorithm */
-  vle->algorithm = CODEC_TYPE_CHACHA20;
+  vleNew.algorithm = CODEC_TYPE_CHACHA20;
   if (argc >= 3)
   {
     int algorithmType = sqlite3_value_type(argv[2]);
@@ -554,11 +570,11 @@ static void vle_setKey(sqlite3_context* ctx, int argc, sqlite3_value** argv)
       const char* algorithm = (const char*) sqlite3_value_text(argv[2]);
       if (sqlite3_stricmp(algorithm, "chacha20") == 0)
       {
-        vle->algorithm = CODEC_TYPE_CHACHA20;
+        vleNew.algorithm = CODEC_TYPE_CHACHA20;
       }
       else if (sqlite3_stricmp(algorithm, "ascon128") == 0)
       {
-        vle->algorithm = CODEC_TYPE_ASCON128;
+        vleNew.algorithm = CODEC_TYPE_ASCON128;
       }
       else
       {
@@ -603,7 +619,7 @@ static void vle_setKey(sqlite3_context* ctx, int argc, sqlite3_value** argv)
   char optionsUsed[256] = "";
   int pswdLen = sqlite3_value_bytes(argv[0]);
   const unsigned char* pswd = sqlite3_value_blob(argv[0]);
-  switch (vle->algorithm)
+  switch (vleNew.algorithm)
   {
 #if HAVE_CIPHER_CHACHA20
   case CODEC_TYPE_CHACHA20:
@@ -614,17 +630,22 @@ static void vle_setKey(sqlite3_context* ctx, int argc, sqlite3_value** argv)
           { "kdf_iter", vle_optionSetInt, &kdfIter },
           { 0,          0,                0        }
       };
-      vle_parseOptions(options, optionsLen, chacha20KeyOptions);
+      if (vle_parseOptions(options, optionsLen, chacha20KeyOptions) != SQLITE_OK)
+      {
+        sqlite3_result_error(ctx, "Option string malformed", -1);
+        sqlite3_free(options);
+        return;
+      }
       if (kdfIter < 1)
       {
         kdfIter = CHACHA20_KDF_ITER_DEFAULT;
       }
       sqlite3_snprintf(sizeof(optionsUsed), optionsUsed, "kdf_iter=%d", kdfIter);
       fastpbkdf2_hmac_sha256(pswd, pswdLen,
-                             vle->salt, SALTLENGTH_CHACHA20,
+                             vleNew.salt, SALTLENGTH_CHACHA20,
                              kdfIter,
-                             vle->key, KEYLENGTH_CHACHA20);
-      vle->keyLen = KEYLENGTH_CHACHA20;
+                             vleNew.key, KEYLENGTH_CHACHA20);
+      vleNew.keyLen = KEYLENGTH_CHACHA20;
       break;
   }
 #endif
@@ -637,30 +658,36 @@ static void vle_setKey(sqlite3_context* ctx, int argc, sqlite3_value** argv)
           { "kdf_iter", vle_optionSetInt, &kdfIter },
           { 0,          0,                0        }
       };
-      vle_parseOptions(options, optionsLen, chacha20KeyOptions);
+      if (vle_parseOptions(options, optionsLen, chacha20KeyOptions) != SQLITE_OK)
+      {
+        sqlite3_result_error(ctx, "Option string malformed", -1);
+        sqlite3_free(options);
+        return;
+      }
       if (kdfIter < 1)
       {
         kdfIter = ASCON128_KDF_ITER_DEFAULT;
       }
       sqlite3_snprintf(sizeof(optionsUsed), optionsUsed, "kdf_iter=%d", kdfIter);
-      ascon_pbkdf2(vle->key, KEYLENGTH_ASCON128,
+      ascon_pbkdf2(vleNew.key, KEYLENGTH_ASCON128,
                    (const uint8_t*) pswd, pswdLen,
-                   vle->salt, SALTLENGTH_ASCON128, kdfIter);
-      vle->keyLen = KEYLENGTH_ASCON128;
+                   vleNew.salt, SALTLENGTH_ASCON128, kdfIter);
+      vleNew.keyLen = KEYLENGTH_ASCON128;
       break;
     }
 #endif
     default:
       sqlite3_result_error(ctx, "Selected algorithm not supported", -1);
+      sqlite3_free(options);
       return;
   }
 
   char* result = sqlite3_mprintf("Ok. Options(%s)", optionsUsed);
   sqlite3_result_text(ctx, result, -1, sqlite3_free);
-  if (options != NULL)
-  {
-    sqlite3_free(options);
-  }
+  sqlite3_free(options);
+
+  /* Update VLE context of the connection */
+  *vle = vleNew;
 }
 
 static void
@@ -725,7 +752,10 @@ vle_encrypt(sqlite3_context* ctx, int argc, sqlite3_value** argv)
 
   /* Output SQLite value type and value */
   ciphertext[0] = (uint8_t) sqlite3_value_type(argv[0]);
-  memcpy(ciphertext + 1, payload, payloadLen);
+  if (payloadLen > 0)
+  {
+    memcpy(ciphertext + 1, payload, payloadLen);
+  }
 
   /* Encrypt */
   vle_aeadEncrypt(vle,
@@ -790,7 +820,8 @@ vle_decrypt(sqlite3_context* ctx, int argc, sqlite3_value** argv)
   /* Parse header */
   VleHeader hdr;
   vle_parseHeader(buffer, &hdr);
-  if (hdr.magic != VLE_MAGIC)
+  if (hdr.magic != VLE_MAGIC || hdr.version != VLE_VERSION ||
+      hdr.algorithm != vle->algorithm || hdr.flags != vle->flags)
   {
     sqlite3_result_error(ctx, "Invalid VLE header in encrypted value", -1);
     sqlite3_free(buffer);
@@ -835,25 +866,25 @@ int sqlite3_vle_init(sqlite3* db, char** pzErrMsg, const sqlite3_api_routines* p
   SQLITE_EXTENSION_INIT2(pApi);
 
   /* Define function sqlite3mc_vle_key(passphrase [, salt [, algoritm [, options]]]) */
-  sqlite3_create_function(db, "sqlite3mc_vle_key", 1, SQLITE_UTF8|SQLITE_DETERMINISTIC,
+  sqlite3_create_function(db, "sqlite3mc_vle_key", 1, SQLITE_UTF8 | SQLITE_DIRECTONLY,
                           NULL, vle_setKey, NULL, NULL);
-  sqlite3_create_function(db, "sqlite3mc_vle_key", 2, SQLITE_UTF8 | SQLITE_DETERMINISTIC,
+  sqlite3_create_function(db, "sqlite3mc_vle_key", 2, SQLITE_UTF8 | SQLITE_DIRECTONLY,
                           NULL, vle_setKey, NULL, NULL);
-  sqlite3_create_function(db, "sqlite3mc_vle_key", 3, SQLITE_UTF8 | SQLITE_DETERMINISTIC,
+  sqlite3_create_function(db, "sqlite3mc_vle_key", 3, SQLITE_UTF8 | SQLITE_DIRECTONLY,
                           NULL, vle_setKey, NULL, NULL);
-  sqlite3_create_function(db, "sqlite3mc_vle_key", 4, SQLITE_UTF8 | SQLITE_DETERMINISTIC,
+  sqlite3_create_function(db, "sqlite3mc_vle_key", 4, SQLITE_UTF8 | SQLITE_DIRECTONLY,
                           NULL, vle_setKey, NULL, NULL);
 
   /* Define function sqlite3mc_vle_encrypt(value [, scope]) */
-  sqlite3_create_function(db, "sqlite3mc_vle_encrypt", 1, SQLITE_UTF8|SQLITE_DETERMINISTIC,
+  sqlite3_create_function(db, "sqlite3mc_vle_encrypt", 1, SQLITE_UTF8 | SQLITE_DIRECTONLY,
                           NULL, vle_encrypt, NULL, NULL);
-  sqlite3_create_function(db, "sqlite3mc_vle_encrypt", 2, SQLITE_UTF8|SQLITE_DETERMINISTIC,
+  sqlite3_create_function(db, "sqlite3mc_vle_encrypt", 2, SQLITE_UTF8 | SQLITE_DIRECTONLY,
                           NULL, vle_encrypt, NULL, NULL);
 
   /* Define function sqlite3mc_vle_decrypt(value [, scope]) */
-  sqlite3_create_function(db, "sqlite3mc_vle_decrypt", 1, SQLITE_UTF8|SQLITE_DETERMINISTIC,
+  sqlite3_create_function(db, "sqlite3mc_vle_decrypt", 1, SQLITE_UTF8 | SQLITE_DIRECTONLY,
                           NULL, vle_decrypt, NULL, NULL);
-  sqlite3_create_function(db, "sqlite3mc_vle_decrypt", 2, SQLITE_UTF8|SQLITE_DETERMINISTIC,
+  sqlite3_create_function(db, "sqlite3mc_vle_decrypt", 2, SQLITE_UTF8 | SQLITE_DIRECTONLY,
                           NULL, vle_decrypt, NULL, NULL);
 
   return SQLITE_OK;

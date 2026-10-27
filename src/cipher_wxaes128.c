@@ -129,7 +129,7 @@ GetSaltAES128Cipher(void* cipher)
   return NULL;
 }
 
-static void
+static int
 GenerateKeyAES128Cipher(void* cipher, char* userPassword, int passwordLength, int rekey, unsigned char* cipherSalt)
 {
   AES128Cipher* aesCipher = (AES128Cipher*) cipher;
@@ -185,6 +185,7 @@ GenerateKeyAES128Cipher(void* cipher, char* userPassword, int passwordLength, in
     MD5_Final(digest, &ctx);
   }
   memcpy(aesCipher->m_key, digest, aesCipher->m_keyLength);
+  return SQLITE_OK;
 }
 
 static int

@@ -122,7 +122,7 @@ GetSaltAscon128Cipher(void* cipher)
   return ascon128Cipher->m_salt;
 }
 
-static void
+static int
 GenerateKeyAscon128Cipher(void* cipher, char* userPassword, int passwordLength, int rekey, unsigned char* cipherSalt)
 {
   Ascon128Cipher* ascon128Cipher = (Ascon128Cipher*) cipher;
@@ -150,6 +150,7 @@ GenerateKeyAscon128Cipher(void* cipher, char* userPassword, int passwordLength, 
   SQLITE3MC_DEBUG_LOG("generate: codec=%p pFile=%p\n", ascon128Cipher, fd);
   SQLITE3MC_DEBUG_HEX("generate  key:", ascon128Cipher->m_key, KEYLENGTH_ASCON128);
   SQLITE3MC_DEBUG_HEX("generate salt:", ascon128Cipher->m_salt, SALTLENGTH_ASCON128);
+  return SQLITE_OK;
 }
 
 static int

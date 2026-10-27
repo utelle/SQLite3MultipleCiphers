@@ -169,9 +169,9 @@ SQLITE_PRIVATE unsigned char* sqlite3mcGetSaltWriteCipher(Codec* codec);
 
 SQLITE_PRIVATE int sqlite3mcCodecCopy(Codec* codec, Codec* other);
 
-SQLITE_PRIVATE void sqlite3mcGenerateReadKey(Codec* codec, char* userPassword, int passwordLength, unsigned char* cipherSalt);
+SQLITE_PRIVATE int sqlite3mcGenerateReadKey(Codec* codec, char* userPassword, int passwordLength, unsigned char* cipherSalt);
 
-SQLITE_PRIVATE void sqlite3mcGenerateWriteKey(Codec* codec, char* userPassword, int passwordLength, unsigned char* cipherSalt, int usesWal);
+SQLITE_PRIVATE int sqlite3mcGenerateWriteKey(Codec* codec, char* userPassword, int passwordLength, unsigned char* cipherSalt, int usesWal);
 
 SQLITE_PRIVATE int sqlite3mcEncrypt(Codec* codec, int page, unsigned char* data, int len, int useWriteKey);
 

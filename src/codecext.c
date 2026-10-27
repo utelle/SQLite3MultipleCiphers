@@ -375,6 +375,7 @@ sqlite3_key_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
       ** Therefore the URI should be checked for encryption configuration parameters.
       */
       rc = sqlite3mcConfigureFromUri(db, dbFileName, 0);
+      return rc;
     }
 
     /* The key is only set for the main database, not the temp database  */
@@ -382,6 +383,7 @@ sqlite3_key_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
     if (dbIndex >= 0)
     {
       rc = sqlite3mcCodecAttach(db, dbIndex, dbFileName, zKey, nKey);
+      sqlite3ErrorWithMsg(db, rc, "Setting key failed for '%s'.", (zDbName) ? zDbName : "main");
     }
     else
     {

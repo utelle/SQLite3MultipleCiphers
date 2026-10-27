@@ -144,7 +144,7 @@ GetSaltChaCha20Cipher(void* cipher)
   return chacha20Cipher->m_salt;
 }
 
-static void
+static int
 GenerateKeyChaCha20Cipher(void* cipher, char* userPassword, int passwordLength, int rekey, unsigned char* cipherSalt)
 {
   ChaCha20Cipher* chacha20Cipher = (ChaCha20Cipher*) cipher;
@@ -173,6 +173,7 @@ GenerateKeyChaCha20Cipher(void* cipher, char* userPassword, int passwordLength, 
   SQLITE3MC_DEBUG_LOG("generate: codec=%p pFile=%p\n", chacha20Cipher, fd);
   SQLITE3MC_DEBUG_HEX("generate  key:", chacha20Cipher->m_key, KEYLENGTH_CHACHA20);
   SQLITE3MC_DEBUG_HEX("generate salt:", chacha20Cipher->m_salt, SALTLENGTH_CHACHA20);
+  return SQLITE_OK;
 }
 
 static int

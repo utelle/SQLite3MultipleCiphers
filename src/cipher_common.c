@@ -265,8 +265,11 @@ sqlite3mcCodecSetup(Codec* codec, int cipherType, char* userPassword, int passwo
   if (codec->m_readCipher != NULL)
   {
     unsigned char* keySalt = (codec->m_hasKeySalt != 0) ? codec->m_keySalt : NULL;
-    sqlite3mcGenerateReadKey(codec, userPassword, passwordLength, keySalt);
-    rc = sqlite3mcCopyCipher(codec, 1);
+    rc = sqlite3mcGenerateReadKey(codec, userPassword, passwordLength, keySalt);
+    if (rc == SQLITE_OK)
+    {
+      rc = sqlite3mcCopyCipher(codec, 1);
+    }
   }
   else
   {
@@ -309,7 +312,7 @@ sqlite3mcSetupWriteCipher(Codec* codec, int cipherType, char* userPassword, int 
     }
     unsigned char* keySalt = (rekeySaltHex != NULL) ? rekeySalt :
                              (codec->m_hasKeySalt != 0) ? codec->m_keySalt : NULL;
-    sqlite3mcGenerateWriteKey(codec, userPassword, passwordLength, keySalt, usesWal);
+    rc = sqlite3mcGenerateWriteKey(codec, userPassword, passwordLength, keySalt, usesWal);
   }
   else
   {
@@ -632,20 +635,20 @@ SQLITE_PRIVATE unsigned char* mcReadDatabaseHeader(Codec* codec, unsigned char* 
     return dbHeader;
 }
 
-SQLITE_PRIVATE void
+SQLITE_PRIVATE int
 sqlite3mcGenerateReadKey(Codec* codec, char* userPassword, int passwordLength, unsigned char* cipherSalt)
 {
   unsigned char dbHeader[KEYSALT_LENGTH];
   unsigned char* pDbHeader = (cipherSalt == NULL) ? mcReadDatabaseHeader(codec, dbHeader) : cipherSalt;
-  globalCodecDescriptorTable[codec->m_readCipherType-1].m_generateKey(codec->m_readCipher, userPassword, passwordLength, 0, pDbHeader);
+  return globalCodecDescriptorTable[codec->m_readCipherType-1].m_generateKey(codec->m_readCipher, userPassword, passwordLength, 0, pDbHeader);
 }
 
-SQLITE_PRIVATE void
+SQLITE_PRIVATE int
 sqlite3mcGenerateWriteKey(Codec* codec, char* userPassword, int passwordLength, unsigned char* cipherSalt, int usesWal)
 {
   unsigned char dbHeader[KEYSALT_LENGTH];
   unsigned char* pDbHeader = (cipherSalt == NULL) ? mcReadDatabaseHeader(codec, dbHeader) : cipherSalt;
-  globalCodecDescriptorTable[codec->m_writeCipherType-1].m_generateKey(codec->m_writeCipher, userPassword, passwordLength, (usesWal) ? 2 : 1, pDbHeader);
+  return globalCodecDescriptorTable[codec->m_writeCipherType-1].m_generateKey(codec->m_writeCipher, userPassword, passwordLength, (usesWal) ? 2 : 1, pDbHeader);
 }
 
 SQLITE_PRIVATE int

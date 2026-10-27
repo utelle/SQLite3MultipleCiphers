@@ -115,7 +115,7 @@ GetSaltRC4Cipher(void* cipher)
   return NULL;
 }
 
-static void
+static int
 GenerateKeyRC4Cipher(void* cipher, char* userPassword, int passwordLength, int rekey, unsigned char* cipherSalt)
 {
   RC4Cipher* rc4Cipher = (RC4Cipher*) cipher;
@@ -128,6 +128,7 @@ GenerateKeyRC4Cipher(void* cipher, char* userPassword, int passwordLength, int r
 
   memcpy(rc4Cipher->m_key, digest, 16);
 /*  memset(rc4Cipher->m_key+5, 0, rc4Cipher->m_keyLength-5);*/
+  return SQLITE_OK;
 }
 
 static int
