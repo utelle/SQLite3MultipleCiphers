@@ -117,7 +117,7 @@ SQLITE_PRIVATE CipherParams mcAegisParams[] =
 {
   { "tcost",                 AEGIS_TCOST_DEFAULT,     AEGIS_TCOST_DEFAULT,     ARGON2_MIN_TIME,     0x7fffffff },
   { "mcost",                 AEGIS_MCOST_DEFAULT,     AEGIS_MCOST_DEFAULT,     ARGON2_MIN_MEMORY,   0x7fffffff },
-  { "pcost",                 AEGIS_PCOST_DEFAULT,     AEGIS_PCOST_DEFAULT,     ARGON2_MAX_LANES,    ARGON2_MAX_LANES},
+  { "pcost",                 AEGIS_PCOST_DEFAULT,     AEGIS_PCOST_DEFAULT,     ARGON2_MIN_LANES,    ARGON2_MAX_LANES},
   { "algorithm",             AEGIS_ALGORITHM_DEFAULT, AEGIS_ALGORITHM_DEFAULT, AEGIS_ALGORITHM_MIN, AEGIS_ALGORITHM_MAX },
   { "plaintext_header_size", 0,                       0,                       0, 100 /* restrict to db header size */ },
   CIPHER_PARAMS_SENTINEL
