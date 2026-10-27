@@ -1029,7 +1029,10 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
       }
       else
       {
-        ((char**)pArg)[0] = sqlite3_mprintf("No AES backend available");
+        if (pragmaValue != NULL)
+          ((char**)pArg)[0] = sqlite3_mprintf("AES backend '%s' not available or unknown", pragmaValue);
+        else
+          ((char**)pArg)[0] = sqlite3_mprintf("No AES backend available");
         rc = SQLITE_ERROR;
       }
     }

@@ -995,17 +995,37 @@ static const AesBackend* const aesBackends[] =
   NULL
 };
 
-static int gAesBackendOrderStart = 0;
+static size_t gAesBackendOrderStart = 0;
 static const int gAesBackendOrder[] =
 {
   AES_IMPL_HW, AES_IMPL_VPAES, AES_IMPL_CT64, AES_IMPL_CT32, AES_IMPL_RIJNDAEL
 };
 
+static size_t
+aesGetOrderStart(void)
+{
+  size_t start;
+  sqlite3_mutex* mutex = sqlite3_mutex_alloc(SQLITE_MUTEX_STATIC_MAIN);
+  sqlite3_mutex_enter(mutex);
+  start = gAesBackendOrderStart;
+  sqlite3_mutex_leave(mutex);
+  return start;
+}
+
+static void
+aesSetOrderStart(size_t start)
+{
+  sqlite3_mutex* mutex = sqlite3_mutex_alloc(SQLITE_MUTEX_STATIC_MAIN);
+  sqlite3_mutex_enter(mutex);
+  gAesBackendOrderStart = start;
+  sqlite3_mutex_leave(mutex);
+}
+
 static const AesBackend*
 aesFindBackend(int impl)
 {
-  int i;
-  for (i = gAesBackendOrderStart; aesBackends[i] != NULL; i++)
+  size_t i;
+  for (i = 0; aesBackends[i] != NULL; i++)
   {
     if (aesBackends[i]->m_id == impl)
     {
@@ -1018,8 +1038,10 @@ aesFindBackend(int impl)
 static const AesBackend*
 aesSelectBackend(void)
 {
+  const size_t orderCount = sizeof(gAesBackendOrder) / sizeof(gAesBackendOrder[0]);
+  size_t orderStart = aesGetOrderStart();
   size_t j;
-  for (j = gAesBackendOrderStart; j < sizeof(gAesBackendOrder) / sizeof(gAesBackendOrder[0]); ++j)
+  for (j = orderStart; j < orderCount; ++j)
   {
     const AesBackend* backend = aesFindBackend(gAesBackendOrder[j]);
     if (backend != NULL && backend->m_available())
@@ -1034,38 +1056,42 @@ static const char*
 aesRequestBackend(const char* selectBackend)
 {
   const AesBackend* backend = NULL;
+  const size_t orderCount = sizeof(gAesBackendOrder) / sizeof(gAesBackendOrder[0]);
   int backendIndex = 0;
   if (selectBackend != NULL)
   {
-    if (sqlite3StrICmp(selectBackend, "auto") != 0)
+    if (sqlite3StrICmp(selectBackend, "auto") == 0)
     {
-      int j;
+      aesSetOrderStart(0);
+    }
+    else
+    {
+      size_t j, k;
+      size_t newOrderStart = orderCount;
       for (j = 0; aesBackends[j] != NULL; ++j)
       {
         /* Find backend id from backend name */
         if (sqlite3StrICmp(aesBackends[j]->m_name, selectBackend) == 0)
           break;
       }
-      if (aesBackends[j] != NULL)
+      if (aesBackends[j] == NULL)
       {
-        int k;
-        for (k = 0; k < sizeof(gAesBackendOrder) / sizeof(gAesBackendOrder[0]); ++k)
+        /* Backend unknown or not included */
+        return NULL;
+      }
+      for (k = 0; k < orderCount; ++k)
+      {
+        if (gAesBackendOrder[k] == aesBackends[j]->m_id)
         {
-          if (gAesBackendOrder[k] == aesBackends[j]->m_id)
-          {
-            gAesBackendOrderStart = k;
-            break;
-          }
+          newOrderStart = k;
+          break;
         }
       }
-      else
+      if (newOrderStart == orderCount)
       {
         return NULL;
       }
-    }
-    else
-    {
-      gAesBackendOrderStart = 0;
+      aesSetOrderStart(newOrderStart);
     }
   }
   backend = aesSelectBackend();
