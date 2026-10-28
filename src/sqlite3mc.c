@@ -527,14 +527,18 @@ sqlite3mcGetGlobalCipherCount()
 static int
 sqlite3mcRegisterCipher(const CipherDescriptor* desc, const CipherParams* params, int makeDefault)
 {
-  int rc;
   int np;
   CipherParams* cipherParams;
+  char* cipherName;
 
   /* Sanity checks */
 
   /* Cipher description AND parameter are required */
   if (!desc || !params)
+    return SQLITE_ERROR;
+
+  /* Check whether the global cipher table has room for another cipher */
+  if (globalCipherCount >= CODEC_COUNT_MAX)
     return SQLITE_ERROR;
 
   /* ALL methods of the cipher descriptor need to be defined */
@@ -608,43 +612,31 @@ sqlite3mcRegisterCipher(const CipherDescriptor* desc, const CipherParams* params
     cipherParams[n].m_name = globalSentinelName;
   }
 
-  /* Check for */
-  if (globalCipherCount < CODEC_COUNT_MAX)
+  ++globalCipherCount;
+  cipherName = globalCipherNameTable[globalCipherCount].m_name;
+  strcpy(cipherName, desc->m_name);
+
+  globalCodecDescriptorTable[globalCipherCount - 1] = *desc;
+  globalCodecDescriptorTable[globalCipherCount - 1].m_name = cipherName;
+
+  globalCodecParameterTable[globalCipherCount].m_name = cipherName;
+  globalCodecParameterTable[globalCipherCount].m_id = globalCipherCount;
+  globalCodecParameterTable[globalCipherCount].m_params = cipherParams;
+
+  /* Make cipher default, if requested */
+  if (makeDefault)
   {
-    char* cipherName;
-    ++globalCipherCount;
-    cipherName = globalCipherNameTable[globalCipherCount].m_name;
-    strcpy(cipherName, desc->m_name);
-
-    globalCodecDescriptorTable[globalCipherCount - 1] = *desc;
-    globalCodecDescriptorTable[globalCipherCount - 1].m_name = cipherName;
-
-    globalCodecParameterTable[globalCipherCount].m_name = cipherName;
-    globalCodecParameterTable[globalCipherCount].m_id = globalCipherCount;
-    globalCodecParameterTable[globalCipherCount].m_params = cipherParams;
-
-    /* Make cipher default, if requested */
-    if (makeDefault)
+    CipherParams* param = globalCodecParameterTable[0].m_params;
+    for (; param->m_name[0] != 0; ++param)
     {
-      CipherParams* param = globalCodecParameterTable[0].m_params;
-      for (; param->m_name[0] != 0; ++param)
-      {
-        if (sqlite3_stricmp("cipher", param->m_name) == 0) break;
-      }
-      if (param->m_name[0] != 0)
-      {
-        param->m_value = param->m_default = globalCipherCount;
-      }
+      if (sqlite3_stricmp("cipher", param->m_name) == 0) break;
     }
-
-    rc = SQLITE_OK;
+    if (param->m_name[0] != 0)
+    {
+      param->m_value = param->m_default = globalCipherCount;
+    }
   }
-  else
-  {
-    rc = SQLITE_NOMEM;
-  }
-
-  return rc;
+  return SQLITE_OK;
 }
 
 SQLITE_API int
@@ -719,6 +711,22 @@ sqlite3mcTermCipherTables()
   }
   globalCipherCount = 0;
 }
+
+/*
+** sqlite3mc_initialize is SQLITE_PRIVATE (normally static) and is called
+** exclusively from the patched sqlite3_initialize, under the init mutex
+** and before isInit is set. The accessors for the global cipher tables
+** first call sqlite3_initialize and therefore cannot run in parallel with
+** initialization; subsequent changes (sqlite3mc_register_cipher) are
+** serialized under SQLITE_MUTEX_STATIC_MAIN.
+**
+** sqlite3mc_shutdown is called from the patched sqlite3_shutdown before all
+** other components are cleaned up; it does not acquire any mutexes and
+** performs a complete cleanup (including ciphers registered at runtime);
+* it is subject to the sqlite3_shutdown contract that no other thread is
+** using SQLite. Calling sqlite3_initialize again performs a complete
+** reinitialization. An atexit handler is intentionally not registered.
+*/
 
 SQLITE_PRIVATE int
 sqlite3mc_initialize(const char* arg)

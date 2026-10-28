@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Based on SQLite version 3.54.1
+- Updated several SQLite extensions
+- Added return type to function `sqlite3mcRekeySetFinalCipher`
+- Added various missing OOM checks
+- Removed unused function from AEGIS cipher implementation
+- Argon2 parameters are now validated:
+  - `tcost`: 1 … 2^31-1
+  - `mcost`: 8 … 2^31-1 (in KiB)
+  - `pcost`: 1 … 16777215
+  - Additionally, _Argon2_ requires `mcost >= 8 * pcost`. This combined constraint is enforced when the key is derived, not when the individual parameter is set.
+
+### Fixed
+
+- Resolved the following issues:  
+  1. Rollback journal used wrong page number value (only trunk affected)
+  2. Partial page read error silently dropped
+  3. Legacy WAL frame write discarded write result code
+  4. Encryption errors on writing not propagated
+  5. Memory leak in `sqlite3_rekey_v2`
+  6. Error reporting from pragma handling had a latent crash risk
+- Fixed issues [#291](../../issues/291), [#292](../../issues/292), [#293](../../issues/293), and [#294](../../issues/294)  
+  - Do not change salt on rekeying, unless explicitly requested (pragma rekey_salt)
+  - Added checks to identify encrypted database and hot journal to prevent removing a valid journal
+- Fixed issue [#280](../../issues/#280) - Check in backup procedure corrected
+- Fixed bugs in VLE feature and improved error handling
+- **Argon2: return code of key derivation is now checked.**
+  Previously, _SQLite3 Multiple Ciphers_ did not evaluate the return value of the _Argon2_ key derivation function. If _Argon2_ rejected the parameters (e.g. `mcost < 8 * pcost`) or failed internally (e.g. memory allocation failure), the error was silently ignored and the cipher continued with a key that had not been derived from the passphrase. Such failures are now detected and reported as an error, e.g. by `PRAGMA key`, `PRAGMA rekey`, `sqlite3_key`, `sqlite3_rekey` and when opening a database.
+
+### Compatibility note
+
+Applications that used _Argon2_ parameter combinations rejected by the _Argon2_ library will now receive an error instead of continuing silently.
+
 ## [2.6.1] - 2026-10-12
 
 ### Fixed

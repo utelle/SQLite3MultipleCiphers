@@ -569,7 +569,7 @@ static unsigned char *SHA3Final(SHA3Context *p){
 ** Implementation of the sha3(X,SIZE) function.
 **
 ** Return a BLOB which is the SIZE-bit SHA3 hash of X.  The default
-** size is 256.  If X is a BLOB, it is hashed as is.
+** size is 256.  If X is a BLOB, it is hashed as is.  
 ** For all other non-NULL types of input, X is converted into a UTF-8 string
 ** and the string is hashed without the trailing 0x00 terminator.  The hash
 ** of a NULL value is NULL.
@@ -722,6 +722,8 @@ static void sha3QueryFunc(
   const char *z;
   SHA3Context cx;
   int iSize;
+  int isRecursive = 0;
+  int *pIsRecursive;
 
   if( argc==1 ){
     iSize = 256;
@@ -735,6 +737,11 @@ static void sha3QueryFunc(
   }
   if( zSql==0 ) return;
   SHA3Init(&cx, iSize);
+  pIsRecursive = (int*)sqlite3_get_clientdata(db,"sha3_query()");
+  if( pIsRecursive ){
+    *pIsRecursive = 1;
+    return;
+  }
   while( zSql[0] ){
     rc = sqlite3_prepare_v2(db, zSql, -1, &pStmt, &zSql);
     if( rc ){
@@ -761,6 +768,7 @@ static void sha3QueryFunc(
     }
 
     /* Compute a hash over the result of the query */
+    sqlite3_set_clientdata(db, "sha3_query()", &isRecursive, 0);
     while( SQLITE_ROW==sqlite3_step(pStmt) ){
       SHA3Update(&cx,(const unsigned char*)"R",1);
       for(i=0; i<nCol; i++){
@@ -768,8 +776,13 @@ static void sha3QueryFunc(
       }
     }
     sqlite3_finalize(pStmt);
+    sqlite3_set_clientdata(db, "sha3_query()", 0, 0);
   }
-  sqlite3_result_blob(context, SHA3Final(&cx), iSize/8, SQLITE_TRANSIENT);
+  if( isRecursive ){
+    sqlite3_result_error(context, "recursive use of sha3_query()", -1);
+  }else{
+    sqlite3_result_blob(context, SHA3Final(&cx), iSize/8, SQLITE_TRANSIENT);
+  }
 }
 
 /*
