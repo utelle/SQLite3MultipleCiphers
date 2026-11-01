@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- _VLE_: `sqlite3mc_vle_version(value)`: returns the format version of a VLE value (NULL if the argument is not a VLE value).
+- _VLE_: Option `legacy=0|1` for `sqlite3mc_vle_key()` (default 1): when 0, values in format version 1 are rejected on decryption.
+- _VLE_: INTEGER values are accepted as scope (equivalent to `CAST(scope AS TEXT)`).
+
 ### Changed
 
 - Based on SQLite version 3.54.1
@@ -14,11 +20,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added return type to function `sqlite3mcRekeySetFinalCipher`
 - Added various missing OOM checks
 - Removed unused function from AEGIS cipher implementation
-- Argon2 parameters are now validated:
+- _Argon2_ parameters are now validated:
   - `tcost`: 1 … 2^31-1
   - `mcost`: 8 … 2^31-1 (in KiB)
   - `pcost`: 1 … 16777215
   - Additionally, _Argon2_ requires `mcost >= 8 * pcost`. This combined constraint is enforced when the key is derived, not when the individual parameter is set.
+- _VLE_: **Breaking (UTF-16 databases only):** TEXT passphrase and salt of `sqlite3mc_vle_key()` are now always interpreted as UTF-8. Databases with UTF-8 encoding (the default) are not affected. For UTF-16 databases, the previous key can be reproduced by passing the passphrase and salt as `CAST(... AS BLOB)`.
+- _VLE_: FLOAT values are rejected as scope when encrypting or when decrypting version 2 values (use `CAST(... AS TEXT)`).
+- _VLE_: A TEXT scope is now used as UTF-8 for version 2 values, independent of the database encoding.
+
 
 ### Fixed
 
@@ -36,10 +46,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed bugs in VLE feature and improved error handling
 - **Argon2: return code of key derivation is now checked.**
   Previously, _SQLite3 Multiple Ciphers_ did not evaluate the return value of the _Argon2_ key derivation function. If _Argon2_ rejected the parameters (e.g. `mcost < 8 * pcost`) or failed internally (e.g. memory allocation failure), the error was silently ignored and the cipher continued with a key that had not been derived from the passphrase. Such failures are now detected and reported as an error, e.g. by `PRAGMA key`, `PRAGMA rekey`, `sqlite3_key`, `sqlite3_rekey` and when opening a database.
+- _VLE_: Missing check of the return value of `sqlite3_set_clientdata` in the VLE context setup (potential use after free on out-of-memory).
+- _VLE_: Plaintext remained in the buffer after a failed authentication; temporary buffers are now wiped.
+- _VLE_: Corrupt decrypted values led to a silent NULL result instead of an error.
 
 ### Compatibility note
 
 Applications that used _Argon2_ parameter combinations rejected by the _Argon2_ library will now receive an error instead of continuing silently.
+
+### VLE Migration
+
+Re-encrypt values from format version 1 to version 2, then optionally
+disable legacy reading:
+
+```SQL
+    UPDATE t
+       SET col = sqlite3mc_vle_encrypt(sqlite3mc_vle_decrypt(col, scope_expr), scope_expr)
+     WHERE sqlite3mc_vle_version(col) = 1;
+
+    SELECT sqlite3mc_vle_key(passphrase, salt, algorithm, 'legacy=0');
+```
+
+### Security
+
+- **VLE: scope was not bound to encrypted values (fixed).**
+  - Values encrypted with `sqlite3mc_vle_encrypt()` under one scope could be decrypted successfully under another scope using the same VLE key (ASCON128: scope had no effect at all; ChaCha20: weak derivation; both: non-TEXT/BLOB scopes silently mapped to the default scope).
+  - New values are written in format version 2, in which the scope is cryptographically bound via a derived subkey.
+  - Existing values (format version 1) remain readable but keep the old weakness until they are re-encrypted.
 
 ## [2.6.1] - 2026-10-12
 

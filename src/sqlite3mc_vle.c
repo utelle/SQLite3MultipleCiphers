@@ -26,10 +26,18 @@ SQLITE_EXTENSION_INIT1
 #define VLE_MAGIC_NUM    0x1CAFEBA9
 
 #define VLE_MAGIC        0xEC
-#define VLE_VERSION      1
+/*
+** Format versions:
+**   1 (legacy): scope only used as initial OTK content; ASCON ignores it
+**               completely, ChaCha20 only mixes it in via a known XOR delta.
+**   2 (current): scope is bound to a derived subkey (see vle_deriveSubkey).
+*/
+#define VLE_VERSION_LEGACY 1
+#define VLE_VERSION        2
 #define VLE_DEFAULT_ALGO CODEC_TYPE_CHACHA20
 #define VLE_OTK_LEN      64
 #define VLE_KEY_LEN      32
+#define VLE_SUBKEY_LEN   32
 #define VLE_SALT_LEN     16
 #define VLE_NONCE_LEN    16
 #define VLE_TAG_LEN      16
@@ -44,6 +52,7 @@ typedef struct _VleContext
   uint8_t flags;
   uint8_t nonceLen;
   uint8_t tagLen;
+  uint8_t allowLegacy;   /* 1 = values in format version 1 can still be decrypted */
 } VleContext;
 
 typedef struct _VleHeader
@@ -66,11 +75,12 @@ static void vle_writeU64BE(unsigned char* p, uint64_t v);
 static uint64_t vle_readU64BE(const unsigned char* p);
 
 static void vle_parseHeader(const unsigned char* buffer, VleHeader* hdr);
-
+static int vle_getScope(sqlite3_value* argv, int strict, const unsigned char** scope, int* scopeLen);
 
 static void vle_setKey(sqlite3_context* ctx, int argc, sqlite3_value** argv);
 static void vle_encrypt(sqlite3_context* ctx, int argc, sqlite3_value** argv);
 static void vle_decrypt(sqlite3_context* ctx, int argc, sqlite3_value** argv);
+static void vle_version(sqlite3_context* ctx, int argc, sqlite3_value** argv);
 
 SQLITE_API int sqlite3_vle_init(sqlite3* db, char** pzErrMsg, const sqlite3_api_routines* pApi);
 
@@ -232,10 +242,58 @@ vle_parseOptions(const char* options, size_t optionsLength, const VleOptionDef* 
   return SQLITE_OK;
 }
 
+/*
+** Retrieve the bytes of a TEXT or BLOB argument (passphrase, salt).
+**
+** TEXT is always read as UTF-8 (sqlite3_value_text), independent of the text
+** encoding of the database, so that the derived key is the same in UTF-8 and
+** UTF-16 databases. BLOB is read as is. The conversion function is called
+** before sqlite3_value_bytes(), because the conversion determines the length.
+*/
+static int
+vle_getValueBytes(sqlite3_value* val, const unsigned char** p, int* len)
+{
+  if (sqlite3_value_type(val) == SQLITE_TEXT)
+  {
+    *p = (const unsigned char*) sqlite3_value_text(val);
+    *len = sqlite3_value_bytes(val);
+    if (*p == NULL) return SQLITE_NOMEM;
+  }
+  else
+  {
+    *p = (const unsigned char*) sqlite3_value_blob(val);
+    *len = sqlite3_value_bytes(val);
+    if (*p == NULL && *len > 0) return SQLITE_NOMEM;
+  }
+  return SQLITE_OK;
+}
+
 #define VLE_DEFAULT_SCOPE "@vle:default-scope"
 
-static void
-vle_getScope(sqlite3_value* argv, const unsigned char** scope, int* scopeLen)
+/*
+** Retrieve the scope, or the default scope if none (or an empty one) is given.
+**
+** strict == 0 (legacy format 1): TEXT and BLOB are read via sqlite3_value_blob()
+**   exactly as in the released version (for TEXT this yields the bytes in the
+**   database encoding), any other type silently selects the default scope.
+**   Needed to remain able to read existing values.
+**
+** strict != 0 (format 2): TEXT, BLOB, INTEGER and NULL are accepted.
+**   - TEXT is always used as UTF-8 (sqlite3_value_text), independent of the
+**     text encoding of the database, so that a scope is the same bytes in
+**     UTF-8 and UTF-16 databases and survives moving data between them.
+**   - BLOB is used as is.
+**   - INTEGER is used as its canonical decimal text in UTF-8, i.e. exactly
+**     as UTF-8 CAST(scope AS TEXT) would deliver it. Hence the INTEGER 42 and
+**     the TEXT '42' denote the same scope.
+**   - FLOAT is rejected, because its text representation is not a stable,
+**     canonical encoding.
+**
+** Note: sqlite3_value_text()/_blob() must be called before sqlite3_value_bytes()
+** because the conversion determines the length.
+*/
+static int
+vle_getScope(sqlite3_value* argv, int strict, const unsigned char** scope, int* scopeLen)
 {
   /* Retrieve scope if given, otherwise set default scope */
   *scope = NULL;
@@ -243,19 +301,72 @@ vle_getScope(sqlite3_value* argv, const unsigned char** scope, int* scopeLen)
   if (argv != NULL)
   {
     int scope_type = sqlite3_value_type(argv);
-    if (scope_type == SQLITE_TEXT || scope_type == SQLITE_BLOB)
+    if (scope_type == SQLITE_BLOB || (scope_type == SQLITE_TEXT && !strict))
     {
       *scopeLen = sqlite3_value_bytes(argv);
       *scope = (const unsigned char*) sqlite3_value_blob(argv);
     }
+    else if (strict && (scope_type == SQLITE_TEXT || scope_type == SQLITE_INTEGER))
+    {
+      *scope = (const unsigned char*) sqlite3_value_text(argv);
+      if (*scope == NULL)
+      {
+        return SQLITE_NOMEM;
+      }
+      *scopeLen = sqlite3_value_bytes(argv);
+    }
+    else if (scope_type != SQLITE_NULL && strict)
+    {
+      return SQLITE_MISUSE;
+    }
   }
-  if (*scopeLen == 0)
+  if (*scopeLen == 0 || *scope == NULL)
   {
     *scopeLen = (int) strlen(VLE_DEFAULT_SCOPE);
     *scope = (const unsigned char*) VLE_DEFAULT_SCOPE;
   }
+  return SQLITE_OK;
 }
 
+/*
+** Derive the per-scope subkey (format version 2):
+**
+**   subkey = SHA-512( label || algorithm || key || SHA-512(scope) )[0..31]
+**
+** All fields have a fixed length (the key length is determined by the
+** algorithm), the concatenation is therefore unambiguous. The scope is hashed
+** first so that scopes of arbitrary length can not cause ambiguity.
+*/
+static const unsigned char VLE_KDF_LABEL[16] = "sqlite3mc-vle-v2"; /* no terminating NUL */
+
+static void
+vle_deriveSubkey(const VleContext* ctx,
+                 const unsigned char* scope, int scopeLen,
+                 unsigned char* subkey /* VLE_SUBKEY_LEN bytes */)
+{
+  unsigned char in[sizeof(VLE_KDF_LABEL) + 1 + VLE_KEY_LEN + SHA512_DIGEST_SIZE];
+  unsigned char out[SHA512_DIGEST_SIZE];
+  size_t keyLen = (ctx->keyLen <= VLE_KEY_LEN) ? ctx->keyLen : VLE_KEY_LEN;
+  size_t n = 0;
+
+  memcpy(in + n, VLE_KDF_LABEL, sizeof(VLE_KDF_LABEL));
+  n += sizeof(VLE_KDF_LABEL);
+  in[n++] = ctx->algorithm;
+  memcpy(in + n, ctx->key, keyLen);
+  n += keyLen;
+  sha512(scope, scopeLen, in + n);
+  n += SHA512_DIGEST_SIZE;
+
+  sha512(in, (unsigned int)n, out);
+  memcpy(subkey, out, VLE_SUBKEY_LEN);
+
+  sqlite3mcSecureZeroMemory(in, sizeof(in));
+  sqlite3mcSecureZeroMemory(out, sizeof(out));
+}
+
+/*
+** Encrypt always writes the current format version (VLE_VERSION).
+*/
 static void
 vle_aeadEncrypt(const VleContext* ctx,
                 const unsigned char* data, int dataLen,
@@ -264,10 +375,10 @@ vle_aeadEncrypt(const VleContext* ctx,
                 unsigned char* nonce, int nonceLen,
                 const unsigned char* scope, int scopeLen)
 {
-  uint8_t otk[64];
-  unsigned char digest[SHA512_DIGEST_SIZE];
-  sha512(scope, scopeLen, digest);
-  memcpy(otk, digest, 64);
+  uint8_t otk[VLE_OTK_LEN];
+  uint8_t subkey[VLE_SUBKEY_LEN];
+  memset(otk, 0, sizeof(otk));
+  vle_deriveSubkey(ctx, scope, scopeLen, subkey);
 
   switch (ctx->algorithm)
   {
@@ -275,7 +386,7 @@ vle_aeadEncrypt(const VleContext* ctx,
     case CODEC_TYPE_ASCON128:
     {
       chacha20_rng(nonce, nonceLen);
-      AsconGenOtk(otk, ctx->key, nonce, VLE_MAGIC_NUM);
+      AsconGenOtk(otk, subkey, nonce, VLE_MAGIC_NUM);
 
       ascon_aead_encrypt(ctext, tag, ctext, ctextLen,
                          data, dataLen, nonce, otk);
@@ -287,18 +398,24 @@ vle_aeadEncrypt(const VleContext* ctx,
     {
       chacha20_rng(nonce, nonceLen);
       uint32_t counter = vle_readU32BE(nonce + nonceLen - 4) ^ VLE_MAGIC_NUM;
-      chacha20_xor(otk, 64, ctx->key, nonce, counter);
+      /* otk is all zero, so this yields pure keystream under the subkey */
+      chacha20_xor(otk, VLE_OTK_LEN, subkey, nonce, counter);
 
       chacha20_xor(ctext, ctextLen, otk + 32, nonce, counter + 1);
       poly1305(data, dataLen + ctextLen, otk, tag);
       break;
     }
   }
+  sqlite3mcSecureZeroMemory(otk, sizeof(otk));
+  sqlite3mcSecureZeroMemory(subkey, sizeof(subkey));
 }
 
-
+/*
+** Decrypt supports the current version and (read-only) the legacy version 1.
+** The v1 code path is bit-exact with the previously released behavior.
+*/
 static int
-vle_aeadDecrypt(const VleContext* ctx,
+vle_aeadDecrypt(const VleContext* ctx, int version,
                 const unsigned char* data, int dataLen,
                 unsigned char* ctext, int ctextLen,
                 const unsigned char* tag, int tagLen,
@@ -306,17 +423,37 @@ vle_aeadDecrypt(const VleContext* ctx,
                 const unsigned char* scope, int scopeLen)
 {
   int rc = SQLITE_OK;
-  uint8_t otk[64];
-  unsigned char digest[SHA512_DIGEST_SIZE];
-  sha512(scope, scopeLen, digest);
-  memcpy(otk, digest, 64);
+  uint8_t otk[VLE_OTK_LEN];
+  uint8_t subkey[VLE_SUBKEY_LEN];
+  const uint8_t* key = ctx->key;
+
+  memset(otk, 0, sizeof(otk));
+  memset(subkey, 0, sizeof(subkey));
+
+  if (version == VLE_VERSION_LEGACY)
+  {
+    unsigned char digest[SHA512_DIGEST_SIZE];
+    sha512(scope, scopeLen, digest);
+    memcpy(otk, digest, VLE_OTK_LEN);
+    sqlite3mcSecureZeroMemory(digest, sizeof(digest));
+  }
+  else if (version == VLE_VERSION)
+  {
+    vle_deriveSubkey(ctx, scope, scopeLen, subkey);
+    key = subkey;
+  }
+  else
+  {
+    sqlite3mcSecureZeroMemory(otk, sizeof(otk));
+    return SQLITE_ERROR;
+  }
 
   switch (ctx->algorithm)
   {
 #if HAVE_CIPHER_ASCON128    
     case CODEC_TYPE_ASCON128:
     {
-      AsconGenOtk(otk, ctx->key, nonce, VLE_MAGIC_NUM);
+      AsconGenOtk(otk, key, nonce, VLE_MAGIC_NUM);
 
       int tagOk = ascon_aead_decrypt(ctext, ctext, ctextLen,
                                      data, dataLen,
@@ -332,7 +469,7 @@ vle_aeadDecrypt(const VleContext* ctx,
     {
       uint8_t tagCalc[16];
       uint32_t counter = vle_readU32BE(nonce + nonceLen - 4) ^ VLE_MAGIC_NUM;
-      chacha20_xor(otk, 64, ctx->key, nonce, counter);
+      chacha20_xor(otk, VLE_OTK_LEN, key, nonce, counter);
 
       poly1305(data, dataLen + ctextLen, otk, tagCalc);
       chacha20_xor(ctext, ctextLen, otk + 32, nonce, counter + 1);
@@ -347,7 +484,14 @@ vle_aeadDecrypt(const VleContext* ctx,
       rc = SQLITE_ERROR;
       break;
   }
-  sqlite3mcSecureZeroMemory(otk, 64);
+
+  /* Never leave unauthenticated plaintext behind */
+  if (rc != SQLITE_OK)
+  {
+    sqlite3mcSecureZeroMemory(ctext, ctextLen);
+  }
+  sqlite3mcSecureZeroMemory(otk, sizeof(otk));
+  sqlite3mcSecureZeroMemory(subkey, sizeof(subkey));
   return rc;
 }
 
@@ -374,7 +518,16 @@ static VleContext* vle_getContext(sqlite3* db)
       ctx->flags = 0;
       ctx->nonceLen = VLE_NONCE_LEN;
       ctx->tagLen = VLE_TAG_LEN;
-      sqlite3_set_clientdata(db, VLE_CONTEXT_KEY, ctx, vle_freeContext);
+      ctx->allowLegacy = 1;   /* default until a later release switches it to 0 */
+      if (sqlite3_set_clientdata(db, VLE_CONTEXT_KEY, ctx, vle_freeContext) != SQLITE_OK)
+      {
+        /*
+        ** On failure (SQLITE_NOMEM) SQLite has already invoked the destructor
+        ** on ctx, so the memory is gone (and wiped). It must not be freed
+        ** or used again here; callers handle NULL as out-of-memory.
+        */
+        ctx = NULL;
+      }
     }
   }
   return ctx;
@@ -540,8 +693,11 @@ static void vle_setKey(sqlite3_context* ctx, int argc, sqlite3_value** argv)
     {
       if (saltType != SQLITE_NULL)
       {
-        saltLen = sqlite3_value_bytes(argv[1]);
-        salt = sqlite3_value_blob(argv[1]);
+        if (vle_getValueBytes(argv[1], &salt, &saltLen) != SQLITE_OK)
+        {
+          sqlite3_result_error_nomem(ctx);
+          return;
+        }
       }
     }
     else
@@ -617,8 +773,22 @@ static void vle_setKey(sqlite3_context* ctx, int argc, sqlite3_value** argv)
   }
 
   char optionsUsed[256] = "";
-  int pswdLen = sqlite3_value_bytes(argv[0]);
-  const unsigned char* pswd = sqlite3_value_blob(argv[0]);
+  int pswdLen = 0;
+  const unsigned char* pswd = NULL;
+  if (vle_getValueBytes(argv[0], &pswd, &pswdLen) != SQLITE_OK)
+  {
+    sqlite3_free(options);
+    sqlite3_result_error_nomem(ctx);
+    return;
+  }
+
+  /*
+  ** Option "legacy": 1 = values in legacy format version 1 can still be
+  ** decrypted (default), 0 = they are rejected. Releases that predate this
+  ** option ignore it, because unknown options are skipped by the parser.
+  */
+  int allowLegacy = vle->allowLegacy;
+
   switch (vleNew.algorithm)
   {
 #if HAVE_CIPHER_CHACHA20
@@ -628,6 +798,7 @@ static void vle_setKey(sqlite3_context* ctx, int argc, sqlite3_value** argv)
       const VleOptionDef chacha20KeyOptions[] =
       {
           { "kdf_iter", vle_optionSetInt, &kdfIter },
+          { "legacy",   vle_optionSetInt, &allowLegacy },
           { 0,          0,                0        }
       };
       if (vle_parseOptions(options, optionsLen, chacha20KeyOptions) != SQLITE_OK)
@@ -653,12 +824,13 @@ static void vle_setKey(sqlite3_context* ctx, int argc, sqlite3_value** argv)
     case CODEC_TYPE_ASCON128:
     {
       int kdfIter = ASCON128_KDF_ITER_DEFAULT;
-      const VleOptionDef chacha20KeyOptions[] =
+      const VleOptionDef ascon128KeyOptions[] =
       {
           { "kdf_iter", vle_optionSetInt, &kdfIter },
+          { "legacy",   vle_optionSetInt, &allowLegacy },
           { 0,          0,                0        }
       };
-      if (vle_parseOptions(options, optionsLen, chacha20KeyOptions) != SQLITE_OK)
+      if (vle_parseOptions(options, optionsLen, ascon128KeyOptions) != SQLITE_OK)
       {
         sqlite3_result_error(ctx, "Option string malformed", -1);
         sqlite3_free(options);
@@ -682,8 +854,17 @@ static void vle_setKey(sqlite3_context* ctx, int argc, sqlite3_value** argv)
       return;
   }
 
+  vleNew.allowLegacy = (allowLegacy != 0);
+
   char* result = sqlite3_mprintf("Ok. Options(%s)", optionsUsed);
-  sqlite3_result_text(ctx, result, -1, sqlite3_free);
+  if (result != NULL)
+  {
+    sqlite3_result_text(ctx, result, -1, sqlite3_free);
+  }
+  else
+  {
+    sqlite3_result_error_nomem(ctx);
+  }
   sqlite3_free(options);
 
   /* Update VLE context of the connection */
@@ -711,10 +892,18 @@ vle_encrypt(sqlite3_context* ctx, int argc, sqlite3_value** argv)
     return;
   }
 
-  /* Retrieve scope if given, otherwise set default scope */
+  /* Retrieve scope if given, otherwise set default scope (strict: format 2) */
   int scopeLen = 0;
   const unsigned char* scope = NULL;
-  vle_getScope((argc > 1) ? argv[1] : NULL, &scope, &scopeLen);
+  int scopeRc = vle_getScope((argc > 1) ? argv[1] : NULL, 1, &scope, &scopeLen);
+  if (scopeRc != SQLITE_OK)
+  {
+    if (scopeRc == SQLITE_NOMEM)
+      sqlite3_result_error_nomem(ctx);
+    else
+      sqlite3_result_error(ctx, "Scope must be TEXT, BLOB, INTEGER or NULL", -1);
+    return;
+  }
 
   /* Pack Value */
   unsigned char* payload = NULL;
@@ -734,6 +923,7 @@ vle_encrypt(sqlite3_context* ctx, int argc, sqlite3_value** argv)
   unsigned char* buffer = sqlite3_malloc(totalLen);
   if (!buffer)
   {
+    sqlite3mcSecureZeroMemory(payload, payloadLen);
     sqlite3_free(payload);
     sqlite3_result_error_nomem(ctx);
     return;
@@ -765,6 +955,7 @@ vle_encrypt(sqlite3_context* ctx, int argc, sqlite3_value** argv)
                   scope, scopeLen);
 
   sqlite3_result_blob(ctx, buffer, totalLen, sqlite3_free);
+  sqlite3mcSecureZeroMemory(payload, payloadLen);
   sqlite3_free(payload);
 }
 
@@ -793,11 +984,6 @@ vle_decrypt(sqlite3_context* ctx, int argc, sqlite3_value** argv)
     return;
   }
 
-  /* Retrieve scope if given, otherwise set default scope */
-  int scopeLen = 0;
-  const unsigned char* scope = NULL;
-  vle_getScope((argc > 1) ? argv[1] : NULL, &scope, &scopeLen);
-
   /* Retrieve value */
   int blobLen = sqlite3_value_bytes(argv[0]);
   const unsigned char* blob = (const unsigned char*) sqlite3_value_blob(argv[0]);
@@ -805,6 +991,41 @@ vle_decrypt(sqlite3_context* ctx, int argc, sqlite3_value** argv)
   if (blobLen < (int) sizeof(VleHeader) + (int) vle->nonceLen + (int) vle->tagLen + 1)
   {
     sqlite3_result_error(ctx, "Encrypted content too short", -1);
+    return;
+  }
+
+  /*
+  ** Parse header before the scope is evaluated: the format version decides
+  ** how the scope is interpreted (strict for version 2, lenient for legacy).
+  ** The version byte is authenticated (part of the AEAD input), so it can not
+  ** be changed without invalidating the tag.
+  */
+  VleHeader hdr;
+  vle_parseHeader(blob, &hdr);
+  int legacy = (hdr.version == VLE_VERSION_LEGACY);
+  if (hdr.magic != VLE_MAGIC ||
+      (hdr.version != VLE_VERSION && !legacy) ||
+      hdr.algorithm != vle->algorithm || hdr.flags != vle->flags)
+  {
+    sqlite3_result_error(ctx, "Invalid VLE header in encrypted value", -1);
+    return;
+  }
+  if (legacy && !vle->allowLegacy)
+  {
+    sqlite3_result_error(ctx, "Legacy VLE format (version 1) is disabled", -1);
+    return;
+  }
+
+  /* Retrieve scope if given, otherwise set default scope */
+  int scopeLen = 0;
+  const unsigned char* scope = NULL;
+  int scopeRc = vle_getScope((argc > 1) ? argv[1] : NULL, !legacy, &scope, &scopeLen);
+  if (scopeRc != SQLITE_OK)
+  {
+    if (scopeRc == SQLITE_NOMEM)
+      sqlite3_result_error_nomem(ctx);
+    else
+      sqlite3_result_error(ctx, "Scope must be TEXT, BLOB, INTEGER or NULL", -1);
     return;
   }
 
@@ -817,17 +1038,6 @@ vle_decrypt(sqlite3_context* ctx, int argc, sqlite3_value** argv)
   }
   memcpy(buffer, blob, blobLen);
 
-  /* Parse header */
-  VleHeader hdr;
-  vle_parseHeader(buffer, &hdr);
-  if (hdr.magic != VLE_MAGIC || hdr.version != VLE_VERSION ||
-      hdr.algorithm != vle->algorithm || hdr.flags != vle->flags)
-  {
-    sqlite3_result_error(ctx, "Invalid VLE header in encrypted value", -1);
-    sqlite3_free(buffer);
-    return;
-  }
-
   /* Determine required lenghts and offsets */
   int nonceLen = vle->nonceLen;
   int tagLen = vle->tagLen;
@@ -838,7 +1048,7 @@ vle_decrypt(sqlite3_context* ctx, int argc, sqlite3_value** argv)
   unsigned char* tag = ciphertext + payloadLen + 1;
 
   /* Decrypt value and check tag */
-  int rc = vle_aeadDecrypt(vle,
+  int rc = vle_aeadDecrypt(vle, hdr.version,
                            buffer, sizeof(VleHeader) + nonceLen,
                            ciphertext, payloadLen + 1,
                            tag, tagLen,
@@ -847,13 +1057,58 @@ vle_decrypt(sqlite3_context* ctx, int argc, sqlite3_value** argv)
   if (rc != SQLITE_OK)
   {
     sqlite3_result_error(ctx, "AEAD authentication failed", -1);
+    sqlite3mcSecureZeroMemory(buffer, blobLen);
     sqlite3_free(buffer);
     return;
   }
 
   /* Unpack value and set return value */
-  vle_unpackValue(ctx, &hdr, ciphertext, payloadLen);
+  if (vle_unpackValue(ctx, &hdr, ciphertext, payloadLen) != SQLITE_OK)
+  {
+    sqlite3_result_error(ctx, "Decrypted VLE value is corrupt", -1);
+  }
+  sqlite3mcSecureZeroMemory(buffer, blobLen);
   sqlite3_free(buffer);
+}
+
+/*
+** sqlite3mc_vle_version(value)
+**
+** Returns the format version of a VLE encrypted value as INTEGER, or NULL if
+** the argument is not a BLOB that looks like a VLE value (wrong type, too
+** short, or wrong magic byte). Needs no key and does not verify the
+** authentication tag: the result describes the stored format only and says
+** nothing about the validity of the value.
+**
+** Intended for migration and auditing, e.g.
+**   SELECT count(*) FROM t WHERE sqlite3mc_vle_version(col) = 1;
+*/
+static void
+vle_version(sqlite3_context* ctx, int argc, sqlite3_value** argv)
+{
+  if (argc != 1 || sqlite3_value_type(argv[0]) != SQLITE_BLOB)
+  {
+    sqlite3_result_null(ctx);
+    return;
+  }
+
+  int blobLen = sqlite3_value_bytes(argv[0]);
+  const unsigned char* blob = (const unsigned char*) sqlite3_value_blob(argv[0]);
+  if (blob == NULL ||
+      blobLen < (int) sizeof(VleHeader) + VLE_NONCE_LEN + VLE_TAG_LEN + 1)
+  {
+    sqlite3_result_null(ctx);
+    return;
+  }
+
+  VleHeader hdr;
+  vle_parseHeader(blob, &hdr);
+  if (hdr.magic != VLE_MAGIC)
+  {
+    sqlite3_result_null(ctx);
+    return;
+  }
+  sqlite3_result_int(ctx, (int) hdr.version);
 }
 
 /*
@@ -886,6 +1141,13 @@ int sqlite3_vle_init(sqlite3* db, char** pzErrMsg, const sqlite3_api_routines* p
                           NULL, vle_decrypt, NULL, NULL);
   sqlite3_create_function(db, "sqlite3mc_vle_decrypt", 2, SQLITE_UTF8 | SQLITE_DIRECTONLY,
                           NULL, vle_decrypt, NULL, NULL);
+
+  /* Define function sqlite3mc_vle_version(value)
+  ** Pure function of its argument, no key access: usable in views, triggers,
+  ** generated columns and partial indexes, hence no DIRECTONLY. */
+  sqlite3_create_function(db, "sqlite3mc_vle_version", 1,
+                          SQLITE_UTF8 | SQLITE_DETERMINISTIC | SQLITE_INNOCUOUS,
+                          NULL, vle_version, NULL, NULL);
 
   return SQLITE_OK;
 }
