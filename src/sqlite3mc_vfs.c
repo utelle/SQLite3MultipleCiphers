@@ -575,6 +575,7 @@ static const int walFileHeaderSize = 32;
 
 #define IOMETHODS_VERSION_MIN 1
 #define IOMETHODS_VERSION_MAX 3
+#define IOMETHODS_VERSION_NOSHM 4
 
 static sqlite3_io_methods mcIoMethodsGlobal1 =
 {
@@ -645,8 +646,31 @@ static sqlite3_io_methods mcIoMethodsGlobal3 =
   mcIoUnfetch,                /* xUnfetch */
 };
 
+static sqlite3_io_methods mcIoMethodsGlobal4 =
+{
+  3,                          /* iVersion */
+  mcIoClose,                  /* xClose */
+  mcIoRead,                   /* xRead */
+  mcIoWrite,                  /* xWrite */
+  mcIoTruncate,               /* xTruncate */
+  mcIoSync,                   /* xSync */
+  mcIoFileSize,               /* xFileSize */
+  mcIoLock,                   /* xLock */
+  mcIoUnlock,                 /* xUnlock */
+  mcIoCheckReservedLock,      /* xCheckReservedLock */
+  mcIoFileControl,            /* xFileControl */
+  mcIoSectorSize,             /* xSectorSize */
+  mcIoDeviceCharacteristics,  /* xDeviceCharacteristics */
+  0,                          /* xShmMap */
+  0,                          /* xShmLock */
+  0,                          /* xShmBarrier */
+  0,                          /* xShmUnmap */
+  mcIoFetch,                  /* xFetch */
+  mcIoUnfetch,                /* xUnfetch */
+};
+
 static sqlite3_io_methods* mcIoMethodsGlobal[] =
-  { 0, &mcIoMethodsGlobal1 , &mcIoMethodsGlobal2 , &mcIoMethodsGlobal3 };
+  { 0, &mcIoMethodsGlobal1 , &mcIoMethodsGlobal2 , &mcIoMethodsGlobal3, &mcIoMethodsGlobal4 };
 
 /*
 ** Internal functions
@@ -803,7 +827,8 @@ SQLITE_PRIVATE int sqlite3mcOpenTempFile(Pager* pPager, sqlite3_file* pFile)
     }
     else if (pFile->pMethods == &mcIoMethodsGlobal1 ||
              pFile->pMethods == &mcIoMethodsGlobal2 ||
-             pFile->pMethods == &mcIoMethodsGlobal3)
+             pFile->pMethods == &mcIoMethodsGlobal3 ||
+             pFile->pMethods == &mcIoMethodsGlobal4)
     {
       sqlite3mc_file* mcFile = (sqlite3mc_file*)pFile;
       mcFile->pageSize = (int)pPager->pageSize;
@@ -829,7 +854,8 @@ SQLITE_PRIVATE int sqlite3mcOpenTempJournal(sqlite3* pDb, sqlite3_file* pFile)
   if (pFile != NULL &&
       (pFile->pMethods == &mcIoMethodsGlobal1 ||
        pFile->pMethods == &mcIoMethodsGlobal2 ||
-       pFile->pMethods == &mcIoMethodsGlobal3))
+       pFile->pMethods == &mcIoMethodsGlobal3 ||
+       pFile->pMethods == &mcIoMethodsGlobal4))
   {
     sqlite3mc_file* mcFile = (sqlite3mc_file*)pFile;
     int forceEncrypt = mcCheckEncryptTempDb(mcFile, pDb);
@@ -927,7 +953,8 @@ SQLITE_PRIVATE void* sqlite3mcPagerCodec(PgHdrMC* pPg)
   void* aData = 0;
   if (pFile->pMethods == &mcIoMethodsGlobal1 ||
       pFile->pMethods == &mcIoMethodsGlobal2 ||
-      pFile->pMethods == &mcIoMethodsGlobal3)
+      pFile->pMethods == &mcIoMethodsGlobal3 ||
+      pFile->pMethods == &mcIoMethodsGlobal4)
   {
     sqlite3mc_file* mcFile = (sqlite3mc_file*) pFile;
     Codec* codec = mcFile->codec;
@@ -1049,7 +1076,15 @@ static int mcVfsOpen(sqlite3_vfs* pVfs, const char* zName, sqlite3_file* pFile, 
       /* If version out of range, use highest known version */
       ioMethodsVersion = IOMETHODS_VERSION_MAX;
     }
-    pFile->pMethods = mcIoMethodsGlobal[ioMethodsVersion];
+    if (ioMethodsVersion == 3 && mcFile->pFile->pMethods->xShmMap == NULL)
+    {
+      /* Version is 3, but SHM not supported */
+      pFile->pMethods = mcIoMethodsGlobal[IOMETHODS_VERSION_NOSHM];
+    }
+    else
+    {
+      pFile->pMethods = mcIoMethodsGlobal[ioMethodsVersion];
+    }
     if (flags & SQLITE_OPEN_MAIN_DB)
     {
       mcMainListAdd(mcFile);
@@ -2108,13 +2143,6 @@ static int mcIoSectorSize(sqlite3_file* pFile)
     return SQLITE_DEFAULT_SECTOR_SIZE;
 }
 
-#if 0
-static int mcIoDeviceCharacteristics(sqlite3_file* pFile)
-{
-  return REALFILE(pFile)->pMethods->xDeviceCharacteristics(REALFILE(pFile));
-}
-#endif
-
 #define MC_IOCAP_ATOMIC_ALL 0x000001FF  /* ATOMIC, ATOMIC512 ... ATOMIC64K */
 
 static int mcIoDeviceCharacteristics(sqlite3_file* pFile)
@@ -2259,6 +2287,8 @@ SQLITE_API void sqlite3mc_vfs_destroy(const char* zName)
   mcVfsDestroy(sqlite3_vfs_find(zName));
 }
 
+#define MC_VFS_FORWARD_IF(member, fwd)  pVfsNew->base.member = pVfsReal->member ? (fwd) : NULL
+
 /*
 ** Create a Multiple Ciphers VFS based on the underlying VFS with name given by zVfsReal.
 ** If makeDefault is true, the VFS is set as the default VFS.
@@ -2320,6 +2350,22 @@ SQLITE_API int sqlite3mc_vfs_create(const char* zVfsReal, int makeDefault)
       memcpy(zSpace, SQLITE3MC_VFS_NAME, nPrefix);
       memcpy(zSpace + nPrefix, "-", 1);
       memcpy(zSpace + nPrefix + 1, pVfsReal->zName, nRealName);
+
+      /* Set up function forwarding if the real VFS implements the function */
+      MC_VFS_FORWARD_IF(xDelete, mcVfsDelete);
+      MC_VFS_FORWARD_IF(xAccess, mcVfsAccess);
+      MC_VFS_FORWARD_IF(xFullPathname, mcVfsFullPathname);
+      MC_VFS_FORWARD_IF(xDlOpen, mcVfsDlOpen);
+      MC_VFS_FORWARD_IF(xDlError, mcVfsDlError);
+      MC_VFS_FORWARD_IF(xDlSym, mcVfsDlSym);
+      MC_VFS_FORWARD_IF(xDlClose, mcVfsDlClose);
+      MC_VFS_FORWARD_IF(xSleep, mcVfsSleep);
+      MC_VFS_FORWARD_IF(xCurrentTime, mcVfsCurrentTime);
+      MC_VFS_FORWARD_IF(xGetLastError, mcVfsGetLastError);
+      MC_VFS_FORWARD_IF(xCurrentTimeInt64, mcVfsCurrentTimeInt64);
+      MC_VFS_FORWARD_IF(xSetSystemCall, mcVfsSetSystemCall);
+      MC_VFS_FORWARD_IF(xGetSystemCall, mcVfsGetSystemCall);
+      MC_VFS_FORWARD_IF(xNextSystemCall, mcVfsNextSystemCall);
 
       /* Allocate the mutex and register the new VFS */
       pVfsNew->mutex = sqlite3_mutex_alloc(SQLITE_MUTEX_RECURSIVE);
