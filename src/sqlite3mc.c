@@ -7,6 +7,16 @@
 ** License:     MIT
 */
 
+#if defined(SQLITE_ENABLE_ATOMIC_WRITE)
+#error "SQLite3 Multiple Ciphers does not support SQLITE_ENABLE_ATOMIC_WRITE: \
+the in-memory rollback journal would be spilled to disk unencrypted."
+#endif
+
+#if defined(SQLITE_ENABLE_BATCH_ATOMIC_WRITE)
+#error "SQLite3 Multiple Ciphers does not support SQLITE_ENABLE_BATCH_ATOMIC_WRITE: \
+the in-memory rollback journal would be spilled to disk unencrypted."
+#endif
+
 /*
 ** Keep temporary data in memory by default
 **
