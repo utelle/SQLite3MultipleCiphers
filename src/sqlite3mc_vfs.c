@@ -1680,7 +1680,7 @@ static int mcWriteMainJournal(sqlite3_file* pFile, const void* buffer, int count
       ** Encrypt the page buffer, but only if the page number is valid
       */
       void* bufferEncrypted = sqlite3mcCodec(codec, (char*) buffer, pageNo, 7);
-      rc = sqlite3mcGetCodecLastError(mcFile->codec);
+      rc = sqlite3mcGetCodecLastError(codec);
       if (rc == SQLITE_OK)
       {
         rc = REALFILE(pFile)->pMethods->xWrite(REALFILE(pFile), bufferEncrypted, pageSize, offset);
@@ -1741,7 +1741,7 @@ static int mcWriteSubJournal(sqlite3_file* pFile, const void* buffer, int count,
       ** Encrypt the page buffer, but only if the page number is valid
       */
       void* bufferEncrypted = sqlite3mcCodec(codec, (char*) buffer, pageNo, 7);
-      rc = sqlite3mcGetCodecLastError(mcFile->codec);
+      rc = sqlite3mcGetCodecLastError(codec);
       if (rc == SQLITE_OK)
       {
         rc = REALFILE(pFile)->pMethods->xWrite(REALFILE(pFile), bufferEncrypted, pageSize, offset);
