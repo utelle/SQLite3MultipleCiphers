@@ -437,27 +437,27 @@ mcRegisterCodecExtensions(sqlite3* db, char** pzErrMsg, const sqlite3_api_routin
   rc = (codecParameterTable != NULL) ? SQLITE_OK : SQLITE_NOMEM;
   if (rc == SQLITE_OK)
   {
-    rc = sqlite3_create_function(db, "sqlite3mc_config", 1, SQLITE_UTF8 | SQLITE_DETERMINISTIC,
+    rc = sqlite3_create_function(db, "sqlite3mc_config", 1, SQLITE_UTF8 | SQLITE_DIRECTONLY,
                                  codecParameterTable, sqlite3mcConfigParams, 0, 0);
   }
   if (rc == SQLITE_OK)
   {
-    rc = sqlite3_create_function(db, "sqlite3mc_config", 2, SQLITE_UTF8 | SQLITE_DETERMINISTIC,
+    rc = sqlite3_create_function(db, "sqlite3mc_config", 2, SQLITE_UTF8 | SQLITE_DIRECTONLY,
                                  codecParameterTable, sqlite3mcConfigParams, 0, 0);
   }
   if (rc == SQLITE_OK)
   {
-    rc = sqlite3_create_function(db, "sqlite3mc_config", 3, SQLITE_UTF8 | SQLITE_DETERMINISTIC,
+    rc = sqlite3_create_function(db, "sqlite3mc_config", 3, SQLITE_UTF8 | SQLITE_DIRECTONLY,
                                  codecParameterTable, sqlite3mcConfigParams, 0, 0);
   }
   if (rc == SQLITE_OK)
   {
-    rc = sqlite3_create_function(db, "sqlite3mc_codec_data", 1, SQLITE_UTF8 | SQLITE_DETERMINISTIC,
+    rc = sqlite3_create_function(db, "sqlite3mc_codec_data", 1, SQLITE_UTF8 | SQLITE_DIRECTONLY,
                                  NULL, sqlite3mcCodecDataSql, 0, 0);
   }
   if (rc == SQLITE_OK)
   {
-    rc = sqlite3_create_function(db, "sqlite3mc_codec_data", 2, SQLITE_UTF8 | SQLITE_DETERMINISTIC,
+    rc = sqlite3_create_function(db, "sqlite3mc_codec_data", 2, SQLITE_UTF8 | SQLITE_DIRECTONLY,
                                  NULL, sqlite3mcCodecDataSql, 0, 0);
   }
   if (rc == SQLITE_OK)
