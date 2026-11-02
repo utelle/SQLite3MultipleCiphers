@@ -46,7 +46,7 @@
 #define CODEC_COUNT_MAX CODEC_COUNT_LIMIT
 #endif
 
-#define CIPHER_NAME_MAXLEN 32
+#define CIPHER_NAME_MAXLEN      64
 #define CIPHER_PARAMS_COUNT_MAX 64
 
 #define MAXKEYLENGTH     32
@@ -66,6 +66,12 @@ typedef struct _CodecParameter
   CipherParams* m_params;
 } CodecParameter;
 
+typedef struct _CipherSpare
+{
+  void* m_cipher;
+  int m_cipherType;
+} CipherSpare;
+
 typedef struct _Codec
 {
   int           m_isEncrypted;
@@ -81,6 +87,10 @@ typedef struct _Codec
   int           m_writeCipherType;
   void*         m_writeCipher;
   int           m_writeReserved;
+  /* Spare ciphers */
+  CipherSpare m_spareRead;   /* new Read cipher in case of rekey success (Type = Write-Type) */
+  CipherSpare m_spareWrite;  /* new Write cipher in case of rekey error (Type = Read-Type) */
+  int         m_rekeyPending;
 
   sqlite3*      m_db; /* Pointer to DB */
 #if 0

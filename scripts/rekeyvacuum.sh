@@ -53,9 +53,11 @@ cat <<EOF
 EOF
 sed -n '/^SQLITE_PRIVATE .*int sqlite3RunVacuum([^;]*$/,/^}$/p' "$INPUT" \
     | sed '/SQLITE_PRIVATE SQLITE_NOINLINE int sqlite3RunVacuum(/a \  Codec\* codec,           /\* Associated codec \*/' \
+    | sed '/end_of_vacuum:/a \  if( rc!=SQLITE_OK && codec->m_rekeyPending ){\n    sqlite3mcRekeySetFinalCipher(rc, codec);\n    if( sqlite3BtreeTxnState(pMain)!=SQLITE_TXN_NONE ){\n      sqlite3BtreeRollback(pMain, SQLITE_OK, 0);\n    }\n  }\n' \
     | sed 's/sqlite3RunVacuum/sqlite3mcRunVacuumForRekey/' \
     | sed 's/sqlite3BtreeCopyFile(pMain/sqlite3mcBtreeCopyFileForRekey(codec, pMain/' \
     | sed 's/rc = sqlite3BtreeSetPageSize/rc = sqlite3mcBtreeSetPageSize/' \
+    | sed 's/return SQLITE_ERROR;/return sqlite3mcRekeySetFinalCipher(SQLITE_ERROR, codec);/' \
     | sed 's/^\([^ )][^)]*\)\?){$/\1, int nRes){/' \
     | sed '/nRes = sqlite3BtreeGetRequestedReserve(pMain)/i \\n  \/\* A VACUUM cannot change the pagesize of an encrypted database. \*\/\n  if( db->nextPagesize ){\n    extern void sqlite3mcCodecGetKey(sqlite3*, int, void**, int*);\n    int nKey;\n    char *zKey;\n    sqlite3mcCodecGetKey(db, iDb, (void**)&zKey, &nKey);\n    if( nKey ) db->nextPagesize = 0;\n  }' \
     | grep -v "int nRes;\|nRes = " \

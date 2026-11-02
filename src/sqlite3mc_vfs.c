@@ -697,11 +697,15 @@ static sqlite3mc_file* mcFindDbMainFileName(sqlite3mc_vfs* mcVfs, const char* zF
 */
 static sqlite3mc_vfs* mcFindVfs(sqlite3* db, const char* zDbName)
 {
+  int dbIndex = (zDbName) ? sqlite3FindDbName(db, zDbName) : 0;
+  Pager* pager = sqlite3BtreePager(db->aDb[dbIndex].pBt);
+  sqlite3_vfs* dbVfs = pager->pVfs;
+
   sqlite3mc_vfs* pVfsMC = NULL;
-  if (db->pVfs && db->pVfs->xOpen == mcVfsOpen)
+  if (dbVfs && dbVfs->xOpen == mcVfsOpen)
   {
     /* The top level VFS is a Multiple Ciphers VFS */
-    pVfsMC = (sqlite3mc_vfs*)(db->pVfs);
+    pVfsMC = (sqlite3mc_vfs*)(dbVfs);
   }
   else
   {
@@ -1270,7 +1274,9 @@ static int mcReadMainDb(sqlite3_file* pFile, void* buffer, int count, sqlite3_in
 ** or leaf page (0x0d, header size 8).
 */
 
-#define MC_VALID_SIZE(x) ((x) >= 512 && (x) <= 65536 && (((x) & ((x) - 1)) == 0))
+#define MC_IS_POW2(x)           (((x) & ((x) - 1)) == 0)
+#define MC_VALID_PAGE_SIZE(x)   ((x) >= 512 && (x) <= 65536 && MC_IS_POW2(x))
+#define MC_VALID_SECTOR_SIZE(x) ((x) >= 32 && MC_IS_POW2(x))
 
 static int mcPage1LooksPlain(const unsigned char* p)
 {
@@ -1285,7 +1291,7 @@ static int mcPage1LooksPlain(const unsigned char* p)
   /* Page size (the value 1 stands for 65536); usable size must be at least 480 */
   pageSize = ((unsigned int) p[16] << 8) | p[17];
   if (pageSize == 1) pageSize = 65536;
-  if (!MC_VALID_SIZE(pageSize)) return 0;
+  if (!MC_VALID_PAGE_SIZE(pageSize)) return 0;
   usable = pageSize - p[20];
   if (usable < 480) return 0;
   /* B-tree header: type, first free block, number of cells, start of cell content */
@@ -1314,7 +1320,7 @@ static int mcPage1LooksPlain(const unsigned char* p)
 /* Database header (100 bytes) and the b-tree page header (8 bytes) of page 1 */
 #define MC_PAGE1_CHECK_SIZE 108
 
-static int mcMainDbLooksEncrypted(sqlite3mc_file* mcFile)
+static int mcMainDbLooksEncrypted(sqlite3mc_file* mcFile, int* isEncrypted)
 {
   unsigned char page1[MC_PAGE1_CHECK_SIZE];
   int j;
@@ -1322,10 +1328,17 @@ static int mcMainDbLooksEncrypted(sqlite3mc_file* mcFile)
   sqlite3_file* mainFile = (sqlite3_file*)mcFile->pMainDb;
   sqlite3_file* realMainFile = REALFILE(mainFile);
   int rc = realMainFile->pMethods->xRead(realMainFile, page1, MC_PAGE1_CHECK_SIZE, 0);
+  if (rc == SQLITE_IOERR_SHORT_READ)
+  {
+    /* File shorter than checked header: can be legitimate "empty/plain text" */
+    *isEncrypted = 0;
+    return SQLITE_OK;
+  }
   if (rc != SQLITE_OK)
   {
-    /* Includes SQLITE_IOERR_SHORT_READ: nothing to judge on */
-    return 0;
+    /* unknown: assume encrypted (fail closed); not to be evaluated on error */
+    *isEncrypted = 1;
+    return rc;
   }
   for (j = 0; j < 16; ++j)
   {
@@ -1337,9 +1350,11 @@ static int mcMainDbLooksEncrypted(sqlite3mc_file* mcFile)
   }
   if (allZero)
   {
-    return 0;
+    *isEncrypted = 0;
+    return SQLITE_OK;
   }
-  return !mcPage1LooksPlain(page1);
+  *isEncrypted = !mcPage1LooksPlain(page1);
+  return SQLITE_OK;
 }
 
 /*
@@ -1356,7 +1371,7 @@ static int mcMainDbLooksEncrypted(sqlite3mc_file* mcFile)
 ** The first record (page number, 4 bytes, followed by the page) starts
 ** directly after the header, that is at offset 'sector size'.
 */
-static int mcJournalRecordsMayBeEncrypted(sqlite3_file* pFile)
+static int mcJournalRecordsMayBeEncrypted(sqlite3_file* pFile, int* maybeEncrypted)
 {
   static const unsigned char journalMagic[8] = { 0xd9, 0xd5, 0x05, 0xf9, 0x20, 0xa1, 0x63, 0xd7 };
   sqlite3_file* realJournal = REALFILE(pFile);
@@ -1364,28 +1379,85 @@ static int mcJournalRecordsMayBeEncrypted(sqlite3_file* pFile)
   unsigned char pgno[4];
   unsigned char content[MC_PAGE1_CHECK_SIZE];
   unsigned int sectorSize, pageSize;
+  int rc;
 
-  if (realJournal->pMethods->xRead(realJournal, header, 28, 0) != SQLITE_OK ||
-    memcmp(header, journalMagic, 8) != 0)
+  rc = realJournal->pMethods->xRead(realJournal, header, 28, 0);
+  if (rc == SQLITE_IOERR_SHORT_READ)
   {
-    return 0;
+    /* Journal shorter than a header: no records to verify */
+    *maybeEncrypted = 0;
+    return SQLITE_OK;
   }
+  if (rc != SQLITE_OK)
+  {
+    /* unknown: assume encrypted (fail closed); not to be evaluated on error */
+    *maybeEncrypted = 1;
+    return rc;
+  }
+
+  if (memcmp(header, journalMagic, 8) != 0)
+  {
+    /* Not a valid journal header (magic mismatch): no records to verify */
+    *maybeEncrypted = 0;
+    return SQLITE_OK;
+  }
+
   sectorSize = sqlite3Get4byte(header + 20);
   pageSize = sqlite3Get4byte(header + 24);
-  if (!MC_VALID_SIZE(sectorSize) || !MC_VALID_SIZE(pageSize))
+  if (!MC_VALID_SECTOR_SIZE(sectorSize) || !MC_VALID_PAGE_SIZE(pageSize))
   {
-    return 0;
+    *maybeEncrypted = 0;
+    return SQLITE_OK;
   }
-  if (realJournal->pMethods->xRead(realJournal, pgno, 4, sectorSize) != SQLITE_OK ||
-      realJournal->pMethods->xRead(realJournal, content, MC_PAGE1_CHECK_SIZE, (sqlite3_int64)sectorSize + 4) != SQLITE_OK)
+
+  rc = realJournal->pMethods->xRead(realJournal, pgno, 4, sectorSize);
+  if (rc == SQLITE_IOERR_SHORT_READ)
   {
-    return 0;
+    /* Header only, no (complete) first record */
+    *maybeEncrypted = 0;
+    return SQLITE_OK;
   }
-  if (sqlite3Get4byte(pgno) == 1 && mcPage1LooksPlain(content))
+  if (rc != SQLITE_OK)
   {
-    return 0;
+    *maybeEncrypted = 1;
+    return rc;
   }
-  return 1;
+
+  rc = realJournal->pMethods->xRead(realJournal, content, MC_PAGE1_CHECK_SIZE, (sqlite3_int64)sectorSize + 4);
+  if (rc == SQLITE_IOERR_SHORT_READ)
+  {
+    /* Truncated first record: SQLite ends playback here as well */
+    *maybeEncrypted = 0;
+    return SQLITE_OK;
+  }
+  if (rc != SQLITE_OK)
+  {
+    *maybeEncrypted = 1;
+    return rc;
+  }
+
+  *maybeEncrypted = !(sqlite3Get4byte(pgno) == 1 && mcPage1LooksPlain(content));
+  return SQLITE_OK;
+}
+
+/*
+** Returns SQLITE_OK if the access is to be passed through unchanged,
+** SQLITE_NOTADB if the database is encrypted and the journal records
+** cannot be verified without a key, or the I/O error of a failed probe.
+*/
+static int mcHotJournalGuard(sqlite3mc_file* mcFile, sqlite3_file* pFile)
+{
+  int isEnc = 0;
+  int mayEnc = 0;
+  int rc = mcMainDbLooksEncrypted(mcFile, &isEnc);
+  if (rc != SQLITE_OK) return rc;        /* unknown: fail closed */
+  if (!isEnc) return SQLITE_OK;
+
+  rc = mcJournalRecordsMayBeEncrypted(pFile, &mayEnc);
+  if (rc != SQLITE_OK) return rc;        /* unknown: fail closed */
+  if (!mayEnc) return SQLITE_OK;
+
+  return SQLITE_NOTADB;
 }
 
 /*
@@ -1431,9 +1503,7 @@ static int mcReadMainJournal(sqlite3_file* pFile, const void* buffer, int count,
   }
   else if (offset == 0 && count == 1 &&
            ((const unsigned char*)buffer)[0] != 0 &&
-           mcFile->pMainDb != 0 &&
-           mcMainDbLooksEncrypted(mcFile) &&
-           mcJournalRecordsMayBeEncrypted(pFile))
+           mcFile->pMainDb != 0)
   {
     /*
     ** This is the check whether a journal is hot: SQLite reads the first byte
@@ -1448,8 +1518,12 @@ static int mcReadMainJournal(sqlite3_file* pFile, const void* buffer, int count,
     ** to keep the journal for a later attempt with the key.
     ** (A journal with plaintext records, for example from an interrupted
     ** encryption of a plain database, is passed through for the rollback.)
+    **
+    ** If a probe read fails, the state of the database is unknown. The
+    ** error is passed on instead of treating the file as plaintext, so the
+    ** journal stays untouched and can be examined by a later attempt.
     */
-    rc = SQLITE_NOTADB;
+    rc = mcHotJournalGuard(mcFile, pFile);
   }
 
   return rc;
@@ -2034,9 +2108,24 @@ static int mcIoSectorSize(sqlite3_file* pFile)
     return SQLITE_DEFAULT_SECTOR_SIZE;
 }
 
+#if 0
 static int mcIoDeviceCharacteristics(sqlite3_file* pFile)
 {
   return REALFILE(pFile)->pMethods->xDeviceCharacteristics(REALFILE(pFile));
+}
+#endif
+
+#define MC_IOCAP_ATOMIC_ALL 0x000001FF  /* ATOMIC, ATOMIC512 ... ATOMIC64K */
+
+static int mcIoDeviceCharacteristics(sqlite3_file* pFile)
+{
+  int dc = REALFILE(pFile)->pMethods->xDeviceCharacteristics(REALFILE(pFile));
+  /* Mask ATOMIC capabilities, because the main journal isn't written in the expected way anymore */
+  dc &= ~MC_IOCAP_ATOMIC_ALL;
+#ifdef SQLITE_IOCAP_BATCH_ATOMIC
+  dc &= ~SQLITE_IOCAP_BATCH_ATOMIC;
+#endif
+  return dc;
 }
 
 static int mcIoShmMap(sqlite3_file* pFile, int iPg, int pgsz, int map, void volatile** p)
@@ -2087,7 +2176,7 @@ sqlite3mcCheckVfs(const char* zVfs)
 {
   int rc = SQLITE_OK;
   sqlite3_vfs* pVfs = sqlite3_vfs_find(zVfs);
-  if (pVfs == NULL)
+  if (pVfs == NULL && zVfs != NULL)
   {
     /* VFS not found */
     int prefixLen = (int) strlen(SQLITE3MC_VFS_NAME);

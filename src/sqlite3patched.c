@@ -191763,7 +191763,11 @@ SQLITE_PRIVATE int sqlite3ParseUri(
   }
 
   /* Check VFS. */
-  sqlite3mcCheckVfs(zVfs);
+  rc = sqlite3mcCheckVfs(zVfs);
+  if( rc!=SQLITE_OK ){
+    *pzErrMsg = sqlite3_mprintf("could not create multipleciphers vfs");
+    goto parse_uri_out;
+  }
 
   *ppVfs = sqlite3_vfs_find(zVfs);
   if( *ppVfs==0 ){
