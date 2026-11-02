@@ -172,7 +172,11 @@ static int wait_for_random_pool(void)
 
   do
   {
+#ifdef O_CLOEXEC
+    fd = open("/dev/random", O_RDONLY | O_CLOEXEC, 0);
+#else
     fd = open("/dev/random", O_RDONLY, 0);
+#endif
   }
   while (fd == -1 && errno == EINTR);
   if (fd == -1)
@@ -188,7 +192,7 @@ static int wait_for_random_pool(void)
   }
   while (ret == -1 && (errno == EINTR || errno == EAGAIN));
   close(fd);
-  return (ret == 1) ? 0 : -1;
+  return (ret == 1 && (pfd.revents & POLLIN)) ? 0 : -1;
 }
 #endif
 
