@@ -561,7 +561,8 @@ static int mcTempFileSize(sqlite3mc_file* mcFile, sqlite3_int64* pSize)
 
 #define SQLITE3MC_VFS_NAME ("multipleciphers")
 
-#define SQLITE3MC_FCNTL_PVFS 0x3f98c078
+#define SQLITE3MC_FCNTL_PVFS   0x3f98c078
+#define SQLITE3MC_FCNTL_PCODEC 0x3f98c079
 
 /*
 ** Header sizes of WAL journal files
@@ -2073,7 +2074,13 @@ static int mcIoFileControl(sqlite3_file* pFile, int op, void* pArg)
         doReal = 0;
       }
       break;
-/*
+    case SQLITE3MC_FCNTL_PCODEC:
+    {
+      *(Codec**)pArg = p->codec;
+      doReal = 0;
+    }
+    break;
+    /*
 **  case SQLITE_FCNTL_PDB:
 **    {
 **      sqlite3* db = *((sqlite3**) pArg);
@@ -2233,27 +2240,13 @@ SQLITE_PRIVATE int
 sqlite3mcPagerHasCodec(PagerMC* pPager)
 {
   int hasCodec = 0;
-  sqlite3mc_vfs* pVfsMC = NULL;
-  sqlite3_vfs* pVfs = pPager->pVfs;
-
-  /* Check whether the VFS stack of the pager contains a Multiple Ciphers VFS */
-  for (; pVfs; pVfs = pVfs->pNext)
+  if (pPager->fd && pPager->fd->pMethods)   /* corresponds to isOpen(fd) */
   {
-    if (pVfs && pVfs->xOpen == mcVfsOpen)
+    Codec* codec = NULL;
+    int rc = sqlite3OsFileControl(pPager->fd, SQLITE3MC_FCNTL_PCODEC, &codec);
+    if (rc == SQLITE_OK)
     {
-      /* Multiple Ciphers VFS found */
-      pVfsMC = (sqlite3mc_vfs*)(pVfs);
-      break;
-    }
-  }
-
-  /* Check whether codec is enabled for associated database file */
-  if (pVfsMC)
-  {
-    sqlite3mc_file* mcFile = mcFindDbMainFileName(pVfsMC, pPager->zFilename);
-    if (mcFile)
-    {
-      Codec* codec = mcFile->codec;
+      /* Check whether codec is enabled for associated database file */
       hasCodec = (codec != 0 && sqlite3mcIsEncrypted(codec));
     }
   }
