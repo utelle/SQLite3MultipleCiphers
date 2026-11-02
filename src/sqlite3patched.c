@@ -188710,9 +188710,14 @@ static SQLITE_NOINLINE int sqlite3Initialize(void){
       int sqlite3mc_initialize(const char*);
       rc = sqlite3mc_initialize(0);
 #ifdef SQLITE_EXTRA_INIT_MUTEXED
+      if( rc==SQLITE_OK )
       {
         int SQLITE_EXTRA_INIT_MUTEXED(const char*);
         rc = SQLITE_EXTRA_INIT_MUTEXED(0);
+        if( rc!=SQLITE_OK ){
+          void sqlite3mc_shutdown(void);
+          sqlite3mc_shutdown();
+        }
       }
 #endif
     }

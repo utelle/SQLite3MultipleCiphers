@@ -28,6 +28,8 @@ sed 's/sqlite3_file_control\(.*SQLITE_FCNTL_PRAGMA\)/sqlite3mcFileControlPragma\
     | sed '/^  }else if( USEFETCH(pPager) ){/c \  }else if( USEFETCH(pPager) && sqlite3mcPagerHasCodec(pPager) == 0 ){' \
     | sed '/^  if( rc!=SQLITE_OK ) memset(&mem0, 0, sizeof(mem0));/a \\n  \/\* Initialize wrapper for memory management.\*\/\n  if( rc==SQLITE_OK ) {\n    sqlite3mcInitMemoryMethods();\n  }\n' \
     | sed '/^          sqlite3GlobalConfig.szPage, sqlite3GlobalConfig.nPage);/a \      int sqlite3mc_initialize(const char*);\n      rc = sqlite3mc_initialize(0);' \
+    | sed '/^      rc = sqlite3mc_initialize(0);/!{p;d;};n;a \      if( rc==SQLITE_OK )' \
+    | sed '/^        rc = SQLITE_EXTRA_INIT_MUTEXED(0);/a \        if( rc!=SQLITE_OK ){\n          void sqlite3mc_shutdown(void);\n          sqlite3mc_shutdown();\n        }' \
     | sed '/^    sqlite3_os_end();/i \    void sqlite3mc_shutdown(void);\n    sqlite3mc_shutdown();' \
     | sed '/^  SQLITE_EXTRA_AUTOEXT,/!{p;d;};n;a \  sqlite3mc_builtin_extensions,' \
     | sed '/^  sqlite3 \*dbWal;/!{p;d;};n;a \  sqlite3* mcDb;' \
