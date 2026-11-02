@@ -931,8 +931,8 @@ static const sqlite3mc_core_routines sqlite3mcCoreApis =
   sqlite3_preupdate_count,
   sqlite3_preupdate_depth,
   sqlite3_preupdate_hook,
-  sqlite3_preupdate_new,
   sqlite3_preupdate_old,
+  sqlite3_preupdate_new,
 #else
   0,
   0,
@@ -965,8 +965,8 @@ static const sqlite3mc_core_routines sqlite3mcCoreApis =
 #endif
 #if SQLITE_OS_WIN == 1
   sqlite3_win32_set_directory,
-  sqlite3_win32_set_directory16,
   sqlite3_win32_set_directory8,
+  sqlite3_win32_set_directory16,
 #else
   0,
   0,
