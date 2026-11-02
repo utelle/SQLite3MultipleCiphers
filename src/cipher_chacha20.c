@@ -215,8 +215,12 @@ EncryptPageChaCha20Cipher(void* cipher, int page, unsigned char* data, int len, 
 
   /* Encrypt and authenticate */
   memset(otk, 0, OTK_LEN_CHACHA20);
-  chacha20_rng(data + n, PAGE_NONCE_LEN_CHACHA20);
-  counter = LOAD32_LE(data + n + PAGE_NONCE_LEN_CHACHA20 - 4) ^ page;
+  do
+  {
+    chacha20_rng(data + n, PAGE_NONCE_LEN_CHACHA20);
+    counter = LOAD32_LE(data + n + PAGE_NONCE_LEN_CHACHA20 - 4) ^ (uint32_t)page;
+  }
+  while (chacha20_counter_wraps(counter, n - offset));
   chacha20_xor(otk, OTK_LEN_CHACHA20, chacha20Cipher->m_key, data + n, counter);
 
   chacha20_xor(data + offset, n - offset, otk + 32, data + n, counter + 1);

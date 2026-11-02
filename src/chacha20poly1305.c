@@ -325,18 +325,28 @@ int poly1305_tagcmp_scalar(const uint8_t tag1[16], const uint8_t tag2[16])
 ** Switching to "best" chacha20 implementation
 */
 
+static
+int chacha20_counter_wraps(uint32_t counter, size_t n)
+{
+  /* The data call starts at counter+1 and uses ceil(n/64) blocks */
+  uint64_t start = (uint32_t)(counter + 1);
+  uint64_t blocks = ((uint64_t)n + 63) / 64;
+  return (start + blocks) > ((uint64_t)1 << 32);
+}
+
 /*
 ** Use the smallest SQLite page size, 512 bytes, as threshold for activating hardware acceleration.
 ** Actually, the threshold should be at least 1024 bytes for AVX512.
 */
-#define CHACHA20_THRESHOLD 512
+#define CHACHA20_THRESHOLD 1024
 
 SQLITE_PRIVATE
 void chacha20_xor(void* buffer, size_t n, const uint8_t key[32],
                   const uint8_t nonce[12], uint32_t counter)
 {
   int rc = 0;
-  if (n >= CHACHA20_THRESHOLD && sqlite3mcChaCha20HwAccelerated())
+  if (n >= CHACHA20_THRESHOLD && sqlite3mcChaCha20HwAccelerated() &&
+      !chacha20_counter_wraps(counter, n))
   {
     rc = crypto_stream_chacha20_ietf_xor_ic(buffer, buffer, n, nonce, counter, key);
   }
