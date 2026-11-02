@@ -77,7 +77,7 @@ sqlite3mcGenerateInitialVector(int seed, unsigned char iv[16])
 {
   unsigned char initkey[16];
   int j, q;
-  int z = seed + 1;
+  int z = (int)((unsigned int)seed + 1U); /* Prevent overflow for seed = 2^31-1 */
   for (j = 0; j < 4; j++)
   {
     MODMULT(52774, 40692,  3791, 2147483399L, z);

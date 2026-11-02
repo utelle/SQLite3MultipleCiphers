@@ -167,7 +167,9 @@ static int mcMemoryInit(void* pAppData)
 */
 static void mcMemoryShutdown(void* pAppData)
 {
-  mcDefaultMemoryMethods.xShutdown(pAppData);
+  if (mcDefaultMemoryMethods.xShutdown != NULL)
+    mcDefaultMemoryMethods.xShutdown(pAppData);
+  mcSecureMemoryFlag = mcSecureMemoryInitialized = 0;
 }
 
 static sqlite3_mem_methods mcSecureMemoryMethods =
@@ -184,16 +186,20 @@ static sqlite3_mem_methods mcSecureMemoryMethods =
 
 SQLITE_PRIVATE void sqlite3mcSetMemorySecurity(int value)
 {
+  int secureMemoryFlag = (int)MC_ATOMIC_LOAD(&mcSecureMemoryFlag);
+
   /* memory security can be changed only, if locking is not enabled */
-  if (mcSecureMemoryFlag < 2)
+  if (secureMemoryFlag < 2)
   {
-    mcSecureMemoryFlag = (value >= 0 && value <= 2) ? value : 0;
+    secureMemoryFlag = (value >= 0 && value <= 2) ? value : 0;
+    MC_ATOMIC_STORE(&mcSecureMemoryFlag, secureMemoryFlag);
   }
 }
 
 SQLITE_PRIVATE int sqlite3mcGetMemorySecurity()
 {
-  return mcSecureMemoryFlag;
+  int secureMemoryFlag = (int)MC_ATOMIC_LOAD(&mcSecureMemoryFlag);
+  return secureMemoryFlag;
 }
 
 #endif /* SQLITE3MC_SECURE_MEMORY */
@@ -203,14 +209,21 @@ SQLITE_PRIVATE void sqlite3mcInitMemoryMethods()
 #if SQLITE3MC_SECURE_MEMORY
   if (!mcSecureMemoryInitialized)
   {
-    if (sqlite3_config(SQLITE_CONFIG_GETMALLOC, &mcDefaultMemoryMethods) != SQLITE_OK ||
-      sqlite3_config(SQLITE_CONFIG_MALLOC, &mcSecureMemoryMethods) != SQLITE_OK)
+    if (sqlite3_config(SQLITE_CONFIG_GETMALLOC, &mcDefaultMemoryMethods) == SQLITE_OK)
     {
-      mcSecureMemoryFlag = mcSecureMemoryInitialized = 0;
+      mcSecureMemoryMethods.pAppData = mcDefaultMemoryMethods.pAppData;
+      if (sqlite3_config(SQLITE_CONFIG_MALLOC, &mcSecureMemoryMethods) == SQLITE_OK)
+      {
+        mcSecureMemoryInitialized = 1;
+      }
+      else
+      {
+        mcSecureMemoryFlag = mcSecureMemoryInitialized = 0;
+      }
     }
     else
     {
-      mcSecureMemoryInitialized = 1;
+      mcSecureMemoryFlag = mcSecureMemoryInitialized = 0;
     }
   }
 #endif /* SQLITE3MC_SECURE_MEMORY */

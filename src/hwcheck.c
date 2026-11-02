@@ -398,13 +398,41 @@ mcCpuFeaturesDetect(void)
 #endif
 }
 
+/* Portable relaxed-atomic cache for a 32-bit value */
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L && !defined(__STDC_NO_ATOMICS__)
+#include <stdatomic.h>
+typedef atomic_uint mcAtomicUInt;
+#define MC_ATOMIC_LOAD(p)      atomic_load_explicit((p), memory_order_relaxed)
+#define MC_ATOMIC_STORE(p, v)  atomic_store_explicit((p), (v), memory_order_relaxed)
+#elif defined(__GNUC__) || defined(__clang__)
+typedef unsigned int mcAtomicUInt;
+#define MC_ATOMIC_LOAD(p)      __atomic_load_n((p), __ATOMIC_RELAXED)
+#define MC_ATOMIC_STORE(p, v)  __atomic_store_n((p), (v), __ATOMIC_RELAXED)
+#elif defined(_MSC_VER)
+#include <intrin.h>
+typedef volatile long mcAtomicUInt;
+#define MC_ATOMIC_LOAD(p)      ((unsigned int) _InterlockedOr((p), 0))
+#define MC_ATOMIC_STORE(p, v)  ((void) _InterlockedExchange((p), (long)(v)))
+#else
+  /* Fallback: best effort */
+typedef volatile unsigned int mcAtomicUInt;
+#define MC_ATOMIC_LOAD(p)      (*(p))
+#define MC_ATOMIC_STORE(p, v)  (*(p) = (v))
+#endif
+
+#define MC_CPU_FEATURES_VALID 0x80000000u
+
 static unsigned int
 sqlite3mcCpuFeatures(void)
 {
-  static int mcCpuFeaturesCached = -1; /* -1 = not yet determined */
-  if (mcCpuFeaturesCached < 0)
-    mcCpuFeaturesCached = (int) mcCpuFeaturesDetect();
-  return (unsigned int) mcCpuFeaturesCached;
+  static mcAtomicUInt mcCpuFeaturesCached = 0;  /* 0 = not yet determined */
+  unsigned int cpuFeatures = (unsigned int)MC_ATOMIC_LOAD(&mcCpuFeaturesCached);
+  if (!(cpuFeatures & MC_CPU_FEATURES_VALID))
+  {
+    cpuFeatures = (mcCpuFeaturesDetect() & ~MC_CPU_FEATURES_VALID) | MC_CPU_FEATURES_VALID;
+    MC_ATOMIC_STORE(&mcCpuFeaturesCached, cpuFeatures);
+  }
+  return cpuFeatures & ~MC_CPU_FEATURES_VALID;
 }
 
 /*
@@ -412,24 +440,17 @@ sqlite3mcCpuFeatures(void)
 ** aesHardwareCheck() so it only has to run once.
 */
 static int
-aesHardwareAvailable()
+aesHardwareAvailable(void)
 {
-  static int initialized = 0;
-  static int hwAvailable = 0;
-  if (!initialized)
-  {
 #if HAS_AES_HARDWARE == AES_HARDWARE_NONE
-    hwAvailable = 0;
+  return 0;
 #else
-    unsigned int features = sqlite3mcCpuFeatures();
-    int x86Ok = (features & (SQLITE3MC_CPU_AESNI | SQLITE3MC_CPU_SSE42))
-             == (SQLITE3MC_CPU_AESNI | SQLITE3MC_CPU_SSE42);
-    int armOk = (features & SQLITE3MC_CPU_ARMCRYPTO) != 0;
-    hwAvailable = x86Ok || armOk;
+  unsigned int features = sqlite3mcCpuFeatures();
+  int x86Ok = (features & (SQLITE3MC_CPU_AESNI | SQLITE3MC_CPU_SSE42))
+    == (SQLITE3MC_CPU_AESNI | SQLITE3MC_CPU_SSE42);
+  int armOk = (features & SQLITE3MC_CPU_ARMCRYPTO) != 0;
+  return x86Ok || armOk;
 #endif
-    initialized = 1;
-  }
-  return hwAvailable;
 }
 
 typedef struct _FeatureTag
@@ -458,24 +479,27 @@ sqlite3mcHardwareInfo()
   };
   static char hwInfoBuf[256];
   static int  hwInfoBuilt = 0;
+  sqlite3_mutex* mutex = sqlite3_mutex_alloc(SQLITE_MUTEX_STATIC_MAIN);
+  sqlite3_mutex_enter(mutex);
 
   if (!hwInfoBuilt)
   {
-    int k = 0;
-    int offset = 0;
-    int writeDelim = 0;
+    size_t offset = 0;
     unsigned int features = sqlite3mcCpuFeatures();
-    while (featureTags[k].flag != 0)
+    int k;
+    hwInfoBuf[0] = '\0';
+    for (k = 0; featureTags[k].flag != 0; ++k)
     {
       if (features & featureTags[k].flag)
       {
-        offset += snprintf(hwInfoBuf + offset, sizeof(hwInfoBuf) - offset,
-                           (writeDelim == 0) ? "%s" : ",%s", featureTags[k].name);
-        if (offset >= sizeof(hwInfoBuf)) break;
-        writeDelim = 1;
+        int n = snprintf(hwInfoBuf + offset, sizeof(hwInfoBuf) - offset,
+                         (offset == 0) ? "%s" : ",%s", featureTags[k].name);
+        if (n < 0 || (size_t)n >= sizeof(hwInfoBuf) - offset) break;
+        offset += (size_t)n;
       }
-      ++k;
     }
+    hwInfoBuilt = 1;
   }
+  sqlite3_mutex_leave(mutex);
   return hwInfoBuf;
 }
