@@ -21,7 +21,8 @@
 **          always be supplied (rekey, failure case, plain -> encrypted)
 ** Part 8 : salt management (random salt, salt in memory across several rekeys,
 **          rekey_salt=on/off) and behaviour when reading the file header
-**          (unencrypted/empty/too short file, I/O error while reading the header)
+**          (unencrypted/empty/too short file, I/O error while reading the header),
+**          key, rekey and backup for a schema name without a database file
 **
 ** Invariant in parts 3 and 6 (after every rekey, whether it failed or not):
 **   exactly ONE of the two states (old/new) is completely readable
@@ -1846,6 +1847,33 @@ static void t8_header_read_error(void)
   CHECK(state_ok("chacha20", "old-key", g_nrows), "afterwards completely readable with the correct key");
 }
 
+/* Key, rekey and backup for a schema name without a database file
+** (unknown name, "temp" before it is used): an error, no crash */
+static void t8_schema_without_file(void)
+{
+  sqlite3* db = 0;
+  sqlite3* dbDest = 0;
+  sqlite3_backup* backup;
+  int rc;
+
+  printf("\n== key, rekey and backup for a schema without database file ==\n");
+  snprintf(g_ctx, sizeof(g_ctx), "Part 8: schema_without_file");
+  remove_files();
+  rc = sqlite3_open_v2(DBFILE, &db, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, "multipleciphers-faulty");
+  CHECK(rc == SQLITE_OK, "DB opened");
+  if (rc != SQLITE_OK) return;
+  CHECK(sqlite3_key_v2(db, "nosuchdb", "k", 1) != SQLITE_OK, "key for an unknown schema fails");
+  CHECK(sqlite3_key_v2(db, "temp", "k", 1) != SQLITE_OK, "key for temp fails");
+  CHECK(sqlite3_rekey_v2(db, "nosuchdb", "k", 1) != SQLITE_OK, "rekey for an unknown schema fails");
+  CHECK(sqlite3_rekey_v2(db, "temp", "k", 1) != SQLITE_OK, "rekey for temp fails");
+  rc = sqlite3_open(":memory:", &dbDest);
+  backup = (rc == SQLITE_OK) ? sqlite3_backup_init(dbDest, "main", db, "temp") : NULL;
+  if (backup) sqlite3_backup_finish(backup);
+  CHECK(rc == SQLITE_OK, "backup from temp returns without a crash");
+  sqlite3_close(dbDest);
+  sqlite3_close(db);
+}
+
 static void run_part8(void)
 {
   t8_random_salt();
@@ -1856,6 +1884,7 @@ static void run_part8(void)
   t8_plain_with_key();
   t8_short_header();
   t8_header_read_error();
+  t8_schema_without_file();
 }
 
 /* ------------------------------------------------------------------ */

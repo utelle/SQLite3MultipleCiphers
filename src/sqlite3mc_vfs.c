@@ -723,8 +723,8 @@ static sqlite3mc_file* mcFindDbMainFileName(sqlite3mc_vfs* mcVfs, const char* zF
 static sqlite3mc_vfs* mcFindVfs(sqlite3* db, const char* zDbName)
 {
   int dbIndex = (zDbName) ? sqlite3FindDbName(db, zDbName) : 0;
-  Pager* pager = sqlite3BtreePager(db->aDb[dbIndex].pBt);
-  sqlite3_vfs* dbVfs = pager->pVfs;
+  Btree* pBt = (dbIndex >= 0) ? db->aDb[dbIndex].pBt : NULL;
+  sqlite3_vfs* dbVfs = (pBt != NULL) ? sqlite3BtreePager(pBt)->pVfs : NULL;
 
   sqlite3mc_vfs* pVfsMC = NULL;
   if (dbVfs && dbVfs->xOpen == mcVfsOpen)
