@@ -412,6 +412,49 @@ static int doTruncate(long op)
   return failures + checkDiskWrites(op);
 }
 
+/*
+** A truncate of a file with a chunk size that is not a multiple of 8 can keep
+** a part of the counter value in front of the next block. A block that a later
+** write leaves out must still read as zeros. The random operations hardly ever
+** truncate that close to a block boundary, so this is checked once on its own,
+** with the VFS below the spy, where the chunk size reaches the file on disk.
+*/
+static int checkPartialCounter(sqlite3_vfs* vfs)
+{
+  int chunk = MC_TEMP_HEADER + MC_TEMP_BLOCK + MC_TEMP_HEADER / 2;  /* keeps half of the counter of block 1 */
+  sqlite3_file* f = (sqlite3_file*) sqlite3_malloc(vfs->szOsFile);
+  int outFlags, rc, k, failures = 0;
+  if (f == NULL) return 1;
+  memset(f, 0, vfs->szOsFile);
+  rc = vfs->xOpen(vfs, NULL, f, SQLITE_OPEN_TEMP_JOURNAL | SQLITE_OPEN_READWRITE |
+                  SQLITE_OPEN_CREATE | SQLITE_OPEN_EXCLUSIVE | SQLITE_OPEN_DELETEONCLOSE, &outFlags);
+  if (rc != SQLITE_OK) { printf("  open failed: %d\n", rc); sqlite3_free(f); return 1; }
+  f->pMethods->xFileControl(f, SQLITE_FCNTL_CHUNK_SIZE, &chunk);
+  memset(writeBuf, 0x5A, 3 * MC_TEMP_BLOCK);
+  rc = f->pMethods->xWrite(f, writeBuf, 3 * MC_TEMP_BLOCK, 0);
+  if (rc == SQLITE_OK) rc = f->pMethods->xTruncate(f, MC_TEMP_BLOCK);
+  if (rc == SQLITE_OK) rc = f->pMethods->xWrite(f, writeBuf, MC_TEMP_BLOCK, 2 * MC_TEMP_BLOCK);
+  if (rc == SQLITE_OK) rc = f->pMethods->xRead(f, readBuf, MC_TEMP_BLOCK, MC_TEMP_BLOCK);
+  if (rc != SQLITE_OK)
+  {
+    printf("  chunk size %d: rc %d\n", chunk, rc);
+    failures++;
+  }
+  else
+  {
+    for (k = 0; k < MC_TEMP_BLOCK && readBuf[k] == 0; k++) {}
+    if (k < MC_TEMP_BLOCK)
+    {
+      printf("  WRONG DATA WITHOUT ERROR with chunk size %d: block left out after a truncate is not zero at byte %d\n", chunk, k);
+      failures++;
+    }
+  }
+  f->pMethods->xClose(f);
+  sqlite3_free(f);
+  printf("  truncate with chunk size %d checked\n", chunk);
+  return failures;
+}
+
 int main(int argc, char** argv)
 {
   long ops = argc > 1 ? atol(argv[1]) : 100000, i;
@@ -461,6 +504,7 @@ int main(int argc, char** argv)
     blockSize = ((sqlite3mc_file*) file)->tempCipher->blockSize;
     printf("  block size %d\n", blockSize);
     if (pageSize) { nDiskWrite = 0; failures += checkDiskWrites(-1); }
+    failures += checkPartialCounter(realVfs);
   }
   for (i = 3; i < argc; i++)
   {
