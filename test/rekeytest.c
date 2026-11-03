@@ -1765,6 +1765,25 @@ static void t8_short_header(void)
     rc = open_state("chacha20", "k", &db, &n);
     CHECK(rc == SQLITE_OK && n == 1, "reopened and readable without cipher_salt");
     if (db) sqlite3_close(db);
+
+    /* A second new DB with the same key must get a different salt */
+    {
+      unsigned char h2[16];
+      remove_files();
+      write_bytes(DBFILE, 0);
+      rc = sqlite3_open_v2(DBFILE, &db, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, "multipleciphers-faulty");
+      if (rc == SQLITE_OK)
+      {
+        set_params(db, "chacha20");
+        keyRc = sqlite3_key(db, "k", 1);
+        rc = sqlite3_exec(db, "CREATE TABLE t(a INTEGER PRIMARY KEY, b TEXT)", 0, 0, 0);
+        if (keyRc != SQLITE_OK) rc = keyRc;
+      }
+      sqlite3_close(db);
+      db = 0;
+      CHECK(rc == SQLITE_OK && read_header_salt(h2) && memcmp(h, h2, 16) != 0,
+            "second empty file + same key: different salt");
+    }
   }
 
   for (i = 0; i < sizeof(sizes) / sizeof(sizes[0]); i++)
