@@ -76,7 +76,6 @@ typedef struct _Codec
 {
   int           m_isEncrypted;
   int           m_hmacCheck;
-  int           m_walLegacy;
   /* Read cipher */
   int           m_hasReadCipher;
   int           m_readCipherType;
@@ -269,9 +268,21 @@ SQLITE_PRIVATE void sqlite3mcCodecGetKey(sqlite3* db, int nDb, void** zKey, int*
 ** In principle, operating generally in WAL legacy mode is possible, but it is strongly
 ** recommended to use the WAL legacy mode only to recover WAL journals left behind by
 ** prior versions without data loss.
+**
+** Starting with version 2.7.0 the WAL legacy mode is no longer supported.
+** In case a WAL journal in legacy mode still exists execute the SQL command
+**
+**   PRAGMA wal_checkpoint(TRUNCATE);
+**
+** This forces all pages to be written to the main database and truncating the WAL journal
+** file to 0 bytes. Thereafter it is save to switch to a new SQLite3 Multiple Ciphers
+** version 2.7.0 or above.
+**
+** The compile time symbol SQLITE3MC_LEGACY_WAL is no longer supported:
+**
+** #ifndef SQLITE3MC_LEGACY_WAL
+** #define SQLITE3MC_LEGACY_WAL 0
+** #endif
 */
-#ifndef SQLITE3MC_LEGACY_WAL
-#define SQLITE3MC_LEGACY_WAL 0
-#endif
 
 #endif

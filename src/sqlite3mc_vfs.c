@@ -959,7 +959,7 @@ SQLITE_PRIVATE void* sqlite3mcPagerCodec(PgHdrMC* pPg)
   {
     sqlite3mc_file* mcFile = (sqlite3mc_file*) pFile;
     Codec* codec = mcFile->codec;
-    if (codec != 0 && codec->m_walLegacy == 0 && sqlite3mcIsEncrypted(codec))
+    if (codec != 0 && sqlite3mcIsEncrypted(codec))
     {
       int rc;
       aData = sqlite3mcCodec(codec, pPg->pData, pPg->pgno, 6);
@@ -1660,19 +1660,6 @@ static int mcReadWal(sqlite3_file* pFile, const void* buffer, int count, sqlite3
         rc = sqlite3mcGetCodecLastError(codec);
       }
     }
-    else if (codec->m_walLegacy != 0 && count == pageSize + walFrameHeaderSize)
-    {
-      unsigned int pageNo = sqlite3Get4byte(buffer);
-
-      /*
-      ** Decrypt page content if page number is valid
-      */
-      if (pageNo != 0)
-      {
-        void* bufferDecrypted = sqlite3mcCodec(codec, (char*)buffer+walFrameHeaderSize, pageNo, 3);
-        rc = sqlite3mcGetCodecLastError(codec);
-      }
-    }
   }
   return rc;
 }
@@ -1902,97 +1889,7 @@ static int mcWriteSubJournal(sqlite3_file* pFile, const void* buffer, int count,
 */
 static int mcWriteWal(sqlite3_file* pFile, const void* buffer, int count, sqlite3_int64 offset)
 {
-  int rc = SQLITE_OK;
-  sqlite3mc_file* mcFile = (sqlite3mc_file*) pFile;
-  Codec* codec = (mcFile->pMainDb) ? mcFile->pMainDb->codec : 0;
-
-  if (codec != 0 && codec->m_walLegacy != 0 && sqlite3mcIsEncrypted(codec))
-  {
-    const int pageSize = sqlite3mcGetPageSize(codec);
-
-    if (count == pageSize)
-    {
-      unsigned int pageNo = 0;
-      unsigned char ac[4];
-
-      /*
-      ** Read the corresponding page number from the file
-      **
-      ** In WAL mode SQLite does not write the page number of a page to file
-      ** immediately before writing the corresponding page content.
-      ** Page numbers and checksums are written to file independently.
-      ** Therefore it is necessary to explicitly read the page number
-      ** on writing to file the content of a page.
-      */
-      rc = REALFILE(pFile)->pMethods->xRead(REALFILE(pFile), ac, 4, offset - walFrameHeaderSize);
-      if (rc == SQLITE_OK)
-      {
-        pageNo = sqlite3Get4byte(ac);
-      }
-
-      if (pageNo != 0)
-      {
-        /*
-        ** Encrypt the page buffer, but only if the page number is valid
-        */
-        void* bufferEncrypted = sqlite3mcCodec(codec, (char*) buffer, pageNo, 7);
-        rc = sqlite3mcGetCodecLastError(codec);
-        if (rc == SQLITE_OK)
-        {
-          rc = REALFILE(pFile)->pMethods->xWrite(REALFILE(pFile), bufferEncrypted, pageSize, offset);
-        }
-      }
-      else
-      {
-        /*
-        ** Write buffer without encryption if the page number could not be determined
-        */
-        rc = REALFILE(pFile)->pMethods->xWrite(REALFILE(pFile), buffer, count, offset);
-      }
-    }
-    else if (count == pageSize + walFrameHeaderSize)
-    {
-      int pageNo = sqlite3Get4byte(buffer);
-      if (pageNo != 0)
-      {
-        /*
-        ** Encrypt the page buffer, but only if the page number is valid
-        */
-        void* bufferEncrypted = sqlite3mcCodec(codec, (char*)buffer+walFrameHeaderSize, pageNo, 7);
-        rc = sqlite3mcGetCodecLastError(codec);
-        if (rc == SQLITE_OK)
-        {
-          rc = REALFILE(pFile)->pMethods->xWrite(REALFILE(pFile), buffer, walFrameHeaderSize, offset);
-          if (rc == SQLITE_OK)
-          {
-            rc = REALFILE(pFile)->pMethods->xWrite(REALFILE(pFile), bufferEncrypted, pageSize, offset + walFrameHeaderSize);
-          }
-        }
-      }
-      else
-      {
-        /*
-        ** Write buffer without encryption if the page number could not be determined
-        */
-        rc = REALFILE(pFile)->pMethods->xWrite(REALFILE(pFile), buffer, count, offset);
-      }
-    }
-    else
-    {
-      /*
-      ** Write buffer without encryption if it is not a database page
-      */
-      rc = REALFILE(pFile)->pMethods->xWrite(REALFILE(pFile), buffer, count, offset);
-    }
-  }
-  else
-  {
-    /*
-    ** Write buffer without encryption
-    */
-    rc = REALFILE(pFile)->pMethods->xWrite(REALFILE(pFile), buffer, count, offset);
-  }
-  return rc;
+  return REALFILE(pFile)->pMethods->xWrite(REALFILE(pFile), buffer, count, offset);
 }
 
 static int mcIoWrite(sqlite3_file* pFile, const void* buffer, int count, sqlite3_int64 offset)

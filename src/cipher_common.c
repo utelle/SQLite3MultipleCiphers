@@ -26,7 +26,6 @@ static CipherParams commonParams[] =
   { "cipher",          CODEC_TYPE_UNKNOWN,   CODEC_TYPE_UNKNOWN, 1,      CODEC_COUNT_MAX },
   { "hmac_check",                       1,                    1, 0,                    1 },
   { "encrypt_temp_db",                  0,                    0, 0,                    1 },
-  { "mc_legacy_wal", SQLITE3MC_LEGACY_WAL, SQLITE3MC_LEGACY_WAL, 0,                    1 },
   CIPHER_PARAMS_SENTINEL
 };
 
@@ -192,7 +191,6 @@ sqlite3mcCodecInit(Codec* codec)
   {
     codec->m_isEncrypted = 0;
     codec->m_hmacCheck = 1;
-    codec->m_walLegacy = 0;
 
     codec->m_hasReadCipher = 0;
     codec->m_readCipherType = CODEC_TYPE_UNKNOWN;
@@ -273,7 +271,6 @@ sqlite3mcCodecSetup(Codec* codec, int cipherType, char* userPassword, int passwo
   }
   codec->m_isEncrypted = 1;
   codec->m_hmacCheck = sqlite3mcGetCipherParameter(globalParams, "hmac_check");
-  codec->m_walLegacy = sqlite3mcGetCipherParameter(globalParams, "mc_legacy_wal");
   codec->m_hasReadCipher = 1;
   codec->m_hasWriteCipher = 1;
   codec->m_readCipherType = cipherType;
@@ -309,7 +306,6 @@ sqlite3mcSetupWriteCipher(Codec* codec, int cipherType, char* userPassword, int 
   }
   codec->m_isEncrypted = 1;
   codec->m_hmacCheck = sqlite3mcGetCipherParameter(globalParams, "hmac_check");
-  codec->m_walLegacy = sqlite3mcGetCipherParameter(globalParams, "mc_legacy_wal");
   codec->m_hasWriteCipher = 1;
   codec->m_writeCipherType = cipherType;
   codec->m_writeCipher = globalCodecDescriptorTable[codec->m_writeCipherType-1].m_allocateCipher(codec->m_db);
@@ -535,7 +531,6 @@ sqlite3mcCodecCopy(Codec* codec, Codec* other)
   int rc = SQLITE_OK;
   codec->m_isEncrypted = other->m_isEncrypted;
   codec->m_hmacCheck = other->m_hmacCheck;
-  codec->m_walLegacy = other->m_walLegacy;
   codec->m_hasReadCipher = other->m_hasReadCipher;
   codec->m_hasWriteCipher = other->m_hasWriteCipher;
   codec->m_readCipherType = other->m_readCipherType;

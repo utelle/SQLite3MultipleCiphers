@@ -825,7 +825,6 @@ sqlite3mcConfigureFromUri(sqlite3* db, const char* zDbName, int configDefault)
         int skipLegacy = 0;
         /* Set global parameters (cipher and hmac_check) */
         int hmacCheck = sqlite3_uri_boolean(dbFileName, "hmac_check", 1);
-        int walLegacy = sqlite3_uri_boolean(dbFileName, "mc_legacy_wal", 0);
         if (configDefault)
         {
           sqlite3mc_config(db, "default:cipher", globalCodecParameterTable[j].m_id);
@@ -838,7 +837,6 @@ sqlite3mcConfigureFromUri(sqlite3* db, const char* zDbName, int configDefault)
         {
           sqlite3mc_config(db, "hmac_check", hmacCheck);
         }
-        sqlite3mc_config(db, "mc_legacy_wal", walLegacy);
 
 #if HAVE_CIPHER_SQLCIPHER
         /* Special handling for SQLCipher */
@@ -1012,13 +1010,6 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
     {
       int encryptTempDb = (pragmaValue != NULL) ? sqlite3GetBoolean(pragmaValue, 0) : -1;
       int value = sqlite3mc_config(db, "encrypt_temp_db", encryptTempDb);
-      ((char**)pArg)[0] = sqlite3_mprintf("%d", value);
-      rc = SQLITE_OK;
-    }
-    else if (sqlite3StrICmp(pragmaName, "mc_legacy_wal") == 0)
-    {
-      int walLegacy = (pragmaValue != NULL) ? sqlite3GetBoolean(pragmaValue, 0) : -1;
-      int value = sqlite3mc_config(db, "mc_legacy_wal", walLegacy);
       ((char**)pArg)[0] = sqlite3_mprintf("%d", value);
       rc = SQLITE_OK;
     }
