@@ -209,16 +209,26 @@ SQLITE_PRIVATE void sqlite3mcInitMemoryMethods()
 #if SQLITE3MC_SECURE_MEMORY
   if (!mcSecureMemoryInitialized)
   {
-    if (sqlite3_config(SQLITE_CONFIG_GETMALLOC, &mcDefaultMemoryMethods) == SQLITE_OK)
+    sqlite3_mem_methods currentMemoryMethods;
+    if (sqlite3_config(SQLITE_CONFIG_GETMALLOC, &currentMemoryMethods) == SQLITE_OK)
     {
-      mcSecureMemoryMethods.pAppData = mcDefaultMemoryMethods.pAppData;
-      if (sqlite3_config(SQLITE_CONFIG_MALLOC, &mcSecureMemoryMethods) == SQLITE_OK)
+      if (currentMemoryMethods.xMalloc == mcSecureMemoryMethods.xMalloc)
       {
+        /* Still installed after sqlite3_shutdown(), do not wrap it a second time */
         mcSecureMemoryInitialized = 1;
       }
       else
       {
-        mcSecureMemoryFlag = mcSecureMemoryInitialized = 0;
+        mcDefaultMemoryMethods = currentMemoryMethods;
+        mcSecureMemoryMethods.pAppData = mcDefaultMemoryMethods.pAppData;
+        if (sqlite3_config(SQLITE_CONFIG_MALLOC, &mcSecureMemoryMethods) == SQLITE_OK)
+        {
+          mcSecureMemoryInitialized = 1;
+        }
+        else
+        {
+          mcSecureMemoryFlag = mcSecureMemoryInitialized = 0;
+        }
       }
     }
     else
