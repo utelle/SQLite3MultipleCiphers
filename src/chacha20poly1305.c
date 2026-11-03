@@ -328,10 +328,9 @@ int poly1305_tagcmp_scalar(const uint8_t tag1[16], const uint8_t tag2[16])
 static
 int chacha20_counter_wraps(uint32_t counter, size_t n)
 {
-  /* The data call starts at counter+1 and uses ceil(n/64) blocks */
-  uint64_t start = (uint32_t)(counter + 1);
+  /* A call starting at block counter 'counter' uses ceil(n/64) blocks */
   uint64_t blocks = ((uint64_t)n + 63) / 64;
-  return (start + blocks) > ((uint64_t)1 << 32);
+  return ((uint64_t)counter + blocks) > ((uint64_t)1 << 32);
 }
 
 /*

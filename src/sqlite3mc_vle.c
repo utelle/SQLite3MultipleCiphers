@@ -402,7 +402,7 @@ vle_aeadEncrypt(const VleContext* ctx,
         chacha20_rng(nonce, nonceLen);
         counter = vle_readU32BE(nonce + nonceLen - 4) ^ (uint32_t) VLE_MAGIC_NUM;
       }
-      while (chacha20_counter_wraps(counter, ctextLen));
+      while (chacha20_counter_wraps(counter + 1, ctextLen));
       /* otk is all zero, so this yields pure keystream under the subkey */
       chacha20_xor(otk, VLE_OTK_LEN, subkey, nonce, counter);
 

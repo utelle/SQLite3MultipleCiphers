@@ -391,7 +391,10 @@ static void testAesCbc(void)
 /*
 ** ChaCha20 and Poly1305: every implementation has to reproduce the RFC 8439
 ** test vectors and give the same result as the first implementation in its
-** list (the reference) for pseudo-random input.
+** list (the reference) for pseudo-random input. In addition, chacha20_xor has
+** to wrap the 32-bit block counter like sqleet when it overflows within a call,
+** because a page may be read with a different implementation than the one
+** that wrote it.
 */
 
 typedef void (*ChaCha20Function)(unsigned char* output, const unsigned char* input, size_t length,
@@ -482,6 +485,10 @@ static const Poly1305Implementation poly1305List[] =
 static void testChaCha20(void)
 {
   static const uint32_t counters[] = { 0, 1, 0x12345, 0xfffff000u };
+#ifdef HAVE_SELECTABLE_IMPLEMENTATIONS
+  static const size_t overflowLengths[] = { 1024, 2048, 4064, 8000 };
+  const int defaultIndex = ARRAY_COUNT(chacha20List) - 1;
+#endif
   const ChaCha20Implementation* reference = &chacha20List[0];
   int failures[ARRAY_COUNT(chacha20List)] = { 0 };
   int checks[ARRAY_COUNT(chacha20List)] = { 0 };
@@ -530,6 +537,30 @@ static void testChaCha20(void)
       }
     }
   }
+
+#ifdef HAVE_SELECTABLE_IMPLEMENTATIONS
+  /* Counter overflow within the call: every start counter from just below the overflow up to 2^32-1 */
+  for (i = 0; i < ARRAY_COUNT(overflowLengths); i++)
+  {
+    size_t length = overflowLengths[i];
+    uint64_t blocks = (length + 63) / 64;
+    uint64_t start;
+    pseudoRandomBytes(testKey, sizeof(testKey));
+    pseudoRandomBytes(testNonce, sizeof(testNonce));
+    pseudoRandomBytes(inputBuffer, length);
+    for (start = 0x100000000ull - blocks - 1; start <= 0xffffffffull; start++)
+    {
+      chacha20Sqleet(expectedBuffer, inputBuffer, length, testKey, testNonce, (uint32_t) start);
+      snprintf(description, sizeof(description), "counter overflow, length %d, counter 0x%08x",
+               (int) length, (unsigned int) start);
+      memset(outputBuffer, 0, length);
+      chacha20Default(outputBuffer, inputBuffer, length, testKey, testNonce, (uint32_t) start);
+      failures[defaultIndex] += checkResult(memcmp(outputBuffer, expectedBuffer, length) == 0,
+                                            chacha20List[defaultIndex].name, description);
+      checks[defaultIndex]++;
+    }
+  }
+#endif
 
   for (j = 0; j < ARRAY_COUNT(chacha20List); j++)
   {
