@@ -62,6 +62,11 @@ jobs:
         make oomtest
         ./oomtest
 
+    - name: Rekeying tests
+      run: |
+        make rekeytest
+        ./rekeytest
+
   android_build:
     name: Android (API ${{ matrix.api-level }})
     runs-on: ubuntu-latest
