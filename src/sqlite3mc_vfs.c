@@ -1231,42 +1231,55 @@ static int mcReadMainDb(sqlite3_file* pFile, void* buffer, int count, sqlite3_in
     if (deltaOffset || deltaCount)
     {
       /*
-      ** Read partial page
+      ** Read partial page(s): process the requested range page by page
       */
-      unsigned int pageNo = 0;
-      void* bufferDecrypted = 0;
-      const sqlite3_int64 prevOffset = offset - deltaOffset;
       unsigned char* pageBuffer = sqlite3mcGetPageBuffer(mcFile->codec);
+      unsigned char* dest = (unsigned char*)buffer;
+      sqlite3_int64 pageOffset = offset - deltaOffset;
+      int skip = deltaOffset;   /* bytes to skip in the first page only */
+      int remaining = count;
 
-      /*
-      ** Read complete page from file
-      */
-      rc = REALFILE(pFile)->pMethods->xRead(REALFILE(pFile), pageBuffer, pageSize, prevOffset);
-      if (rc != SQLITE_OK)
+      rc = SQLITE_OK;
+      while (remaining > 0)
       {
-        /* Return error code from real read, i.e. SQLITE_IOERR_SHORT_READ */
-        return rc;
-      }
+        int chunk = pageSize - skip;
+        unsigned int pageNo;
+        void* bufferDecrypted;
 
-      /*
-      ** Determine page number and decrypt page buffer
-      */
-      pageNo = prevOffset / pageSize + 1;
-      bufferDecrypted = sqlite3mcCodec(mcFile->codec, pageBuffer, pageNo, 3);
-      rc = sqlite3mcGetCodecLastError(mcFile->codec);
-      if (rc == SQLITE_OK)
-      {
+        if (chunk > remaining)
+          chunk = remaining;
+
         /*
-        ** Return the requested content
+        ** Read complete page from file
         */
-        if (deltaOffset)
+        rc = REALFILE(pFile)->pMethods->xRead(REALFILE(pFile), pageBuffer, pageSize, pageOffset);
+        if (rc != SQLITE_OK)
         {
-          memcpy(buffer, pageBuffer + deltaOffset, count);
+          /* SQLite expects the unread remainder of the buffer to be zero-filled */
+          if (rc == SQLITE_IOERR_SHORT_READ)
+          {
+            memset(dest, 0, remaining);
+          }
+          return rc;
         }
-        else
-        {
-          memcpy(buffer, pageBuffer, count);
-        }
+
+        /*
+        ** Determine page number and decrypt page buffer
+        */
+        pageNo = (unsigned int)(pageOffset / pageSize) + 1;
+        bufferDecrypted = sqlite3mcCodec(mcFile->codec, pageBuffer, pageNo, 3);
+        rc = sqlite3mcGetCodecLastError(mcFile->codec);
+        if (rc != SQLITE_OK)
+          break;
+
+        /*
+        ** Copy the requested part of this page, never beyond the page end
+        */
+        memcpy(dest, pageBuffer + skip, chunk);
+        dest += chunk;
+        remaining -= chunk;
+        pageOffset += pageSize;
+        skip = 0;
       }
     }
     else
