@@ -21,7 +21,7 @@ sed 's/sqlite3_file_control\(.*SQLITE_FCNTL_PRAGMA\)/sqlite3mcFileControlPragma\
     | sed '/\#define MAX\_PATHNAME 512/c #if SQLITE3MC\_MAX\_PATHNAME \> 512\n#define MAX_PATHNAME SQLITE3MC\_MAX\_PATHNAME\n#else\n#define MAX_PATHNAME 512\n#endif' \
     | sed '/pData = pPage->pData;/c \  if( (pData = sqlite3mcPagerCodec(pPage))==0 ) return SQLITE_NOMEM_BKPT;' \
     | sed '/pData = p->pData;/c \        if( (pData = sqlite3mcPagerCodec(p))==0 ) return SQLITE_NOMEM;' \
-    | sed '/sqlite3_free_filename( zPath );/i \\n  \/\* Handle KEY parameter. \*\/\n  if( rc==SQLITE_OK ){\n    rc = sqlite3mcHandleAttachKey(db, zName, zPath, argv[2], &zErrDyn);\n  }' \
+    | sed '/sqlite3_free_filename( zPath );/i \\n  \/\* Handle KEY parameter. \*\/\n  if( rc==SQLITE_OK && !REOPEN_AS_MEMDB(db) ){\n    rc = sqlite3mcHandleAttachKey(db, zName, zPath, argv[2], &zErrDyn);\n  }' \
     | sed '/\*ppVfs = sqlite3_vfs_find(zVfs);/i \  \/\* Check VFS. \*\/\n  rc = sqlite3mcCheckVfs(zVfs);\n  if( rc!=SQLITE_OK ){\n    *pzErrMsg = sqlite3_mprintf("could not create multipleciphers vfs");\n    goto parse_uri_out;\n  }\n' \
     | sed '/sqlite3_free_filename(zOpen);/i \\n  \/\* Handle encryption related URI parameters. \*\/\n  if( rc==SQLITE_OK ){\n    rc = sqlite3mcHandleMainKey(db, zOpen);\n  }' \
     | sed '/^  if( sqlite3PCacheIsDirty(pPager->pPCache) ) return 0;/a \  if( sqlite3mcPagerHasCodec(pPager) != 0 ) return 0;' \

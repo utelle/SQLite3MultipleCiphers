@@ -20,7 +20,7 @@
 ** The content in this amalgamation comes from Fossil check-in
 ** 555e07ef33f69a0957d24d8e555b702464a1 with changes in files:
 **
-**    
+**
 */
 #ifndef SQLITE_AMALGAMATION
 #define SQLITE_CORE 1
@@ -14766,7 +14766,7 @@ struct fts5_api {
 
 /******** End of fts5.h *********/
 #endif /* SQLITE3_H */
- 
+
 /* Function prototypes of SQLite3 Multiple Ciphers */
 SQLITE_PRIVATE int sqlite3mcCheckVfs(const char*);
 SQLITE_PRIVATE int sqlite3mcFileControlPragma(sqlite3*, const char*, int, void*);
@@ -126148,7 +126148,7 @@ static void attachFunc(
   }
 
   /* Handle KEY parameter. */
-  if( rc==SQLITE_OK ){
+  if( rc==SQLITE_OK && !REOPEN_AS_MEMDB(db) ){
     rc = sqlite3mcHandleAttachKey(db, zName, zPath, argv[2], &zErrDyn);
   }
   sqlite3_free_filename( zPath );
