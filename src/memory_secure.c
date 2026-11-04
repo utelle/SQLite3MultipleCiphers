@@ -50,7 +50,10 @@ SQLITE_PRIVATE void sqlite3mcSecureZeroMemory(void* v, size_t n)
   memset_s(v, n, 0, n);
 #elif defined(__ANDROID__) && __ANDROID_API__ >= 34
   memset_explicit(v, 0, n);
-#elif defined(__OpenBSD__) || defined(__NetBSD__) || defined(__DragonFly__) || \
+#elif defined(__NetBSD__) && defined(__NetBSD_Version__) && __NetBSD_Version__ >= 700000000
+  /* NetBSD (>= 7.0) provides explicit_memset() in <string.h> */
+  explicit_memset(v, 0, n);
+#elif defined(__OpenBSD__) || defined(__DragonFly__) || \
       (defined(__FreeBSD__) && __FreeBSD__ >= 11) || \
       (defined(__GLIBC__) && (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 25))) || \
       (defined(__EMSCRIPTEN__) && defined(__EMSCRIPTEN_major__) && __EMSCRIPTEN_major__ >= 3) || defined(__wasi__)
