@@ -1405,10 +1405,10 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
 ** seen and return false if not.
 */
 SQLITE_PRIVATE int
-sqlite3mcCodecQueryParameters(sqlite3* db, const char* zDb, const char* zUri)
+sqlite3mcCodecQueryParameters(sqlite3* db, const char* zDb, const char* zUri, int* ret)
 {
   int rc = 1;
-  int ret = SQLITE_OK;
+  *ret = SQLITE_OK;
   const char* zKey;
   if ((zKey = sqlite3_uri_parameter(zUri, "hexkey")) != 0 && zKey[0])
   {
@@ -1425,29 +1425,30 @@ sqlite3mcCodecQueryParameters(sqlite3* db, const char* zDb, const char* zUri)
           iByte = (iByte << 4) + sqlite3HexToInt(zKey[i]);
           if ((i & 1) != 0) zDecoded[i / 2] = iByte;
         }
-        ret = sqlite3_key_v2(db, zDb, zDecoded, i / 2);
-        if (ret != SQLITE_OK)
-          sqlite3ErrorWithMsg(db, ret, "Setting up cipher key failed.");
+        *ret = sqlite3_key_v2(db, zDb, zDecoded, i / 2);
+        if (*ret != SQLITE_OK)
+          sqlite3ErrorWithMsg(db, *ret, "Setting up cipher key failed.");
         sqlite3mcSecureZeroMemory(zDecoded, nKey);
         sqlite3_free(zDecoded);
       }
     }
     else
     {
-      sqlite3ErrorWithMsg(db, SQLITE_ERROR, "Setting up cipher key failed due to invalid hexkey parameter.");
+      *ret = SQLITE_ERROR;
+      sqlite3ErrorWithMsg(db, *ret, "Setting up cipher key failed due to invalid hexkey parameter.");
     }
   }
   else if ((zKey = sqlite3_uri_parameter(zUri, "key")) != 0)
   {
-    ret = sqlite3_key_v2(db, zDb, zKey, sqlite3Strlen30(zKey));
-    if (ret != SQLITE_OK)
-      sqlite3ErrorWithMsg(db, ret, "Setting up cipher key failed.");
+    *ret = sqlite3_key_v2(db, zDb, zKey, sqlite3Strlen30(zKey));
+    if (*ret != SQLITE_OK)
+      sqlite3ErrorWithMsg(db, *ret, "Setting up cipher key failed.");
   }
   else if ((zKey = sqlite3_uri_parameter(zUri, "textkey")) != 0)
   {
-    ret = sqlite3_key_v2(db, zDb, zKey, -1);
-    if (ret != SQLITE_OK)
-      sqlite3ErrorWithMsg(db, ret, "Setting up cipher key failed.");
+    *ret = sqlite3_key_v2(db, zDb, zKey, -1);
+    if (*ret != SQLITE_OK)
+      sqlite3ErrorWithMsg(db, *ret, "Setting up cipher key failed.");
   }
   else
   {
@@ -1483,7 +1484,7 @@ sqlite3mcHandleAttachKey(sqlite3* db, const char* zName, const char* zPath, sqli
     case SQLITE_NULL:
       /* No key specified.  Use the key from URI filename, or if none,
       ** use the key from the main database. */
-      if (sqlite3mcCodecQueryParameters(db, zName, zPath) == 0)
+      if (sqlite3mcCodecQueryParameters(db, zName, zPath, &rc) == 0)
       {
         sqlite3mcCodecGetKey(db, 0, (void**) &zKey, &nKey);
         if (nKey)
@@ -1503,7 +1504,7 @@ sqlite3mcHandleMainKey(sqlite3* db, const char* zPath)
   int rc = sqlite3mcConfigureFromUri(db, zPath, 1);
   if (rc == SQLITE_OK)
   {
-    sqlite3mcCodecQueryParameters(db, "main", zPath);
+    sqlite3mcCodecQueryParameters(db, "main", zPath, &rc);
   }
   return rc;
 }

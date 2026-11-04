@@ -406,7 +406,10 @@ sqlite3_key_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
     if (dbIndex >= 0)
     {
       rc = sqlite3mcCodecAttach(db, dbIndex, dbFileName, zKey, nKey);
-      sqlite3ErrorWithMsg(db, rc, "Setting key failed for '%s'.", (zDbName) ? zDbName : "main");
+      if (rc != SQLITE_OK)
+      {
+        sqlite3ErrorWithMsg(db, rc, "Setting key failed for '%s'.", (zDbName) ? zDbName : "main");
+      }
     }
     else
     {
