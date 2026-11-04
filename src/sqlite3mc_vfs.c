@@ -317,7 +317,8 @@ static void mcTempPutCounter(uint8_t* header, sqlite3_uint64 counter)
 /*
 ** Remove what sits behind the end of the file: the rest of a failed write, or
 ** the blocks that a truncate kept because the file has a chunk size. Their
-** counter value is cleared, so that they read as never written.
+** counter value is cleared, also if only a part of it was kept, so that they
+** read as never written.
 */
 static void mcTempDropTail(sqlite3mc_file* mcFile)
 {
@@ -333,7 +334,7 @@ static void mcTempDropTail(sqlite3mc_file* mcFile)
 
   pTemp->tailStale = (pReal->pMethods->xTruncate(pReal, physical) != SQLITE_OK);
   if (pReal->pMethods->xFileSize(pReal, &kept) != SQLITE_OK) { pTemp->tailStale = 1; return; }
-  while (b * slot + MC_TEMP_HEADER <= kept)
+  while (b * slot < kept)
   {
     if (pReal->pMethods->xWrite(pReal, zero, MC_TEMP_HEADER, b * slot) != SQLITE_OK)
     {
