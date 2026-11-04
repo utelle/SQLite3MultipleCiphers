@@ -91,7 +91,6 @@ CloneAES128Cipher(void* cipherTo, void* cipherFrom)
   aesCipherTo->m_keyLength = aesCipherFrom->m_keyLength;
   memcpy(aesCipherTo->m_key, aesCipherFrom->m_key, KEYLENGTH_AES128);
   RijndaelInvalidate(aesCipherTo->m_aes);
-  RijndaelInvalidate(aesCipherFrom->m_aes);
 }
 
 static int

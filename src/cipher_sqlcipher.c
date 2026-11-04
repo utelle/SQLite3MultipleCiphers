@@ -183,7 +183,6 @@ CloneSQLCipherCipher(void* cipherTo, void* cipherFrom)
   memcpy(sqlCipherCipherTo->m_salt, sqlCipherCipherFrom->m_salt, SALTLENGTH_SQLCIPHER);
   memcpy(sqlCipherCipherTo->m_hmacKey, sqlCipherCipherFrom->m_hmacKey, KEYLENGTH_SQLCIPHER);
   RijndaelInvalidate(sqlCipherCipherTo->m_aes);
-  RijndaelInvalidate(sqlCipherCipherFrom->m_aes);
 }
 
 static int
