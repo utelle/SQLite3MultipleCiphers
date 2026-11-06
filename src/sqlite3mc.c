@@ -432,33 +432,29 @@ mcRegisterCodecExtensions(sqlite3* db, char** pzErrMsg, const sqlite3_api_routin
   }
 
   codecConfig = sqlite3_malloc(sizeof(CodecConfig));
-  if (codecConfig != NULL)
-  {
-    memset(codecConfig, 0, sizeof(CodecConfig));
-    rc = sqlite3_set_clientdata(db, globalConfigName, codecConfig, sqlite3mcFreeCodecConfig);
-    if (rc != SQLITE_OK)
-    {
-      /* sqlite3_set_clientdata failed with OOM */
-      codecParameterTable = NULL;
-    }
-  }
-  else
+  if (codecConfig == NULL)
   {
     return SQLITE_NOMEM;
   }
-  /* Generate copy of global codec parameter table */
+  memset(codecConfig, 0, sizeof(CodecConfig));
+
+  /* Generate copy of global codec parameter table (before registering) */
   codecParameterTable = sqlite3mcCloneCodecParameterTable();
-  rc = (codecParameterTable != NULL) ? SQLITE_OK : SQLITE_NOMEM;
-  if (rc == SQLITE_OK)
+  if (codecParameterTable == NULL)
   {
-    codecConfig->m_globalConfigTable = codecParameterTable;
-    db->mcConfig = codecConfig;
-  }
-  else
-  {
-    sqlite3_set_clientdata(db, globalConfigName, NULL, sqlite3mcFreeCodecConfig);
+    sqlite3_free(codecConfig);
     return SQLITE_NOMEM;
   }
+  codecConfig->m_globalConfigTable = codecParameterTable;
+
+  /* Register as client data, so that the codec configuration will be freed on closing the connection */
+  rc = sqlite3_set_clientdata(db, globalConfigName, codecConfig, sqlite3mcFreeCodecConfig);
+  if (rc != SQLITE_OK)
+  {
+    /* sqlite3_set_clientdata failed with OOM */
+    return rc;
+  }
+  db->mcConfig = codecConfig;
 
   if (rc == SQLITE_OK)
   {
