@@ -789,6 +789,17 @@ SQLITE_PRIVATE Codec* sqlite3mcGetMainCodec(sqlite3* db)
   return sqlite3mcGetCodec(db, "main");
 }
 
+static Codec* mcGetCodecFromBtree(Btree* pBt)
+{
+  Codec* codec = NULL;
+  Pager* pPager = sqlite3BtreePager(pBt);
+  if (pPager->fd && pPager->fd->pMethods)   /* corresponds to isOpen(fd) */
+  {
+    sqlite3OsFileControl(pPager->fd, SQLITE3MC_FCNTL_PCODEC, &codec);
+  }
+  return codec;
+}
+
 SQLITE_PRIVATE int sqlite3mcIsAnyDbEncrypted(sqlite3* db)
 {
   int encrypted = -1;
@@ -800,7 +811,7 @@ SQLITE_PRIVATE int sqlite3mcIsAnyDbEncrypted(sqlite3* db)
     for (j = 0; j < nDb; ++j)
     {
       if (j == 1) continue;
-      Codec* codec = sqlite3mcGetCodec(db, db->aDb[j].zDbSName);
+      Codec* codec = mcGetCodecFromBtree(db->aDb[j].pBt);
       if (codec != NULL && sqlite3mcIsEncrypted(codec))
       {
         encrypted = 1;
@@ -813,8 +824,22 @@ SQLITE_PRIVATE int sqlite3mcIsAnyDbEncrypted(sqlite3* db)
 
 static int mcCheckEncryptTempDb(sqlite3mc_file* mcFile, sqlite3* db)
 {
-  int encryptTempDb = (db != NULL) ? sqlite3mc_config(db, "encrypt_temp_db", -1) : -1;
-  return (mcFile->openFlags & SQLITE_OPEN_TEMP_DB) && encryptTempDb != 0;
+  int encryptTempDb = -1;
+  if (db != NULL && db->mcConfig != NULL && ((CodecConfig*)db->mcConfig)->m_globalConfigTable != NULL)
+  {
+    CodecParameter* globalCodecParams = ((CodecConfig*)db->mcConfig)->m_globalConfigTable;
+    CipherParams* param = globalCodecParams[0].m_params;
+    for (; param->m_name[0] != 0; ++param)
+    {
+      if (sqlite3_stricmp("encrypt_temp_db", param->m_name) == 0) break;
+    }
+    if (param->m_name[0] != 0)
+    {
+      encryptTempDb = param->m_value;
+    }
+  }
+  return encryptTempDb != 0 &&
+         (mcFile->openFlags & (SQLITE_OPEN_TEMP_DB | SQLITE_OPEN_TRANSIENT_DB | SQLITE_OPEN_TEMP_JOURNAL));
 }
 
 SQLITE_PRIVATE int sqlite3mcOpenTempFile(Pager* pPager, sqlite3_file* pFile)

@@ -423,28 +423,43 @@ mcRegisterCodecExtensions(sqlite3* db, char** pzErrMsg, const sqlite3_api_routin
 {
   int rc = SQLITE_OK;
   CodecParameter* codecParameterTable = NULL;
+  CodecConfig* codecConfig = NULL;
 
-  void* codecParamTable = sqlite3_get_clientdata(db, globalConfigTableName);
-  if (codecParamTable)
+  if (db->mcConfig != NULL)
   {
     /* Return if codec extension functions are already defined */
     return rc;
   }
 
-  /* Generate copy of global codec parameter table */
-  codecParameterTable = sqlite3mcCloneCodecParameterTable();
-  rc = (codecParameterTable != NULL) ? SQLITE_OK : SQLITE_NOMEM;
-  if (rc == SQLITE_OK)
+  codecConfig = sqlite3_malloc(sizeof(CodecConfig));
+  if (codecConfig != NULL)
   {
-    rc = sqlite3_set_clientdata(db, globalConfigTableName, codecParameterTable, sqlite3mcFreeCodecParameterTable);
+    memset(codecConfig, 0, sizeof(CodecConfig));
+    rc = sqlite3_set_clientdata(db, globalConfigName, codecConfig, sqlite3mcFreeCodecConfig);
     if (rc != SQLITE_OK)
     {
       /* sqlite3_set_clientdata failed with OOM */
       codecParameterTable = NULL;
     }
   }
-
+  else
+  {
+    return SQLITE_NOMEM;
+  }
+  /* Generate copy of global codec parameter table */
+  codecParameterTable = sqlite3mcCloneCodecParameterTable();
   rc = (codecParameterTable != NULL) ? SQLITE_OK : SQLITE_NOMEM;
+  if (rc == SQLITE_OK)
+  {
+    codecConfig->m_globalConfigTable = codecParameterTable;
+    db->mcConfig = codecConfig;
+  }
+  else
+  {
+    sqlite3_set_clientdata(db, globalConfigName, NULL, sqlite3mcFreeCodecConfig);
+    return SQLITE_NOMEM;
+  }
+
   if (rc == SQLITE_OK)
   {
     rc = sqlite3_create_function(db, "sqlite3mc_config", 1, SQLITE_UTF8 | SQLITE_DIRECTONLY,
@@ -663,13 +678,13 @@ sqlite3mcInitCipherTables()
   size_t n;
 
   /* Initialize global configuration table name */
-  sqlite3_randomness(CIPHER_NAME_MAXLEN, globalConfigTableName);
+  sqlite3_randomness(CIPHER_NAME_MAXLEN, globalConfigName);
   for (n = 0; n < CIPHER_NAME_MAXLEN-1; ++n)
   {
-    if (globalConfigTableName[n] == 0)
-      globalConfigTableName[n] = '@';
+    if (globalConfigName[n] == 0)
+      globalConfigName[n] = '@';
   }
-  globalConfigTableName[CIPHER_NAME_MAXLEN-1] = 0;
+  globalConfigName[CIPHER_NAME_MAXLEN-1] = 0;
 
   /* Initialize cipher name table */
   strcpy(globalCipherNameTable[0].m_name, "global");

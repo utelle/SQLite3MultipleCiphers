@@ -20,7 +20,7 @@
 ** The content in this amalgamation comes from Fossil check-in
 ** 555e07ef33f69a0957d24d8e555b702464a1 with changes in files:
 **
-**
+**    
 */
 #ifndef SQLITE_AMALGAMATION
 #define SQLITE_CORE 1
@@ -14766,7 +14766,7 @@ struct fts5_api {
 
 /******** End of fts5.h *********/
 #endif /* SQLITE3_H */
-
+ 
 /* Function prototypes of SQLite3 Multiple Ciphers */
 SQLITE_PRIVATE int sqlite3mcCheckVfs(const char*);
 SQLITE_PRIVATE int sqlite3mcFileControlPragma(sqlite3*, const char*, int, void*);
@@ -19021,6 +19021,7 @@ struct sqlite3 {
   void (*xUnlockNotify)(void **, int);  /* Unlock notify callback */
   sqlite3 *pNextBlocked;        /* Next in list of all blocked connections */
 #endif
+  void* mcConfig;
 };
 
 /*
@@ -72477,7 +72478,7 @@ static void lockBtreeMutex(Btree *p){
 
   sqlite3_mutex_enter(p->pBt->mutex);
   p->pBt->db = p->db;
-      if (p->pBt->pPager) p->pBt->pPager->mcDb = p->db;
+  if (p->pBt->pPager) p->pBt->pPager->mcDb = p->db;
   p->locked = 1;
 }
 
@@ -72516,6 +72517,7 @@ static void SQLITE_NOINLINE btreeLockCarefully(Btree *p);
 ** subsequent Btrees that desire a lock.
 */
 SQLITE_PRIVATE void sqlite3BtreeEnter(Btree *p){
+  if (p->pBt->pPager) p->pBt->pPager->mcDb = p->db;
   /* Some basic sanity checking on the Btree.  The list of Btrees
   ** connected by pNext and pPrev should be in sorted order by
   ** Btree.pBt value. All elements of the list should belong to
@@ -72558,7 +72560,6 @@ static void SQLITE_NOINLINE btreeLockCarefully(Btree *p){
   */
   if( sqlite3_mutex_try(p->pBt->mutex)==SQLITE_OK ){
     p->pBt->db = p->db;
-      if (p->pBt->pPager) p->pBt->pPager->mcDb = p->db;
     p->locked = 1;
     return;
   }
@@ -72723,8 +72724,8 @@ SQLITE_PRIVATE int sqlite3SchemaMutexHeld(sqlite3 *db, int iDb, Schema *pSchema)
 */
 
 SQLITE_PRIVATE void sqlite3BtreeEnter(Btree *p){
+  if (p->pBt->pPager) p->pBt->pPager->mcDb = p->db;
   p->pBt->db = p->db;
-      if (p->pBt->pPager) p->pBt->pPager->mcDb = p->db;
 }
 SQLITE_PRIVATE void sqlite3BtreeEnterAll(sqlite3 *db){
   int i;

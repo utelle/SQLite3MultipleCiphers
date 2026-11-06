@@ -29,7 +29,7 @@ sqlite3mcConfigTable(sqlite3_context* context, int argc, sqlite3_value** argv)
 SQLITE_PRIVATE CodecParameter*
 sqlite3mcGetCodecParams(sqlite3* db)
 {
-  CodecParameter* codecParams = (CodecParameter*) sqlite3_get_clientdata(db, globalConfigTableName);
+  CodecParameter* codecParams = (db->mcConfig != NULL) ? ((CodecConfig*)db->mcConfig)->m_globalConfigTable : NULL;
   return codecParams;
 }
 

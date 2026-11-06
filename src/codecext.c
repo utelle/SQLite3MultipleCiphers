@@ -389,7 +389,7 @@ sqlite3_key_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
       return rc;
     }
     /* Configure cipher from URI parameters if requested */
-    void* codecParamTable = sqlite3_get_clientdata(db, globalConfigTableName);
+    void* codecParamTable = sqlite3mcGetCodecParams(db);
     if (codecParamTable == NULL)
     {
       /*

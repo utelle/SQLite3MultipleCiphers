@@ -66,6 +66,11 @@ typedef struct _CodecParameter
   CipherParams* m_params;
 } CodecParameter;
 
+typedef struct _CodecConfig
+{
+  CodecParameter* m_globalConfigTable;
+} CodecConfig;
+
 typedef struct _CipherSpare
 {
   void* m_cipher;

@@ -55,7 +55,7 @@ typedef struct _CipherName
   char m_name[CIPHER_NAME_MAXLEN];
 } CipherName;
 
-static char globalConfigTableName[CIPHER_NAME_MAXLEN] = "";
+static char globalConfigName[CIPHER_NAME_MAXLEN] = "";
 static int globalCipherCount = 0;
 static char* globalSentinelName = "";
 static CipherName globalCipherNameTable[CODEC_COUNT_LIMIT + 2] = { 0 };
@@ -121,9 +121,23 @@ sqlite3mcCloneCodecParameterTable()
 SQLITE_PRIVATE void
 sqlite3mcFreeCodecParameterTable(void* ptr)
 {
-  CodecParameter* codecParams = (CodecParameter*)ptr;
-  sqlite3_free(codecParams[0].m_params);
-  sqlite3_free(codecParams);
+  if (ptr != NULL)
+  {
+    CodecParameter* codecParams = (CodecParameter*)ptr;
+    sqlite3_free(codecParams[0].m_params);
+    sqlite3_free(codecParams);
+  }
+}
+
+SQLITE_PRIVATE void
+sqlite3mcFreeCodecConfig(void* ptr)
+{
+  CodecConfig* codecConfig = (CodecConfig*)ptr;
+  if (codecConfig != NULL)
+  {
+    sqlite3mcFreeCodecParameterTable(codecConfig->m_globalConfigTable);
+    sqlite3_free(codecConfig);
+  }
 }
 
 static const CipherDescriptor mcSentinelDescriptor =
