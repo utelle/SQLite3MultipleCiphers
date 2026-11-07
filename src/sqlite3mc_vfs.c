@@ -39,6 +39,7 @@ struct sqlite3mc_file
   unsigned int pageNo;         /* Page number (in case of journal files) */
   int pageSize;                /* Page size of temporary or transient database */
   sqlite3_int64 pageNoOffset;  /* Offset of the last page number seen in the main journal */
+  sqlite3_int64 checksumOffset;/* Offset of the last checksum seen in the main journal */
   int afterPage;               /* Last operation processed a page; a following */
                                /* 4-byte operation is the record checksum */
   mcTempCipher* tempCipher;    /* Cipher of a temporary file opened without a name */
@@ -1548,32 +1549,34 @@ static int mcReadMainJournal(sqlite3_file* pFile, const void* buffer, int count,
   {
     const int pageSize = sqlite3mcGetPageSize(codec);
     /*
-    ** The page number is only valid for the operation that directly follows it.
-    ** Take it over and invalidate it for all following operations.
+    ** Page number and expected checksum offset are only valid for the
+    ** operation that directly follows. Take them over and invalidate them.
     */
     const unsigned int pageNo = mcFile->pageNo;
-    const int afterPage = mcFile->afterPage;
+    const sqlite3_int64 checksumOffset = mcFile->checksumOffset;
     mcFile->pageNo = 0;
-    mcFile->afterPage = 0;
+    mcFile->checksumOffset = -1;
 
     if (count == pageSize && pageNo != 0 && offset == mcFile->pageNoOffset + 4)
     {
-      /*
-      ** Decrypt the page buffer, but only if the page number is valid
-      */
-      void* bufferDecrypted = sqlite3mcCodec(codec, (char*) buffer, pageNo, 3);
+      /* Decrypt the page buffer, but only if the page number is valid */
+      sqlite3mcCodec(codec, (char*) buffer, pageNo, 3);
       rc = sqlite3mcGetCodecLastError(codec);
-      mcFile->afterPage = 1;
+      /* The record checksum, if SQLite reads it, follows directly after the page */
+      mcFile->checksumOffset = offset + pageSize;
     }
-    else if (count == 4 && !afterPage)
+    else if (count == 4)
     {
-      /*
-      ** SQLite always reads the page number from the journal file
-      ** immediately before the corresponding page content is read.
-      ** (A 4-byte read directly after a page is the record checksum.)
-      */
-      mcFile->pageNo = sqlite3Get4byte(buffer);
-      mcFile->pageNoOffset = offset;
+      if (offset == checksumOffset)
+      {
+        /* Record checksum at its expected position: ignore */
+      }
+      else
+      {
+        /* Anything else is a page number (or a header field, which is harmless) */
+        mcFile->pageNo = sqlite3Get4byte(buffer);
+        mcFile->pageNoOffset = offset;
+      }
     }
   }
   else if (offset == 0 && count == 1 &&
