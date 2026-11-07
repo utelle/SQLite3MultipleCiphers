@@ -84577,12 +84577,6 @@ SQLITE_API sqlite3_backup *sqlite3_backup_init(
   }
 #endif
 
-  /* Check whether databases are compatible with backup */
-  if (!sqlite3mcIsBackupSupported(pSrcDb, zSrcDb, pDestDb, zDestDb)){
-    sqlite3ErrorWithMsg(pDestDb, SQLITE_ERROR, "backup is not supported with incompatible source and target databases");
-    return NULL;
-  }
-
   /* Lock the source database handle. The destination database
   ** handle is not locked in this routine, but it is locked in
   ** sqlite3_backup_step(). The user is required to ensure that no
@@ -84593,6 +84587,12 @@ SQLITE_API sqlite3_backup *sqlite3_backup_init(
   */
   sqlite3_mutex_enter(pSrcDb->mutex);
   sqlite3_mutex_enter(pDestDb->mutex);
+
+  /* Check whether databases are compatible with backup */
+  if (!sqlite3mcIsBackupSupported(pSrcDb, zSrcDb, pDestDb, zDestDb)){
+    sqlite3ErrorWithMsg(pDestDb, SQLITE_ERROR, "backup is not supported with incompatible source and target databases");
+    return NULL;
+  }
 
   if( pSrcDb==pDestDb ){
     sqlite3ErrorWithMsg(

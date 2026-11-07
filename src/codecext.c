@@ -368,10 +368,16 @@ SQLITE_API int
 sqlite3_key_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
 {
   int rc = SQLITE_ERROR;
+  if (db == NULL)
+  {
+    return SQLITE_MISUSE;
+  }
+  sqlite3_mutex_enter(db->mutex);
+  sqlite3BtreeEnterAll(db);
   if (!sqlite3mcIsEncryptionSupported(db, zDbName))
   {
     sqlite3ErrorWithMsg(db, rc, "Setting key failed. Encryption is not supported by the VFS.");
-    return rc;
+    goto leave_key;
   }
   if (zKey != NULL && nKey < 0)
   {
@@ -386,7 +392,7 @@ sqlite3_key_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
     if (dbFileName == NULL || dbFileName[0] == 0)
     {
       sqlite3ErrorWithMsg(db, rc, "Setting key not supported for in-memory or temporary databases.");
-      return rc;
+      goto leave_key;
     }
     /* Configure cipher from URI parameters if requested */
     void* codecParamTable = sqlite3mcGetCodecParams(db);
@@ -398,12 +404,12 @@ sqlite3_key_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
       ** Therefore the URI should be checked for encryption configuration parameters.
       */
       rc = sqlite3mcConfigureFromUri(db, dbFileName, 0);
-      return rc;
+      goto leave_key;
     }
 
     /* The key is only set for the main database, not the temp database  */
     dbIndex = (zDbName) ? sqlite3FindDbName(db, zDbName) : 0;
-    if (dbIndex >= 0)
+    if (dbIndex >= 0 && dbIndex != 1)
     {
       rc = sqlite3mcCodecAttach(db, dbIndex, dbFileName, zKey, nKey);
       if (rc != SQLITE_OK)
@@ -414,9 +420,15 @@ sqlite3_key_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
     else
     {
       rc = SQLITE_ERROR;
-      sqlite3ErrorWithMsg(db, rc, "Setting key failed. Database '%s' not found.", zDbName);
+      if (dbIndex < 0)
+        sqlite3ErrorWithMsg(db, rc, "Setting key failed. Database '%s' not found.", zDbName);
+      else
+        sqlite3ErrorWithMsg(db, rc, "Setting key for temporary databases not supported.");
     }
   }
+leave_key:
+  sqlite3BtreeLeaveAll(db);
+  sqlite3_mutex_leave(db->mutex);
   return rc;
 }
 

@@ -439,7 +439,9 @@ mcRegisterCodecExtensions(sqlite3* db, char** pzErrMsg, const sqlite3_api_routin
   memset(codecConfig, 0, sizeof(CodecConfig));
 
   /* Generate copy of global codec parameter table (before registering) */
+  sqlite3_mutex_enter(sqlite3_mutex_alloc(SQLITE_MUTEX_STATIC_MAIN));
   codecParameterTable = sqlite3mcCloneCodecParameterTable();
+  sqlite3_mutex_leave(sqlite3_mutex_alloc(SQLITE_MUTEX_STATIC_MAIN));
   if (codecParameterTable == NULL)
   {
     sqlite3_free(codecConfig);

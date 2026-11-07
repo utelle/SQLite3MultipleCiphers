@@ -395,8 +395,10 @@ sqlite3mc_codec_data(sqlite3* db, const char* zDbName, const char* paramName)
 #endif
   if (db != NULL && paramName != NULL)
   {
-    int iDb = (zDbName != NULL) ? sqlite3FindDbName(db, zDbName) : 0;
     int toRaw = 0;
+    int iDb;
+    sqlite3_mutex_enter(db->mutex);
+    iDb = (zDbName != NULL) ? sqlite3FindDbName(db, zDbName) : 0;
     if (sqlite3_strnicmp(paramName, "raw:", 4) == 0)
     {
       toRaw = 1;
@@ -437,6 +439,7 @@ sqlite3mc_codec_data(sqlite3* db, const char* zDbName, const char* paramName)
         }
       }
     }
+    sqlite3_mutex_leave(db->mutex);
   }
   return result;
 }
