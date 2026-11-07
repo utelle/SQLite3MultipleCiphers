@@ -1703,15 +1703,22 @@ static int mcIoRead(sqlite3_file* pFile, void* buffer, int count, sqlite3_int64 
   }
 
   rc = REALFILE(pFile)->pMethods->xRead(REALFILE(pFile), buffer, count, offset);
-  if (rc != SQLITE_OK)
+  if (rc != SQLITE_OK && rc != SQLITE_IOERR_SHORT_READ)
   {
-    /* Return error code from real read, i.e. SQLITE_IOERR_SHORT_READ */
+    /* Return error code from real read, except SQLITE_IOERR_SHORT_READ */
+    return rc;
+  }
+  if (rc == SQLITE_IOERR_SHORT_READ && !(mcFile->openFlags & SQLITE_OPEN_MAIN_DB))
+  {
+    /* Return SQLITE_IOERR_SHORT_READ except for main db  */
     return rc;
   }
 
   if (mcFile->openFlags & SQLITE_OPEN_MAIN_DB)
   {
+    int rcRead = rc;
     rc = mcReadMainDb(pFile, buffer, count, offset);
+    if (rc == SQLITE_OK) rc = rcRead;   /* Keep Short-Read state */
   }
   else if (mcFile->openFlags & SQLITE_OPEN_MAIN_JOURNAL)
   {
