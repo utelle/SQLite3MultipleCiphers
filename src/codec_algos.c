@@ -245,37 +245,12 @@ sqlite3mcExtractRawKey(const char* password, int passwordLength,
   {
     const int nRaw = passwordLength - 4;
     const unsigned char* zRaw = (const unsigned char*) password + 4;
-
-    if (nRaw == keyLength + saltLength)
+    int isHex = sqlite3mcIsHexKey(zRaw, nRaw);
+    if (isHex)
     {
-      /* Binary key and salt */
-      if (!keyOnly)
+      if (nRaw == 2 * (keyLength + saltLength))
       {
-        memcpy(salt, zRaw + keyLength, saltLength);
-      }
-      memcpy(key, zRaw, keyLength);
-      bypass = 1;
-    }
-    else if (nRaw == keyLength)
-    {
-      /* Binary key */
-      memcpy(key, zRaw, keyLength);
-      bypass = 1;
-    }
-    else if (nRaw == 2 * keyLength)
-    {
-      /* Hex-encoded key */
-      if (sqlite3mcIsHexKey(zRaw, nRaw) != 0)
-      {
-        sqlite3mcConvertHex2Bin(zRaw, nRaw, key);
-        bypass = 1;
-      }
-    }
-    else if (nRaw == 2 * (keyLength + saltLength))
-    {
-      /* Hex-encoded key and salt */
-      if (sqlite3mcIsHexKey(zRaw, nRaw) != 0)
-      {
+        /* Hex-encoded key and salt */
         sqlite3mcConvertHex2Bin(zRaw, 2 * keyLength, key);
         if (!keyOnly)
         {
@@ -283,27 +258,52 @@ sqlite3mcExtractRawKey(const char* password, int passwordLength,
         }
         bypass = 1;
       }
+      else if (nRaw == 2 * keyLength)
+      {
+        /* Hex-encoded key */
+        sqlite3mcConvertHex2Bin(zRaw, nRaw, key);
+        bypass = 1;
+      }
+    }
+    else
+    {
+      if (nRaw == keyLength + saltLength)
+      {
+        /* Binary key and salt */
+        memcpy(key, zRaw, keyLength);
+        if (!keyOnly)
+        {
+          memcpy(salt, zRaw + keyLength, saltLength);
+        }
+        bypass = 1;
+      }
+      else if (nRaw == keyLength)
+      {
+        /* Binary key */
+        memcpy(key, zRaw, keyLength);
+        bypass = 1;
+      }
     }
   }
   else
   {
     /* SQLCipher syntax for raw key (and optionally salt) */
-    if (passwordLength == ((keyLength * 2) + 3) &&
+    if (passwordLength == (((keyLength + saltLength) * 2) + 3) &&
         sqlite3_strnicmp(password, "x'", 2) == 0 &&
-        sqlite3mcIsHexKey((unsigned char*)(password + 2), keyLength * 2) != 0)
-    {
-      sqlite3mcConvertHex2Bin((unsigned char*)(password + 2), passwordLength - 3, key);
-      bypass = 1;
-    }
-    else if (passwordLength == (((keyLength + saltLength) * 2) + 3) &&
-             sqlite3_strnicmp(password, "x'", 2) == 0 &&
-             sqlite3mcIsHexKey((unsigned char*)(password + 2), (keyLength + saltLength) * 2) != 0)
+        sqlite3mcIsHexKey((unsigned char*)(password + 2), (keyLength + saltLength) * 2) != 0)
     {
       sqlite3mcConvertHex2Bin((unsigned char*)(password + 2), keyLength * 2, key);
       if (!keyOnly)
       {
         sqlite3mcConvertHex2Bin((unsigned char*)(password + 2 + keyLength * 2), saltLength * 2, salt);
       }
+      bypass = 1;
+    }
+    else if (passwordLength == ((keyLength * 2) + 3) &&
+             sqlite3_strnicmp(password, "x'", 2) == 0 &&
+             sqlite3mcIsHexKey((unsigned char*)(password + 2), keyLength * 2) != 0)
+    {
+      sqlite3mcConvertHex2Bin((unsigned char*)(password + 2), passwordLength - 3, key);
       bypass = 1;
     }
   }
