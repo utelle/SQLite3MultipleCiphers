@@ -1339,16 +1339,26 @@ static int mcReadMainDb(sqlite3_file* pFile, void* buffer, int count, sqlite3_in
 }
 
 /*
-** Returns 1, if the first MC_PAGE1_CHECK_SIZE bytes of page 1 look like the page 1
-** of an unencrypted SQLite database. Only rules are used, that SQLite requires
-** when it opens a database (lockBtree) or that hold for every valid b-tree page.
-** Rules, that SQLite doesn't enforce (for example the number of fragmented
-** bytes), are not used, so that a valid database is never regarded as encrypted.
+** Returns 1 if the bytes are consistent with a plaintext SQLite page 1.
 **
-** Page 1 is the root page of the table sqlite_schema, so its b-tree header
-** (at offset 100) belongs to a table b-tree: interior page (0x05, header size 12)
-** or leaf page (0x0d, header size 8).
+** This is a heuristic. Ciphertext is reported as plain only if all checks
+** pass by chance. Measured with random bytes behind a genuine plaintext
+** header (2e7 samples per configuration): no hit for header sizes up to
+** 72 bytes and for page sizes up to 4096; about 8e-6 for 64 KiB pages
+** with a plaintext header of 100 bytes (the SQLite3MC maximum).
+**
+** Known limits:
+** - A completely plaintext page 1 (SQLCipher recovery VFS mode, plaintext
+**   header up to the page size) cannot be told from a plaintext database
+**   by definition. Do not tighten the checks for this case.
+** - The result is used for the journal records first and for the main file
+**   only as fallback (see mcHotJournalGuard), never for the main file alone.
+** - A main file of 0 bytes is not covered: hasHotJournal() in the SQLite
+**   pager deletes the journal without reading it, so the guard is not
+**   reached.
 */
+
+#define MC_PAGE1_CHECK_SIZE 128
 
 #define MC_IS_POW2(x)           (((x) & ((x) - 1)) == 0)
 #define MC_VALID_PAGE_SIZE(x)   ((x) >= 512 && (x) <= 65536 && MC_IS_POW2(x))
@@ -1358,27 +1368,63 @@ static int mcPage1LooksPlain(const unsigned char* p)
 {
   static const unsigned char magic[16] = "SQLite format 3";
   unsigned int pageSize, usable, hdrSize, freeBlock, nCell, cellStart;
+  unsigned int ptrBase, nCheck, i, ptr;
+  unsigned int schemaFormat, textEnc, maxRoot, incrVacuum;
 
   if (memcmp(p, magic, 16) != 0) return 0;
+
   /* Payload fractions: must be 64, 32, 32. */
   if (p[21] != 64 || p[22] != 32 || p[23] != 32) return 0;
   /* File format versions: 1 or 2 */
   if ((p[18] != 1 && p[18] != 2) || (p[19] != 1 && p[19] != 2)) return 0;
-  /* Page size (the value 1 stands for 65536); usable size must be at least 480 */
-  pageSize = ((unsigned int) p[16] << 8) | p[17];
+
+  /* Page size (the value 1 stands for 65536); usable size at least 480 */
+  pageSize = ((unsigned int)p[16] << 8) | p[17];
   if (pageSize == 1) pageSize = 65536;
   if (!MC_VALID_PAGE_SIZE(pageSize)) return 0;
   usable = pageSize - p[20];
   if (usable < 480) return 0;
-  /* B-tree header: type, first free block, number of cells, start of cell content */
+
+  /* Schema format number: 0 (empty database) or 1..4 */
+  schemaFormat = sqlite3Get4byte(p + 44);
+  if (schemaFormat > 4) return 0;
+  /* Text encoding: 0 (empty database), 1 = UTF-8, 2 = UTF-16le, 3 = UTF-16be */
+  textEnc = sqlite3Get4byte(p + 56);
+  if (textEnc > 3) return 0;
+  /* Largest root b-tree page / incremental vacuum flag:
+  ** incremental vacuum is only possible if auto-vacuum is on (root page != 0) */
+  maxRoot = sqlite3Get4byte(p + 52);
+  incrVacuum = sqlite3Get4byte(p + 64);
+  if (maxRoot == 0 && incrVacuum != 0) return 0;
+  if (incrVacuum > 1) return 0;
+  /* Reserved for expansion, must be zero (bytes 72..91) */
+  for (i = 72; i < 92; ++i)
+  {
+    if (p[i] != 0) return 0;
+  }
+
+  /* B-tree header of page 1: always a table b-tree (leaf 0x0d or interior 0x05) */
   if (p[100] != 0x0d && p[100] != 0x05) return 0;
   hdrSize = (p[100] == 0x05) ? 12 : 8;
-  freeBlock = ((unsigned int) p[101] << 8) | p[102];
-  nCell = ((unsigned int) p[103] << 8) | p[104];
-  cellStart = ((unsigned int) p[105] << 8) | p[106];
+  freeBlock = ((unsigned int)p[101] << 8) | p[102];
+  nCell = ((unsigned int)p[103] << 8) | p[104];
+  cellStart = ((unsigned int)p[105] << 8) | p[106];
   if (cellStart == 0) cellStart = 65536;
   if (cellStart < 100 + hdrSize + 2 * nCell || cellStart > usable) return 0;
   if (freeBlock != 0 && (freeBlock < 100 + hdrSize || freeBlock > usable - 4)) return 0;
+  /* Number of fragmented free bytes in the cell content area: at most 60 */
+  if (p[107] > 60) return 0;
+
+  /* Cell pointer array: the pointers that fit into the buffer must point
+  ** into the cell content area. */
+  ptrBase = 100 + hdrSize;
+  nCheck = (MC_PAGE1_CHECK_SIZE - ptrBase) / 2;
+  if (nCell < nCheck) nCheck = nCell;
+  for (i = 0; i < nCheck; ++i)
+  {
+    ptr = ((unsigned int)p[ptrBase + 2 * i] << 8) | p[ptrBase + 2 * i + 1];
+    if (ptr < cellStart || ptr >= usable) return 0;
+  }
   return 1;
 }
 
@@ -1392,9 +1438,6 @@ static int mcPage1LooksPlain(const unsigned char* p)
 **
 ** Returns 1, if the main database file of the journal is encrypted
 */
-
-/* Database header (100 bytes) and the b-tree page header (8 bytes) of page 1 */
-#define MC_PAGE1_CHECK_SIZE 108
 
 static int mcMainDbLooksEncrypted(sqlite3mc_file* mcFile, int* isEncrypted)
 {
@@ -1433,21 +1476,14 @@ static int mcMainDbLooksEncrypted(sqlite3mc_file* mcFile, int* isEncrypted)
   return SQLITE_OK;
 }
 
-/*
-** Returns 1, if the records of the (hot) journal can't be shown to be plaintext.
-** Returns 0, if
-** - the journal has no valid header (SQLite doesn't roll it back anyway), or
-** - the journal has no complete first record, or
-** - the first record is page 1 starting with the SQLite magic string
-**   (the journal of a plain database, for example while it is being
-**   encrypted with rekey).
-**
-** Journal header: 0: magic (8), 8: record count, 12: checksum nonce,
-** 16: initial db size, 20: sector size, 24: page size.
-** The first record (page number, 4 bytes, followed by the page) starts
-** directly after the header, that is at offset 'sector size'.
-*/
-static int mcJournalRecordsMayBeEncrypted(sqlite3_file* pFile, int* maybeEncrypted)
+#define MC_JREC_NONE    0  /* no (complete) record that SQLite would play back */
+#define MC_JREC_PLAIN   1  /* page 1 record is plaintext */
+#define MC_JREC_ENC     2  /* page 1 record is not plaintext -> encrypted */
+#define MC_JREC_UNKNOWN 3  /* no usable page 1 record found */
+
+#define MC_JREC_MAX_SCAN 16 /* records examined while looking for page 1 */
+
+static int mcJournalFirstRecordState(sqlite3_file* pFile, int* state)
 {
   static const unsigned char journalMagic[8] = { 0xd9, 0xd5, 0x05, 0xf9, 0x20, 0xa1, 0x63, 0xd7 };
   sqlite3_file* realJournal = REALFILE(pFile);
@@ -1455,26 +1491,22 @@ static int mcJournalRecordsMayBeEncrypted(sqlite3_file* pFile, int* maybeEncrypt
   unsigned char pgno[4];
   unsigned char content[MC_PAGE1_CHECK_SIZE];
   unsigned int sectorSize, pageSize;
-  int rc;
+  sqlite3_int64 offset, stride;
+  int i, rc;
+
+  *state = MC_JREC_UNKNOWN;
 
   rc = realJournal->pMethods->xRead(realJournal, header, 28, 0);
   if (rc == SQLITE_IOERR_SHORT_READ)
   {
-    /* Journal shorter than a header: no records to verify */
-    *maybeEncrypted = 0;
+    *state = MC_JREC_NONE;      /* shorter than a header: nothing to play back */
     return SQLITE_OK;
   }
-  if (rc != SQLITE_OK)
-  {
-    /* unknown: assume encrypted (fail closed); not to be evaluated on error */
-    *maybeEncrypted = 1;
-    return rc;
-  }
+  if (rc != SQLITE_OK) return rc;   /* unknown: fail closed */
 
   if (memcmp(header, journalMagic, 8) != 0)
   {
-    /* Not a valid journal header (magic mismatch): no records to verify */
-    *maybeEncrypted = 0;
+    *state = MC_JREC_NONE;      /* invalid header: SQLite ignores the journal */
     return SQLITE_OK;
   }
 
@@ -1482,38 +1514,41 @@ static int mcJournalRecordsMayBeEncrypted(sqlite3_file* pFile, int* maybeEncrypt
   pageSize = sqlite3Get4byte(header + 24);
   if (!MC_VALID_SECTOR_SIZE(sectorSize) || !MC_VALID_PAGE_SIZE(pageSize))
   {
-    *maybeEncrypted = 0;
+    *state = MC_JREC_NONE;      /* header rejected by SQLite as well */
     return SQLITE_OK;
   }
 
-  rc = realJournal->pMethods->xRead(realJournal, pgno, 4, sectorSize);
-  if (rc == SQLITE_IOERR_SHORT_READ)
+  /* Records follow the header, which is padded to one sector.
+  ** Record layout: 4 byte page number, page data, 4 byte checksum. */
+  offset = (sqlite3_int64)sectorSize;
+  stride = (sqlite3_int64)pageSize + 8;
+
+  for (i = 0; i < MC_JREC_MAX_SCAN; ++i, offset += stride)
   {
-    /* Header only, no (complete) first record */
-    *maybeEncrypted = 0;
+    rc = realJournal->pMethods->xRead(realJournal, pgno, 4, offset);
+    if (rc == SQLITE_IOERR_SHORT_READ)
+    {
+      /* End of journal: no record at all, or page 1 not among the records */
+      *state = (i == 0) ? MC_JREC_NONE : MC_JREC_UNKNOWN;
+      return SQLITE_OK;
+    }
+    if (rc != SQLITE_OK) return rc;
+
+    if (sqlite3Get4byte(pgno) != 1) continue;
+
+    rc = realJournal->pMethods->xRead(realJournal, content, MC_PAGE1_CHECK_SIZE, offset + 4);
+    if (rc == SQLITE_IOERR_SHORT_READ)
+    {
+      /* Truncated page 1 record: SQLite stops playback here */
+      *state = (i == 0) ? MC_JREC_NONE : MC_JREC_UNKNOWN;
+      return SQLITE_OK;
+    }
+    if (rc != SQLITE_OK) return rc;
+
+    *state = mcPage1LooksPlain(content) ? MC_JREC_PLAIN : MC_JREC_ENC;
     return SQLITE_OK;
   }
-  if (rc != SQLITE_OK)
-  {
-    *maybeEncrypted = 1;
-    return rc;
-  }
-
-  rc = realJournal->pMethods->xRead(realJournal, content, MC_PAGE1_CHECK_SIZE, (sqlite3_int64)sectorSize + 4);
-  if (rc == SQLITE_IOERR_SHORT_READ)
-  {
-    /* Truncated first record: SQLite ends playback here as well */
-    *maybeEncrypted = 0;
-    return SQLITE_OK;
-  }
-  if (rc != SQLITE_OK)
-  {
-    *maybeEncrypted = 1;
-    return rc;
-  }
-
-  *maybeEncrypted = !(sqlite3Get4byte(pgno) == 1 && mcPage1LooksPlain(content));
-  return SQLITE_OK;
+  return SQLITE_OK;             /* page 1 not found within the scan limit: UNKNOWN */
 }
 
 /*
@@ -1523,17 +1558,22 @@ static int mcJournalRecordsMayBeEncrypted(sqlite3_file* pFile, int* maybeEncrypt
 */
 static int mcHotJournalGuard(sqlite3mc_file* mcFile, sqlite3_file* pFile)
 {
+  int jstate = MC_JREC_UNKNOWN;
   int isEnc = 0;
-  int mayEnc = 0;
-  int rc = mcMainDbLooksEncrypted(mcFile, &isEnc);
-  if (rc != SQLITE_OK) return rc;        /* unknown: fail closed */
-  if (!isEnc) return SQLITE_OK;
+  int rc = mcJournalFirstRecordState(pFile, &jstate);
+  if (rc != SQLITE_OK) return rc;                /* unknown: fail closed */
 
-  rc = mcJournalRecordsMayBeEncrypted(pFile, &mayEnc);
-  if (rc != SQLITE_OK) return rc;        /* unknown: fail closed */
-  if (!mayEnc) return SQLITE_OK;
+  switch (jstate)
+  {
+  case MC_JREC_NONE:
+  case MC_JREC_PLAIN: return SQLITE_OK;        /* nothing encrypted to protect */
+  case MC_JREC_ENC:   return SQLITE_NOTADB;    /* state of main file irrelevant */
+  default: break;                              /* UNKNOWN: ask the main file */
+  }
 
-  return SQLITE_NOTADB;
+  rc = mcMainDbLooksEncrypted(mcFile, &isEnc);
+  if (rc != SQLITE_OK) return rc;
+  return isEnc ? SQLITE_NOTADB : SQLITE_OK;
 }
 
 /*
