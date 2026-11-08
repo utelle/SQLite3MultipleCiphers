@@ -36,7 +36,7 @@ EM_JS(int, wasm_crypto_getrandom, (uint8_t* buf, size_t n),
     for (var i = 0; i < n; i += chunk)
     {
       var len = Math.min(chunk, n - i);
-      var part = (len == = tmp.length) ? tmp : tmp.subarray(0, len);
+      var part = (len === tmp.length) ? tmp : tmp.subarray(0, len);
       crypto.getRandomValues(part);
       HEAPU8.set(part, buf + i);
     }
