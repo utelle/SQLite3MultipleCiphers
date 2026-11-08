@@ -29,11 +29,16 @@ EM_JS(int, wasm_crypto_getrandom, (uint8_t* buf, size_t n),
     return -1;
   try
   {
-    var view = new Uint8Array(HEAPU8.buffer, buf, n);
     var chunk = 65536;
+    /* Temporary buffer is never shared, so this also works when
+     * HEAPU8.buffer is a SharedArrayBuffer (e.g. -pthread). */
+    var tmp = new Uint8Array(Math.min(n, chunk));
     for (var i = 0; i < n; i += chunk)
     {
-      crypto.getRandomValues(view.subarray(i, Math.min(i + chunk, n)));
+      var len = Math.min(chunk, n - i);
+      var part = (len == = tmp.length) ? tmp : tmp.subarray(0, len);
+      crypto.getRandomValues(part);
+      HEAPU8.set(part, buf + i);
     }
     return 0;
   }
