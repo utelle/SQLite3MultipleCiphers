@@ -245,7 +245,9 @@ sqlite3mcExtractRawKey(const char* password, int passwordLength,
   {
     const int nRaw = passwordLength - 4;
     const unsigned char* zRaw = (const unsigned char*) password + 4;
-    int isHex = sqlite3mcIsHexKey(zRaw, nRaw);
+    /* A binary key can consist entirely of hexadecimal ASCII bytes. */
+    int isHex = (nRaw == 2 * keyLength || nRaw == 2 * (keyLength + saltLength))
+                && sqlite3mcIsHexKey(zRaw, nRaw);
     if (isHex)
     {
       if (nRaw == 2 * (keyLength + saltLength))
