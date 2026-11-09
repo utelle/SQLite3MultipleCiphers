@@ -182,6 +182,8 @@ vle_optionSetInt(const char* value, size_t valueLength, void* target)
 
   if (sqlite3DecOrHexToI64(buffer, &v))
     return SQLITE_ERROR;
+  if (v < 0 || v > 0x7fffffff)
+    return SQLITE_ERROR;
 
   *(int*)target = (int)v;
 
