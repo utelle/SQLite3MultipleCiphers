@@ -839,8 +839,7 @@ static int mcCheckEncryptTempDb(sqlite3mc_file* mcFile, sqlite3* db)
       encryptTempDb = param->m_value;
     }
   }
-  return encryptTempDb != 0 &&
-         (mcFile->openFlags & (SQLITE_OPEN_TEMP_DB | SQLITE_OPEN_TRANSIENT_DB | SQLITE_OPEN_TEMP_JOURNAL));
+  return encryptTempDb != 0;
 }
 
 SQLITE_PRIVATE int sqlite3mcOpenTempFile(Pager* pPager, sqlite3_file* pFile)
