@@ -20,7 +20,7 @@
 ** The content in this amalgamation comes from Fossil check-in
 ** 555e07ef33f69a0957d24d8e555b702464a1 with changes in files:
 **
-**    
+**
 */
 #ifndef SQLITE_AMALGAMATION
 #define SQLITE_CORE 1
@@ -14766,7 +14766,7 @@ struct fts5_api {
 
 /******** End of fts5.h *********/
 #endif /* SQLITE3_H */
- 
+
 /* Function prototypes of SQLite3 Multiple Ciphers */
 SQLITE_PRIVATE int sqlite3mcCheckVfs(const char*);
 SQLITE_PRIVATE int sqlite3mcFileControlPragma(sqlite3*, const char*, int, void*);
@@ -84591,6 +84591,8 @@ SQLITE_API sqlite3_backup *sqlite3_backup_init(
   /* Check whether databases are compatible with backup */
   if (!sqlite3mcIsBackupSupported(pSrcDb, zSrcDb, pDestDb, zDestDb)){
     sqlite3ErrorWithMsg(pDestDb, SQLITE_ERROR, "backup is not supported with incompatible source and target databases");
+    sqlite3_mutex_leave(pDestDb->mutex);
+    sqlite3_mutex_leave(pSrcDb->mutex);
     return NULL;
   }
 
