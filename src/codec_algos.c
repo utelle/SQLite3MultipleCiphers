@@ -334,14 +334,6 @@ sqlite3mcExtractRawKey(const char* password, int passwordLength,
       sqlite3mcConvertHex2Bin((unsigned char*)(password + 2), passwordLength - 3, key);
       bypass = 1;
     }
-    else
-    {
-      /* Invalid raw key, error in strict mode */
-      if (strictMode)
-      {
-        *rc = SQLITE_ERROR;
-      }
-    }
   }
   return bypass;
 }
