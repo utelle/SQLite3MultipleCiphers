@@ -67,6 +67,11 @@ jobs:
         make rekeytest
         ./rekeytest
 
+    - name: Thread tests
+      run: |
+        make threadtest
+        ./threadtest
+
   android_build:
     name: Android (API ${{ matrix.api-level }})
     runs-on: ubuntu-latest
