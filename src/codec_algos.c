@@ -237,57 +237,85 @@ sqlite3mcConvertHex2Bin(const unsigned char* hex, int len, unsigned char* bin)
 SQLITE_PRIVATE int
 sqlite3mcExtractRawKey(const char* password, int passwordLength,
                        int keyOnly, int keyLength, int saltLength,
-                       unsigned char* key, unsigned char* salt)
+                       unsigned char* key, unsigned char* salt, int* rc)
 {
-  /* Bypass key derivation if the key string starts with "raw:" */
+  int strictMode = 1;
   int bypass = 0;
+  *rc = SQLITE_OK;
+
+  /* Bypass key derivation if the key string starts with "raw:" */
   if (passwordLength > 4 && !memcmp(password, "raw:", 4))
   {
-    const int nRaw = passwordLength - 4;
+    /*
+    ** To ensure the unambiguity of the input, a secondary prefix can
+    ** follow the primary "raw:" prefix:
+    **   - "raw:bin:" - Binary encoded
+    **   - "raw:hex:" - Hexadecimal encoded
+    ** Without additional prefix, the input is handled as
+    **   - hexadecimal encoded - all input characters are hexadecimal
+    **   - binary encoded - not all input characters are hexadecimal
+    ** In all cases the input length must match the expected length:
+    **   - hexadecimal: 2*keyLength or 2*(keyLength+saltLength)
+    **   - binary: keyLength or (keyLength+saltLength)
+    ** An invalid input length or an invalid encoding will be reported
+    ** as an error.
+    */
+    int nRaw = passwordLength - 4;
     const unsigned char* zRaw = (const unsigned char*) password + 4;
-    int isHex = sqlite3mcIsHexKey(zRaw, nRaw);
-    if (isHex)
+    int hasBinPrefix = !memcmp(zRaw, "bin:", 4);
+    int hasHexPrefix = !memcmp(zRaw, "hex:", 4);
+    if (hasBinPrefix || hasHexPrefix)
     {
-      if (nRaw == 2 * (keyLength + saltLength))
+      zRaw += 4;
+      nRaw -= 4;
+    }
+    int isHex = sqlite3mcIsHexKey(zRaw, nRaw);
+    if (!hasBinPrefix && !hasHexPrefix)
+    {
+      /* No hex or bin prefix, check for valid hex or bin value */
+      if (isHex && (nRaw == 2 * keyLength || nRaw == 2 * (keyLength + saltLength)))
+        hasHexPrefix = 1;
+      else if (!isHex && (nRaw == keyLength || nRaw == (keyLength + saltLength)))
+        hasBinPrefix = 1;
+    }
+    int isValid = (hasBinPrefix && (nRaw == keyLength || nRaw == (keyLength + saltLength))) ||
+                  (hasHexPrefix && (nRaw == 2 * keyLength || nRaw == 2 * (keyLength + saltLength)));
+    if (isValid)
+    {
+      bypass = 1;
+      if (hasBinPrefix)
       {
-        /* Hex-encoded key and salt */
+        memcpy(key, zRaw, keyLength);
+        if (!keyOnly && nRaw == keyLength + saltLength)
+        {
+          memcpy(salt, zRaw + keyLength, saltLength);
+        }
+      }
+      else
+      {
         sqlite3mcConvertHex2Bin(zRaw, 2 * keyLength, key);
-        if (!keyOnly)
+        if (!keyOnly && nRaw == 2*(keyLength+saltLength))
         {
           sqlite3mcConvertHex2Bin(zRaw + 2 * keyLength, 2 * saltLength, salt);
         }
-        bypass = 1;
-      }
-      else if (nRaw == 2 * keyLength)
-      {
-        /* Hex-encoded key */
-        sqlite3mcConvertHex2Bin(zRaw, nRaw, key);
-        bypass = 1;
       }
     }
     else
     {
-      if (nRaw == keyLength + saltLength)
+      /* Invalid raw key, error in strict mode */
+      if (strictMode)
       {
-        /* Binary key and salt */
-        memcpy(key, zRaw, keyLength);
-        if (!keyOnly)
-        {
-          memcpy(salt, zRaw + keyLength, saltLength);
-        }
-        bypass = 1;
-      }
-      else if (nRaw == keyLength)
-      {
-        /* Binary key */
-        memcpy(key, zRaw, keyLength);
-        bypass = 1;
+        *rc = SQLITE_ERROR;
       }
     }
   }
   else
   {
-    /* SQLCipher syntax for raw key (and optionally salt) */
+    /*
+    ** SQLCipher syntax for raw key (and optionally salt)
+    ** The input must be hexadecimal encoded with proper length,
+    ** otherwise the input is handled as a normal passphrase.
+    */
     if (passwordLength == (((keyLength + saltLength) * 2) + 3) &&
         sqlite3_strnicmp(password, "x'", 2) == 0 &&
         sqlite3mcIsHexKey((unsigned char*)(password + 2), (keyLength + saltLength) * 2) != 0)
@@ -305,6 +333,14 @@ sqlite3mcExtractRawKey(const char* password, int passwordLength,
     {
       sqlite3mcConvertHex2Bin((unsigned char*)(password + 2), passwordLength - 3, key);
       bypass = 1;
+    }
+    else
+    {
+      /* Invalid raw key, error in strict mode */
+      if (strictMode)
+      {
+        *rc = SQLITE_ERROR;
+      }
     }
   }
   return bypass;

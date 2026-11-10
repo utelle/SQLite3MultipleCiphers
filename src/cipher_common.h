@@ -229,7 +229,7 @@ SQLITE_PRIVATE void sqlite3mcConvertHex2Bin(const unsigned char* hex, int len, u
 
 SQLITE_PRIVATE int sqlite3mcExtractRawKey(const char* password, int passwordLength,
                                           int keyOnly, int keyLength, int saltLength,
-                                          unsigned char* key, unsigned char* salt);
+                                          unsigned char* key, unsigned char* salt, int* rc);
 
 SQLITE_PRIVATE int sqlite3mcConfigureFromUri(sqlite3* db, const char *zDbName, int configDefault);
 

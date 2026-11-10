@@ -125,6 +125,7 @@ GetSaltAscon128Cipher(void* cipher)
 static int
 GenerateKeyAscon128Cipher(void* cipher, char* userPassword, int passwordLength, int rekey, unsigned char* cipherSalt)
 {
+  int rc = SQLITE_OK;
   Ascon128Cipher* ascon128Cipher = (Ascon128Cipher*) cipher;
 
   int keyOnly = 0;
@@ -140,7 +141,10 @@ GenerateKeyAscon128Cipher(void* cipher, char* userPassword, int passwordLength, 
   /* Bypass key derivation, if raw key (and optionally salt) are given */
   int bypass = sqlite3mcExtractRawKey(userPassword, passwordLength,
                                       keyOnly, KEYLENGTH_ASCON128, SALTLENGTH_ASCON128,
-                                      ascon128Cipher->m_key, ascon128Cipher->m_salt);
+                                      ascon128Cipher->m_key, ascon128Cipher->m_salt, &rc);
+  if (rc != SQLITE_OK)
+    return rc;
+
   if (!bypass)
   {
     ascon_pbkdf2(ascon128Cipher->m_key, KEYLENGTH_ASCON128,

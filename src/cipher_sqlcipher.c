@@ -240,6 +240,7 @@ GetSaltSQLCipherCipher(void* cipher)
 static int
 GenerateKeySQLCipherCipher(void* cipher, char* userPassword, int passwordLength, int rekey, unsigned char* cipherSalt)
 {
+  int rc = SQLITE_OK;
   SQLCipherCipher* sqlCipherCipher = (SQLCipherCipher*) cipher;
 
   int keyOnly = 0;
@@ -255,7 +256,10 @@ GenerateKeySQLCipherCipher(void* cipher, char* userPassword, int passwordLength,
   /* Bypass key derivation, if raw key (and optionally salt) are given */
   int bypass = sqlite3mcExtractRawKey(userPassword, passwordLength,
                                       keyOnly, KEYLENGTH_SQLCIPHER, SALTLENGTH_SQLCIPHER,
-                                      sqlCipherCipher->m_key, sqlCipherCipher->m_salt);
+                                      sqlCipherCipher->m_key, sqlCipherCipher->m_salt, &rc);
+  if (rc != SQLITE_OK)
+    return rc;
+
   if (!bypass)
   {
     switch (sqlCipherCipher->m_kdfAlgorithm)

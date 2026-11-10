@@ -147,6 +147,7 @@ GetSaltChaCha20Cipher(void* cipher)
 static int
 GenerateKeyChaCha20Cipher(void* cipher, char* userPassword, int passwordLength, int rekey, unsigned char* cipherSalt)
 {
+  int rc = SQLITE_OK;
   ChaCha20Cipher* chacha20Cipher = (ChaCha20Cipher*) cipher;
 
   int keyOnly = 0;
@@ -162,7 +163,10 @@ GenerateKeyChaCha20Cipher(void* cipher, char* userPassword, int passwordLength, 
   /* Bypass key derivation, if raw key (and optionally salt) are given */
   int bypass = sqlite3mcExtractRawKey(userPassword, passwordLength,
                                       keyOnly, KEYLENGTH_CHACHA20, SALTLENGTH_CHACHA20,
-                                      chacha20Cipher->m_key, chacha20Cipher->m_salt);
+                                      chacha20Cipher->m_key, chacha20Cipher->m_salt, &rc);
+  if (rc != SQLITE_OK)
+    return rc;
+
   if (!bypass)
   {
     fastpbkdf2_hmac_sha256((unsigned char*)userPassword, passwordLength,
