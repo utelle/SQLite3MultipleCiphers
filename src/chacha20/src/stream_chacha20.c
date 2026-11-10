@@ -132,6 +132,10 @@ SODIUM_EXPORT const char*
 sqlite3mcChaCha20HwConfig(const char* option)
 {
   int rc;
+  const char* optionSelected = NULL;
+  sqlite3_mutex* mutex = sqlite3_mutex_alloc(SQLITE_MUTEX_STATIC_MAIN);
+  sqlite3_mutex_enter(mutex);
+
   if (strlen(option) > 0)
   {
     /* Identify option */
@@ -151,7 +155,10 @@ sqlite3mcChaCha20HwConfig(const char* option)
                 (optRequested == SQLITE3MC_CHACHA20_HWACCL_MAX)  ||
                 (optRequested >= gChaCha20HwAccelMin && optRequested <= gChaCha20HwAccelMax);
     if (!valid)
+    {
+      sqlite3_mutex_leave(mutex);
       return NULL;
+    }
 
     /* Reset current selected option, if necessary */
     if (optRequested != gChaCha20HwAccelSelected)
@@ -173,9 +180,12 @@ sqlite3mcChaCha20HwConfig(const char* option)
   /* Return current selected option */
   if (gChaCha20HwAccelSelected >= SQLITE3MC_CHACHA20_HWACCL_OFF &&
       gChaCha20HwAccelSelected <= SQLITE3MC_CHACHA20_HWACCL_AUTO)
-    return gChaCha20HwAccelOptions[gChaCha20HwAccelSelected];
-  else
-    return NULL;
+  {
+    optionSelected = gChaCha20HwAccelOptions[gChaCha20HwAccelSelected];
+  }
+
+  sqlite3_mutex_leave(mutex);
+  return optionSelected;
 }
 
 SODIUM_EXPORT int

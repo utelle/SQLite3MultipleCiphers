@@ -18,7 +18,25 @@
 */
 #define WX_PAGER_MJ_PGNO(x) ((PENDING_BYTE/(x))+1)
 
+//#define HAVE_CIPHER_AES_128_CBC 0
+//#define HAVE_CIPHER_AES_256_CBC 0
+//#define HAVE_CIPHER_CHACHA20    0
+//#define HAVE_CIPHER_SQLCIPHER   0
+//#define HAVE_CIPHER_RC4         0
+//#define HAVE_CIPHER_ASCON128    0
+//#define HAVE_CIPHER_AEGIS       0
+
+#if HAVE_CIPHER_CHACHA20
 #define CODEC_TYPE_DEFAULT CODEC_TYPE_CHACHA20
+#elif HAVE_CIPHER_ASCON128
+#define CODEC_TYPE_DEFAULT CODEC_TYPE_ASCON128
+#elif HAVE_CIPHER_AEGIS
+#define CODEC_TYPE_DEFAULT CODEC_TYPE_AEGIS
+#elif HAVE_CIPHER_SQLCIPHER
+#define CODEC_TYPE_DEFAULT CODEC_TYPE_SQLCIPHER
+#else
+#error "No suitable default codec type available"
+#endif
 
 #ifndef CODEC_TYPE
 #define CODEC_TYPE CODEC_TYPE_DEFAULT
@@ -46,7 +64,7 @@
 #define CODEC_COUNT_MAX CODEC_COUNT_LIMIT
 #endif
 
-#define CIPHER_NAME_MAXLEN 32
+#define CIPHER_NAME_MAXLEN      64
 #define CIPHER_PARAMS_COUNT_MAX 64
 
 #define MAXKEYLENGTH     32
@@ -66,11 +84,21 @@ typedef struct _CodecParameter
   CipherParams* m_params;
 } CodecParameter;
 
+typedef struct _CodecConfig
+{
+  CodecParameter* m_globalConfigTable;
+} CodecConfig;
+
+typedef struct _CipherSpare
+{
+  void* m_cipher;
+  int m_cipherType;
+} CipherSpare;
+
 typedef struct _Codec
 {
   int           m_isEncrypted;
   int           m_hmacCheck;
-  int           m_walLegacy;
   /* Read cipher */
   int           m_hasReadCipher;
   int           m_readCipherType;
@@ -81,6 +109,10 @@ typedef struct _Codec
   int           m_writeCipherType;
   void*         m_writeCipher;
   int           m_writeReserved;
+  /* Spare ciphers */
+  CipherSpare m_spareRead;   /* new Read cipher in case of rekey success (Type = Write-Type) */
+  CipherSpare m_spareWrite;  /* new Write cipher in case of rekey error (Type = Read-Type) */
+  int         m_rekeyPending;
 
   sqlite3*      m_db; /* Pointer to DB */
 #if 0
@@ -197,7 +229,7 @@ SQLITE_PRIVATE void sqlite3mcConvertHex2Bin(const unsigned char* hex, int len, u
 
 SQLITE_PRIVATE int sqlite3mcExtractRawKey(const char* password, int passwordLength,
                                           int keyOnly, int keyLength, int saltLength,
-                                          unsigned char* key, unsigned char* salt);
+                                          unsigned char* key, unsigned char* salt, int* rc);
 
 SQLITE_PRIVATE int sqlite3mcConfigureFromUri(sqlite3* db, const char *zDbName, int configDefault);
 
@@ -259,9 +291,21 @@ SQLITE_PRIVATE void sqlite3mcCodecGetKey(sqlite3* db, int nDb, void** zKey, int*
 ** In principle, operating generally in WAL legacy mode is possible, but it is strongly
 ** recommended to use the WAL legacy mode only to recover WAL journals left behind by
 ** prior versions without data loss.
+**
+** Starting with version 2.7.0 the WAL legacy mode is no longer supported.
+** In case a WAL journal in legacy mode still exists execute the SQL command
+**
+**   PRAGMA wal_checkpoint(TRUNCATE);
+**
+** This forces all pages to be written to the main database and truncating the WAL journal
+** file to 0 bytes. Thereafter it is save to switch to a new SQLite3 Multiple Ciphers
+** version 2.7.0 or above.
+**
+** The compile time symbol SQLITE3MC_LEGACY_WAL is no longer supported:
+**
+** #ifndef SQLITE3MC_LEGACY_WAL
+** #define SQLITE3MC_LEGACY_WAL 0
+** #endif
 */
-#ifndef SQLITE3MC_LEGACY_WAL
-#define SQLITE3MC_LEGACY_WAL 0
-#endif
 
 #endif

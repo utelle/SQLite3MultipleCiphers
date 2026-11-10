@@ -20,7 +20,7 @@
 ** The content in this amalgamation comes from Fossil check-in
 ** 555e07ef33f69a0957d24d8e555b702464a1 with changes in files:
 **
-**    
+**
 */
 #ifndef SQLITE_AMALGAMATION
 #define SQLITE_CORE 1
@@ -14766,7 +14766,7 @@ struct fts5_api {
 
 /******** End of fts5.h *********/
 #endif /* SQLITE3_H */
- 
+
 /* Function prototypes of SQLite3 Multiple Ciphers */
 SQLITE_PRIVATE int sqlite3mcCheckVfs(const char*);
 SQLITE_PRIVATE int sqlite3mcFileControlPragma(sqlite3*, const char*, int, void*);
@@ -19021,6 +19021,7 @@ struct sqlite3 {
   void (*xUnlockNotify)(void **, int);  /* Unlock notify callback */
   sqlite3 *pNextBlocked;        /* Next in list of all blocked connections */
 #endif
+  void* mcConfig;
 };
 
 /*
@@ -72477,7 +72478,7 @@ static void lockBtreeMutex(Btree *p){
 
   sqlite3_mutex_enter(p->pBt->mutex);
   p->pBt->db = p->db;
-      if (p->pBt->pPager) p->pBt->pPager->mcDb = p->db;
+  if (p->pBt->pPager) p->pBt->pPager->mcDb = p->db;
   p->locked = 1;
 }
 
@@ -72516,6 +72517,7 @@ static void SQLITE_NOINLINE btreeLockCarefully(Btree *p);
 ** subsequent Btrees that desire a lock.
 */
 SQLITE_PRIVATE void sqlite3BtreeEnter(Btree *p){
+  if (p->pBt->pPager) p->pBt->pPager->mcDb = p->db;
   /* Some basic sanity checking on the Btree.  The list of Btrees
   ** connected by pNext and pPrev should be in sorted order by
   ** Btree.pBt value. All elements of the list should belong to
@@ -72558,7 +72560,6 @@ static void SQLITE_NOINLINE btreeLockCarefully(Btree *p){
   */
   if( sqlite3_mutex_try(p->pBt->mutex)==SQLITE_OK ){
     p->pBt->db = p->db;
-      if (p->pBt->pPager) p->pBt->pPager->mcDb = p->db;
     p->locked = 1;
     return;
   }
@@ -72723,8 +72724,8 @@ SQLITE_PRIVATE int sqlite3SchemaMutexHeld(sqlite3 *db, int iDb, Schema *pSchema)
 */
 
 SQLITE_PRIVATE void sqlite3BtreeEnter(Btree *p){
+  if (p->pBt->pPager) p->pBt->pPager->mcDb = p->db;
   p->pBt->db = p->db;
-      if (p->pBt->pPager) p->pBt->pPager->mcDb = p->db;
 }
 SQLITE_PRIVATE void sqlite3BtreeEnterAll(sqlite3 *db){
   int i;
@@ -84576,12 +84577,6 @@ SQLITE_API sqlite3_backup *sqlite3_backup_init(
   }
 #endif
 
-  /* Check whether databases are compatible with backup */
-  if (!sqlite3mcIsBackupSupported(pSrcDb, zSrcDb, pDestDb, zDestDb)){
-    sqlite3ErrorWithMsg(pDestDb, SQLITE_ERROR, "backup is not supported with incompatible source and target databases");
-    return NULL;
-  }
-
   /* Lock the source database handle. The destination database
   ** handle is not locked in this routine, but it is locked in
   ** sqlite3_backup_step(). The user is required to ensure that no
@@ -84592,6 +84587,14 @@ SQLITE_API sqlite3_backup *sqlite3_backup_init(
   */
   sqlite3_mutex_enter(pSrcDb->mutex);
   sqlite3_mutex_enter(pDestDb->mutex);
+
+  /* Check whether databases are compatible with backup */
+  if (!sqlite3mcIsBackupSupported(pSrcDb, zSrcDb, pDestDb, zDestDb)){
+    sqlite3ErrorWithMsg(pDestDb, SQLITE_ERROR, "backup is not supported with incompatible source and target databases");
+    sqlite3_mutex_leave(pDestDb->mutex);
+    sqlite3_mutex_leave(pSrcDb->mutex);
+    return NULL;
+  }
 
   if( pSrcDb==pDestDb ){
     sqlite3ErrorWithMsg(
@@ -126148,7 +126151,7 @@ static void attachFunc(
   }
 
   /* Handle KEY parameter. */
-  if( rc==SQLITE_OK ){
+  if( rc==SQLITE_OK && !REOPEN_AS_MEMDB(db) ){
     rc = sqlite3mcHandleAttachKey(db, zName, zPath, argv[2], &zErrDyn);
   }
   sqlite3_free_filename( zPath );
@@ -188710,9 +188713,14 @@ static SQLITE_NOINLINE int sqlite3Initialize(void){
       int sqlite3mc_initialize(const char*);
       rc = sqlite3mc_initialize(0);
 #ifdef SQLITE_EXTRA_INIT_MUTEXED
+      if( rc==SQLITE_OK )
       {
         int SQLITE_EXTRA_INIT_MUTEXED(const char*);
         rc = SQLITE_EXTRA_INIT_MUTEXED(0);
+        if( rc!=SQLITE_OK ){
+          void sqlite3mc_shutdown(void);
+          sqlite3mc_shutdown();
+        }
       }
 #endif
     }
@@ -191763,7 +191771,11 @@ SQLITE_PRIVATE int sqlite3ParseUri(
   }
 
   /* Check VFS. */
-  sqlite3mcCheckVfs(zVfs);
+  rc = sqlite3mcCheckVfs(zVfs);
+  if( rc!=SQLITE_OK ){
+    *pzErrMsg = sqlite3_mprintf("could not create multipleciphers vfs");
+    goto parse_uri_out;
+  }
 
   *ppVfs = sqlite3_vfs_find(zVfs);
   if( *ppVfs==0 ){

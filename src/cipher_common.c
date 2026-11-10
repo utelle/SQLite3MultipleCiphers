@@ -26,7 +26,6 @@ static CipherParams commonParams[] =
   { "cipher",          CODEC_TYPE_UNKNOWN,   CODEC_TYPE_UNKNOWN, 1,      CODEC_COUNT_MAX },
   { "hmac_check",                       1,                    1, 0,                    1 },
   { "encrypt_temp_db",                  0,                    0, 0,                    1 },
-  { "mc_legacy_wal", SQLITE3MC_LEGACY_WAL, SQLITE3MC_LEGACY_WAL, 0,                    1 },
   CIPHER_PARAMS_SENTINEL
 };
 
@@ -56,7 +55,7 @@ typedef struct _CipherName
   char m_name[CIPHER_NAME_MAXLEN];
 } CipherName;
 
-static char globalConfigTableName[CIPHER_NAME_MAXLEN] = "";
+static char globalConfigName[CIPHER_NAME_MAXLEN] = "";
 static int globalCipherCount = 0;
 static char* globalSentinelName = "";
 static CipherName globalCipherNameTable[CODEC_COUNT_LIMIT + 2] = { 0 };
@@ -122,9 +121,23 @@ sqlite3mcCloneCodecParameterTable()
 SQLITE_PRIVATE void
 sqlite3mcFreeCodecParameterTable(void* ptr)
 {
-  CodecParameter* codecParams = (CodecParameter*)ptr;
-  sqlite3_free(codecParams[0].m_params);
-  sqlite3_free(codecParams);
+  if (ptr != NULL)
+  {
+    CodecParameter* codecParams = (CodecParameter*)ptr;
+    sqlite3_free(codecParams[0].m_params);
+    sqlite3_free(codecParams);
+  }
+}
+
+SQLITE_PRIVATE void
+sqlite3mcFreeCodecConfig(void* ptr)
+{
+  CodecConfig* codecConfig = (CodecConfig*)ptr;
+  if (codecConfig != NULL)
+  {
+    sqlite3mcFreeCodecParameterTable(codecConfig->m_globalConfigTable);
+    sqlite3_free(codecConfig);
+  }
 }
 
 static const CipherDescriptor mcSentinelDescriptor =
@@ -192,7 +205,6 @@ sqlite3mcCodecInit(Codec* codec)
   {
     codec->m_isEncrypted = 0;
     codec->m_hmacCheck = 1;
-    codec->m_walLegacy = 0;
 
     codec->m_hasReadCipher = 0;
     codec->m_readCipherType = CODEC_TYPE_UNKNOWN;
@@ -203,6 +215,12 @@ sqlite3mcCodecInit(Codec* codec)
     codec->m_writeCipherType = CODEC_TYPE_UNKNOWN;
     codec->m_writeCipher = NULL;
     codec->m_writeReserved = -1;
+
+    codec->m_spareRead.m_cipher = NULL;
+    codec->m_spareRead.m_cipherType = 0;
+    codec->m_spareWrite.m_cipher = NULL;
+    codec->m_spareWrite.m_cipherType = 0;
+    codec->m_rekeyPending = 0;
 
     codec->m_db = NULL;
 #if 0
@@ -236,6 +254,16 @@ sqlite3mcCodecTerm(Codec* codec)
     globalCodecDescriptorTable[codec->m_writeCipherType - 1].m_freeCipher(codec->m_writeCipher);
     codec->m_writeCipher = NULL;
   }
+  if (codec->m_spareRead.m_cipher != NULL)
+  {
+    globalCodecDescriptorTable[codec->m_spareRead.m_cipherType - 1].m_freeCipher(codec->m_spareRead.m_cipher);
+    codec->m_spareRead.m_cipher = NULL;
+  }
+  if (codec->m_spareWrite.m_cipher != NULL)
+  {
+    globalCodecDescriptorTable[codec->m_spareWrite.m_cipherType - 1].m_freeCipher(codec->m_spareWrite.m_cipher);
+    codec->m_spareWrite.m_cipher = NULL;
+  }
   sqlite3mcSecureZeroMemory(codec, sizeof(Codec));
 }
 
@@ -257,7 +285,6 @@ sqlite3mcCodecSetup(Codec* codec, int cipherType, char* userPassword, int passwo
   }
   codec->m_isEncrypted = 1;
   codec->m_hmacCheck = sqlite3mcGetCipherParameter(globalParams, "hmac_check");
-  codec->m_walLegacy = sqlite3mcGetCipherParameter(globalParams, "mc_legacy_wal");
   codec->m_hasReadCipher = 1;
   codec->m_hasWriteCipher = 1;
   codec->m_readCipherType = cipherType;
@@ -293,7 +320,6 @@ sqlite3mcSetupWriteCipher(Codec* codec, int cipherType, char* userPassword, int 
   }
   codec->m_isEncrypted = 1;
   codec->m_hmacCheck = sqlite3mcGetCipherParameter(globalParams, "hmac_check");
-  codec->m_walLegacy = sqlite3mcGetCipherParameter(globalParams, "mc_legacy_wal");
   codec->m_hasWriteCipher = 1;
   codec->m_writeCipherType = cipherType;
   codec->m_writeCipher = globalCodecDescriptorTable[codec->m_writeCipherType-1].m_allocateCipher(codec->m_db);
@@ -500,6 +526,13 @@ sqlite3mcGetCodecLastError(Codec* codec)
 }
 
 SQLITE_PRIVATE unsigned char*
+sqlite3mcGetSaltReadCipher(Codec* codec)
+{
+  unsigned char* salt = (codec->m_hasReadCipher && codec->m_readCipher != NULL) ? globalCodecDescriptorTable[codec->m_readCipherType - 1].m_getSalt(codec->m_readCipher) : NULL;
+  return salt;
+}
+
+SQLITE_PRIVATE unsigned char*
 sqlite3mcGetSaltWriteCipher(Codec* codec)
 {
   unsigned char* salt = (codec->m_hasWriteCipher && codec->m_writeCipher != NULL) ? globalCodecDescriptorTable[codec->m_writeCipherType - 1].m_getSalt(codec->m_writeCipher) : NULL;
@@ -512,7 +545,6 @@ sqlite3mcCodecCopy(Codec* codec, Codec* other)
   int rc = SQLITE_OK;
   codec->m_isEncrypted = other->m_isEncrypted;
   codec->m_hmacCheck = other->m_hmacCheck;
-  codec->m_walLegacy = other->m_walLegacy;
   codec->m_hasReadCipher = other->m_hasReadCipher;
   codec->m_hasWriteCipher = other->m_hasWriteCipher;
   codec->m_readCipherType = other->m_readCipherType;
@@ -607,6 +639,37 @@ sqlite3mcCopyCipher(Codec* codec, int read2write)
   return rc;
 }
 
+/* Like sqlite3mcCopyCipher, but with pre-allocated spareCipher: can't fail */
+SQLITE_PRIVATE int
+sqlite3mcCopyCipherEx(Codec* codec, int read2write, void* spareCipher)
+{
+  if (spareCipher == NULL)
+  {
+    return sqlite3mcCopyCipher(codec, read2write);
+  }
+  if (read2write)
+  {
+    if (codec->m_writeCipher != NULL)
+    {
+      globalCodecDescriptorTable[codec->m_writeCipherType - 1].m_freeCipher(codec->m_writeCipher);
+    }
+    codec->m_writeCipherType = codec->m_readCipherType;
+    codec->m_writeCipher = spareCipher;
+    globalCodecDescriptorTable[codec->m_writeCipherType - 1].m_cloneCipher(codec->m_writeCipher, codec->m_readCipher);
+  }
+  else
+  {
+    if (codec->m_readCipher != NULL)
+    {
+      globalCodecDescriptorTable[codec->m_readCipherType - 1].m_freeCipher(codec->m_readCipher);
+    }
+    codec->m_readCipherType = codec->m_writeCipherType;
+    codec->m_readCipher = spareCipher;
+    globalCodecDescriptorTable[codec->m_readCipherType - 1].m_cloneCipher(codec->m_readCipher, codec->m_writeCipher);
+  }
+  return SQLITE_OK;
+}
+
 SQLITE_PRIVATE void
 sqlite3mcPadPassword(char* password, int pswdlen, unsigned char pswd[32])
 {
@@ -625,29 +688,53 @@ sqlite3mcPadPassword(char* password, int pswdlen, unsigned char pswd[32])
   }
 }
 
-SQLITE_PRIVATE unsigned char* mcReadDatabaseHeader(Codec* codec, unsigned char* dbHeader)
+SQLITE_PRIVATE unsigned char* mcReadDatabaseHeader(Codec* codec, unsigned char* dbHeader, int* rc)
 {
   Pager* pPager = codec->m_btShared->pPager;
+  unsigned char* hdr = NULL;
   sqlite3_file* fd = (isOpen(pPager->fd)) ? pPager->fd : NULL;
-  if (fd == NULL || sqlite3OsRead(fd, dbHeader, KEYSALT_LENGTH, 0) != SQLITE_OK)
-    return NULL;
-  else
-    return dbHeader;
+  *rc = SQLITE_OK;
+  if (fd != NULL)
+  {
+    *rc = sqlite3OsRead(fd, dbHeader, KEYSALT_LENGTH, 0);
+    if (*rc == SQLITE_IOERR_SHORT_READ)
+    {
+      sqlite3_int64 fileSize = 0;
+      int ret = sqlite3OsFileSize(fd, &fileSize);
+      if (fileSize == 0)
+      {
+        /* Empty file: there is no salt yet, a random salt will be generated */
+        *rc = SQLITE_OK;
+        return NULL;
+      }
+    }
+    if (*rc == SQLITE_OK)
+      hdr = dbHeader;
+  }
+  return hdr;
 }
 
 SQLITE_PRIVATE int
 sqlite3mcGenerateReadKey(Codec* codec, char* userPassword, int passwordLength, unsigned char* cipherSalt)
 {
+  int rc = SQLITE_OK;
   unsigned char dbHeader[KEYSALT_LENGTH];
-  unsigned char* pDbHeader = (cipherSalt == NULL) ? mcReadDatabaseHeader(codec, dbHeader) : cipherSalt;
-  return globalCodecDescriptorTable[codec->m_readCipherType-1].m_generateKey(codec->m_readCipher, userPassword, passwordLength, 0, pDbHeader);
+  unsigned char* pDbHeader = (cipherSalt == NULL) ? mcReadDatabaseHeader(codec, dbHeader, &rc) : cipherSalt;
+  if (rc == SQLITE_OK)
+  {
+    rc = globalCodecDescriptorTable[codec->m_readCipherType - 1].m_generateKey(codec->m_readCipher, userPassword, passwordLength, 0, pDbHeader);
+  }
+  return rc;
 }
 
 SQLITE_PRIVATE int
 sqlite3mcGenerateWriteKey(Codec* codec, char* userPassword, int passwordLength, unsigned char* cipherSalt, int usesWal)
 {
-  unsigned char dbHeader[KEYSALT_LENGTH];
-  unsigned char* pDbHeader = (cipherSalt == NULL) ? mcReadDatabaseHeader(codec, dbHeader) : cipherSalt;
+  unsigned char* pDbHeader = cipherSalt;
+  if (cipherSalt == NULL && codec->m_hasReadCipher)
+  {
+    pDbHeader = sqlite3mcGetSaltReadCipher(codec);
+  }
   return globalCodecDescriptorTable[codec->m_writeCipherType-1].m_generateKey(codec->m_writeCipher, userPassword, passwordLength, (usesWal) ? 2 : 1, pDbHeader);
 }
 

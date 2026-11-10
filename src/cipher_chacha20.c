@@ -147,6 +147,7 @@ GetSaltChaCha20Cipher(void* cipher)
 static int
 GenerateKeyChaCha20Cipher(void* cipher, char* userPassword, int passwordLength, int rekey, unsigned char* cipherSalt)
 {
+  int rc = SQLITE_OK;
   ChaCha20Cipher* chacha20Cipher = (ChaCha20Cipher*) cipher;
 
   int keyOnly = 0;
@@ -162,7 +163,10 @@ GenerateKeyChaCha20Cipher(void* cipher, char* userPassword, int passwordLength, 
   /* Bypass key derivation, if raw key (and optionally salt) are given */
   int bypass = sqlite3mcExtractRawKey(userPassword, passwordLength,
                                       keyOnly, KEYLENGTH_CHACHA20, SALTLENGTH_CHACHA20,
-                                      chacha20Cipher->m_key, chacha20Cipher->m_salt);
+                                      chacha20Cipher->m_key, chacha20Cipher->m_salt, &rc);
+  if (rc != SQLITE_OK)
+    return rc;
+
   if (!bypass)
   {
     fastpbkdf2_hmac_sha256((unsigned char*)userPassword, passwordLength,
@@ -215,8 +219,12 @@ EncryptPageChaCha20Cipher(void* cipher, int page, unsigned char* data, int len, 
 
   /* Encrypt and authenticate */
   memset(otk, 0, OTK_LEN_CHACHA20);
-  chacha20_rng(data + n, PAGE_NONCE_LEN_CHACHA20);
-  counter = LOAD32_LE(data + n + PAGE_NONCE_LEN_CHACHA20 - 4) ^ page;
+  do
+  {
+    chacha20_rng(data + n, PAGE_NONCE_LEN_CHACHA20);
+    counter = LOAD32_LE(data + n + PAGE_NONCE_LEN_CHACHA20 - 4) ^ (uint32_t)page;
+  }
+  while (chacha20_counter_wraps(counter + 1, n - offset));
   chacha20_xor(otk, OTK_LEN_CHACHA20, chacha20Cipher->m_key, data + n, counter);
 
   chacha20_xor(data + offset, n - offset, otk + 32, data + n, counter + 1);

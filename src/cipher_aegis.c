@@ -267,7 +267,10 @@ GenerateKeyAegisCipher(void* cipher, char* userPassword, int passwordLength, int
   /* Bypass key derivation, if raw key (and optionally salt) are given */
   int bypass = sqlite3mcExtractRawKey(userPassword, passwordLength,
                                       keyOnly, aegisCipher->m_keyLength, SALTLENGTH_AEGIS,
-                                      aegisCipher->m_key, aegisCipher->m_salt);
+                                      aegisCipher->m_key, aegisCipher->m_salt, &rc);
+  if (rc != SQLITE_OK)
+    return rc;
+
   if (!bypass)
   {
     rc = argon2id_hash_raw((uint32_t) aegisCipher->m_argon2Tcost,
@@ -276,6 +279,10 @@ GenerateKeyAegisCipher(void* cipher, char* userPassword, int passwordLength, int
                            userPassword, passwordLength,
                            aegisCipher->m_salt, SALTLENGTH_AEGIS,
                            aegisCipher->m_key, aegisCipher->m_keyLength);
+  }
+  else
+  {
+    rc = ARGON2_OK;
   }
   SQLITE3MC_DEBUG_LOG("generate: codec=%p pFile=%p\n", aegisCipher, fd);
   SQLITE3MC_DEBUG_HEX("generate  key:", aegisCipher->m_key, aegisCipher->m_keyLength);

@@ -29,7 +29,7 @@ sqlite3mcConfigTable(sqlite3_context* context, int argc, sqlite3_value** argv)
 SQLITE_PRIVATE CodecParameter*
 sqlite3mcGetCodecParams(sqlite3* db)
 {
-  CodecParameter* codecParams = (CodecParameter*) sqlite3_get_clientdata(db, globalConfigTableName);
+  CodecParameter* codecParams = (db->mcConfig != NULL) ? ((CodecConfig*)db->mcConfig)->m_globalConfigTable : NULL;
   return codecParams;
 }
 
@@ -219,14 +219,17 @@ sqlite3mc_cipher_name_copy(int cipherIndex, char* cipherName, int maxCipherNameS
   else
   {
     /* Invalid index */
-    cipherName[0] = '\0';
+    if (maxCipherNameSize >= 1)
+    {
+      cipherName[0] = '\0';
+    }
     ok = 0;
   }
   return ok;
 }
 
 static
-int checkParameterValue(const char* paramName, int value, const char* cipherName)
+int checkParameterValue(const char* paramName, sqlite_int64 value, const char* cipherName)
 {
   int ok = 1;
   if (sqlite3_stricmp(paramName, "legacy_page_size") == 0 && value > 0)
@@ -239,6 +242,10 @@ int checkParameterValue(const char* paramName, int value, const char* cipherName
     {
       ok = value % 16 == 0;
     }
+  }
+  if (ok && sqlite3_stricmp(paramName, "encrypt_temp_db") == 0 && value >= 0)
+  {
+    ok = value == 1;
   }
   return ok;
 }
@@ -278,7 +285,11 @@ sqlite3mc_config_cipher(sqlite3* db, const char* cipherName, const char* paramNa
     return value;
   }
 
-  for (j = 0; codecParams[j].m_name[0] != 0; ++j)
+  /*
+  ** Index 0 is not a valid cipher entry, but an entry for global parameters.
+  ** Therefore start with index 1, the first valid cipher entry, if any.
+  */
+  for (j = 1; codecParams[j].m_name[0] != 0; ++j)
   {
     if (sqlite3_stricmp(cipherName, codecParams[j].m_name) == 0) break;
   }
@@ -388,8 +399,10 @@ sqlite3mc_codec_data(sqlite3* db, const char* zDbName, const char* paramName)
 #endif
   if (db != NULL && paramName != NULL)
   {
-    int iDb = (zDbName != NULL) ? sqlite3FindDbName(db, zDbName) : 0;
     int toRaw = 0;
+    int iDb;
+    sqlite3_mutex_enter(db->mutex);
+    iDb = (zDbName != NULL) ? sqlite3FindDbName(db, zDbName) : 0;
     if (sqlite3_strnicmp(paramName, "raw:", 4) == 0)
     {
       toRaw = 1;
@@ -430,6 +443,7 @@ sqlite3mc_codec_data(sqlite3* db, const char* zDbName, const char* paramName)
         }
       }
     }
+    sqlite3_mutex_leave(db->mutex);
   }
   return result;
 }
@@ -490,6 +504,7 @@ sqlite3mcConfigParams(sqlite3_context* context, int argc, sqlite3_value** argv)
   CipherParams* cipherParamTable = NULL;
   int isCommonParam1;
   int isCipherParam1 = 0;
+  int cipherCount = sqlite3mcGetGlobalCipherCount();
 
   assert(argc == 1 || argc == 2 || argc == 3);
   /* NULL values are not allowed for the first 2 arguments */
@@ -534,8 +549,12 @@ sqlite3mcConfigParams(sqlite3_context* context, int argc, sqlite3_value** argv)
   {
     if (!hasDefaultPrefix && !hasMinPrefix && !hasMaxPrefix)
     {
-      int j = 0;
-      for (j = 0; codecParams[j].m_name[0] != 0; ++j)
+      int j;
+      /*
+      ** Index 0 is not a valid cipher entry, but an entry for global parameters.
+      ** Therefore start with index 1, the first valid cipher entry, if any.
+      */
+      for (j = 1; codecParams[j].m_name[0] != 0; ++j)
       {
         if (sqlite3_stricmp(nameParam1, codecParams[j].m_name) == 0) break;
       }
@@ -548,7 +567,7 @@ sqlite3mcConfigParams(sqlite3_context* context, int argc, sqlite3_value** argv)
     if (!isCipherParam1)
     {
       /* Prefix not allowed for cipher names or cipher name not found */
-      sqlite3_result_null(context);
+      sqlite3_result_error(context, "Cipher name not found", -1);
       return;
     }
   }
@@ -619,8 +638,12 @@ sqlite3mcConfigParams(sqlite3_context* context, int argc, sqlite3_value** argv)
         if (arg2Type == SQLITE_TEXT)
         {
           const char* nameCipher = (const char*)sqlite3_value_text(argv[1]);
-          int j = 0;
-          for (j = 0; globalCodecDescriptorTable[j].m_name[0] != 0; ++j)
+          int j;
+          /*
+          ** Index 0 is not a valid cipher entry, but an entry for global parameters.
+          ** Therefore start with index 1, the first valid cipher entry, if any.
+          */
+          for (j = 1; globalCodecDescriptorTable[j].m_name[0] != 0; ++j)
           {
             if (sqlite3_stricmp(nameCipher, globalCodecDescriptorTable[j].m_name) == 0) break;
           }
@@ -636,21 +659,22 @@ sqlite3mcConfigParams(sqlite3_context* context, int argc, sqlite3_value** argv)
           else
           {
             /* No match for cipher name found */
-            sqlite3_result_null(context);
+            sqlite3_result_error(context, "Cipher not found", -1);
           }
         }
         else
         {
           /* Invalid parameter type */
-          sqlite3_result_null(context);
+          sqlite3_result_error(context, "Invalid parameter value type", -1);
         }
       }
       else if (arg2Type == SQLITE_INTEGER)
       {
         /* Check that parameter value is within allowed range */
-        int value = sqlite3_value_int(argv[1]);
-        if (value >= param1->m_minValue && value <= param1->m_maxValue)
-        {
+        sqlite_int64 value = sqlite3_value_int64(argv[1]);
+        if (value >= param1->m_minValue && value <= param1->m_maxValue &&
+            checkParameterValue(nameParam1, value, ""))
+          {
           /* Do not allow to change the default value for parameter "hmac_check" */
           if (hasDefaultPrefix && (sqlite3_stricmp(nameParam1, "hmac_check") != 0))
           {
@@ -662,12 +686,12 @@ sqlite3mcConfigParams(sqlite3_context* context, int argc, sqlite3_value** argv)
         else
         {
           /* Parameter value not within allowed range */
-          sqlite3_result_null(context);
+          sqlite3_result_error(context, "Parameter value does not satisfy constraints", -1);
         }
       }
       else
       {
-        sqlite3_result_null(context);
+        sqlite3_result_error(context, "Invalid parameter value type", -1);
       }
     }
     else if (isCipherParam1 && arg2Type == SQLITE_TEXT)
@@ -706,7 +730,7 @@ sqlite3mcConfigParams(sqlite3_context* context, int argc, sqlite3_value** argv)
       {
         if (!hasMinPrefix && !hasMaxPrefix && sqlite3_value_type(argv[2]) == SQLITE_INTEGER)
         {
-          int legacy = sqlite3_value_int(argv[2]);
+          sqlite_int64 legacy = sqlite3_value_int64(argv[2]);
           if (legacy > 0 && legacy <= SQLCIPHER_VERSION_MAX)
           {
             sqlite3* db = sqlite3_context_db_handle(context);
@@ -727,8 +751,9 @@ sqlite3mcConfigParams(sqlite3_context* context, int argc, sqlite3_value** argv)
         else if (!hasMinPrefix && !hasMaxPrefix && sqlite3_value_type(argv[2]) == SQLITE_INTEGER)
         {
           /* Change cipher parameter value */
-          int value = sqlite3_value_int(argv[2]);
-          if (value >= param2->m_minValue && value <= param2->m_maxValue)
+          sqlite_int64 value = sqlite3_value_int64(argv[2]);
+          if (value >= 0 && value >= param2->m_minValue && value <= param2->m_maxValue &&
+              checkParameterValue(nameParam2, value, nameParam1))
           {
             if (hasDefaultPrefix)
             {
@@ -740,25 +765,25 @@ sqlite3mcConfigParams(sqlite3_context* context, int argc, sqlite3_value** argv)
           else
           {
             /* Cipher parameter value not within allowed range */
-            sqlite3_result_null(context);
+            sqlite3_result_error(context, "Cipher parameter value does not satisfy constraints", -1);
           }
         }
         else
         {
           /* Only current value and default value of a parameter can be changed */
-          sqlite3_result_null(context);
+          sqlite3_result_error(context, "Only current value and default value of a parameter can be changed", -1);
         }
       }
       else
       {
         /* Cipher parameter not found */
-        sqlite3_result_null(context);
+        sqlite3_result_error(context, "Cipher parameter not found", -1);
       }
     }
     else
     {
       /* Cipher has no parameters */
-      sqlite3_result_null(context);
+      sqlite3_result_error(context, "Cipher has no parameters", -1);
     }
   }
 }
@@ -818,7 +843,6 @@ sqlite3mcConfigureFromUri(sqlite3* db, const char* zDbName, int configDefault)
         int skipLegacy = 0;
         /* Set global parameters (cipher and hmac_check) */
         int hmacCheck = sqlite3_uri_boolean(dbFileName, "hmac_check", 1);
-        int walLegacy = sqlite3_uri_boolean(dbFileName, "mc_legacy_wal", 0);
         if (configDefault)
         {
           sqlite3mc_config(db, "default:cipher", globalCodecParameterTable[j].m_id);
@@ -831,17 +855,16 @@ sqlite3mcConfigureFromUri(sqlite3* db, const char* zDbName, int configDefault)
         {
           sqlite3mc_config(db, "hmac_check", hmacCheck);
         }
-        sqlite3mc_config(db, "mc_legacy_wal", walLegacy);
 
 #if HAVE_CIPHER_SQLCIPHER
         /* Special handling for SQLCipher */
         if (sqlite3_stricmp(cipherName, "sqlcipher") == 0)
         {
-          int legacy = (int) sqlite3_uri_int64(dbFileName, "legacy", 0);
+          sqlite3_int64 legacy = sqlite3_uri_int64(dbFileName, "legacy", 0);
           if (legacy > 0 && legacy <= SQLCIPHER_VERSION_MAX)
           {
             char* param = (configDefault) ? "default:legacy" : "legacy";
-            sqlite3mc_config_cipher(db, cipherName, param, legacy);
+            sqlite3mc_config_cipher(db, cipherName, param, (int)legacy);
             skipLegacy = 1;
           }
         }
@@ -873,7 +896,7 @@ sqlite3mcConfigureFromUri(sqlite3* db, const char* zDbName, int configDefault)
         /* Check all cipher specific parameters */
         for (j = 0; cipherParams[j].m_name[0] != 0; ++j)
         {
-          int value = -1;
+          sqlite3_int64 value = -1;
           if (skipLegacy && sqlite3_stricmp(cipherParams[j].m_name, "legacy") == 0) continue;
 
 #if HAVE_CIPHER_AEGIS
@@ -884,9 +907,9 @@ sqlite3mcConfigureFromUri(sqlite3* db, const char* zDbName, int configDefault)
           else
 #endif
           {
-            value = (int)sqlite3_uri_int64(dbFileName, cipherParams[j].m_name, -1);
+            value = sqlite3_uri_int64(dbFileName, cipherParams[j].m_name, -1);
           }
-          if (value >= 0)
+          if (value >= 0 && value <= 0x7fffffff)
           {
             /* Configure cipher parameter if it was given in the URI */
             const char* param = (configDefault) ? sqlite3_mprintf("default:%s", cipherParams[j].m_name) : cipherParams[j].m_name;
@@ -1008,13 +1031,6 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
       ((char**)pArg)[0] = sqlite3_mprintf("%d", value);
       rc = SQLITE_OK;
     }
-    else if (sqlite3StrICmp(pragmaName, "mc_legacy_wal") == 0)
-    {
-      int walLegacy = (pragmaValue != NULL) ? sqlite3GetBoolean(pragmaValue, 0) : -1;
-      int value = sqlite3mc_config(db, "mc_legacy_wal", walLegacy);
-      ((char**)pArg)[0] = sqlite3_mprintf("%d", value);
-      rc = SQLITE_OK;
-    }
     else if (sqlite3StrICmp(pragmaName, "mc_aes_info") == 0)
     {
       ((char**)pArg)[0] = sqlite3_mprintf("%s", aesHardwareAvailable() ? "hardware" : "software");
@@ -1076,20 +1092,21 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
               sqlite3mcIsHexKey((unsigned char*) pragmaValue, 2 * KEYSALT_LENGTH))
           {
             char* cipherSalt = sqlite3_mprintf("%s", pragmaValue);
-            if (sqlite3_set_clientdata(db, "sqlite3mc_cipher_salt", cipherSalt, sqlite3_free) != SQLITE_OK)
-            {
-              ((char**)pArg)[0] = sqlite3_mprintf("Out of memory. Cipher salt not saved.");
-              rc = SQLITE_ERROR;
-            }
-            else
+            if (cipherSalt != NULL &&
+                sqlite3_set_clientdata(db, "sqlite3mc_cipher_salt", cipherSalt, sqlite3_free) == SQLITE_OK)
             {
               ((char**)pArg)[0] = sqlite3_mprintf("ok");
               rc = SQLITE_OK;
             }
+            else
+            {
+              ((char**)pArg)[0] = sqlite3_mprintf("Out of memory. Cipher salt not saved.");
+              rc = SQLITE_ERROR;
+            }
           }
           else
           {
-            ((char**)pArg)[0] = sqlite3_mprintf("Invalid cipher salt. Length < %d or invalid hex digits.", 2 * KEYSALT_LENGTH);
+            ((char**)pArg)[0] = sqlite3_mprintf("Invalid cipher salt. Length < %d or invalid hex digits in '%s'.", 2 * KEYSALT_LENGTH, pragmaValue);
             rc = SQLITE_ERROR;
           }
         }
@@ -1313,29 +1330,23 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
       if (pragmaValue)
       {
         int intValue = -1;
-        if (0 == sqlite3StrICmp(pragmaValue, "none"))
+        if (0 == sqlite3StrICmp(pragmaValue, "none") ||
+            0 == sqlite3StrICmp(pragmaValue, "0"))
         {
           intValue = SECURE_MEMORY_NONE;
         }
-        else if (0 == sqlite3StrICmp(pragmaValue, "fill") )
+        else if (0 == sqlite3StrICmp(pragmaValue, "fill") ||
+                 0 == sqlite3StrICmp(pragmaValue, "1"))
         {
           intValue = SECURE_MEMORY_FILL;
         }
 #if SQLITE3MC_ENABLE_MEMLOCK
-        else if (0 == sqlite3StrICmp(pragmaValue, "lock") )
+        else if (0 == sqlite3StrICmp(pragmaValue, "lock") ||
+                 0 == sqlite3StrICmp(pragmaValue, "2"))
         {
           intValue = SECURE_MEMORY_LOCK;
         }
 #endif
-        else
-        {
-          intValue = sqlite3Atoi(pragmaValue);
-#if SQLITE3MC_ENABLE_MEMLOCK
-          intValue = (intValue >=0 && intValue <= 2) ? intValue : -1;
-#else
-          intValue = (intValue >=0 && intValue <= 1) ? intValue : -1;
-#endif
-        }
         if (intValue >= 0)
         {
           sqlite3mcSetMemorySecurity(intValue);
@@ -1433,10 +1444,10 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
 ** seen and return false if not.
 */
 SQLITE_PRIVATE int
-sqlite3mcCodecQueryParameters(sqlite3* db, const char* zDb, const char* zUri)
+sqlite3mcCodecQueryParameters(sqlite3* db, const char* zDb, const char* zUri, int* ret)
 {
   int rc = 1;
-  int ret = SQLITE_OK;
+  *ret = SQLITE_OK;
   const char* zKey;
   if ((zKey = sqlite3_uri_parameter(zUri, "hexkey")) != 0 && zKey[0])
   {
@@ -1453,29 +1464,30 @@ sqlite3mcCodecQueryParameters(sqlite3* db, const char* zDb, const char* zUri)
           iByte = (iByte << 4) + sqlite3HexToInt(zKey[i]);
           if ((i & 1) != 0) zDecoded[i / 2] = iByte;
         }
-        ret = sqlite3_key_v2(db, zDb, zDecoded, i / 2);
-        if (ret != SQLITE_OK)
-          sqlite3ErrorWithMsg(db, ret, "Setting up cipher key failed.");
+        *ret = sqlite3_key_v2(db, zDb, zDecoded, i / 2);
+        if (*ret != SQLITE_OK)
+          sqlite3ErrorWithMsg(db, *ret, "Setting up cipher key failed.");
         sqlite3mcSecureZeroMemory(zDecoded, nKey);
         sqlite3_free(zDecoded);
       }
     }
     else
     {
-      sqlite3ErrorWithMsg(db, SQLITE_ERROR, "Setting up cipher key failed due to invalid hexkey parameter.");
+      *ret = SQLITE_ERROR;
+      sqlite3ErrorWithMsg(db, *ret, "Setting up cipher key failed due to invalid hexkey parameter.");
     }
   }
   else if ((zKey = sqlite3_uri_parameter(zUri, "key")) != 0)
   {
-    ret = sqlite3_key_v2(db, zDb, zKey, sqlite3Strlen30(zKey));
-    if (ret != SQLITE_OK)
-      sqlite3ErrorWithMsg(db, ret, "Setting up cipher key failed.");
+    *ret = sqlite3_key_v2(db, zDb, zKey, sqlite3Strlen30(zKey));
+    if (*ret != SQLITE_OK)
+      sqlite3ErrorWithMsg(db, *ret, "Setting up cipher key failed.");
   }
   else if ((zKey = sqlite3_uri_parameter(zUri, "textkey")) != 0)
   {
-    ret = sqlite3_key_v2(db, zDb, zKey, -1);
-    if (ret != SQLITE_OK)
-      sqlite3ErrorWithMsg(db, ret, "Setting up cipher key failed.");
+    *ret = sqlite3_key_v2(db, zDb, zKey, -1);
+    if (*ret != SQLITE_OK)
+      sqlite3ErrorWithMsg(db, *ret, "Setting up cipher key failed.");
   }
   else
   {
@@ -1484,6 +1496,8 @@ sqlite3mcCodecQueryParameters(sqlite3* db, const char* zDb, const char* zUri)
   return rc;
 }
 
+SQLITE_PRIVATE int sqlite3mcIsEncryptionSupported(sqlite3* db, const char* zDbName);
+
 SQLITE_PRIVATE int
 sqlite3mcHandleAttachKey(sqlite3* db, const char* zName, const char* zPath, sqlite3_value* pKey, char** zErrDyn)
 {
@@ -1491,6 +1505,10 @@ sqlite3mcHandleAttachKey(sqlite3* db, const char* zName, const char* zPath, sqli
   int nKey;
   char* zKey;
   int keyType = sqlite3_value_type(pKey);
+  int canEncrypt = sqlite3mcIsEncryptionSupported(db, zName);
+  int hasUriKey = (sqlite3_uri_parameter(zPath, "key") != NULL) ||
+                  (sqlite3_uri_parameter(zPath, "hexkey") != NULL) ||
+                  (sqlite3_uri_parameter(zPath, "textkey") != NULL);
   switch (keyType)
   {
     case SQLITE_INTEGER:
@@ -1505,18 +1523,39 @@ sqlite3mcHandleAttachKey(sqlite3* db, const char* zName, const char* zPath, sqli
       /* Key parameter specified in ATTACH statement */
       nKey = sqlite3_value_bytes(pKey);
       zKey = (char*) sqlite3_value_blob(pKey);
-      rc = sqlite3mcCodecAttach(db, db->nDb - 1, zPath, zKey, nKey);
+      if (hasUriKey)
+      {
+        rc = SQLITE_ERROR;
+        *zErrDyn = sqlite3_mprintf("Key must not be specified both via KEY clause and via URI parameter");
+      }
+      else if (nKey > 0 && !canEncrypt)
+      {
+        rc = SQLITE_ERROR;
+        *zErrDyn = sqlite3_mprintf("VFS of database '%s' does not support encryption", zName);
+      }
+      else
+      {
+        rc = sqlite3mcCodecAttach(db, db->nDb - 1, zPath, zKey, nKey);
+      }
       break;
 
     case SQLITE_NULL:
       /* No key specified.  Use the key from URI filename, or if none,
       ** use the key from the main database. */
-      if (sqlite3mcCodecQueryParameters(db, zName, zPath) == 0)
+      if (sqlite3mcCodecQueryParameters(db, zName, zPath, &rc) == 0)
       {
         sqlite3mcCodecGetKey(db, 0, (void**) &zKey, &nKey);
         if (nKey)
         {
-          rc = sqlite3mcCodecAttach(db, db->nDb - 1, zPath, zKey, nKey);
+          if (canEncrypt)
+          {
+            rc = sqlite3mcCodecAttach(db, db->nDb - 1, zPath, zKey, nKey);
+          }
+          else
+          {
+            rc = SQLITE_ERROR;
+            *zErrDyn = sqlite3_mprintf("VFS of database '%s' does not support encryption", zName);
+          }
         }
       }
       break;
@@ -1531,7 +1570,7 @@ sqlite3mcHandleMainKey(sqlite3* db, const char* zPath)
   int rc = sqlite3mcConfigureFromUri(db, zPath, 1);
   if (rc == SQLITE_OK)
   {
-    sqlite3mcCodecQueryParameters(db, "main", zPath);
+    sqlite3mcCodecQueryParameters(db, "main", zPath, &rc);
   }
   return rc;
 }

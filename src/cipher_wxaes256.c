@@ -97,7 +97,6 @@ CloneAES256Cipher(void* cipherTo, void* cipherFrom)
   aesCipherTo->m_keyLength = aesCipherFrom->m_keyLength;
   memcpy(aesCipherTo->m_key, aesCipherFrom->m_key, KEYLENGTH_AES256);
   sqlite3mcAesCbcWipe(aesCipherTo->m_aes);
-  sqlite3mcAesCbcWipe(aesCipherFrom->m_aes);
 }
 
 static int
@@ -148,7 +147,7 @@ GenerateKeyAES256Cipher(void* cipher, char* userPassword, int passwordLength, in
   sqlite3mcPadPassword(userPassword, passwordLength, userPad);
 
   sha256(userPad, 32, digest);
-  for (k = 0; k < CODEC_SHA_ITER; ++k)
+  for (k = 0; k < aesCipher->m_kdfIter; ++k)
   {
     sha256(digest, KEYLENGTH_AES256, digest);
   }

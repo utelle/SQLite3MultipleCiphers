@@ -29,11 +29,16 @@ EM_JS(int, wasm_crypto_getrandom, (uint8_t* buf, size_t n),
     return -1;
   try
   {
-    var view = new Uint8Array(HEAPU8.buffer, buf, n);
     var chunk = 65536;
+    /* Temporary buffer is never shared, so this also works when
+     * HEAPU8.buffer is a SharedArrayBuffer (e.g. -pthread). */
+    var tmp = new Uint8Array(Math.min(n, chunk));
     for (var i = 0; i < n; i += chunk)
     {
-      crypto.getRandomValues(view.subarray(i, Math.min(i + chunk, n)));
+      var len = Math.min(chunk, n - i);
+      var part = (len === tmp.length) ? tmp : tmp.subarray(0, len);
+      crypto.getRandomValues(part);
+      HEAPU8.set(part, buf + i);
     }
     return 0;
   }
@@ -172,7 +177,11 @@ static int wait_for_random_pool(void)
 
   do
   {
+#ifdef O_CLOEXEC
+    fd = open("/dev/random", O_RDONLY | O_CLOEXEC, 0);
+#else
     fd = open("/dev/random", O_RDONLY, 0);
+#endif
   }
   while (fd == -1 && errno == EINTR);
   if (fd == -1)
@@ -188,7 +197,7 @@ static int wait_for_random_pool(void)
   }
   while (ret == -1 && (errno == EINTR || errno == EAGAIN));
   close(fd);
-  return (ret == 1) ? 0 : -1;
+  return (ret == 1 && (pfd.revents & POLLIN)) ? 0 : -1;
 }
 #endif
 

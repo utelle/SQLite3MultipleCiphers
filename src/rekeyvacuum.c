@@ -58,17 +58,17 @@ SQLITE_PRIVATE SQLITE_NOINLINE int sqlite3mcRunVacuumForRekey(
 
   if( !db->autoCommit ){
     sqlite3SetString(pzErrMsg, db, "cannot VACUUM from within a transaction");
-    return SQLITE_ERROR; /* IMP: R-12218-18073 */
+    return sqlite3mcRekeySetFinalCipher(SQLITE_ERROR, codec); /* IMP: R-12218-18073 */
   }
   if( db->nVdbeActive>1 ){
     sqlite3SetString(pzErrMsg, db,"cannot VACUUM - SQL statements in progress");
-    return SQLITE_ERROR; /* IMP: R-15610-35227 */
+    return sqlite3mcRekeySetFinalCipher(SQLITE_ERROR, codec); /* IMP: R-15610-35227 */
   }
   saved_openFlags = db->openFlags;
   if( pOut ){
     if( sqlite3_value_type(pOut)!=SQLITE_TEXT ){
       sqlite3SetString(pzErrMsg, db, "non-text filename");
-      return SQLITE_ERROR;
+      return sqlite3mcRekeySetFinalCipher(SQLITE_ERROR, codec);
     }
     zOut = (const char*)sqlite3_value_text(pOut);
     db->openFlags &= ~SQLITE_OPEN_READONLY;
@@ -291,6 +291,13 @@ SQLITE_PRIVATE SQLITE_NOINLINE int sqlite3mcRunVacuumForRekey(
   }
 
 end_of_vacuum:
+  if( rc!=SQLITE_OK && codec->m_rekeyPending ){
+    sqlite3mcRekeySetFinalCipher(rc, codec);
+    if( sqlite3BtreeTxnState(pMain)!=SQLITE_TXN_NONE ){
+      sqlite3BtreeRollback(pMain, SQLITE_OK, 0);
+    }
+  }
+
   /* Restore the original value of db->flags */
   db->init.iDb = 0;
   db->mDbFlags = saved_mDbFlags;
