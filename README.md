@@ -36,7 +36,7 @@ Note
 {: .label .label-red .ml-0 .mb-1 .mt-2 }
 **SQLite3 Multiple Ciphers** has more or less the same limitations as the official [SQLite Encryption Extension (SEE)](https://www.sqlite.org/see):
 
-  1. `TEMP` tables are not encrypted.
+  1. `TEMP` tables are not encrypted. (Restriction removed since version 2.6.0)
   2. In-memory (`":memory:"`) databases are not encrypted.
   3. Bytes 16 through 23 of the database file contain header information that is usually **not** encrypted.
 

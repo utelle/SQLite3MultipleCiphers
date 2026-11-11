@@ -31,3 +31,15 @@ When creating a temporary file, a random key is generated as needed and stored i
 ### Technical Implementation
 
 Since SQLite's temporary files have very different structures, they are stored in fixed-length blocks regardless of their structure. Each block has an 8-byte prefix containing its current nonce. For temporary and transient databases, however, care is taken to ensure that the block size is chosen according to the size of the database pages in order to make access as efficient as possible.
+
+### Configuration
+
+If the main database is not encrypted, temporary files—and, in particular, a temporary database (if one is created)—will also not be encrypted, unless at least one encrypted database was attached via ATTACH at the time the temporary files were created.
+
+In some use cases, this behavior is undesirable. Therefore, starting with version 2.7.0, it is possible to enable encryption of temporary files using a pragma statement, regardless of the encryption status of the main database:
+
+```sql
+PRAGMA encrypt_temp_db [ = { 1 | on | yes | true } ];
+```
+
+By default, this feature is disabled. You can check whether temporary files are encrypted by calling the pragma without assigning a value. This feature can only be **enabled** within an open connection. Once enabled, it remains active until the connection is closed. Only temporary files created after the feature is enabled will be encrypted.

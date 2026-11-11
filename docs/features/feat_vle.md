@@ -2,7 +2,7 @@
 layout: default
 title: Value Level Encryption
 parent: Features
-nav_order: 2
+nav_order: 3
 ---
 # Value Level Encryption (VLE)
 {: .no_toc }
