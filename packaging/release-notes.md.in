@@ -1,14 +1,17 @@
 ## Changes since previous release
 
-This is a maintenance release. It fixes build problems with some toolchains and
-target platforms that were discovered after the release of version 2.6.0.
-There are no functional changes. For the changes introduced in version 2.6.0
-please refer to the [release notes of version 2.6.0](https://github.com/utelle/SQLite3MultipleCiphers/releases/tag/v2.6.0).
+This release includes a number of minor and major improvements and fixes a number of bugs that have been discovered since the last release.
 
-### Fixed
+- Based on SQLite version 3.54.1
+- Improved handling of failures (like OOM)
+- Improved handling of raw key and salt
+- Fixed problems with the _ChaCha20_ hardware acceleration introduced in version 2.6.0
+- Fixed several issues in the VLE feature
+- Fixed many other issues
 
-- Fixed build failure with older Emscripten versions (for example, emsdk 2.0.23 as used for .NET 6.0 WebAssembly): `explicit_bzero()` is now only used with Emscripten 3.x or newer. Older versions fall back to the generic implementation in `sqlite3mcSecureZeroMemory()`.
-- Fixed build failure on 32-bit targets (for example, armhf) caused by the 128-bit integer type used in the _poly1305_ code: the 128-bit type (and the 64-bit _poly1305_ implementation based on it) is now only used if the compiler provides `__int128` (`__SIZEOF_INT128__` is defined). Otherwise, the 32-bit implementation is used.
+Details can be found in the [change log](https://github.com/utelle/SQLite3MultipleCiphers/blob/main/CHANGELOG.md) and the [commit history](https://github.com/utelle/SQLite3MultipleCiphers/commits/main/).
+
+**An update is strongly recommended.**
 
 > [!IMPORTANT]
 > :pushpin: The _amalgamation source package_ including `configure` is _still_ **experimental**. :pushpin:

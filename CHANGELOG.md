@@ -28,7 +28,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - _VLE_: **Breaking (UTF-16 databases only):** TEXT passphrase and salt of `sqlite3mc_vle_key()` are now always interpreted as UTF-8. Databases with UTF-8 encoding (the default) are not affected. For UTF-16 databases, the previous key can be reproduced by passing the passphrase and salt as `CAST(... AS BLOB)`.
 - _VLE_: FLOAT values are rejected as scope when encrypting or when decrypting version 2 values (use `CAST(... AS TEXT)`).
 - _VLE_: A TEXT scope is now used as UTF-8 for version 2 values, independent of the database encoding.
-
+- Improved handling of raw key and salt
+  The specification of raw key and salt was ambigous. This has been changed by introducing a secondary prefix in addition to the primary prefix "raw:":
+  - Prefix "raw:bin:" - the value is interpreted as a binary string
+  - Prefix "raw:hex:" - the value is interpreted as a hexadecimal string
+  - Prefix "raw:" will be interpreted as a
+    - hexadecimal string if it consists of hexadecimal characters only
+    - binary string if it contains at least 1 non-hexadecimal character
+  In all cases the input length (excluding the prefix) must match the expected length:
+  - hexadecimal: 2*keyLength or 2*(keyLength+saltLength)
+  - binary: keyLength or (keyLength+saltLength)
+  An invalid input length or an invalid encoding will be reported as an error.
+- Improved cipher configuration
+  - The SQL function sqlite3mc_config did not fully check for valid parameter values (like valid page sizes). This has been fixed. In case of invalid parameter values error messages are now returned instead of NULL values.
+  - Integer URI and VLE parameters are now handled as 64-bit values to avoid automatic conversion to 32-bit values. This allows improved range checks.
+  - Key specification in ATTACH statements is now checked properly to prevent silently ignoring encryption if the VFS of the attached database doesn't support encryption.
+- Removed support for WAL legacy mode
+- Prevent ChaCha20 counter overflow
+  A counter overflow is handled differently in the hardware-accelerated ChaCha20 implementations than in the scalar implementation. A counter overflow is now prevented, so that all ChaCha20 implementations deliver the same encryption.
 
 ### Fixed
 
@@ -49,6 +66,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - _VLE_: Missing check of the return value of `sqlite3_set_clientdata` in the VLE context setup (potential use after free on out-of-memory).
 - _VLE_: Plaintext remained in the buffer after a failed authentication; temporary buffers are now wiped.
 - _VLE_: Corrupt decrypted values led to a silent NULL result instead of an error.
+- Fixed various mutex issues
+- Fixed codec use in sqlite3_deserialize
 
 ### Compatibility note
 
