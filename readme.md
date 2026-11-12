@@ -12,8 +12,7 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 - 2.7.0 - *November 2026*
   - Based on SQLite version 3.54.1
-  - Improved handling of failures (like OOM)
-  - Improved handling of raw key and salt
+  - Focuses on robustness and security hardening.
   - Fixed problems with the _ChaCha20_ hardware acceleration introduced in version 2.6.0
   - Fixed several issues in the VLE feature
   - Fixed many other issues

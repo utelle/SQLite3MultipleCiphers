@@ -1,17 +1,37 @@
 ## Changes since previous release
 
-This release includes a number of minor and major improvements and fixes a number of bugs that have been discovered since the last release.
+This release focuses on robustness and security hardening.
 
-- Based on SQLite version 3.54.1
-- Improved handling of failures (like OOM)
-- Improved handling of raw key and salt
-- Fixed problems with the _ChaCha20_ hardware acceleration introduced in version 2.6.0
-- Fixed several issues in the VLE feature
-- Fixed many other issues
+**An update is strongly recommended.**
 
 Details can be found in the [change log](https://github.com/utelle/SQLite3MultipleCiphers/blob/main/CHANGELOG.md) and the [commit history](https://github.com/utelle/SQLite3MultipleCiphers/commits/main/).
 
-**An update is strongly recommended.**
+### Security
+
+- Key setup errors (URI parameters, `ATTACH`, also with another VFS) can no longer silently result in an unencrypted database
+- VLE: the scope is now cryptographically bound to encrypted values (new value format version 2). Existing values stay readable until re-encrypted, see the CHANGELOG for the migration.
+- Argon2: the result of the key derivation is now checked; invalid parameters are rejected
+
+### Fixes
+
+- Backup API could deliver corrupted databases (#280)
+- Reworked rekey handling, hot-journal detection and handling of partial page reads (#291–#294)
+- ChaCha20 counter overflow prevented, so that all implementations deliver identical results
+- Many mutex/thread-safety and out-of-memory fixes, including a deadlock with sorter worker threads
+- Build fixes for WebAssembly/WASI (#286, new option `SQLITE3MC_WASM_USE_GETENTROPY`) and for platforms without `memset_s` (wxSQLite3 #134)
+
+### New
+
+- VLE: `sqlite3mc_vle_version()`, option `legacy=0|1`, INTEGER scopes
+- Raw keys/salts can be specified unambiguously with the prefixes `raw:hex:` and `raw:bin:`
+
+### Compatibility notes
+- WAL legacy mode is no longer supported
+- `aes256cbc` now obeys `kdf_iter`; `sqlite3mc_config` returns the actually active value and is, like `sqlite3mc_codec_data`, direct-only
+- VLE passphrase/salt in UTF-16 databases are now interpreted as UTF-8
+- Encryption for temporary files must be enabled before a temporary database is used
+
+## Release Summary
 
 > [!IMPORTANT]
 > :pushpin: The _amalgamation source package_ including `configure` is _still_ **experimental**. :pushpin:

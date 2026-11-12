@@ -12,12 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - _VLE_: `sqlite3mc_vle_version(value)`: returns the format version of a VLE value (NULL if the argument is not a VLE value).
 - _VLE_: Option `legacy=0|1` for `sqlite3mc_vle_key()` (default 1): when 0, values in format version 1 are rejected on decryption.
 - _VLE_: INTEGER values are accepted as scope (equivalent to `CAST(scope AS TEXT)`).
+- Added compile-time symbol `SQLITE3MC_WASM_USE_GETENTROPY` to select `getentropy()` instead of `__wasi_random_get()` for random number generation on WASI targets.
 
 ### Changed
 
 - Based on SQLite version 3.54.1
 - Updated several SQLite extensions
-- Added return type to function `sqlite3mcRekeySetFinalCipher`
 - Added various missing OOM checks
 - Removed unused function from AEGIS cipher implementation
 - _Argon2_ parameters are now validated:
@@ -36,16 +36,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - hexadecimal string if it consists of hexadecimal characters only
     - binary string if it contains at least 1 non-hexadecimal character
   In all cases the input length (excluding the prefix) must match the expected length:
-  - hexadecimal: 2*keyLength or 2*(keyLength+saltLength)
-  - binary: keyLength or (keyLength+saltLength)
+  - hexadecimal: `2*keyLength` or `2*(keyLength+saltLength)`
+  - binary: `keyLength` or `(keyLength+saltLength)`
   An invalid input length or an invalid encoding will be reported as an error.
+  For the SQLCipher notation the behaviour is the same as in the original: any value that does not exactly match the raw key format is treated as a normal passphrase.
 - Improved cipher configuration
-  - The SQL function sqlite3mc_config did not fully check for valid parameter values (like valid page sizes). This has been fixed. In case of invalid parameter values error messages are now returned instead of NULL values.
-  - Integer URI and VLE parameters are now handled as 64-bit values to avoid automatic conversion to 32-bit values. This allows improved range checks.
+  - The SQL function `sqlite3mc_config` did not fully check for valid parameter values (like valid page sizes). This has been fixed. In case of invalid parameter values error messages are now returned instead of NULL values.
+  - Integer parameters (including URI and VLE parameters) are now read as 64-bit values and checked against the valid 32-bit range. Oversized values are rejected instead of being silently converted (previously they could wrap to small, accepted values).
   - Key specification in ATTACH statements is now checked properly to prevent silently ignoring encryption if the VFS of the attached database doesn't support encryption.
+  - Cipher parameter tables exist per connection. The global parameter tables cannot be changed through a connection.
+- Cipher _aes256cbc_ now obeys a change of the parameter `kdf_iter`. Previously the parameter was accepted, but always 4001 iterations were used.
 - Removed support for WAL legacy mode
 - Prevent ChaCha20 counter overflow
   A counter overflow is handled differently in the hardware-accelerated ChaCha20 implementations than in the scalar implementation. A counter overflow is now prevented, so that all ChaCha20 implementations deliver the same encryption.
+- Options `SQLITE_ENABLE_ATOMIC_WRITE` and `SQLITE_ENABLE_BATCH_ATOMIC_WRITE` are now disabled (also removed from the Android build), as atomic-write journal handling is not supported by the encryption layer
+- Functions `sqlite3mc_config` and `sqlite3mc_codec_data` are now registered as direct-only (they can no longer be used in triggers, views, etc.)
+- The maximum length of cipher names (custom cipher registration) was increased to 64, as documented (names up to 63 characters)
+- Restructured rekey operation
+- Improved initialization sequence and error handling (mainly VFS)
 
 ### Fixed
 
@@ -60,18 +68,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Do not change salt on rekeying, unless explicitly requested (pragma rekey_salt)
   - Added checks to identify encrypted database and hot journal to prevent removing a valid journal
 - Fixed issue [#280](../../issues/#280) - Check in backup procedure corrected
+- Fixed issue [#286](../../issues/286) - Issues compiling versions 2.6.0 and 2.6.1 to WebAssembly
+  - Defining the symbol `SQLITE3MC_WASM_USE_GETENTROPY` restores the behaviour of versions < 2.6.0 (use of `getentropy()` instead of `__wasi_random_get()`)
+  - The order of checks in `sqlite3mcSecureZeroMemory` was changed, so that `explicit_bzero` is used on WASI targets even if the compiler defaults to C23 (`memset_explicit` is not available in wasi libc)
+- Fixed _wxSQLite3_ issue [#134](https://github.com/utelle/wxsqlite3/issues/134) - Build fails if `memset_s` is unavailable (for example, on PowerPC macOS). The selection of the secure zeroing function via preprocessor macros was adjusted (this also fixes the function selection for NetBSD).
+- Errors occurring during key setup via URI parameters are now passed up (previously a database could silently be left unencrypted)
 - Fixed bugs in VLE feature and improved error handling
 - **Argon2: return code of key derivation is now checked.**
   Previously, _SQLite3 Multiple Ciphers_ did not evaluate the return value of the _Argon2_ key derivation function. If _Argon2_ rejected the parameters (e.g. `mcost < 8 * pcost`) or failed internally (e.g. memory allocation failure), the error was silently ignored and the cipher continued with a key that had not been derived from the passphrase. Such failures are now detected and reported as an error, e.g. by `PRAGMA key`, `PRAGMA rekey`, `sqlite3_key`, `sqlite3_rekey` and when opening a database.
 - _VLE_: Missing check of the return value of `sqlite3_set_clientdata` in the VLE context setup (potential use after free on out-of-memory).
 - _VLE_: Plaintext remained in the buffer after a failed authentication; temporary buffers are now wiped.
 - _VLE_: Corrupt decrypted values led to a silent NULL result instead of an error.
-- Fixed various mutex issues
+- Fixed encryption of temporary files; stale counter data behind the end of a temporary file is now cleared
+- Fixed deadlock caused by sorter worker threads
+- Fixed various mutex issues; access to global state variables (including cached CPU and AES hardware features) is now thread-safe
 - Fixed codec use in sqlite3_deserialize
+- Cloning a cipher no longer invalidates the source cipher
+- The secure memory allocator is no longer wrapped twice
+- Errors on adjusting the page size while setting the key are now reported (previously ignored)
+- `PRAGMA cipher_salt`: an allocation failure no longer deletes the pending salt
+- `sqlite3mc_cipher_name_copy`: the size of the result buffer is now checked (previously a zero-size buffer could be written to)
+- Cipher schemes _aes128cbc_ and _aes256cbc_: fixed signed integer overflow (undefined behaviour) in the IV derivation at page number 2^31-1
+- Fixed order of two entry pairs in the core dispatch table (`preupdate_old/new`, `win32_set_directory8/16`)
+- Fixed opening of `/dev/random` (now with `O_CLOEXEC`)
 
 ### Compatibility note
 
-Applications that used _Argon2_ parameter combinations rejected by the _Argon2_ library will now receive an error instead of continuing silently.
+- Applications that used _Argon2_ parameter combinations rejected by the _Argon2_ library will now receive an error instead of continuing silently.
+- Databases created with _aes256cbc_ and a non-default `kdf_iter` value were actually encrypted with 4001 iterations. To open such databases, set `kdf_iter` to 4001.
+- Applications must enable encryption (i.e. specify the key) before using a temporary database. Temporary files opened while encryption was not yet enabled are not encrypted.
+- For legacy _SQLCipher_ databases setting `legacy` != 0 is mandatory. The compile-time defaults are only valid for non-legacy databases.
+- WAL legacy mode is no longer supported.
 
 ### VLE Migration
 
@@ -92,6 +119,7 @@ disable legacy reading:
   - Values encrypted with `sqlite3mc_vle_encrypt()` under one scope could be decrypted successfully under another scope using the same VLE key (ASCON128: scope had no effect at all; ChaCha20: weak derivation; both: non-TEXT/BLOB scopes silently mapped to the default scope).
   - New values are written in format version 2, in which the scope is cryptographically bound via a derived subkey.
   - Existing values (format version 1) remain readable but keep the old weakness until they are re-encrypted.
+- Errors during key setup via URI parameters and key specifications in `ATTACH` statements (including attached databases using a different VFS) can no longer silently result in an unencrypted database.
 
 ## [2.6.1] - 2026-10-12
 
