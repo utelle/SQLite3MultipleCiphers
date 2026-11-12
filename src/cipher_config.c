@@ -205,21 +205,21 @@ sqlite3mc_cipher_name_copy(int cipherIndex, char* cipherName, int maxCipherNameS
   if (globalCipherName)
   {
     int cipherNameLen = (int)strlen(globalCipherName) + 1;
-    if (maxCipherNameSize >= cipherNameLen)
+    if (cipherName != NULL && maxCipherNameSize >= cipherNameLen)
     {
       strncpy(cipherName, globalCipherName, maxCipherNameSize - 1);
       cipherName[maxCipherNameSize - 1] = '\0';
     }
     else
     {
-      /* Buffer too small, return negative value of minimum required buffer length */
+      /* Buffer too small or NULL, return negative value of minimum required buffer length */
       ok = -cipherNameLen;
     }
   }
   else
   {
     /* Invalid index */
-    if (maxCipherNameSize >= 1)
+    if (cipherName != NULL && maxCipherNameSize >= 1)
     {
       cipherName[0] = '\0';
     }
