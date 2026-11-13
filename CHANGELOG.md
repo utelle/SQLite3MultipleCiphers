@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.7.0] - 2026-11-13
+
 ### Added
 
 - _VLE_: `sqlite3mc_vle_version(value)`: returns the format version of a VLE value (NULL if the argument is not a VLE value).
@@ -952,7 +954,8 @@ The following ciphers are supported:
 - AES 256 Bit CBC - SHA1/SHA256/SHA512 HMAC ([SQLCipher](https://www.zetetic.net/sqlcipher/), database versions 1, 2, 3, and 4)
 - RC4 - No HMAC ([System.Data.SQLite](http://system.data.sqlite.org))
 
-[Unreleased]: ../../compare/v2.6.1...HEAD
+[Unreleased]: ../../compare/v2.7.0...HEAD
+[2.7.0]: ../../compare/v2.6.1...v2.7.0
 [2.6.1]: ../../compare/v2.6.0...v2.6.1
 [2.6.0]: ../../compare/v2.5.1...v2.6.0
 [2.5.1]: ../../compare/v2.5.0...v2.5.1
