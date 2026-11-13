@@ -1211,7 +1211,7 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
       int nValue = sqlite3Strlen30(pragmaValue);
       if (((nValue & 1) == 0) && (sqlite3mcIsHexKey((const unsigned char*) pragmaValue, nValue) != 0))
       {
-        unsigned char* zHexKey = sqlite3_malloc(nValue/2);
+        unsigned char* zHexKey = sqlite3_malloc(nValue/2+1);
         if (zHexKey != NULL)
         {
           sqlite3mcConvertHex2Bin((const unsigned char*)pragmaValue, nValue, zHexKey);
@@ -1269,7 +1269,7 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
       int nValue = sqlite3Strlen30(pragmaValue);
       if (((nValue & 1) == 0) && (sqlite3mcIsHexKey((const unsigned char*) pragmaValue, nValue) != 0))
       {
-        unsigned char* zHexKey = sqlite3_malloc(nValue/2);
+        unsigned char* zHexKey = sqlite3_malloc(nValue/2+1);
         if (zHexKey != NULL)
         {
           sqlite3mcConvertHex2Bin((const unsigned char*)pragmaValue, nValue, zHexKey);
@@ -1435,9 +1435,10 @@ sqlite3mcCodecQueryParameters(sqlite3* db, const char* zDb, const char* zUri, in
     int nKey = sqlite3Strlen30(zKey);
     if (((nKey & 1) == 0) && (sqlite3mcIsHexKey((const unsigned char*)zKey, nKey) != 0))
     {
-      char* zDecoded = sqlite3_malloc(nKey);
+      char* zDecoded = sqlite3_malloc(nKey+1);
       if (zDecoded != NULL)
       {
+        zDecoded[0] = '\0';
         for (i = 0, iByte = 0; i < nKey && sqlite3Isxdigit(zKey[i]); i++)
         {
           iByte = (iByte << 4) + sqlite3HexToInt(zKey[i]);
