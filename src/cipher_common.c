@@ -326,6 +326,21 @@ sqlite3mcSetupWriteCipher(Codec* codec, int cipherType, char* userPassword, int 
   if (codec->m_writeCipher != NULL)
   {
     /*
+    ** The spare write cipher was allocated as a copy of the read cipher using the current cipher
+    ** parameters (which were potentially transient only). If the new write cipher is of the same
+    ** type, transient parameters were replaced by the default parameter values already. Thus, the
+    ** wrong set of parameter values would be used for the new write cipher.
+    ** Therefore the parameter values of the spare write cipher will be copied to the new write cipher,
+    ** so that the correct parameter values will be used, independent of whether the cipher configuration
+    ** was transient or default.
+    ** This is only necessary, if the database is actually encrypted.
+    */
+    if (codec->m_spareWrite.m_cipher != NULL && codec->m_writeCipherType == codec->m_spareWrite.m_cipherType)
+    {
+      globalCodecDescriptorTable[codec->m_writeCipherType - 1].m_cloneCipher(codec->m_writeCipher, codec->m_spareWrite.m_cipher);
+    }
+
+    /*
     ** Check for salt
     ** 1. rekey salt (via pragma)
     ** 2. cipher_salt (via pragma or URI parameter)
