@@ -29,6 +29,11 @@ EM_JS(int, wasm_crypto_getrandom, (uint8_t* buf, size_t n),
     return -1;
   try
   {
+    /* With -sMEMORY64=1, pointers and size_t arrive as BigInt.
+     * Number() accepts both Number and BigInt. */
+    buf = Number(buf);
+    n = Number(n);
+
     var chunk = 65536;
     /* Temporary buffer is never shared, so this also works when
      * HEAPU8.buffer is a SharedArrayBuffer (e.g. -pthread). */
