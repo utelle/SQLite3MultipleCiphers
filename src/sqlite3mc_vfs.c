@@ -796,7 +796,7 @@ static Codec* mcGetCodecFromBtree(Btree* pBt)
   Pager* pPager = sqlite3BtreePager(pBt);
   if (pPager->fd && pPager->fd->pMethods)   /* corresponds to isOpen(fd) */
   {
-    sqlite3OsFileControl(pPager->fd, SQLITE3MC_FCNTL_PCODEC, &codec);
+    sqlite3OsFileControlHint(pPager->fd, SQLITE3MC_FCNTL_PCODEC, &codec);
   }
   return codec;
 }
@@ -2228,12 +2228,9 @@ sqlite3mcPagerHasCodec(PagerMC* pPager)
   if (pPager->fd && pPager->fd->pMethods)   /* corresponds to isOpen(fd) */
   {
     Codec* codec = NULL;
-    int rc = sqlite3OsFileControl(pPager->fd, SQLITE3MC_FCNTL_PCODEC, &codec);
-    if (rc == SQLITE_OK)
-    {
-      /* Check whether codec is enabled for associated database file */
-      hasCodec = (codec != 0 && sqlite3mcIsEncrypted(codec));
-    }
+    sqlite3OsFileControlHint(pPager->fd, SQLITE3MC_FCNTL_PCODEC, &codec);
+    /* Check whether codec is enabled for associated database file */
+    hasCodec = (codec != 0 && sqlite3mcIsEncrypted(codec));
   }
   return hasCodec;
 }
