@@ -10,12 +10,10 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version information
 
-- 2.7.0 - *November 2026*
-  - Based on SQLite version 3.54.1
-  - Focuses on robustness and security hardening.
-  - Fixed problems with the _ChaCha20_ hardware acceleration introduced in version 2.6.0
-  - Fixed several issues in the VLE feature
-  - Fixed many other issues
+- 2.7.1 - *November 2026*
+  - Fixed issue #308 - In 64-bit WASM builds random number generation aborts. 32-bit WASM builds are not affected.
+  - Fixed issue #309 - `sqlite3_rekey` did not use the transient cipher parameter values, if the old and new cipher scheme were identical. Instead the default values were used. The expected behaviour has been restored.
+  - Fixed issue #310 - Call `sqlite3OsFileControlHint` instead of `sqlite3OsFileControl` to check whether a codec is in use. Only `SQLITE_TEST` builds are affected
 
 For details and further version information please consult the [CHANGELOG](CHANGELOG.md).
 

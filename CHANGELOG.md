@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.7.1] - 2026-11-15
+
+### Fixed
+
+- Fixed issue [#308](../../issues/#308) - In 64-bit WASM builds random number generation aborts. Most likely the cause is that parameters are passed as `BigInt`. The parameters are now converted to `Number` to avoid the problem.
+- Fixed issue [#309](../../issues/#309) - `sqlite3_rekey` did not use the transient cipher parameter values, if the old and new cipher scheme were identical. Instead the default values were used. The expected behaviour has been restored.
+- Fixed issue [#310](../../issues/#310) - Call `sqlite3OsFileControlHint` instead of `sqlite3OsFileControl` to check whether a codec is in use.
+  Only SQLITE_TEST builds are affected by the problem described in the issue ("Codec lookup through `SQLITE3MC_FCNTL_PCODEC` swallows simulated allocation failures in `SQLITE_TEST` builds")
+
 ## [2.7.0] - 2026-11-13
 
 ### Added
@@ -954,7 +963,8 @@ The following ciphers are supported:
 - AES 256 Bit CBC - SHA1/SHA256/SHA512 HMAC ([SQLCipher](https://www.zetetic.net/sqlcipher/), database versions 1, 2, 3, and 4)
 - RC4 - No HMAC ([System.Data.SQLite](http://system.data.sqlite.org))
 
-[Unreleased]: ../../compare/v2.7.0...HEAD
+[Unreleased]: ../../compare/v2.7.1...HEAD
+[2.7.1]: ../../compare/v2.7.0...v2.7.1
 [2.7.0]: ../../compare/v2.6.1...v2.7.0
 [2.6.1]: ../../compare/v2.6.0...v2.6.1
 [2.6.0]: ../../compare/v2.5.1...v2.6.0
