@@ -124,20 +124,25 @@ sqlite3mcAES128(AesCtx* aesCtx, int page, int encrypt, unsigned char encryptionK
   sqlite3mcGenerateInitialVector(page, initial);
 
   int flags = (encrypt) ? AES_FOR_ENCRYPT : AES_FOR_DECRYPT;
-  sqlite3mcAesCbcInit(aesCtx, pagekey, KEYLENGTH_AES128, flags);
+  rc = sqlite3mcAesCbcInit(aesCtx, pagekey, KEYLENGTH_AES128, flags);
 #if 0
   RijndaelInit(aesCtx, RIJNDAEL_Direction_Mode_CBC, direction, pagekey, RIJNDAEL_Direction_KeyLength_Key16Bytes, initial);
 #endif
+  if (rc != SQLITE_OK)
+  {
+    /* No usable AES implementation: report the error, never leave the data unencrypted */
+    return rc;
+  }
   if (encrypt)
   {
-    sqlite3mcAesCbcEncrypt(aesCtx, initial, datain, datalen);
+    rc = sqlite3mcAesCbcEncrypt(aesCtx, initial, datain, datalen);
 #if 0
     len = RijndaelBlockEncrypt(aesCtx, datain, datalen*8, dataout);
 #endif
   }
   else
   {
-    sqlite3mcAesCbcDecrypt(aesCtx, initial, datain, datalen);
+    rc = sqlite3mcAesCbcDecrypt(aesCtx, initial, datain, datalen);
 #if 0
     len = RijndaelBlockDecrypt(aesCtx, datain, datalen*8, dataout);
 #endif
@@ -190,20 +195,25 @@ sqlite3mcAES256(AesCtx* aesCtx, int page, int encrypt, unsigned char encryptionK
   sqlite3mcGenerateInitialVector(page, initial);
 
   int flags = (encrypt) ? AES_FOR_ENCRYPT : AES_FOR_DECRYPT;
-  sqlite3mcAesCbcInit(aesCtx, pagekey, KEYLENGTH_AES256, flags);
+  rc = sqlite3mcAesCbcInit(aesCtx, pagekey, KEYLENGTH_AES256, flags);
 #if 0
   RijndaelInit(aesCtx, RIJNDAEL_Direction_Mode_CBC, direction, pagekey, RIJNDAEL_Direction_KeyLength_Key32Bytes, initial);
 #endif
+  if (rc != SQLITE_OK)
+  {
+    /* No usable AES implementation: report the error, never leave the data unencrypted */
+    return rc;
+  }
   if (encrypt)
   {
-    sqlite3mcAesCbcEncrypt(aesCtx, initial, datain, datalen);
+    rc = sqlite3mcAesCbcEncrypt(aesCtx, initial, datain, datalen);
 #if 0
     len = RijndaelBlockEncrypt(aesCtx, datain, datalen*8, dataout);
 #endif
   }
   else
   {
-    sqlite3mcAesCbcDecrypt(aesCtx, initial, datain, datalen);
+    rc = sqlite3mcAesCbcDecrypt(aesCtx, initial, datain, datalen);
 #if 0
     len = RijndaelBlockDecrypt(aesCtx, datain, datalen*8, dataout);
 #endif
