@@ -72,6 +72,11 @@ jobs:
         make threadtest
         ./threadtest
 
+    - name: Crash tests
+      run: |
+        make crashtest
+        ./crashtest
+
   android_build:
     name: Android (API ${{ matrix.api-level }})
     runs-on: ubuntu-latest
