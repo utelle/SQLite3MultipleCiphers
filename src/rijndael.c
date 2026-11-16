@@ -79,13 +79,6 @@
 #define TEST_AES_HW_DEBUG_HEX(DESC,BUFFER,LEN)
 #endif
 
-#if 0
-/*
-** Use AES hardware support if available
-*/
-#include "aes_hardware.c"
-#endif
-
 static UINT8 S[256]=
 {
    99, 124, 119, 123, 242, 107, 111, 197,  48,   1, 103,  43, 254, 215, 171, 118,
@@ -1072,34 +1065,6 @@ int RijndaelInit(Rijndael* rijndael, int mode, int dir, UINT8* key, int keyLen, 
 
   if (!key) return RIJNDAEL_BAD_KEY;
 
-#if HAS_AES_HARDWARE && 0
-  if (aesHardwareAvailable())
-  {
-    if (rijndael->m_direction == RIJNDAEL_Direction_Encrypt)
-    {
-#ifndef TEST_AES_HW
-      aesGenKeyEncrypt(key, uKeyLenInBytes*8, (unsigned char*) rijndael->m_expandedKey);
-#else
-      TEST_AES_HW_DEBUG_LOG("aes gen key enc: hw enabled\n");
-      aesGenKeyEncrypt(key, uKeyLenInBytes*8, (unsigned char*) aesKeySched);
-      TEST_AES_HW_DEBUG_LOG("aes gen key enc: ready\n");
-#endif
-    }
-    else
-    {
-#ifndef TEST_AES_HW
-      aesGenKeyDecrypt(key, uKeyLenInBytes*8, (unsigned char*) rijndael->m_expandedKey);
-#else
-      TEST_AES_HW_DEBUG_LOG("aes gen key dec: hw enabled\n");
-      aesGenKeyDecrypt(key, uKeyLenInBytes*8, (unsigned char*) aesKeySched);
-      TEST_AES_HW_DEBUG_LOG("aes gen key dec: ready\n");
-#endif
-    }
-  }
-#ifndef TEST_AES_HW
-  else
-#endif
-#endif
   {
     for (i = 0; i < uKeyLenInBytes; i++) keyMatrix[i >> 2][i & 3] = key[i];
 
@@ -1150,20 +1115,6 @@ int RijndaelBlockEncrypt(Rijndael* rijndael, UINT8* input, int inputLen, UINT8* 
       }
     break;
     case RIJNDAEL_Direction_Mode_CBC:
-#if HAS_AES_HARDWARE && 0
-      if (aesHardwareAvailable())
-      {
-#ifndef TEST_AES_HW
-        aesEncryptCBC(input, outBuffer, rijndael->m_initVector, inputLen/8, (unsigned char*) (rijndael->m_expandedKey), rijndael->m_uRounds);
-#else
-        TEST_AES_HW_DEBUG_LOG("aes enc: hw enabled\n");
-        aesEncryptCBC(input, outBuffer2, rijndael->m_initVector, inputLen/8, (unsigned char*) (rijndael->m_expandedKey), rijndael->m_uRounds);
-#endif
-      }
-#ifndef TEST_AES_HW
-      else
-#endif
-#endif
       {
         ((UINT32*)block)[0] = ((UINT32*)rijndael->m_initVector)[0] ^ ((UINT32*)input)[0];
         ((UINT32*)block)[1] = ((UINT32*)rijndael->m_initVector)[1] ^ ((UINT32*)input)[1];
@@ -1344,20 +1295,6 @@ int RijndaelBlockDecrypt(Rijndael* rijndael, UINT8* input, int inputLen, UINT8* 
       }
     break;
     case RIJNDAEL_Direction_Mode_CBC:
-#if HAS_AES_HARDWARE && 0
-      if (aesHardwareAvailable())
-      {
-#ifndef TEST_AES_HW
-        aesDecryptCBC(input, outBuffer, rijndael->m_initVector, inputLen/8, (unsigned char*) (rijndael->m_expandedKey), rijndael->m_uRounds);
-#else
-        TEST_AES_HW_DEBUG_LOG("aes dec: hw enabled\n");
-        aesDecryptCBC(input, outBuffer2, rijndael->m_initVector, inputLen/8, (unsigned char*) (rijndael->m_expandedKey), rijndael->m_uRounds);
-#endif
-      }
-#ifndef TEST_AES_HW
-      else
-#endif
-#endif
       {
         if (lenFrag > 0)
         {

@@ -448,10 +448,6 @@ EncryptPageSQLCipherCipher(void* cipher, int page, unsigned char* data, int len,
     {
       return rc;
     }
-#if 0
-    RijndaelInit(sqlCipherCipher->m_aes, RIJNDAEL_Direction_Mode_CBC, RIJNDAEL_Direction_Encrypt, sqlCipherCipher->m_key, RIJNDAEL_Direction_KeyLength_Key32Bytes, iv);
-    blen = RijndaelBlockEncrypt(sqlCipherCipher->m_aes, data + offset, (n - offset) * 8, data + offset);
-#endif
     memcpy(data + n, iv, nReserved);
     if (page == 1 && usePlaintextHeader == 0)
     {
@@ -575,10 +571,6 @@ DecryptPageSQLCipherCipher(void* cipher, int page, unsigned char* data, int len,
       {
         return rc;
       }
-#if 0
-    RijndaelInit(sqlCipherCipher->m_aes, RIJNDAEL_Direction_Mode_CBC, RIJNDAEL_Direction_Decrypt, sqlCipherCipher->m_key, RIJNDAEL_Direction_KeyLength_Key32Bytes, iv);
-    blen = RijndaelBlockDecrypt(sqlCipherCipher->m_aes, data + offset, (n - offset) * 8, data + offset);
-#endif
       if (nReserved > 0)
       {
         memcpy(data + n, iv, nReserved);

@@ -125,9 +125,6 @@ sqlite3mcAES128(AesCtx* aesCtx, int page, int encrypt, unsigned char encryptionK
 
   int flags = (encrypt) ? AES_FOR_ENCRYPT : AES_FOR_DECRYPT;
   rc = sqlite3mcAesCbcInit(aesCtx, pagekey, KEYLENGTH_AES128, flags);
-#if 0
-  RijndaelInit(aesCtx, RIJNDAEL_Direction_Mode_CBC, direction, pagekey, RIJNDAEL_Direction_KeyLength_Key16Bytes, initial);
-#endif
   if (rc != SQLITE_OK)
   {
     /* No usable AES implementation: report the error, never leave the data unencrypted */
@@ -136,25 +133,11 @@ sqlite3mcAES128(AesCtx* aesCtx, int page, int encrypt, unsigned char encryptionK
   if (encrypt)
   {
     rc = sqlite3mcAesCbcEncrypt(aesCtx, initial, datain, datalen);
-#if 0
-    len = RijndaelBlockEncrypt(aesCtx, datain, datalen*8, dataout);
-#endif
   }
   else
   {
     rc = sqlite3mcAesCbcDecrypt(aesCtx, initial, datain, datalen);
-#if 0
-    len = RijndaelBlockDecrypt(aesCtx, datain, datalen*8, dataout);
-#endif
   }
-#if 0
-  /* It is a good idea to check the error code */
-  if (len < 0)
-  {
-    /* AES: Error on encrypting. */
-    rc = SQLITE_ERROR;
-  }
-#endif
   return rc;
 }
 
@@ -196,9 +179,6 @@ sqlite3mcAES256(AesCtx* aesCtx, int page, int encrypt, unsigned char encryptionK
 
   int flags = (encrypt) ? AES_FOR_ENCRYPT : AES_FOR_DECRYPT;
   rc = sqlite3mcAesCbcInit(aesCtx, pagekey, KEYLENGTH_AES256, flags);
-#if 0
-  RijndaelInit(aesCtx, RIJNDAEL_Direction_Mode_CBC, direction, pagekey, RIJNDAEL_Direction_KeyLength_Key32Bytes, initial);
-#endif
   if (rc != SQLITE_OK)
   {
     /* No usable AES implementation: report the error, never leave the data unencrypted */
@@ -207,25 +187,11 @@ sqlite3mcAES256(AesCtx* aesCtx, int page, int encrypt, unsigned char encryptionK
   if (encrypt)
   {
     rc = sqlite3mcAesCbcEncrypt(aesCtx, initial, datain, datalen);
-#if 0
-    len = RijndaelBlockEncrypt(aesCtx, datain, datalen*8, dataout);
-#endif
   }
   else
   {
     rc = sqlite3mcAesCbcDecrypt(aesCtx, initial, datain, datalen);
-#if 0
-    len = RijndaelBlockDecrypt(aesCtx, datain, datalen*8, dataout);
-#endif
   }
-#if 0
-  /* It is a good idea to check the error code */
-  if (len < 0)
-  {
-    /* AES: Error on encrypting. */
-    rc = SQLITE_ERROR;
-  }
-#endif
   return rc;
 }
 
