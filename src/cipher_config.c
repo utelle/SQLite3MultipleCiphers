@@ -1484,11 +1484,25 @@ sqlite3mcHandleAttachKey(sqlite3* db, const char* zName, const char* zPath, sqli
   int rc = SQLITE_OK;
   int nKey;
   char* zKey;
-  int keyType = sqlite3_value_type(pKey);
-  int canEncrypt = sqlite3mcIsEncryptionSupported(db, zName);
-  int hasUriKey = (sqlite3_uri_parameter(zPath, "key") != NULL) ||
-                  (sqlite3_uri_parameter(zPath, "hexkey") != NULL) ||
-                  (sqlite3_uri_parameter(zPath, "textkey") != NULL);
+  int keyType = 0;
+  int canEncrypt = 0;
+  int hasUriKey = 0;
+  if (zPath != NULL && zPath[0] != 0)
+  {
+    keyType = sqlite3_value_type(pKey);
+    canEncrypt = sqlite3mcIsEncryptionSupported(db, zName);
+    hasUriKey = (sqlite3_uri_parameter(zPath, "key") != NULL) ||
+                (sqlite3_uri_parameter(zPath, "hexkey") != NULL) ||
+                (sqlite3_uri_parameter(zPath, "textkey") != NULL);
+  }
+  else
+  {
+    /*
+    ** Temporary database, do nothing, ignore KEY.
+    ** It is not possible to attach a codec to a temporary database.
+    */
+    return SQLITE_OK;
+  }
   switch (keyType)
   {
     case SQLITE_INTEGER:
