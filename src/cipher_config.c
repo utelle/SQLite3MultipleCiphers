@@ -205,21 +205,21 @@ sqlite3mc_cipher_name_copy(int cipherIndex, char* cipherName, int maxCipherNameS
   if (globalCipherName)
   {
     int cipherNameLen = (int)strlen(globalCipherName) + 1;
-    if (maxCipherNameSize >= cipherNameLen)
+    if (cipherName != NULL && maxCipherNameSize >= cipherNameLen)
     {
       strncpy(cipherName, globalCipherName, maxCipherNameSize - 1);
       cipherName[maxCipherNameSize - 1] = '\0';
     }
     else
     {
-      /* Buffer too small, return negative value of minimum required buffer length */
+      /* Buffer too small or NULL, return negative value of minimum required buffer length */
       ok = -cipherNameLen;
     }
   }
   else
   {
     /* Invalid index */
-    if (maxCipherNameSize >= 1)
+    if (cipherName != NULL && maxCipherNameSize >= 1)
     {
       cipherName[0] = '\0';
     }
@@ -1232,7 +1232,7 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
       int nValue = sqlite3Strlen30(pragmaValue);
       if (((nValue & 1) == 0) && (sqlite3mcIsHexKey((const unsigned char*) pragmaValue, nValue) != 0))
       {
-        unsigned char* zHexKey = sqlite3_malloc(nValue/2);
+        unsigned char* zHexKey = sqlite3_malloc(nValue/2+1);
         if (zHexKey != NULL)
         {
           sqlite3mcConvertHex2Bin((const unsigned char*)pragmaValue, nValue, zHexKey);
@@ -1290,7 +1290,7 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
       int nValue = sqlite3Strlen30(pragmaValue);
       if (((nValue & 1) == 0) && (sqlite3mcIsHexKey((const unsigned char*) pragmaValue, nValue) != 0))
       {
-        unsigned char* zHexKey = sqlite3_malloc(nValue/2);
+        unsigned char* zHexKey = sqlite3_malloc(nValue/2+1);
         if (zHexKey != NULL)
         {
           sqlite3mcConvertHex2Bin((const unsigned char*)pragmaValue, nValue, zHexKey);
@@ -1456,9 +1456,10 @@ sqlite3mcCodecQueryParameters(sqlite3* db, const char* zDb, const char* zUri, in
     int nKey = sqlite3Strlen30(zKey);
     if (((nKey & 1) == 0) && (sqlite3mcIsHexKey((const unsigned char*)zKey, nKey) != 0))
     {
-      char* zDecoded = sqlite3_malloc(nKey);
+      char* zDecoded = sqlite3_malloc(nKey+1);
       if (zDecoded != NULL)
       {
+        zDecoded[0] = '\0';
         for (i = 0, iByte = 0; i < nKey && sqlite3Isxdigit(zKey[i]); i++)
         {
           iByte = (iByte << 4) + sqlite3HexToInt(zKey[i]);
@@ -1504,11 +1505,25 @@ sqlite3mcHandleAttachKey(sqlite3* db, const char* zName, const char* zPath, sqli
   int rc = SQLITE_OK;
   int nKey;
   char* zKey;
-  int keyType = sqlite3_value_type(pKey);
-  int canEncrypt = sqlite3mcIsEncryptionSupported(db, zName);
-  int hasUriKey = (sqlite3_uri_parameter(zPath, "key") != NULL) ||
-                  (sqlite3_uri_parameter(zPath, "hexkey") != NULL) ||
-                  (sqlite3_uri_parameter(zPath, "textkey") != NULL);
+  int keyType = 0;
+  int canEncrypt = 0;
+  int hasUriKey = 0;
+  if (zPath != NULL && zPath[0] != 0)
+  {
+    keyType = sqlite3_value_type(pKey);
+    canEncrypt = sqlite3mcIsEncryptionSupported(db, zName);
+    hasUriKey = (sqlite3_uri_parameter(zPath, "key") != NULL) ||
+                (sqlite3_uri_parameter(zPath, "hexkey") != NULL) ||
+                (sqlite3_uri_parameter(zPath, "textkey") != NULL);
+  }
+  else
+  {
+    /*
+    ** Temporary database, do nothing, ignore KEY.
+    ** It is not possible to attach a codec to a temporary database.
+    */
+    return SQLITE_OK;
+  }
   switch (keyType)
   {
     case SQLITE_INTEGER:
