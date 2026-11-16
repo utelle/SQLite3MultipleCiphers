@@ -439,8 +439,15 @@ EncryptPageSQLCipherCipher(void* cipher, int page, unsigned char* data, int len,
     /* Generate nonce */
     memset(iv, 0, 128);
     chacha20_rng(iv, 128);
-    sqlite3mcAesCbcInit(sqlCipherCipher->m_aes, sqlCipherCipher->m_key, KEYLENGTH_SQLCIPHER, AES_FOR_ENCRYPT);
-    sqlite3mcAesCbcEncrypt(sqlCipherCipher->m_aes, iv, data + offset, n - offset);
+    rc = sqlite3mcAesCbcInit(sqlCipherCipher->m_aes, sqlCipherCipher->m_key, KEYLENGTH_SQLCIPHER, AES_FOR_ENCRYPT);
+    if (rc == SQLITE_OK)
+    {
+      rc = sqlite3mcAesCbcEncrypt(sqlCipherCipher->m_aes, iv, data + offset, n - offset);
+    }
+    if (rc != SQLITE_OK)
+    {
+      return rc;
+    }
 #if 0
     RijndaelInit(sqlCipherCipher->m_aes, RIJNDAEL_Direction_Mode_CBC, RIJNDAEL_Direction_Encrypt, sqlCipherCipher->m_key, RIJNDAEL_Direction_KeyLength_Key32Bytes, iv);
     blen = RijndaelBlockEncrypt(sqlCipherCipher->m_aes, data + offset, (n - offset) * 8, data + offset);
@@ -559,8 +566,15 @@ DecryptPageSQLCipherCipher(void* cipher, int page, unsigned char* data, int len,
 
     if (hmacOk != 0)
     {
-      sqlite3mcAesCbcInit(sqlCipherCipher->m_aes, sqlCipherCipher->m_key, KEYLENGTH_SQLCIPHER, AES_FOR_DECRYPT);
-      sqlite3mcAesCbcDecrypt(sqlCipherCipher->m_aes, iv, data + offset, n - offset);
+      rc = sqlite3mcAesCbcInit(sqlCipherCipher->m_aes, sqlCipherCipher->m_key, KEYLENGTH_SQLCIPHER, AES_FOR_DECRYPT);
+      if (rc == SQLITE_OK)
+      {
+        rc = sqlite3mcAesCbcDecrypt(sqlCipherCipher->m_aes, iv, data + offset, n - offset);
+      }
+      if (rc != SQLITE_OK)
+      {
+        return rc;
+      }
 #if 0
     RijndaelInit(sqlCipherCipher->m_aes, RIJNDAEL_Direction_Mode_CBC, RIJNDAEL_Direction_Decrypt, sqlCipherCipher->m_key, RIJNDAEL_Direction_KeyLength_Key32Bytes, iv);
     blen = RijndaelBlockDecrypt(sqlCipherCipher->m_aes, data + offset, (n - offset) * 8, data + offset);

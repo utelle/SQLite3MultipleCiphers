@@ -142,7 +142,7 @@
 #define AES_HAVE_HW 1
 #endif
 
-#ifndef SQLITE3MC_AES_NO_VPAES
+#ifdef SQLITE3MC_AES_VPAES
 #define AES_HAVE_VPAES 1
 #ifndef SQLITE3MC_VPAES_STATE_SIZE
 #error "SQLITE3MC_AES_VPAES requires SQLITE3MC_VPAES_STATE_SIZE (size of the vpaes key schedule in bytes)"
