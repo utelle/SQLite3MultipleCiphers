@@ -72,6 +72,11 @@ jobs:
         make threadtest
         ./threadtest
 
+    - name: Crash tests
+      run: |
+        make crashtest
+        ./crashtest
+
     - name: VFS stack tests
       run: |
         make vfsstacktest
