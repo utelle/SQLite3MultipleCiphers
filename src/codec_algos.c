@@ -262,8 +262,8 @@ sqlite3mcExtractRawKey(const char* password, int passwordLength,
     */
     int nRaw = passwordLength - 4;
     const unsigned char* zRaw = (const unsigned char*) password + 4;
-    int hasBinPrefix = !memcmp(zRaw, "bin:", 4);
-    int hasHexPrefix = !memcmp(zRaw, "hex:", 4);
+    int hasBinPrefix = nRaw >= 4 && !memcmp(zRaw, "bin:", 4);
+    int hasHexPrefix = nRaw >= 4 && !memcmp(zRaw, "hex:", 4);
     if (hasBinPrefix || hasHexPrefix)
     {
       zRaw += 4;
@@ -279,7 +279,7 @@ sqlite3mcExtractRawKey(const char* password, int passwordLength,
         hasBinPrefix = 1;
     }
     int isValid = (hasBinPrefix && (nRaw == keyLength || nRaw == (keyLength + saltLength))) ||
-                  (hasHexPrefix && (nRaw == 2 * keyLength || nRaw == 2 * (keyLength + saltLength)));
+                  (hasHexPrefix && isHex && (nRaw == 2 * keyLength || nRaw == 2 * (keyLength + saltLength)));
     if (isValid)
     {
       bypass = 1;

@@ -977,32 +977,25 @@ SQLITE_PRIVATE void sqlite3mcSetCodec(sqlite3* db, const char* zDbName, const ch
 SQLITE_PRIVATE void* sqlite3mcPagerCodec(PgHdrMC* pPg)
 {
   sqlite3_file* pFile = sqlite3PagerFile(pPg->pPager);
-  void* aData = 0;
-  if (pFile->pMethods == &mcIoMethodsGlobal1 ||
-      pFile->pMethods == &mcIoMethodsGlobal2 ||
-      pFile->pMethods == &mcIoMethodsGlobal3 ||
-      pFile->pMethods == &mcIoMethodsGlobal4)
+  void* aData = (char*) pPg->pData;
+  Codec* codec = NULL;
+  /*
+  ** Ask the file for its codec instead of checking its methods: another VFS
+  ** shim may sit above the Multiple Ciphers VFS and wrap the file.
+  */
+  if (pFile->pMethods != NULL)
   {
-    sqlite3mc_file* mcFile = (sqlite3mc_file*) pFile;
-    Codec* codec = mcFile->codec;
-    if (codec != 0 && sqlite3mcIsEncrypted(codec))
-    {
-      int rc;
-      aData = sqlite3mcCodec(codec, pPg->pData, pPg->pgno, 6);
-      rc = sqlite3mcGetCodecLastError(codec);
-      if (rc != SQLITE_OK)
-      {
-        aData = 0;
-      }
-    }
-    else
-    {
-      aData = (char*) pPg->pData;
-    }
+    sqlite3OsFileControlHint(pFile, SQLITE3MC_FCNTL_PCODEC, &codec);
   }
-  else
+  if (codec != 0 && sqlite3mcIsEncrypted(codec))
   {
-    aData = (char*) pPg->pData;
+    int rc;
+    aData = sqlite3mcCodec(codec, pPg->pData, pPg->pgno, 6);
+    rc = sqlite3mcGetCodecLastError(codec);
+    if (rc != SQLITE_OK)
+    {
+      aData = 0;
+    }
   }
   return aData;
 }
@@ -1576,6 +1569,83 @@ static int mcHotJournalGuard(sqlite3mc_file* mcFile, sqlite3_file* pFile)
 }
 
 /*
+** A key is set, and SQLite is about to play back a hot journal: check
+** that the key fits the journal before SQLite plays it back.
+**
+** With a wrong key, a cipher without authentication (aes128cbc, aes256cbc)
+** decrypts the journal records into garbage without an error. SQLite then
+** sees a record whose checksum does not match, takes it as the end of the
+** journal, and finalizes the journal without having restored anything:
+** the database stays half changed and the journal is gone.
+**
+** A hot journal written with sync has a header with the journal magic and
+** the number of records (nRec > 0); SQLite writes it only after the records
+** have been synced, and only then changes the database file. So the first
+** record must be complete, and with the right key its checksum matches.
+** If it does not, the key is wrong: refuse the access (SQLITE_NOTADB), so
+** that the journal is kept for an attempt with the right key.
+**
+** Journals without nRec (0xffffffff: no sync, or SQLITE_IOCAP_SAFE_APPEND)
+** and journals that can't be examined are passed through unchanged.
+*/
+static int mcHotJournalKeyCheck(sqlite3_file* pFile, Codec* codec)
+{
+  static const unsigned char journalMagic[8] = { 0xd9, 0xd5, 0x05, 0xf9, 0x20, 0xa1, 0x63, 0xd7 };
+  sqlite3_file* realJournal = REALFILE(pFile);
+  unsigned char header[28];
+  unsigned char recordHead[4];
+  unsigned char recordTail[4];
+  unsigned char* page;
+  unsigned int nRec, cksumInit, sectorSize, pageSize, pgno, cksum;
+  int i, rc;
+
+  rc = realJournal->pMethods->xRead(realJournal, header, 28, 0);
+  if (rc != SQLITE_OK || memcmp(header, journalMagic, 8) != 0) return SQLITE_OK;
+
+  nRec = sqlite3Get4byte(header + 8);
+  cksumInit = sqlite3Get4byte(header + 12);
+  sectorSize = sqlite3Get4byte(header + 20);
+  pageSize = sqlite3Get4byte(header + 24);
+  if (nRec == 0 || nRec == 0xffffffff) return SQLITE_OK;
+  if (!MC_VALID_SECTOR_SIZE(sectorSize) || !MC_VALID_PAGE_SIZE(pageSize)) return SQLITE_OK;
+  if ((int) pageSize != sqlite3mcGetPageSize(codec)) return SQLITE_OK;
+
+  /* First record: page number, page content, checksum */
+  rc = realJournal->pMethods->xRead(realJournal, recordHead, 4, (sqlite3_int64) sectorSize);
+  if (rc != SQLITE_OK) return SQLITE_OK;
+  rc = realJournal->pMethods->xRead(realJournal, recordTail, 4, (sqlite3_int64) sectorSize + 4 + pageSize);
+  if (rc != SQLITE_OK) return SQLITE_OK;
+  pgno = sqlite3Get4byte(recordHead);
+  if (pgno == 0) return SQLITE_OK;
+
+  page = (unsigned char*) sqlite3_malloc((int) pageSize);
+  if (page == NULL) return SQLITE_NOMEM;
+  rc = realJournal->pMethods->xRead(realJournal, page, (int) pageSize, (sqlite3_int64) sectorSize + 4);
+  if (rc != SQLITE_OK)
+  {
+    sqlite3_free(page);
+    return SQLITE_OK;
+  }
+
+  /* Decrypt with the current key and compute the checksum as SQLite does (pager_cksum) */
+  sqlite3mcCodec(codec, (char*) page, pgno, 3);
+  rc = sqlite3mcGetCodecLastError(codec);
+  cksum = cksumInit;
+  for (i = (int) pageSize - 200; i > 0; i -= 200)
+  {
+    cksum += page[i];
+  }
+  sqlite3mcSecureZeroMemory(page, pageSize);
+  sqlite3_free(page);
+
+  if (rc != SQLITE_OK || cksum != sqlite3Get4byte(recordTail))
+  {
+    return SQLITE_NOTADB;
+  }
+  return SQLITE_OK;
+}
+
+/*
 ** Read operation on main journal file
 */
 static int mcReadMainJournal(sqlite3_file* pFile, const void* buffer, int count, sqlite3_int64 offset)
@@ -1603,6 +1673,11 @@ static int mcReadMainJournal(sqlite3_file* pFile, const void* buffer, int count,
       rc = sqlite3mcGetCodecLastError(codec);
       /* The record checksum, if SQLite reads it, follows directly after the page */
       mcFile->checksumOffset = offset + pageSize;
+    }
+    else if (offset == 0 && count == 1 && ((const unsigned char*)buffer)[0] != 0)
+    {
+      /* Check whether a journal is hot (see below): does the key fit the journal? */
+      rc = mcHotJournalKeyCheck(pFile, codec);
     }
     else if (count == 4)
     {

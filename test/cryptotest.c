@@ -1,8 +1,8 @@
 /*
 ** Tests for the cryptographic primitives: checks AES-CBC (NIST SP 800-38A),
 ** ChaCha20 and Poly1305 (RFC 8439) for all implementations available on the
-** target, compares the implementations on pseudo-random input, and checks
-** the Poly1305 tag comparison.
+** target, compares the implementations on pseudo-random input, checks
+** the Poly1305 tag comparison and the parsing of raw keys.
 */
 
 #include "sqlite3mc.c"
@@ -701,12 +701,86 @@ static void testTagCompare(void)
 
 #endif /* HAVE_SELECTABLE_IMPLEMENTATIONS */
 
+/*
+** Raw keys: "raw:hex:", "raw:bin:" and "raw:" followed by the key (and
+** optionally the salt). A value of the wrong length or with non-hex
+** characters after "raw:hex:" must be refused, not used as a passphrase.
+** Every key is passed in a buffer of its exact length (no terminating
+** zero), so that a build with AddressSanitizer catches reads past its end.
+*/
+static int checkRawKey(const char* text, int length, int keyLength, int expectBypass, int expectRc,
+                       const unsigned char* expectKey, const unsigned char* expectSalt)
+{
+  unsigned char key[32], salt[16];
+  char* buffer = (char*) malloc(length > 0 ? length : 1);
+  int rc, bypass, ok;
+  memcpy(buffer, text, length);
+  memset(key, 0xee, sizeof(key));
+  memset(salt, 0xee, sizeof(salt));
+  bypass = sqlite3mcExtractRawKey(buffer, length, 0, keyLength, 16, key, salt, &rc);
+  free(buffer);
+  ok = (bypass == expectBypass && rc == expectRc);
+  if (ok && expectKey != NULL) ok = (memcmp(key, expectKey, keyLength) == 0);
+  if (ok && expectSalt != NULL) ok = (memcmp(salt, expectSalt, 16) == 0);
+  if (!ok) printf("  raw key %.*s%s (%d bytes): bypass=%d rc=%d\n", length > 24 ? 24 : length, text,
+                  length > 24 ? "..." : "", length, bypass, rc);
+  return ok ? 0 : 1;
+}
+
+static void testRawKey(void)
+{
+  static const char hex64[] = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
+  static const char hex32salt[] = "a0a1a2a3a4a5a6a7a8a9aaabacadaeaf";
+  unsigned char key[32], salt[16], binKey[32];
+  char text[200];
+  int failures = 0, checks = 0, j;
+
+  for (j = 0; j < 32; j++) key[j] = (unsigned char) j;
+  for (j = 0; j < 16; j++) salt[j] = (unsigned char) (0xa0 + j);
+  for (j = 0; j < 32; j++) binKey[j] = (unsigned char) ('G' + (j % 20)); /* not hex characters */
+
+  /* Valid: 256-bit key, with and without salt */
+  sqlite3_snprintf(sizeof(text), text, "raw:hex:%s", hex64);
+  failures += checkRawKey(text, 72, 32, 1, SQLITE_OK, key, NULL); checks++;
+  sqlite3_snprintf(sizeof(text), text, "raw:hex:%s%s", hex64, hex32salt);
+  failures += checkRawKey(text, 104, 32, 1, SQLITE_OK, key, salt); checks++;
+  sqlite3_snprintf(sizeof(text), text, "raw:%s", hex64);
+  failures += checkRawKey(text, 68, 32, 1, SQLITE_OK, key, NULL); checks++;
+  memcpy(text, "raw:bin:", 8); memcpy(text + 8, key, 32);
+  failures += checkRawKey(text, 40, 32, 1, SQLITE_OK, key, NULL); checks++;
+  memcpy(text + 40, salt, 16);
+  failures += checkRawKey(text, 56, 32, 1, SQLITE_OK, key, salt); checks++;
+  memcpy(text, "raw:", 4); memcpy(text + 4, binKey, 32);
+  failures += checkRawKey(text, 36, 32, 1, SQLITE_OK, binKey, NULL); checks++;
+
+  /* Valid: 128-bit key; 32 hex digits are a hex key, not 16 bytes of key and 16 of salt */
+  sqlite3_snprintf(sizeof(text), text, "raw:%.32s", hex64);
+  failures += checkRawKey(text, 36, 16, 1, SQLITE_OK, key, NULL); checks++;
+
+  /* Invalid: wrong length, non-hex characters after raw:hex:, too short */
+  failures += checkRawKey("raw:0123456789", 14, 32, 0, SQLITE_ERROR, NULL, NULL); checks++;
+  sqlite3_snprintf(sizeof(text), text, "raw:hex:%.63s", hex64);
+  failures += checkRawKey(text, 71, 32, 0, SQLITE_ERROR, NULL, NULL); checks++;
+  memcpy(text, "raw:hex:", 8); memset(text + 8, 'z', 64);
+  failures += checkRawKey(text, 72, 32, 0, SQLITE_ERROR, NULL, NULL); checks++;
+  memcpy(text, "raw:bin:", 8); memcpy(text + 8, key, 32); text[40] = 'x';
+  failures += checkRawKey(text, 41, 32, 0, SQLITE_ERROR, NULL, NULL); checks++;
+  failures += checkRawKey("raw:b", 5, 32, 0, SQLITE_ERROR, NULL, NULL); checks++;
+  failures += checkRawKey("raw:he", 6, 32, 0, SQLITE_ERROR, NULL, NULL); checks++;
+
+  /* Not a raw key: passphrase */
+  failures += checkRawKey("secret", 6, 32, 0, SQLITE_OK, NULL, NULL); checks++;
+
+  reportResult("Raw key", "parsing", failures, checks);
+}
+
 int main(void)
 {
   printf("%s, SQLite %s\n", sqlite3mc_version(), sqlite3_libversion());
   testAesCbc();
   testChaCha20();
   testPoly1305();
+  testRawKey();
 #ifdef HAVE_SELECTABLE_IMPLEMENTATIONS
   testTagCompare();
 #endif
