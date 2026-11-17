@@ -165,7 +165,7 @@ sqlite3shell_LDFLAGS += -no-install
 endif
 
 # Tests for the cryptographic primitives (not installed, built like the shell).
-check_PROGRAMS = cryptotest tempfiletest oomtest rekeytest threadtest
+check_PROGRAMS = cryptotest tempfiletest oomtest rekeytest threadtest vfsstacktest
 cryptotest_SOURCES = test/cryptotest.c
 cryptotest_CFLAGS = $(sqlite3shell_CFLAGS)
 cryptotest_LDADD = $(sqlite3shell_LDADD)
@@ -186,3 +186,7 @@ threadtest_SOURCES = test/threadtest.c
 threadtest_CFLAGS = $(sqlite3shell_CFLAGS)
 threadtest_LDADD = $(sqlite3shell_LDADD)
 threadtest_LDFLAGS = $(sqlite3shell_LDFLAGS)
+vfsstacktest_SOURCES = test/vfsstacktest.c
+vfsstacktest_CFLAGS = $(sqlite3shell_CFLAGS)
+vfsstacktest_LDADD = $(sqlite3shell_LDADD)
+vfsstacktest_LDFLAGS = $(sqlite3shell_LDFLAGS)

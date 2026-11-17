@@ -977,32 +977,25 @@ SQLITE_PRIVATE void sqlite3mcSetCodec(sqlite3* db, const char* zDbName, const ch
 SQLITE_PRIVATE void* sqlite3mcPagerCodec(PgHdrMC* pPg)
 {
   sqlite3_file* pFile = sqlite3PagerFile(pPg->pPager);
-  void* aData = 0;
-  if (pFile->pMethods == &mcIoMethodsGlobal1 ||
-      pFile->pMethods == &mcIoMethodsGlobal2 ||
-      pFile->pMethods == &mcIoMethodsGlobal3 ||
-      pFile->pMethods == &mcIoMethodsGlobal4)
+  void* aData = (char*) pPg->pData;
+  Codec* codec = NULL;
+  /*
+  ** Ask the file for its codec instead of checking its methods: another VFS
+  ** shim may sit above the Multiple Ciphers VFS and wrap the file.
+  */
+  if (pFile->pMethods != NULL)
   {
-    sqlite3mc_file* mcFile = (sqlite3mc_file*) pFile;
-    Codec* codec = mcFile->codec;
-    if (codec != 0 && sqlite3mcIsEncrypted(codec))
-    {
-      int rc;
-      aData = sqlite3mcCodec(codec, pPg->pData, pPg->pgno, 6);
-      rc = sqlite3mcGetCodecLastError(codec);
-      if (rc != SQLITE_OK)
-      {
-        aData = 0;
-      }
-    }
-    else
-    {
-      aData = (char*) pPg->pData;
-    }
+    sqlite3OsFileControlHint(pFile, SQLITE3MC_FCNTL_PCODEC, &codec);
   }
-  else
+  if (codec != 0 && sqlite3mcIsEncrypted(codec))
   {
-    aData = (char*) pPg->pData;
+    int rc;
+    aData = sqlite3mcCodec(codec, pPg->pData, pPg->pgno, 6);
+    rc = sqlite3mcGetCodecLastError(codec);
+    if (rc != SQLITE_OK)
+    {
+      aData = 0;
+    }
   }
   return aData;
 }
