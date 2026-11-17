@@ -77,6 +77,11 @@ jobs:
         make crashtest
         ./crashtest
 
+    - name: VFS stack tests
+      run: |
+        make vfsstacktest
+        ./vfsstacktest
+
   android_build:
     name: Android (API ${{ matrix.api-level }})
     runs-on: ubuntu-latest
