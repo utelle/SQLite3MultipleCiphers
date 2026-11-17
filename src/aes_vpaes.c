@@ -273,74 +273,74 @@ VPAES_INLINE VpVar vp_lo_nibs(VpVar x)
   return vp_and(x, vp_splat8(0x0F));
 }
 
-VPAES_INLINE VpVar vp_enc_first_round(VpVar B, VpVar K)
+VPAES_INLINE VpVar vp_enc_first_round(VpVar vpB, VpVar vpK)
 {
-  return vp_xor(vp_xor(vp_shuf(VP_LOAD_CONST(vp_k_ipt1), vp_lo_nibs(B)), vp_shuf(VP_LOAD_CONST(vp_k_ipt2), vp_hi_nibs(B))), K);
+  return vp_xor(vp_xor(vp_shuf(VP_LOAD_CONST(vp_k_ipt1), vp_lo_nibs(vpB)), vp_shuf(VP_LOAD_CONST(vp_k_ipt2), vp_hi_nibs(vpB))), vpK);
 }
 
-VPAES_INLINE void vp_decompose_kinv(VpVar B, VpVar* t5, VpVar* t6)
+VPAES_INLINE void vp_decompose_kinv(VpVar vpB, VpVar* t5, VpVar* t6)
 {
   const VpVar kinv1 = VP_LOAD_CONST(vp_k_inv1);
   const VpVar kinv2 = VP_LOAD_CONST(vp_k_inv2);
-  const VpVar Bh = vp_hi_nibs(B);
-  VpVar Bl = vp_lo_nibs(B);
-  const VpVar t2 = vp_shuf(kinv2, Bl);
-  Bl = vp_xor(Bl, Bh);
+  const VpVar vpBh = vp_hi_nibs(vpB);
+  VpVar vpBl = vp_lo_nibs(vpB);
+  const VpVar t2 = vp_shuf(kinv2, vpBl);
+  vpBl = vp_xor(vpBl, vpBh);
 
-  *t5 = vp_xor(Bl, vp_shuf(kinv1, vp_xor(t2, vp_shuf(kinv1, Bh))));
-  *t6 = vp_xor(Bh, vp_shuf(kinv1, vp_xor(t2, vp_shuf(kinv1, Bl))));
+  *t5 = vp_xor(vpBl, vp_shuf(kinv1, vp_xor(t2, vp_shuf(kinv1, vpBh))));
+  *t6 = vp_xor(vpBh, vp_shuf(kinv1, vp_xor(t2, vp_shuf(kinv1, vpBl))));
 }
 
-VPAES_INLINE VpVar vp_enc_round(VpVar B, VpVar K, unsigned r)
+VPAES_INLINE VpVar vp_enc_round(VpVar vpB, VpVar vpK, unsigned r)
 {
   VpVar t5, t6;
   const VpVar mcf = VP_LOAD_CONST(vp_mc_forward[r % 4]);
   const VpVar mcb = VP_LOAD_CONST(vp_mc_backward[r % 4]);
 
-  vp_decompose_kinv(B, &t5, &t6);
+  vp_decompose_kinv(vpB, &t5, &t6);
 
   {
-    const VpVar t7 = vp_xor(vp_xor(vp_shuf(VP_LOAD_CONST(vp_sb1t), t6), vp_shuf(VP_LOAD_CONST(vp_sb1u), t5)), K);
+    const VpVar t7 = vp_xor(vp_xor(vp_shuf(VP_LOAD_CONST(vp_sb1t), t6), vp_shuf(VP_LOAD_CONST(vp_sb1u), t5)), vpK);
     const VpVar t8 = vp_xor(vp_xor(vp_shuf(VP_LOAD_CONST(vp_sb2t), t6), vp_shuf(VP_LOAD_CONST(vp_sb2u), t5)), vp_shuf(t7, mcf));
     return vp_xor(vp_xor(vp_shuf(t8, mcf), vp_shuf(t7, mcb)), t8);
   }
 }
 
-VPAES_INLINE VpVar vp_enc_last_round(VpVar B, VpVar K, unsigned r)
+VPAES_INLINE VpVar vp_enc_last_round(VpVar vpB, VpVar vpK, unsigned r)
 {
   VpVar t5, t6;
-  vp_decompose_kinv(B, &t5, &t6);
-  return vp_shiftrows(vp_xor(vp_xor(vp_shuf(VP_LOAD_CONST(vp_sbou), t5), vp_shuf(VP_LOAD_CONST(vp_sbot), t6)), K), r % 4);
+  vp_decompose_kinv(vpB, &t5, &t6);
+  return vp_shiftrows(vp_xor(vp_xor(vp_shuf(VP_LOAD_CONST(vp_sbou), t5), vp_shuf(VP_LOAD_CONST(vp_sbot), t6)), vpK), r % 4);
 }
 
-VPAES_INLINE VpVar vp_dec_first_round(VpVar B, VpVar K)
+VPAES_INLINE VpVar vp_dec_first_round(VpVar vpB, VpVar vpK)
 {
-  return vp_xor(vp_xor(vp_shuf(VP_LOAD_CONST(vp_k_dipt1), vp_lo_nibs(B)), vp_shuf(VP_LOAD_CONST(vp_k_dipt2), vp_hi_nibs(B))), K);
+  return vp_xor(vp_xor(vp_shuf(VP_LOAD_CONST(vp_k_dipt1), vp_lo_nibs(vpB)), vp_shuf(VP_LOAD_CONST(vp_k_dipt2), vp_hi_nibs(vpB))), vpK);
 }
 
-VPAES_INLINE VpVar vp_dec_round(VpVar B, VpVar K, unsigned r)
+VPAES_INLINE VpVar vp_dec_round(VpVar vpB, VpVar vpK, unsigned r)
 {
   VpVar t5, t6;
   const VpVar mc = VP_LOAD_CONST(vp_mcx[(r - 1) % 4]);
 
-  vp_decompose_kinv(B, &t5, &t6);
+  vp_decompose_kinv(vpB, &t5, &t6);
 
   {
-    const VpVar t8 = vp_xor(vp_xor(vp_shuf(VP_LOAD_CONST(vp_sb9t), t6), vp_shuf(VP_LOAD_CONST(vp_sb9u), t5)), K);
+    const VpVar t8 = vp_xor(vp_xor(vp_shuf(VP_LOAD_CONST(vp_sb9t), t6), vp_shuf(VP_LOAD_CONST(vp_sb9u), t5)), vpK);
     const VpVar t9 = vp_xor(vp_xor(vp_shuf(t8, mc), vp_shuf(VP_LOAD_CONST(vp_sbdu), t5)), vp_shuf(VP_LOAD_CONST(vp_sbdt), t6));
     const VpVar t12 = vp_xor(vp_xor(vp_shuf(t9, mc), vp_shuf(VP_LOAD_CONST(vp_sbbu), t5)), vp_shuf(VP_LOAD_CONST(vp_sbbt), t6));
     return vp_xor(vp_xor(vp_shuf(t12, mc), vp_shuf(VP_LOAD_CONST(vp_sbeu), t5)), vp_shuf(VP_LOAD_CONST(vp_sbet), t6));
   }
 }
 
-VPAES_INLINE VpVar vp_dec_last_round(VpVar B, VpVar K, unsigned r)
+VPAES_INLINE VpVar vp_dec_last_round(VpVar vpB, VpVar vpK, unsigned r)
 {
   VpVar t5, t6;
   const unsigned which_sr = ((((r - 1) << 4) ^ 48) & 48) / 16;
 
-  vp_decompose_kinv(B, &t5, &t6);
+  vp_decompose_kinv(vpB, &t5, &t6);
 
-  return vp_shiftrows(vp_xor(vp_xor(vp_shuf(VP_LOAD_CONST(vp_sboud), t5), vp_shuf(VP_LOAD_CONST(vp_sbotd), t6)), K), which_sr);
+  return vp_shiftrows(vp_xor(vp_xor(vp_shuf(VP_LOAD_CONST(vp_sboud), t5), vp_shuf(VP_LOAD_CONST(vp_sbotd), t6)), vpK), which_sr);
 }
 
 #define VP_LOAD_RK(rk, i) vp_load((const uint8_t*) (rk) + 16 * (i))
@@ -353,37 +353,37 @@ VPAES_INLINE int vp_encrypt_blocks(const uint8_t* in, uint8_t* out, size_t block
 
   for (i = 0; i != blocks2; i += 2)
   {
-    VpVar B0 = vp_load(in + i * 16);
-    VpVar B1 = vp_load(in + (i + 1) * 16);
+    VpVar vpB0 = vp_load(in + i * 16);
+    VpVar vpB1 = vp_load(in + (i + 1) * 16);
 
-    B0 = vp_enc_first_round(B0, VP_LOAD_RK(rk, 0));
-    B1 = vp_enc_first_round(B1, VP_LOAD_RK(rk, 0));
+    vpB0 = vp_enc_first_round(vpB0, VP_LOAD_RK(rk, 0));
+    vpB1 = vp_enc_first_round(vpB1, VP_LOAD_RK(rk, 0));
 
     for (r = 1; r != rounds; ++r)
     {
-      const VpVar K = VP_LOAD_RK(rk, r);
-      B0 = vp_enc_round(B0, K, r);
-      B1 = vp_enc_round(B1, K, r);
+      const VpVar vpK = VP_LOAD_RK(rk, r);
+      vpB0 = vp_enc_round(vpB0, vpK, r);
+      vpB1 = vp_enc_round(vpB1, vpK, r);
     }
 
-    B0 = vp_enc_last_round(B0, VP_LOAD_RK(rk, rounds), rounds);
-    B1 = vp_enc_last_round(B1, VP_LOAD_RK(rk, rounds), rounds);
+    vpB0 = vp_enc_last_round(vpB0, VP_LOAD_RK(rk, rounds), rounds);
+    vpB1 = vp_enc_last_round(vpB1, VP_LOAD_RK(rk, rounds), rounds);
 
-    vp_store(out + i * 16, B0);
-    vp_store(out + (i + 1) * 16, B1);
+    vp_store(out + i * 16, vpB0);
+    vp_store(out + (i + 1) * 16, vpB1);
   }
 
   for (i = blocks2; i < blocks; ++i)
   {
-    VpVar B = vp_load(in + i * 16);
+    VpVar vpB = vp_load(in + i * 16);
 
-    B = vp_enc_first_round(B, VP_LOAD_RK(rk, 0));
+    vpB = vp_enc_first_round(vpB, VP_LOAD_RK(rk, 0));
     for (r = 1; r != rounds; ++r)
     {
-      B = vp_enc_round(B, VP_LOAD_RK(rk, r), r);
+      vpB = vp_enc_round(vpB, VP_LOAD_RK(rk, r), r);
     }
-    B = vp_enc_last_round(B, VP_LOAD_RK(rk, rounds), rounds);
-    vp_store(out + i * 16, B);
+    vpB = vp_enc_last_round(vpB, VP_LOAD_RK(rk, rounds), rounds);
+    vp_store(out + i * 16, vpB);
   }
 
   return 0;
@@ -397,37 +397,37 @@ VPAES_INLINE void vp_decrypt_blocks(const uint8_t* in, uint8_t* out, size_t bloc
 
   for (i = 0; i != blocks2; i += 2)
   {
-    VpVar B0 = vp_load(in + i * 16);
-    VpVar B1 = vp_load(in + (i + 1) * 16);
+    VpVar vpB0 = vp_load(in + i * 16);
+    VpVar vpB1 = vp_load(in + (i + 1) * 16);
 
-    B0 = vp_dec_first_round(B0, VP_LOAD_RK(rk, 0));
-    B1 = vp_dec_first_round(B1, VP_LOAD_RK(rk, 0));
+    vpB0 = vp_dec_first_round(vpB0, VP_LOAD_RK(rk, 0));
+    vpB1 = vp_dec_first_round(vpB1, VP_LOAD_RK(rk, 0));
 
     for (r = 1; r != rounds; ++r)
     {
-      const VpVar K = VP_LOAD_RK(rk, r);
-      B0 = vp_dec_round(B0, K, r);
-      B1 = vp_dec_round(B1, K, r);
+      const VpVar vpK = VP_LOAD_RK(rk, r);
+      vpB0 = vp_dec_round(vpB0, vpK, r);
+      vpB1 = vp_dec_round(vpB1, vpK, r);
     }
 
-    B0 = vp_dec_last_round(B0, VP_LOAD_RK(rk, rounds), rounds);
-    B1 = vp_dec_last_round(B1, VP_LOAD_RK(rk, rounds), rounds);
+    vpB0 = vp_dec_last_round(vpB0, VP_LOAD_RK(rk, rounds), rounds);
+    vpB1 = vp_dec_last_round(vpB1, VP_LOAD_RK(rk, rounds), rounds);
 
-    vp_store(out + i * 16, B0);
-    vp_store(out + (i + 1) * 16, B1);
+    vp_store(out + i * 16, vpB0);
+    vp_store(out + (i + 1) * 16, vpB1);
   }
 
   for (i = blocks2; i < blocks; ++i)
   {
-    VpVar B = vp_load(in + i * 16);
+    VpVar vpB = vp_load(in + i * 16);
 
-    B = vp_dec_first_round(B, VP_LOAD_RK(rk, 0));
+    vpB = vp_dec_first_round(vpB, VP_LOAD_RK(rk, 0));
     for (r = 1; r != rounds; ++r)
     {
-      B = vp_dec_round(B, VP_LOAD_RK(rk, r), r);
+      vpB = vp_dec_round(vpB, VP_LOAD_RK(rk, r), r);
     }
-    B = vp_dec_last_round(B, VP_LOAD_RK(rk, rounds), rounds);
-    vp_store(out + i * 16, B);
+    vpB = vp_dec_last_round(vpB, VP_LOAD_RK(rk, rounds), rounds);
+    vp_store(out + i * 16, vpB);
   }
 }
 
@@ -597,36 +597,36 @@ VPAES_INLINE int vp_cbc_decrypt(const unsigned char* rk, unsigned rounds, const 
 
   for (; len >= 32; len -= 32, buf += 32)
   {
-    const VpVar C0 = vp_load(buf);
-    const VpVar C1 = vp_load(buf + 16);
-    VpVar B0 = vp_dec_first_round(C0, VP_LOAD_RK(rk, 0));
-    VpVar B1 = vp_dec_first_round(C1, VP_LOAD_RK(rk, 0));
+    const VpVar vpC0 = vp_load(buf);
+    const VpVar vpC1 = vp_load(buf + 16);
+    VpVar vpB0 = vp_dec_first_round(vpC0, VP_LOAD_RK(rk, 0));
+    VpVar vpB1 = vp_dec_first_round(vpC1, VP_LOAD_RK(rk, 0));
 
     for (r = 1; r != rounds; ++r)
     {
-      const VpVar K = VP_LOAD_RK(rk, r);
-      B0 = vp_dec_round(B0, K, r);
-      B1 = vp_dec_round(B1, K, r);
+      const VpVar vpK = VP_LOAD_RK(rk, r);
+      vpB0 = vp_dec_round(vpB0, vpK, r);
+      vpB1 = vp_dec_round(vpB1, vpK, r);
     }
 
-    B0 = vp_dec_last_round(B0, VP_LOAD_RK(rk, rounds), rounds);
-    B1 = vp_dec_last_round(B1, VP_LOAD_RK(rk, rounds), rounds);
+    vpB0 = vp_dec_last_round(vpB0, VP_LOAD_RK(rk, rounds), rounds);
+    vpB1 = vp_dec_last_round(vpB1, VP_LOAD_RK(rk, rounds), rounds);
 
-    vp_store(buf, vp_xor(B0, prev));
-    vp_store(buf + 16, vp_xor(B1, C0));
-    prev = C1;
+    vp_store(buf, vp_xor(vpB0, prev));
+    vp_store(buf + 16, vp_xor(vpB1, vpC0));
+    prev = vpC1;
   }
 
   if (len >= 16)
   {
-    const VpVar C = vp_load(buf);
-    VpVar B = vp_dec_first_round(C, VP_LOAD_RK(rk, 0));
+    const VpVar vpC = vp_load(buf);
+    VpVar vpB = vp_dec_first_round(vpC, VP_LOAD_RK(rk, 0));
     for (r = 1; r != rounds; ++r)
     {
-      B = vp_dec_round(B, VP_LOAD_RK(rk, r), r);
+      vpB = vp_dec_round(vpB, VP_LOAD_RK(rk, r), r);
     }
-    B = vp_dec_last_round(B, VP_LOAD_RK(rk, rounds), rounds);
-    vp_store(buf, vp_xor(B, prev));
+    vpB = vp_dec_last_round(vpB, VP_LOAD_RK(rk, rounds), rounds);
+    vp_store(buf, vp_xor(vpB, prev));
   }
   return 0;
 }
