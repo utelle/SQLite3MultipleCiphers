@@ -11,26 +11,52 @@
 #include "common.h"
 #include "cpu.h"
 
+#if !defined(__GNUC__) && !defined(__clang__)
 static volatile uint16_t optblocker_u16;
+#endif
 
 static inline int
-aegis_verify_n(const uint8_t *x_, const uint8_t *y_, const int n)
+aegis_verify_n(const uint8_t *x, const uint8_t *y, const int n)
 {
-    const volatile uint8_t *volatile x = (const volatile uint8_t *volatile) x_;
-    const volatile uint8_t *volatile y = (const volatile uint8_t *volatile) y_;
-    volatile uint16_t d                = 0U;
-    int               i;
-
-    for (i = 0; i < n; i++) {
-        d |= x[i] ^ y[i];
-    }
-#if defined(__GNUC__) || defined(__clang__)
-    __asm__("" : "+r"(d) :);
+#if !defined(__GNUC__) && !defined(__clang__)
+    volatile uint16_t d;
 #endif
+    uint16_t acc = 0U;
+    int      i   = 0;
+
+#if defined(__GNUC__) || defined(__clang__)
+    {
+        uint64_t acc64 = 0U;
+        uint64_t x64, y64;
+
+        for (i = 0; i < n; i += 8) {
+            memcpy(&x64, x + i, sizeof x64);
+            memcpy(&y64, y + i, sizeof y64);
+            acc64 |= x64 ^ y64;
+        }
+        acc64 |= acc64 >> 32;
+        acc64 |= acc64 >> 16;
+        acc64 |= acc64 >> 8;
+        acc = (uint16_t) (acc64 & 0xff);
+    }
+#else
+    for (; i < n; i++) {
+        acc |= x[i] ^ y[i];
+    }
+#endif
+#if defined(__GNUC__) || defined(__clang__)
+    __asm__("" : "+r"(acc) :);
+    acc--;
+    acc >>= 15;
+
+    return (int) acc - 1;
+#else
+    d = acc;
     d--;
     d = ((d >> 13) ^ optblocker_u16) >> 2;
 
     return (int) d - 1;
+#endif
 }
 
 AEGIS_API

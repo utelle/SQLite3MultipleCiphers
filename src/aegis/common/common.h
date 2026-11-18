@@ -16,6 +16,14 @@
 #include "../include/aegis.h"
 #include "cpu.h"
 
+enum aegis_bulk_operation {
+    AEGIS_BULK_ENCRYPT,
+    AEGIS_BULK_DECRYPT,
+    AEGIS_BULK_ABSORB,
+    AEGIS_BULK_STREAM,
+    AEGIS_BULK_STREAM_XOR
+};
+
 #ifdef __linux__
 #    define HAVE_SYS_AUXV_H
 #    define HAVE_GETAUXVAL
@@ -93,6 +101,45 @@
 #    define CRYPTO_ALIGN(x) __attribute__((aligned(x)))
 #endif
 
+#if defined(__GNUC__) || defined(__clang__)
+#    define AEGIS_ALWAYS_INLINE inline __attribute__((always_inline))
+#    define AEGIS_NOINLINE      __attribute__((noinline))
+#elif defined(_MSC_VER)
+#    define AEGIS_ALWAYS_INLINE __forceinline
+#    define AEGIS_NOINLINE      __declspec(noinline)
+#endif
+
+/* GCC reuses one zeroed register and copies it before every AESE, which is slow. This gives each AESE a fresh zero instead. */
+#if defined(__aarch64__) && defined(__GNUC__) && !defined(__clang__)
+#    define AEGIS_NEON_ZERO()                                   \
+        __extension__({                                         \
+            uint8x16_t z_;                                      \
+            __asm__ __volatile__("movi %0.16b, #0" : "=w"(z_)); \
+            z_;                                                 \
+        })
+#else
+#    define AEGIS_NEON_ZERO() vmovq_n_u8(0)
+#endif
+
+/* GCC 8 only has the 16-bit forms of EOR3 and BCAX. They are bitwise, so the lane size doesn't matter. */
+#if defined(__aarch64__) && defined(__GNUC__) && !defined(__clang__) && __GNUC__ < 9
+#    define veor3q_u8(A, B, C) \
+        vreinterpretq_u8_u16(  \
+            veor3q_u16(vreinterpretq_u16_u8(A), vreinterpretq_u16_u8(B), vreinterpretq_u16_u8(C)))
+#    define vbcaxq_u8(A, B, C) \
+        vreinterpretq_u8_u16(  \
+            vbcaxq_u16(vreinterpretq_u16_u8(A), vreinterpretq_u16_u8(B), vreinterpretq_u16_u8(C)))
+#endif
+
+#if defined(__has_attribute)
+#    if __has_attribute(code_align)
+#        define CRYPTO_ALIGN_LOOP(x) __attribute__((code_align(x)))
+#    endif
+#endif
+#ifndef CRYPTO_ALIGN_LOOP
+#    define CRYPTO_ALIGN_LOOP(x)
+#endif
+
 #define AEGIS_LOAD32_LE(SRC) aegis_load32_le(SRC)
 static inline uint32_t
 aegis_load32_le(const uint8_t src[4])
@@ -136,6 +183,34 @@ aegis_rotl32(const uint32_t x, const int b)
 
 #define COMPILER_ASSERT(X) (void) sizeof(char[(X) ? 1 : -1])
 
+static inline int
+aegis_tag_compare(const uint8_t *x, const uint8_t *y, const size_t n)
+{
+#if defined(__GNUC__) || defined(__clang__)
+    uint64_t acc64 = 0U;
+    uint64_t x64, y64;
+    uint16_t acc;
+    size_t   i;
+
+    for (i = 0; i < n; i += 8) {
+        memcpy(&x64, x + i, sizeof x64);
+        memcpy(&y64, y + i, sizeof y64);
+        acc64 |= x64 ^ y64;
+    }
+    acc64 |= acc64 >> 32;
+    acc64 |= acc64 >> 16;
+    acc64 |= acc64 >> 8;
+    acc = (uint16_t) (acc64 & 0xff);
+    __asm__("" : "+r"(acc) :);
+    acc--;
+    acc >>= 15;
+
+    return (int) acc - 1;
+#else
+    return n == 16 ? aegis_verify_16(x, y) : aegis_verify_32(x, y);
+#endif
+}
+
 #ifndef ERANGE
 #    define ERANGE 34
 #endif
@@ -155,44 +230,46 @@ aegis_rotl32(const uint32_t x, const int b)
 #define AEGIS_CONCAT_(A,B) A##B
 #define AEGIS_FUNC(name) AEGIS_CONCAT(AEGIS_FUNC_PREFIX,AEGIS_CONCAT(_,name))
 
-#define AEGIS_API_IMPL_LIST_STD                                           \
-    .encrypt_detached              = AEGIS_encrypt_detached,              \
-    .decrypt_detached              = AEGIS_decrypt_detached,              \
-    .encrypt_unauthenticated       = AEGIS_encrypt_unauthenticated,       \
-    .decrypt_unauthenticated       = AEGIS_decrypt_unauthenticated,       \
-    .stream                        = AEGIS_stream,
-#define AEGIS_API_IMPL_LIST_INC                                           \
-    .state_init                    = AEGIS_state_init,                    \
-    .state_encrypt_update          = AEGIS_state_encrypt_update,          \
-    .state_encrypt_detached_final  = AEGIS_state_encrypt_detached_final,  \
-    .state_encrypt_final           = AEGIS_state_encrypt_final,           \
-    .state_decrypt_detached_update = AEGIS_state_decrypt_detached_update, \
-    .state_decrypt_detached_final  = AEGIS_state_decrypt_detached_final,
-#define AEGIS_API_IMPL_LIST_MAC                                           \
-    .state_mac_init                = AEGIS_state_mac_init,                \
-    .state_mac_update              = AEGIS_state_mac_update,              \
-    .state_mac_final               = AEGIS_state_mac_final,               \
-    .state_mac_reset               = AEGIS_state_mac_reset,               \
-    .state_mac_clone               = AEGIS_state_mac_clone,
+#define AEGIS_API_IMPL_LIST_STD                                            \
+    .encrypt_detached               = AEGIS_encrypt_detached,              \
+    .decrypt_detached               = AEGIS_decrypt_detached,              \
+    .encrypt_unauthenticated        = AEGIS_encrypt_unauthenticated,       \
+    .decrypt_unauthenticated        = AEGIS_decrypt_unauthenticated,       \
+    .stream                         = AEGIS_stream,                        \
+    .stream_xor                     = AEGIS_stream_xor,
+#define AEGIS_API_IMPL_LIST_INC                                            \
+    .state_init                     = AEGIS_state_init,                    \
+    .state_encrypt_update           = AEGIS_state_encrypt_update,          \
+    .state_encrypt_final            = AEGIS_state_encrypt_final,           \
+    .state_decrypt_update           = AEGIS_state_decrypt_update,          \
+    .state_decrypt_final            = AEGIS_state_decrypt_final,
+#define AEGIS_API_IMPL_LIST_MAC                                            \
+    .state_mac_init                 = AEGIS_state_mac_init,                \
+    .state_mac_update               = AEGIS_state_mac_update,              \
+    .state_mac_final                = AEGIS_state_mac_final,               \
+    .state_mac_reset                = AEGIS_state_mac_reset,               \
+    .state_mac_clone                = AEGIS_state_mac_clone,               \
+    .state_mac_verify               = AEGIS_state_mac_verify,
 
 #if 0
-#define AEGIS_API_IMPL_LIST                                               \
-    .encrypt_detached              = AEGIS_encrypt_detached,              \
-    .decrypt_detached              = AEGIS_decrypt_detached,              \
-    .encrypt_unauthenticated       = AEGIS_encrypt_unauthenticated,       \
-    .decrypt_unauthenticated       = AEGIS_decrypt_unauthenticated,       \
-    .stream                        = AEGIS_stream,                        \
-    .state_init                    = AEGIS_state_init,                    \
-    .state_encrypt_update          = AEGIS_state_encrypt_update,          \
-    .state_encrypt_detached_final  = AEGIS_state_encrypt_detached_final,  \
-    .state_encrypt_final           = AEGIS_state_encrypt_final,           \
-    .state_decrypt_detached_update = AEGIS_state_decrypt_detached_update, \
-    .state_decrypt_detached_final  = AEGIS_state_decrypt_detached_final,  \
-    .state_mac_init                = AEGIS_state_mac_init,                \
-    .state_mac_update              = AEGIS_state_mac_update,              \
-    .state_mac_final               = AEGIS_state_mac_final,               \
-    .state_mac_reset               = AEGIS_state_mac_reset,               \
-    .state_mac_clone               = AEGIS_state_mac_clone,
+#define AEGIS_API_IMPL_LIST                                                \
+    .encrypt_detached               = AEGIS_encrypt_detached,              \
+    .decrypt_detached               = AEGIS_decrypt_detached,              \
+    .encrypt_unauthenticated        = AEGIS_encrypt_unauthenticated,       \
+    .decrypt_unauthenticated        = AEGIS_decrypt_unauthenticated,       \
+    .stream                         = AEGIS_stream,                        \
+    .stream_xor                     = AEGIS_stream_xor,                    \
+    .state_init                     = AEGIS_state_init,                    \
+    .state_encrypt_update           = AEGIS_state_encrypt_update,          \
+    .state_encrypt_final            = AEGIS_state_encrypt_final,           \
+    .state_decrypt_update           = AEGIS_state_decrypt_update,          \
+    .state_decrypt_final            = AEGIS_state_decrypt_final,           \
+    .state_mac_init                 = AEGIS_state_mac_init,                \
+    .state_mac_update               = AEGIS_state_mac_update,              \
+    .state_mac_final                = AEGIS_state_mac_final,               \
+    .state_mac_reset                = AEGIS_state_mac_reset,               \
+    .state_mac_clone                = AEGIS_state_mac_clone,               \
+    .state_mac_verify               = AEGIS_state_mac_verify,
 #endif
 
 #endif /* AEGIS_COMMON_H */

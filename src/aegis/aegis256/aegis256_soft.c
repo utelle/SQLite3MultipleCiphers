@@ -61,24 +61,12 @@ AEGIS_AES_BLOCK_STORE(uint8_t *a, const AEGIS_AES_BLOCK_T b)
   softaes_block_store(a, b);
 }
 
-static inline AEGIS_AES_BLOCK_T
-AEGIS_AES_ENC(const AEGIS_AES_BLOCK_T a, const AEGIS_AES_BLOCK_T b)
-{
-  return softaes_block_encrypt(a, b);
-}
-
 static inline void
 AEGIS_update(AEGIS_AES_BLOCK_T *const state, const AEGIS_AES_BLOCK_T d)
 {
-    AEGIS_AES_BLOCK_T tmp;
+    softaes_aegis_rotate6_x1(state);
 
-    tmp      = state[5];
-    state[5] = AEGIS_AES_ENC(state[4], state[5]);
-    state[4] = AEGIS_AES_ENC(state[3], state[4]);
-    state[3] = AEGIS_AES_ENC(state[2], state[3]);
-    state[2] = AEGIS_AES_ENC(state[1], state[2]);
-    state[1] = AEGIS_AES_ENC(state[0], state[1]);
-    state[0] = AEGIS_AES_BLOCK_XOR(AEGIS_AES_ENC(tmp, state[0]), d);
+    state[0] = AEGIS_AES_BLOCK_XOR(state[0], d);
 }
 
 #include "aegis256_common.h"

@@ -29,7 +29,7 @@
 #    pragma clang attribute push(__attribute__((target("aes,vaes,avx512f"))), apply_to=function)
 #  endif
 #elif defined(__GNUC__)
-#  pragma GCC target("vaes,avx512f")
+#  pragma GCC target("aes,vaes,avx512f")
 #endif
 
 #include <immintrin.h>
@@ -96,8 +96,46 @@ AEGIS_AES_ENC(const AEGIS_AES_BLOCK_T a, const AEGIS_AES_BLOCK_T b)
     return _mm512_aesenc_epi128(a, b);
 }
 
+static inline AEGIS_AES_BLOCK_T
+AEGIS_AES_BLOCK_XOR3(const AEGIS_AES_BLOCK_T a, const AEGIS_AES_BLOCK_T b, const AEGIS_AES_BLOCK_T c)
+{
+    return _mm512_ternarylogic_epi64(a, b, c, 0x96);
+}
+
+static inline AEGIS_AES_BLOCK_T
+AEGIS_AES_BLOCK_BROADCAST128(const uint8_t *a)
+{
+    return _mm512_broadcast_i32x4(_mm_loadu_si128((const void *) a));
+}
+
+static inline AEGIS_AES_BLOCK_T
+AEGIS_AES_ENC0(const AEGIS_AES_BLOCK_T a)
+{
+    return _mm512_aesenc_epi128(a, _mm512_setzero_si512());
+}
+
 static inline void
 AEGIS_update(AEGIS_AES_BLOCK_T *const state, const AEGIS_AES_BLOCK_T d1, const AEGIS_AES_BLOCK_T d2)
+{
+    AEGIS_AES_BLOCK_T tmp;
+
+    tmp      = state[7];
+    state[7] = AEGIS_AES_ENC(state[6], state[7]);
+    state[6] = AEGIS_AES_ENC(state[5], state[6]);
+    state[5] = AEGIS_AES_ENC(state[4], state[5]);
+    /* AESENC(x, k) is the same as AESENC(x, 0) XORed with k.
+     * That lets this round start without waiting on the earlier XOR, and folds the two XORs into
+     * one instruction. */
+    state[4] = AEGIS_AES_BLOCK_XOR3(AEGIS_AES_ENC0(state[3]), state[4], d2);
+    state[3] = AEGIS_AES_ENC(state[2], state[3]);
+    state[2] = AEGIS_AES_ENC(state[1], state[2]);
+    state[1] = AEGIS_AES_ENC(state[0], state[1]);
+    state[0] = AEGIS_AES_BLOCK_XOR3(AEGIS_AES_ENC0(tmp), state[0], d1);
+}
+
+#        define AEGIS128X4_UPDATE_NODATA_DEFINED
+static inline void
+AEGIS_update_nodata(AEGIS_AES_BLOCK_T *const state)
 {
     AEGIS_AES_BLOCK_T tmp;
 
@@ -110,10 +148,12 @@ AEGIS_update(AEGIS_AES_BLOCK_T *const state, const AEGIS_AES_BLOCK_T d1, const A
     state[2] = AEGIS_AES_ENC(state[1], state[2]);
     state[1] = AEGIS_AES_ENC(state[0], state[1]);
     state[0] = AEGIS_AES_ENC(tmp, state[0]);
-
-    state[0] = AEGIS_AES_BLOCK_XOR(state[0], d1);
-    state[4] = AEGIS_AES_BLOCK_XOR(state[4], d2);
 }
+
+#if defined(__x86_64__) || defined(_M_AMD64)
+#define AEGIS_UNROLL_X4 1
+#endif
+#define AEGIS_HAS_BLOCK_BROADCAST128
 
 #include "aegis128x4_common.h"
 

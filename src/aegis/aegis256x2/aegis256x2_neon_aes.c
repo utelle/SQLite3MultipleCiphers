@@ -1,6 +1,6 @@
 /*
-** Name:        aegis128x2_armcrypto.c
-** Purpose:     Implementation of AEGIS-128x2 - ARM-Crypto
+** Name:        aegis256x2_neon_aes.c
+** Purpose:     Implementation of AEGIS-256x2 - ARM NEON AES
 ** Copyright:   (c) 2023-2024 Frank Denis
 ** SPDX-License-Identifier: MIT
 */
@@ -16,8 +16,8 @@
 #include <string.h>
 
 #include "../common/common.h"
-#include "aegis128x2.h"
-#include "aegis128x2_armcrypto.h"
+#include "aegis256x2.h"
+#include "aegis256x2_neon_aes.h"
 
 #ifndef __ARM_FEATURE_CRYPTO
 #  define __ARM_FEATURE_CRYPTO 1
@@ -33,7 +33,7 @@
 #endif
 
 #ifdef __clang__
-#  pragma clang attribute push(__attribute__((target("neon,crypto,aes"))), \
+#  pragma clang attribute push(__attribute__((target("neon,crypto,aes,fuse-aes"))), \
                                      apply_to = function)
 #elif defined(__GNUC__)
 #  pragma GCC target("+simd+crypto")
@@ -44,14 +44,14 @@
 typedef struct {
     uint8x16_t b0;
     uint8x16_t b1;
-} aegis128x2_aes_block_t;
+} aegis256x2_aes_block_t;
 
-#define AEGIS_AES_BLOCK_T aegis128x2_aes_block_t
-#define AEGIS_BLOCKS      aegis128x2_blocks
-#define AEGIS_STATE      _aegis128x2_state
-#define AEGIS_MAC_STATE  _aegis128x2_mac_state
+#define AEGIS_AES_BLOCK_T aegis256x2_aes_block_t
+#define AEGIS_BLOCKS      aegis256x2_blocks
+#define AEGIS_STATE      _aegis256x2_state
+#define AEGIS_MAC_STATE  _aegis256x2_mac_state
 
-#define AEGIS_FUNC_PREFIX  aegis128x2_impl
+#define AEGIS_FUNC_PREFIX  aegis256x2_impl
 
 #include "../common/func_names_define.h"
 
@@ -89,30 +89,28 @@ AEGIS_AES_BLOCK_STORE(uint8_t *a, const AEGIS_AES_BLOCK_T b)
 static inline AEGIS_AES_BLOCK_T
 AEGIS_AES_ENC(const AEGIS_AES_BLOCK_T a, const AEGIS_AES_BLOCK_T b)
 {
-    return (AEGIS_AES_BLOCK_T) { veorq_u8(vaesmcq_u8(vaeseq_u8((a.b0), vmovq_n_u8(0))), (b.b0)),
-                           veorq_u8(vaesmcq_u8(vaeseq_u8((a.b1), vmovq_n_u8(0))), (b.b1)) };
+    return (AEGIS_AES_BLOCK_T) { veorq_u8(vaesmcq_u8(vaeseq_u8(AEGIS_NEON_ZERO(), a.b0)), b.b0),
+                           veorq_u8(vaesmcq_u8(vaeseq_u8(AEGIS_NEON_ZERO(), a.b1)), b.b1) };
 }
 
 static inline void
-AEGIS_update(AEGIS_AES_BLOCK_T *const state, const AEGIS_AES_BLOCK_T d1, const AEGIS_AES_BLOCK_T d2)
+AEGIS_update(AEGIS_AES_BLOCK_T *const state, const AEGIS_AES_BLOCK_T d)
 {
     AEGIS_AES_BLOCK_T tmp;
 
-    tmp      = state[7];
-    state[7] = AEGIS_AES_ENC(state[6], state[7]);
-    state[6] = AEGIS_AES_ENC(state[5], state[6]);
+    tmp      = state[5];
     state[5] = AEGIS_AES_ENC(state[4], state[5]);
-    state[4] = AEGIS_AES_BLOCK_XOR(AEGIS_AES_ENC(state[3], state[4]), d2);
+    state[4] = AEGIS_AES_ENC(state[3], state[4]);
     state[3] = AEGIS_AES_ENC(state[2], state[3]);
     state[2] = AEGIS_AES_ENC(state[1], state[2]);
     state[1] = AEGIS_AES_ENC(state[0], state[1]);
-    state[0] = AEGIS_AES_BLOCK_XOR(AEGIS_AES_ENC(tmp, state[0]), d1);
+    state[0] = AEGIS_AES_BLOCK_XOR(AEGIS_AES_ENC(tmp, state[0]), d);
 }
 
-#include "aegis128x2_common.h"
+#include "aegis256x2_common.h"
 
 AEGIS_API
-struct aegis128x2_implementation aegis128x2_armcrypto_implementation = {
+struct aegis256x2_implementation aegis256x2_neon_aes_implementation = {
 #include "../common/func_table.h"
 };
 
