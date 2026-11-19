@@ -88,6 +88,21 @@ jobs:
         make vfsstacktest
         ./vfsstacktest
 
+    - name: Tests with random values directly from the OS
+      if: matrix.cc_compiler == 'gcc'
+      run: |
+        make distclean
+        ./configure CFLAGS="-g -O2 -DSQLITE3MC_USE_OS_RNG=1"
+        make cryptotest tempfiletest oomtest rekeytest threadtest crashtest vfsstacktest
+        ./cryptotest
+        ./tempfiletest 20000
+        ./tempfiletest 20000 1 faults
+        ./oomtest
+        ./rekeytest
+        ./threadtest
+        ./crashtest
+        ./vfsstacktest
+
   android_build:
     name: Android (API ${{ matrix.api-level }})
     runs-on: ubuntu-latest
