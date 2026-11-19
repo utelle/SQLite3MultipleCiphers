@@ -122,6 +122,9 @@ noinst_HEADERS = \
 lib@SQLITE3MC_LIBNAME@_la_LDFLAGS = -no-undefined $(AM_LDFLAGS)
 if HOST_WINDOWS
 lib@SQLITE3MC_LIBNAME@_la_LIBADD = src/sqlite3mc.res_o
+if USE_OS_RNG
+lib@SQLITE3MC_LIBNAME@_la_LIBADD += -lbcrypt
+endif
 else
 lib@SQLITE3MC_LIBNAME@_la_LIBADD = -ldl -lm
 endif
@@ -152,6 +155,9 @@ endif
 if HOST_WINDOWS
 sqlite3shell_SOURCES += src/sqlite3mc_shell.rc
 sqlite3shell_LDADD += src/sqlite3mc_shell.res_o
+if USE_OS_RNG
+sqlite3shell_LDADD += -lbcrypt
+endif
 CLEANFILES = src/sqlite3mc_shell.res_o
 else
 # libtool complains about unknown "-no-install" option when targetting MSW, so

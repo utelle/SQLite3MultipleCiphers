@@ -325,6 +325,48 @@ static size_t entropy(void* buf, size_t n)
 # error "Secure pseudorandom number generator not implemented for this OS"
 #endif
 
+#ifndef SQLITE3MC_USE_OS_RNG
+#define SQLITE3MC_USE_OS_RNG 0
+#endif
+
+#if SQLITE3MC_USE_OS_RNG
+
+#if defined(_WIN32)
+/*
+ * On Windows, BCryptGenRandom fills the whole buffer in one call, while
+ * rand_s delivers only 4 bytes per call. It is also available to UWP apps.
+ * MinGW builds have to link with -lbcrypt.
+ */
+#include <windows.h>
+#include <bcrypt.h>
+#if defined(_MSC_VER)
+#pragma comment(lib, "bcrypt.lib")
+#endif
+
+static size_t osRandom(void* buf, size_t n)
+{
+  NTSTATUS status = BCryptGenRandom(NULL, (PUCHAR) buf, (ULONG) n, BCRYPT_USE_SYSTEM_PREFERRED_RNG);
+  return BCRYPT_SUCCESS(status) ? n : 0;
+}
+#else
+#define osRandom entropy
+#endif
+
+/*
+ * Every random value is taken directly from the operating system,
+ * without a generator of our own in between. entropy() rejects an
+ * all-zero result, so a request must not be too short: all callers
+ * ask for 8 bytes or more.
+ */
+SQLITE_PRIVATE
+void chacha20_rng(void* out, size_t n)
+{
+  if (n > 0 && osRandom(out, n) != n)
+    abort();
+}
+
+#else
+
 /*
  * ChaCha20 random number generator with fast key erasure: each refill
  * replaces the key with the first 32 bytes of new keystream.
@@ -405,3 +447,5 @@ void chacha20_rng(void* out, size_t n)
   sqlite3_mutex_leave(mutex);
 #endif
 }
+
+#endif /* SQLITE3MC_USE_OS_RNG */
