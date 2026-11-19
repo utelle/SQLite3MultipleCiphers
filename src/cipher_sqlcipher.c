@@ -14,6 +14,10 @@
 
 #define CIPHER_NAME_SQLCIPHER "sqlcipher"
 
+/* TODO: Disable for Release until SQLCIPHER5 has been released officially */
+/* !!! Enabled for testing only !!! */
+#define SQLITE3MC_ENABLE_SQLCIPHER5 1
+
 /*
 ** Configuration parameters for "sqlcipher"
 **
@@ -41,8 +45,12 @@
 #define SQLCIPHER_VERSION_2   2
 #define SQLCIPHER_VERSION_3   3
 #define SQLCIPHER_VERSION_4   4
+#if SQLITE3MC_ENABLE_SQLCIPHER5 != 0
 #define SQLCIPHER_VERSION_5   5
 #define SQLCIPHER_VERSION_MAX SQLCIPHER_VERSION_5
+#else
+#define SQLCIPHER_VERSION_MAX SQLCIPHER_VERSION_4
+#endif
 
 #ifndef SQLCIPHER_VERSION_DEFAULT
 #define SQLCIPHER_VERSION_DEFAULT SQLCIPHER_VERSION_4
@@ -188,11 +196,13 @@ CloneSQLCipherCipher(void* cipherTo, void* cipherFrom)
   memcpy(sqlCipherCipherTo->m_key, sqlCipherCipherFrom->m_key, KEYLENGTH_SQLCIPHER);
   memcpy(sqlCipherCipherTo->m_salt, sqlCipherCipherFrom->m_salt, SALTLENGTH_SQLCIPHER);
   memcpy(sqlCipherCipherTo->m_hmacKey, sqlCipherCipherFrom->m_hmacKey, KEYLENGTH_SQLCIPHER);
+#if SQLITE3MC_ENABLE_SQLCIPHER5 != 0
   if (sqlCipherCipherFrom->m_legacy == SQLCIPHER_VERSION_5)
   {
     memcpy(sqlCipherCipherTo->m_aes, sqlCipherCipherFrom->m_aes, sizeof(AesCtx));
   }
   else
+#endif
   {
     sqlite3mcAesCbcWipe(sqlCipherCipherTo->m_aes);
   }
@@ -226,7 +236,9 @@ GetReservedSQLCipherCipher(void* cipher)
 {
   SQLCipherCipher* sqlCipherCipher = (SQLCipherCipher*) cipher;
   int reserved = SALTLENGTH_SQLCIPHER;
+#if SQLITE3MC_ENABLE_SQLCIPHER5 != 0
   if (sqlCipherCipher->m_legacy < SQLCIPHER_VERSION_5)
+#endif
   {
     if (sqlCipherCipher->m_hmacUse != 0)
     {
@@ -243,10 +255,12 @@ GetReservedSQLCipherCipher(void* cipher)
       }
     }
   }
+#if SQLITE3MC_ENABLE_SQLCIPHER5 != 0
   else
   {
     reserved = SQLCIPHER_V5_RESERVED;
   }
+#endif
   return reserved;
 }
 
@@ -306,10 +320,12 @@ GenerateKeySQLCipherCipher(void* cipher, char* userPassword, int passwordLength,
     }
   }
 
+#if SQLITE3MC_ENABLE_SQLCIPHER5 != 0
   if (sqlCipherCipher->m_legacy == SQLCIPHER_VERSION_5)
   {
     sqlite3mcAesXaesInit(sqlCipherCipher->m_aes, sqlCipherCipher->m_key);
   }
+#endif
 
   if (sqlCipherCipher->m_hmacUse != 0)
   {
@@ -421,6 +437,7 @@ EncryptPageSQLCipherCipher(void* cipher, int page, unsigned char* data, int len,
     return SQLITE_CORRUPT;
   }
 
+#if SQLITE3MC_ENABLE_SQLCIPHER5 != 0
   if (sqlCipherCipher->m_legacy == SQLCIPHER_VERSION_5)
   {
     /* Generate nonce */
@@ -435,6 +452,7 @@ EncryptPageSQLCipherCipher(void* cipher, int page, unsigned char* data, int len,
     }
   }
   else
+#endif
   {
     /* Generate nonce */
     memset(iv, 0, 128);
@@ -518,6 +536,7 @@ DecryptPageSQLCipherCipher(void* cipher, int page, unsigned char* data, int len,
     return (page == 1) ? SQLITE_NOTADB : SQLITE_CORRUPT;
   }
 
+#if SQLITE3MC_ENABLE_SQLCIPHER5 != 0
   if (sqlCipherCipher->m_legacy == SQLCIPHER_VERSION_5)
   {
     int ret = sqlite3mcAesXaesPageOpen(sqlCipherCipher->m_aes, (uint32_t)page, data + offset, n - offset, data + offset, data + n);
@@ -534,6 +553,7 @@ DecryptPageSQLCipherCipher(void* cipher, int page, unsigned char* data, int len,
     }
   }
   else
+#endif
   {
     /* Get nonce from buffer */
     memcpy(iv, data + n, nReserved);

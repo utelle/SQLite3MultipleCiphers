@@ -86,6 +86,8 @@ AC_ARG_WITH([rc4],
 AS_IF([test "x$with_rc4" = xno],
     [AC_DEFINE([HAVE_CIPHER_RC4], [0], [Define if you have System.Data.SQLite RC4  disabled])])
 
+dnl Cipher Ascon128
+
 AC_ARG_WITH([ascon128],
     [AS_HELP_STRING([--without-ascon128],
         [Disable support for Ascon-128 Encryption])],
@@ -95,6 +97,8 @@ AC_ARG_WITH([ascon128],
 AS_IF([test "x$with_ascon128" = xno],
     [AC_DEFINE([HAVE_CIPHER_ASCON128], [0], [Define if you have Ascon-128  disabled])])
 
+dnl Cipher Aegis
+
 AC_ARG_WITH([aegis],
     [AS_HELP_STRING([--without-aegis],
         [Disable support for AEGIS Encryption])],
@@ -103,6 +107,17 @@ AC_ARG_WITH([aegis],
 
 AS_IF([test "x$with_aegis" = xno],
     [AC_DEFINE([HAVE_CIPHER_AEGIS], [0], [Define if you have AEGIS disabled])])
+
+dnl Cipher Aes256Gcm
+
+AC_ARG_WITH([aes256gcm],
+    [AS_HELP_STRING([--without-aes256gcm],
+        [Disable support for AES-256-GCM Encryption])],
+    [],
+    [with_aes256gcm=yes])
+
+AS_IF([test "x$with_aes256gcm" = xno],
+    [AC_DEFINE([HAVE_CIPHER_AES256GCM], [0], [Define if you have AES-256-GCM disabled])])
 
 dnl Take all random values directly from the operating system
 
@@ -126,7 +141,8 @@ AC_ARG_ENABLE(codec,
                               sqlcipher: SQLCipher Encryption
                               rc4: System.Data.SQLite RC4 Encryption
                               ascon128: Ascon-128 Encryption
-                              aegis: AEGIS Encryption],
+                              aegis: AEGIS Encryption
+                              aes256gcm: AES-256-GCM Encryption],
       [if   test "x$enableval" = "xaes128" && test "x$with_aes128cbc" = xyes ; then
         codec_type=CODEC_TYPE_AES128
       elif test "x$enableval" = "xaes256" && test "x$with_aes256cbc" = xyes ; then
@@ -141,6 +157,8 @@ AC_ARG_ENABLE(codec,
         codec_type=CODEC_TYPE_ASCON128
       elif test "x$enableval" = "xaegis" && test "x$with_aegis" = xyes ; then
         codec_type=CODEC_TYPE_AEGIS
+      elif test "x$enableval" = "xaes256gcm" && test "x$with_aes256gcm" = xyes ; then
+        codec_type=CODEC_TYPE_AES256GCM
       else
         echo
         echo "Error!"
@@ -156,7 +174,8 @@ AS_IF([test "x$with_aes128cbc" = xno &&
        test "x$with_sqlcipher" = xno &&
        test "x$with_rc4" = xno &&
        test "x$with_ascon128" = xno &&
-       test "x$with_aegis" = xno],
+       test "x$with_aegis" = xno &&
+       test "x$with_aes256gcm" = xno],
        [AC_DEFINE([SQLITE_HAS_CODEC], [0], [All ciphers disabled so encryption is disabled])])
 
 dnl --- Editing/History for SQLite3MC shell ---

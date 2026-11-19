@@ -35,7 +35,8 @@
 #define CODEC_TYPE_RC4         5
 #define CODEC_TYPE_ASCON128    6
 #define CODEC_TYPE_AEGIS       7
-#define CODEC_TYPE_MAX_BUILTIN 7
+#define CODEC_TYPE_AES256GCM   8
+#define CODEC_TYPE_MAX_BUILTIN 8
 
 /*
 ** Definition of API functions

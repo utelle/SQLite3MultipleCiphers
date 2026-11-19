@@ -870,6 +870,29 @@ sqlite3mcConfigureFromUri(sqlite3* db, const char* zDbName, int configDefault)
         }
 #endif
 
+#if HAVE_CIPHER_AES256GCM
+        int hasAes256GcmAlgorithm = 0;
+        int aes256GcmAlgorithm = 0;
+        if (sqlite3_stricmp(cipherName, "aes256gcm") == 0)
+        {
+          const char* algorithm = sqlite3_uri_parameter(dbFileName, "algorithm");
+          if (algorithm != NULL && *algorithm != 0)
+          {
+            int intValue = -1;
+            int isIntValue = sqlite3GetInt32(algorithm, &intValue) != 0;
+            if (!isIntValue)
+            {
+              intValue = sqlite3mcAes256GcmAlgorithmToIndex(algorithm);
+            }
+            if (intValue > 0)
+            {
+              hasAes256GcmAlgorithm = 1;
+              aes256GcmAlgorithm = intValue;
+            }
+          }
+        }
+#endif
+
 #if HAVE_CIPHER_AEGIS
         int hasAegisAlgorithm = 0;
         int aegisAlgorithm = 0;
@@ -899,6 +922,13 @@ sqlite3mcConfigureFromUri(sqlite3* db, const char* zDbName, int configDefault)
           sqlite3_int64 value = -1;
           if (skipLegacy && sqlite3_stricmp(cipherParams[j].m_name, "legacy") == 0) continue;
 
+#if HAVE_CIPHER_AES256GCM
+          if (hasAes256GcmAlgorithm && sqlite3_stricmp(cipherParams[j].m_name, "algorithm") == 0)
+          {
+            value = aes256GcmAlgorithm;
+          }
+          else
+#endif
 #if HAVE_CIPHER_AEGIS
           if (hasAegisAlgorithm && sqlite3_stricmp(cipherParams[j].m_name, "algorithm") == 0)
           {
@@ -1387,6 +1417,19 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
       if (cipherParams != NULL)
       {
         const char* cipherName = globalCodecParameterTable[j].m_name;
+#if HAVE_CIPHER_AES256GCM
+        int isAes256GcmAlgorithm = 0;
+        if (sqlite3_stricmp(cipherName, "aes256gcm") == 0 &&
+            sqlite3_stricmp(pragmaName, "algorithm") == 0)
+        {
+          if (!isIntValue)
+          {
+            intValue = sqlite3mcAes256GcmAlgorithmToIndex(pragmaValue);
+            isIntValue = 1;
+          }
+          isAes256GcmAlgorithm = 1;
+        }
+#endif
 #if HAVE_CIPHER_AEGIS
         int isAegisAlgorithm = 0;
         if (sqlite3_stricmp(cipherName, "aegis") == 0 &&
@@ -1410,6 +1453,13 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
           if (isIntValue)
           {
             int value = sqlite3mc_config_cipher(db, cipherName, param, intValue);
+#if HAVE_CIPHER_AES256GCM
+            if (isAes256GcmAlgorithm)
+            {
+              ((char**)pArg)[0] = sqlite3_mprintf("%s", sqlite3mcAes256GcmAlgorithmToString(value));
+            }
+            else
+#endif
 #if HAVE_CIPHER_AEGIS
             if (isAegisAlgorithm)
             {

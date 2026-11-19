@@ -24,7 +24,30 @@
 **   sqlite3mcAesXaesOpen(ctx, nonce, aad, aadLen, in, len, tag, out)
 **   sqlite3mcAesXaesPageSeal(ctx, pgno, in, len, out, reserve)   SQLCipher 5 page
 **   sqlite3mcAesXaesPageOpen(ctx, pgno, in, len, out, reserve)
+**   sqlite3mcAesXaesOpenUnverified(ctx, nonce, in, len, out)     decrypt without tag check
 **   sqlite3mcAesGhashGet(impl) / sqlite3mcAesGhashSelect(impl)   GHASH variants
+**
+** AES-256-GCM-SIV (RFC 8452) is provided as an alternative with its own
+** functions (see the end of this file):
+**
+**   sqlite3mcAesGcmSivInit(ctx, key)             key-generating key (32 bytes)
+**   sqlite3mcAesGcmSivInitImpl(ctx, key, impl)
+**   sqlite3mcAesGcmSivSeal(ctx, nonce, aad, aadLen, in, len, out, tag)   nonce: 12 bytes
+**   sqlite3mcAesGcmSivOpen(ctx, nonce, aad, aadLen, in, len, tag, out)
+**   sqlite3mcAesGcmSivPageSeal(ctx, pgno, in, len, out, reserve)
+**   sqlite3mcAesGcmSivPageOpen(ctx, pgno, in, len, out, reserve)
+**   sqlite3mcAesGcmSivOpenUnverified(ctx, nonce, in, len, tag, out)   decrypt without tag check
+**
+** The "Unverified" functions skip the authentication (recovery of damaged
+** databases, parameter hmac_check=0); their output must not be trusted.
+**
+** Every nonce gets its own message-authentication and message-encryption key.
+** The tag is computed over the plaintext with POLYVAL, which is evaluated with
+** the GHASH code of this file (RFC 8452, appendix A). If a nonce is used twice
+** under the same key, an attacker learns only whether the two plaintexts (and
+** AADs) are equal. Open decrypts first and verifies the tag afterwards; on a
+** mismatch the output buffer is zeroed, so no unauthenticated plaintext is
+** returned.
 **
 ** The main key context is an AesCtx that is set up for encryption only
 ** (AES_FOR_ENCRYPT); it holds the key schedule of the main key and the
@@ -877,6 +900,30 @@ sqlite3mcAesXaesOpen(const AesCtx* mainCtx, const unsigned char nonce[24],
   return rc;
 }
 
+/*
+** XAES-256-GCM decryption without tag verification (recovery mode only)
+*/
+SQLITE_PRIVATE int
+sqlite3mcAesXaesOpenUnverified(const AesCtx* mainCtx, const unsigned char nonce[24],
+                               const unsigned char* in, size_t len, unsigned char* out)
+{
+  AesCtx subCtx;
+  unsigned char iv[12];
+  int rc;
+
+  if (mainCtx->m_impl == NULL || !mainCtx->m_xaes)
+  {
+    return SQLITE_MISUSE;
+  }
+  rc = aesXaesDerive(mainCtx, nonce, &subCtx, iv);
+  if (rc == SQLITE_OK)
+  {
+    rc = aesGcmCtrXor(&subCtx, iv, in, len, out);
+  }
+  sqlite3mcAesCbcWipe(&subCtx);
+  return rc;
+}
+
 static void
 aesXaesPageAad(unsigned char aad[4], uint32_t pgno)
 {
@@ -910,4 +957,386 @@ sqlite3mcAesXaesPageOpen(const AesCtx* mainCtx, uint32_t pgno, const unsigned ch
   unsigned char aad[4];
   aesXaesPageAad(aad, pgno);
   return sqlite3mcAesXaesOpen(mainCtx, reserve, aad, sizeof(aad), in, len, reserve + AES_XAES_NONCE_SIZE, out);
+}
+
+/*
+** AES-256-GCM-SIV (RFC 8452)
+** --------------------------
+**
+** Per nonce (12 bytes) six AES blocks LE32(i) || nonce, i = 0..5, are
+** encrypted with the key-generating key; the first 8 bytes of each result
+** form the record keys: i = 0,1: authentication key (16 bytes),
+** i = 2..5: encryption key (32 bytes).
+**
+**   S   = POLYVAL(auth key, pad(AAD) || pad(plaintext) || LE64(8*aadLen) || LE64(8*len))
+**   S'  = S xor (nonce || 0^32), top bit of the last byte cleared
+**   tag = AES(enc key, S')
+**   ciphertext = plaintext xor CTR keystream, counter block = tag with the top bit
+**                of the last byte set; the first 32 bits (little endian) are
+**                incremented modulo 2^32
+**
+** POLYVAL via GHASH (RFC 8452, appendix A):
+**   POLYVAL(H, X1, ..., Xn) = ByteReverse(GHASH(mulX_GHASH(ByteReverse(H)),
+**                                              ByteReverse(X1), ..., ByteReverse(Xn)))
+** The running value y is kept in the byte-reversed (GHASH) domain and is
+** reversed only once at the end.
+*/
+
+#define AES_GCMSIV_NONCE_SIZE    12
+#define AES_GCMSIV_TAG_SIZE      16
+#define AES_GCMSIV_RESERVE_SIZE  28   /* page reserve: nonce[12] | tag[16] */
+#define AES_GCMSIV_POLY_BLOCKS   16   /* blocks byte-reversed per GHASH call */
+
+/*
+** Set up the key-generating key context (AES-256, encryption direction).
+** key points to 32 bytes.
+*/
+SQLITE_PRIVATE int
+sqlite3mcAesGcmSivInitImpl(AesCtx* ctx, const unsigned char* key, int impl)
+{
+  int rc = sqlite3mcAesCbcInitImpl(ctx, key, 32, AES_FOR_ENCRYPT, impl);
+  if (rc == SQLITE_OK)
+  {
+    ctx->m_gcmsiv = 1;
+  }
+  return rc;
+}
+
+SQLITE_PRIVATE int
+sqlite3mcAesGcmSivInit(AesCtx* ctx, const unsigned char* key)
+{
+  return sqlite3mcAesGcmSivInitImpl(ctx, key, AES_IMPL_AUTO);
+}
+
+/*
+** Derive the record keys for a nonce. encCtx is set up with the message-
+** encryption key (same AES implementation as the main context); the caller
+** must wipe it. authKey receives the 16-byte message-authentication key.
+*/
+static int
+aesGcmSivDerive(const AesCtx* mainCtx, const unsigned char nonce[12], AesCtx* encCtx, unsigned char authKey[16])
+{
+  unsigned char blk[96];
+  unsigned char out[96];
+  unsigned char encKey[32];
+  int i;
+  int rc;
+
+  for (i = 0; i < 6; i++)
+  {
+    unsigned char* b = blk + 16 * i;
+    b[0] = (unsigned char) i;
+    b[1] = b[2] = b[3] = 0;
+    memcpy(b + 4, nonce, 12);
+  }
+  rc = sqlite3mcAesEncryptBlocks(mainCtx, blk, out, 6);
+  if (rc == SQLITE_OK)
+  {
+    memcpy(authKey, out, 8);
+    memcpy(authKey + 8, out + 16, 8);
+    for (i = 0; i < 4; i++)
+    {
+      memcpy(encKey + 8 * i, out + 16 * (i + 2), 8);
+    }
+    rc = sqlite3mcAesCbcInitImpl(encCtx, encKey, 32, AES_FOR_ENCRYPT, mainCtx->m_impl->m_id);
+  }
+  sqlite3mcSecureZeroMemory(blk, sizeof(blk));
+  sqlite3mcSecureZeroMemory(out, sizeof(out));
+  sqlite3mcSecureZeroMemory(encKey, sizeof(encKey));
+  return rc;
+}
+
+/*
+** GHASH key for the POLYVAL key h: mulX_GHASH(ByteReverse(h)), i.e. the
+** reversed key multiplied by x in the GCM bit order (shift right by one bit,
+** reduce with 0xE1 in the first byte if a 1 bit was shifted out).
+*/
+static void
+aesPolyvalKey(unsigned char hg[16], const unsigned char h[16])
+{
+  unsigned char carry;
+  int i;
+  for (i = 0; i < 16; i++)
+  {
+    hg[i] = h[15 - i];
+  }
+  carry = (unsigned char) (hg[15] & 1);
+  for (i = 15; i > 0; i--)
+  {
+    hg[i] = (unsigned char) ((hg[i] >> 1) | (hg[i - 1] << 7));
+  }
+  hg[0] = (unsigned char) ((hg[0] >> 1) ^ (0xE1 & (0 - carry)));
+}
+
+/*
+** y = POLYVAL-update(y, data) in the byte-reversed domain; a trailing partial
+** block is zero padded (before the reversal).
+*/
+static void
+aesPolyvalData(AesGhashFn f, unsigned char y[16], const unsigned char hg[16], const unsigned char* data, size_t len)
+{
+  unsigned char buf[16 * AES_GCMSIV_POLY_BLOCKS];
+  size_t nb = len / 16;
+  size_t rem = len % 16;
+  size_t i;
+  size_t j;
+
+  while (nb > 0)
+  {
+    size_t n = (nb > AES_GCMSIV_POLY_BLOCKS) ? AES_GCMSIV_POLY_BLOCKS : nb;
+    for (j = 0; j < n; j++)
+    {
+      for (i = 0; i < 16; i++)
+      {
+        buf[16 * j + i] = data[16 * j + 15 - i];
+      }
+    }
+    f(y, hg, buf, n);
+    data += 16 * n;
+    nb -= n;
+  }
+  if (rem > 0)
+  {
+    unsigned char blk[16];
+    memset(blk, 0, sizeof(blk));
+    memcpy(blk, data, rem);
+    for (i = 0; i < 16; i++)
+    {
+      buf[i] = blk[15 - i];
+    }
+    f(y, hg, buf, 1);
+    sqlite3mcSecureZeroMemory(blk, sizeof(blk));
+  }
+  sqlite3mcSecureZeroMemory(buf, sizeof(buf));
+}
+
+/*
+** Tag over AAD and plaintext
+*/
+static int
+aesGcmSivTag(const AesCtx* encCtx, const unsigned char authKey[16], const unsigned char nonce[12],
+             const unsigned char* aad, size_t aadLen, const unsigned char* pt, size_t len,
+             unsigned char tag[16])
+{
+  AesGhashFn ghash = aesGhashCurrent();
+  unsigned char hg[16];
+  unsigned char y[16];
+  unsigned char lenblk[16];
+  unsigned char s[16];
+  int i;
+  int rc;
+
+  aesPolyvalKey(hg, authKey);
+  memset(y, 0, sizeof(y));
+  aesPolyvalData(ghash, y, hg, aad, aadLen);
+  aesPolyvalData(ghash, y, hg, pt, len);
+  for (i = 0; i < 8; i++)
+  {
+    lenblk[i] = (unsigned char) (((uint64_t) aadLen * 8) >> (8 * i));
+    lenblk[8 + i] = (unsigned char) (((uint64_t) len * 8) >> (8 * i));
+  }
+  aesPolyvalData(ghash, y, hg, lenblk, 16);
+  for (i = 0; i < 16; i++)
+  {
+    s[i] = y[15 - i];
+  }
+  for (i = 0; i < 12; i++)
+  {
+    s[i] ^= nonce[i];
+  }
+  s[15] &= 0x7f;
+  rc = sqlite3mcAesEncryptBlocks(encCtx, s, tag, 1);
+  sqlite3mcSecureZeroMemory(hg, sizeof(hg));
+  sqlite3mcSecureZeroMemory(y, sizeof(y));
+  sqlite3mcSecureZeroMemory(s, sizeof(s));
+  return rc;
+}
+
+/*
+** CTR keystream of AES-GCM-SIV: the initial counter block is the tag with the
+** top bit of the last byte set; the first 32 bits (little endian) count.
+*/
+static int
+aesGcmSivCtrXor(const AesCtx* aes, const unsigned char tag[16], const unsigned char* in, size_t len, unsigned char* out)
+{
+  unsigned char ctr[16 * AES_GCM_CTR_BLOCKS];
+  unsigned char ks[16 * AES_GCM_CTR_BLOCKS];
+  unsigned char init[16];
+  uint32_t c;
+  size_t off = 0;
+  int rc = SQLITE_OK;
+
+  memcpy(init, tag, 16);
+  init[15] |= 0x80;
+  c = (uint32_t) init[0] | ((uint32_t) init[1] << 8) | ((uint32_t) init[2] << 16) | ((uint32_t) init[3] << 24);
+
+  while (off < len && rc == SQLITE_OK)
+  {
+    size_t remain = len - off;
+    size_t nblk = (remain + 15) / 16;
+    size_t n, i, j;
+    if (nblk > AES_GCM_CTR_BLOCKS)
+    {
+      nblk = AES_GCM_CTR_BLOCKS;
+    }
+    for (j = 0; j < nblk; j++)
+    {
+      uint32_t cj = c + (uint32_t) j;
+      memcpy(ctr + 16 * j, init, 16);
+      ctr[16 * j]     = (unsigned char) cj;
+      ctr[16 * j + 1] = (unsigned char) (cj >> 8);
+      ctr[16 * j + 2] = (unsigned char) (cj >> 16);
+      ctr[16 * j + 3] = (unsigned char) (cj >> 24);
+    }
+    c += (uint32_t) nblk;
+    rc = sqlite3mcAesEncryptBlocks(aes, ctr, ks, nblk);
+    if (rc == SQLITE_OK)
+    {
+      n = (remain < nblk * 16) ? remain : nblk * 16;
+      for (i = 0; i < n; i++)
+      {
+        out[off + i] = (unsigned char) (in[off + i] ^ ks[i]);
+      }
+      off += n;
+    }
+  }
+  sqlite3mcSecureZeroMemory(ctr, sizeof(ctr));
+  sqlite3mcSecureZeroMemory(ks, sizeof(ks));
+  sqlite3mcSecureZeroMemory(init, sizeof(init));
+  return rc;
+}
+
+/*
+** AES-256-GCM-SIV encryption: nonce is 12 bytes, tag 16 bytes.
+** in == out is allowed. Returns SQLITE_OK, SQLITE_MISUSE if ctx was not set up
+** with sqlite3mcAesGcmSivInit(), or an error code of the AES backend.
+*/
+SQLITE_PRIVATE int
+sqlite3mcAesGcmSivSeal(const AesCtx* mainCtx, const unsigned char nonce[12],
+                       const unsigned char* aad, size_t aadLen,
+                       const unsigned char* in, size_t len,
+                       unsigned char* out, unsigned char tag[16])
+{
+  AesCtx encCtx;
+  unsigned char authKey[16];
+  int rc;
+
+  if (mainCtx->m_impl == NULL || !mainCtx->m_gcmsiv)
+  {
+    return SQLITE_MISUSE;
+  }
+  rc = aesGcmSivDerive(mainCtx, nonce, &encCtx, authKey);
+  if (rc == SQLITE_OK)
+  {
+    rc = aesGcmSivTag(&encCtx, authKey, nonce, aad, aadLen, in, len, tag);
+  }
+  if (rc == SQLITE_OK)
+  {
+    rc = aesGcmSivCtrXor(&encCtx, tag, in, len, out);
+  }
+  sqlite3mcAesCbcWipe(&encCtx);
+  sqlite3mcSecureZeroMemory(authKey, sizeof(authKey));
+  return rc;
+}
+
+/*
+** AES-256-GCM-SIV decryption. The plaintext is needed to compute the tag, so
+** it is produced first and checked afterwards; on a mismatch out is zeroed.
+** Returns SQLITE_OK, AES_GCM_TAG_MISMATCH, SQLITE_MISUSE or an error code of
+** the AES backend.
+*/
+SQLITE_PRIVATE int
+sqlite3mcAesGcmSivOpen(const AesCtx* mainCtx, const unsigned char nonce[12],
+                       const unsigned char* aad, size_t aadLen,
+                       const unsigned char* in, size_t len, const unsigned char tag[16],
+                       unsigned char* out)
+{
+  AesCtx encCtx;
+  unsigned char authKey[16];
+  unsigned char calc[16];
+  unsigned char diff = 0;
+  int i;
+  int rc;
+
+  if (mainCtx->m_impl == NULL || !mainCtx->m_gcmsiv)
+  {
+    return SQLITE_MISUSE;
+  }
+  rc = aesGcmSivDerive(mainCtx, nonce, &encCtx, authKey);
+  if (rc == SQLITE_OK)
+  {
+    rc = aesGcmSivCtrXor(&encCtx, tag, in, len, out);
+  }
+  if (rc == SQLITE_OK)
+  {
+    rc = aesGcmSivTag(&encCtx, authKey, nonce, aad, aadLen, out, len, calc);
+  }
+  if (rc == SQLITE_OK)
+  {
+    for (i = 0; i < 16; i++)
+    {
+      diff |= (unsigned char) (calc[i] ^ tag[i]);
+    }
+    if (diff != 0)
+    {
+      rc = AES_GCM_TAG_MISMATCH;
+    }
+  }
+  if (rc != SQLITE_OK && len > 0)
+  {
+    memset(out, 0, len);
+  }
+  sqlite3mcAesCbcWipe(&encCtx);
+  sqlite3mcSecureZeroMemory(authKey, sizeof(authKey));
+  return rc;
+}
+
+/*
+** Database page, same scheme as for XAES: the page number (4 bytes, big
+** endian) is the AAD. Reserve area: nonce[12] | tag[16]
+** (AES_GCMSIV_RESERVE_SIZE = 28). reserve[0..12) must contain the random
+** nonce before PageSeal; the tag is written to reserve[12..28).
+*/
+SQLITE_PRIVATE int
+sqlite3mcAesGcmSivPageSeal(const AesCtx* mainCtx, uint32_t pgno, const unsigned char* in, size_t len,
+                           unsigned char* out, unsigned char reserve[AES_GCMSIV_RESERVE_SIZE])
+{
+  unsigned char aad[4];
+  aesXaesPageAad(aad, pgno);
+  return sqlite3mcAesGcmSivSeal(mainCtx, reserve, aad, sizeof(aad), in, len, out, reserve + AES_GCMSIV_NONCE_SIZE);
+}
+
+SQLITE_PRIVATE int
+sqlite3mcAesGcmSivPageOpen(const AesCtx* mainCtx, uint32_t pgno, const unsigned char* in, size_t len,
+                           unsigned char* out, const unsigned char reserve[AES_GCMSIV_RESERVE_SIZE])
+{
+  unsigned char aad[4];
+  aesXaesPageAad(aad, pgno);
+  return sqlite3mcAesGcmSivOpen(mainCtx, reserve, aad, sizeof(aad), in, len, reserve + AES_GCMSIV_NONCE_SIZE, out);
+}
+
+/*
+** AES-256-GCM-SIV decryption without tag verification (recovery mode only)
+*/
+SQLITE_PRIVATE int
+sqlite3mcAesGcmSivOpenUnverified(const AesCtx* mainCtx, const unsigned char nonce[12],
+                                 const unsigned char* in, size_t len, const unsigned char tag[16],
+                                 unsigned char* out)
+{
+  AesCtx encCtx;
+  unsigned char authKey[16];
+  int rc;
+
+  if (mainCtx->m_impl == NULL || !mainCtx->m_gcmsiv)
+  {
+    return SQLITE_MISUSE;
+  }
+  rc = aesGcmSivDerive(mainCtx, nonce, &encCtx, authKey);
+  if (rc == SQLITE_OK)
+  {
+    rc = aesGcmSivCtrXor(&encCtx, tag, in, len, out);
+  }
+  sqlite3mcAesCbcWipe(&encCtx);
+  sqlite3mcSecureZeroMemory(authKey, sizeof(authKey));
+  return rc;
 }

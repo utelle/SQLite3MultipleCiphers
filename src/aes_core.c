@@ -370,6 +370,7 @@ struct _AesCtx
   int m_flags;              /* AES_FOR_ENCRYPT / AES_FOR_DECRYPT */
   int m_xaes;               /* 1: m_k1 is valid (context of sqlite3mcAesXaesInit) */
   unsigned char m_k1[16];   /* XAES-256-GCM: CMAC subkey K1 of the master key */
+  int m_gcmsiv;             /* 1: context of sqlite3mcAesGcmSivInit (key-generating key) */
   union
   {
 #ifdef AES_HAVE_CT64
