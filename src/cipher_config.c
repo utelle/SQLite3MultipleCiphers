@@ -640,10 +640,9 @@ sqlite3mcConfigParams(sqlite3_context* context, int argc, sqlite3_value** argv)
           const char* nameCipher = (const char*)sqlite3_value_text(argv[1]);
           int j;
           /*
-          ** Index 0 is not a valid cipher entry, but an entry for global parameters.
-          ** Therefore start with index 1, the first valid cipher entry, if any.
+          ** Here index 0 is a valid cipher entry, because this is the list of registered ciphers.
           */
-          for (j = 1; globalCodecDescriptorTable[j].m_name[0] != 0; ++j)
+          for (j = 0; globalCodecDescriptorTable[j].m_name[0] != 0; ++j)
           {
             if (sqlite3_stricmp(nameCipher, globalCodecDescriptorTable[j].m_name) == 0) break;
           }
