@@ -104,6 +104,18 @@ AC_ARG_WITH([aegis],
 AS_IF([test "x$with_aegis" = xno],
     [AC_DEFINE([HAVE_CIPHER_AEGIS], [0], [Define if you have AEGIS disabled])])
 
+dnl Take all random values directly from the operating system
+
+AC_ARG_ENABLE([os-rng],
+    [AS_HELP_STRING([--enable-os-rng],
+        [Take all random values directly from the operating system])],
+    [],
+    [enable_os_rng=no])
+
+AS_IF([test "x$enable_os_rng" = xyes],
+    [AC_DEFINE([SQLITE3MC_USE_OS_RNG], [1], [Define to take all random values directly from the operating system])])
+AM_CONDITIONAL([USE_OS_RNG], [test "x$enable_os_rng" = xyes])
+
 dnl Enable cipher codec
 
 AC_ARG_ENABLE(codec,
