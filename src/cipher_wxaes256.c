@@ -31,11 +31,10 @@
 SQLITE_PRIVATE CipherParams mcAES256Params[] =
 {
   { "legacy",            AES256_LEGACY_DEFAULT, AES256_LEGACY_DEFAULT, 0, 1 },
-  { "legacy_page_size",  0,                     0,                     0, SQLITE_MAX_PAGE_SIZE },
+  { "legacy_page_size",  0,                     0,                     0, SQLITE_MAX_PAGE_SIZE, 0, NULL, &cipherParamOpsLegacyPageSize },
   { "kdf_iter",          CODEC_SHA_ITER,        CODEC_SHA_ITER,        1, 0x7fffffff },
   CIPHER_PARAMS_SENTINEL
 };
-
 
 typedef struct _AES256Cipher
 {

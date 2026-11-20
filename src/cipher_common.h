@@ -78,6 +78,30 @@
 /* Restrict possible plaintext header size to db header size */
 #define PLAINTEXT_HEADER_MAX 100
 
+/* Aliases and operations shared by several ciphers (see CipherParams in sqlite3mc.h) */
+static const CipherParamAlias cipherParamAliasBool[] =
+{
+  { "off", 0 }, { "no", 0 },  { "false", 0 },
+  { "on",  1 }, { "yes", 1 }, { "true", 1 },
+  CIPHER_PARAM_ALIAS_SENTINEL
+};
+
+static const CipherParamAlias cipherParamAliasSha[] =
+{
+  { "sha1", 0 }, { "sha256", 1 }, { "sha512", 2 },
+  CIPHER_PARAM_ALIAS_SENTINEL
+};
+
+/* Parameter "legacy_page_size": 0 or a power of 2 in the range of valid page sizes */
+static int
+cipherCheckLegacyPageSize(const char* zCipher, sqlite3_int64 value)
+{
+  (void) zCipher;
+  return (value == 0) || (value >= 512 && value <= SQLITE_MAX_PAGE_SIZE && ((value - 1) & value) == 0);
+}
+
+static const CipherParamOps cipherParamOpsLegacyPageSize = { NULL, NULL, cipherCheckLegacyPageSize, NULL, NULL };
+
 typedef struct _CodecParameter
 {
   char* m_name;
@@ -128,7 +152,7 @@ typedef struct _Codec
   unsigned char m_keySalt[KEYSALT_LENGTH];
 } Codec;
 
-#define CIPHER_PARAMS_SENTINEL  { "", 0, 0, 0, 0 }
+#define CIPHER_PARAMS_SENTINEL  { "", 0, 0, 0, 0, 0, NULL, NULL }
 #define CIPHER_PAGE1_OFFSET 24
 
 SQLITE_PRIVATE int sqlite3mcGetCipherParameter(CipherParams* cipherParams, const char* paramName);
@@ -235,6 +259,9 @@ SQLITE_PRIVATE int sqlite3mcExtractRawKey(const char* password, int passwordLeng
 SQLITE_PRIVATE int sqlite3mcConfigureFromUri(sqlite3* db, const char *zDbName, int configDefault);
 
 SQLITE_PRIVATE void sqlite3mcConfigureSQLCipherVersion(sqlite3* db, int configDefault, int legacyVersion);
+
+/* Sets an integer cipher parameter from within a parameter hook (connection mutex already held, no locking) */
+SQLITE_PRIVATE int sqlite3mcConfigSetIntLocked(sqlite3* db, const char* zCipher, const char* zParam, CipherParamValueSlot eSlot, int value);
 
 SQLITE_PRIVATE int sqlite3mcCodecAttach(sqlite3* db, int nDb, const char* zPath, const void* zKey, int nKey);
 

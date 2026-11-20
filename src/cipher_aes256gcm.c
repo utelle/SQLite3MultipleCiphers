@@ -53,39 +53,30 @@
 #define AES256GCM_PCOST_DEFAULT      1
 #define AES256GCM_KDF_ITER           256000
 
-SQLITE_PRIVATE const char* mcAes256GcmAlgorithmNames[AES256GCM_ALGORITHM_MAX+1] =
-{ "", "aes-256-gcm-siv", "xaes-256-gcm" };
-
-SQLITE_PRIVATE int sqlite3mcAes256GcmAlgorithmToIndex(const char* algorithmName)
+/* Names of the algorithms (aliases for the values of parameter "algorithm") */
+static const CipherParamAlias mcAes256GcmAlgorithmAliases[] =
 {
-  int j = 0;
-  for (j = AES256GCM_ALGORITHM_MIN; j <= AES256GCM_ALGORITHM_MAX; j++)
-  {
-    if (sqlite3_stricmp(algorithmName, mcAes256GcmAlgorithmNames[j]) == 0)
-      break;
-  }
-  if (j <= AES256GCM_ALGORITHM_MAX)
-    return j;
-  else
-    return -1;
-}
+  { "aes-256-gcm-siv", AES256GCM_ALGORITHM_GCMSIV },
+  { "xaes-256-gcm",    AES256GCM_ALGORITHM_XAES   },
+  CIPHER_PARAM_ALIAS_SENTINEL
+};
 
-SQLITE_PRIVATE const char* sqlite3mcAes256GcmAlgorithmToString(int algorithmIndex)
+/* Names of the key derivation functions (aliases for the values of parameter "kdf") */
+static const CipherParamAlias mcAes256GcmKdfAliases[] =
 {
-  if (algorithmIndex >= AES256GCM_ALGORITHM_MIN && algorithmIndex <= AES256GCM_ALGORITHM_MAX)
-    return mcAes256GcmAlgorithmNames[algorithmIndex];
-  else
-    return "unknown";
-}
+  { "argon2id",           AES256GCM_KDF_ARGON2ID },
+  { "pbkdf2-hmac-sha512", AES256GCM_KDF_PBKDF2   },
+  CIPHER_PARAM_ALIAS_SENTINEL
+};
 
 SQLITE_PRIVATE CipherParams mcAes256GcmParams[] =
 {
-  { "kdf",                   AES256GCM_KDF_DEFAULT,       AES256GCM_KDF_DEFAULT,       AES256GCM_KDF_ARGON2ID, AES256GCM_KDF_PBKDF2 },
+  { "kdf",                   AES256GCM_KDF_DEFAULT,       AES256GCM_KDF_DEFAULT,       AES256GCM_KDF_ARGON2ID, AES256GCM_KDF_PBKDF2, 0, mcAes256GcmKdfAliases, NULL },
   { "tcost",                 AES256GCM_TCOST_DEFAULT,     AES256GCM_TCOST_DEFAULT,     ARGON2_MIN_TIME,        0x7fffffff },
   { "mcost",                 AES256GCM_MCOST_DEFAULT,     AES256GCM_MCOST_DEFAULT,     ARGON2_MIN_MEMORY,      0x7fffffff },
   { "pcost",                 AES256GCM_PCOST_DEFAULT,     AES256GCM_PCOST_DEFAULT,     ARGON2_MIN_LANES,       ARGON2_MAX_LANES },
   { "kdf_iter",              AES256GCM_KDF_ITER,          AES256GCM_KDF_ITER,          1, 0x7fffffff },
-  { "algorithm",             AES256GCM_ALGORITHM_DEFAULT, AES256GCM_ALGORITHM_DEFAULT, AES256GCM_ALGORITHM_MIN, AES256GCM_ALGORITHM_MAX },
+  { "algorithm",             AES256GCM_ALGORITHM_DEFAULT, AES256GCM_ALGORITHM_DEFAULT, AES256GCM_ALGORITHM_MIN, AES256GCM_ALGORITHM_MAX, CIPHER_PARAM_FLAG_NAMED_PRAGMA, mcAes256GcmAlgorithmAliases, NULL },
   { "plaintext_header_size", 0,                           0,                           0, 100 /* restrict to db header size */ },
   CIPHER_PARAMS_SENTINEL
 };

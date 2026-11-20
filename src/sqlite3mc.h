@@ -125,6 +125,79 @@ SQLITE_API unsigned char* wxsqlite3_codec_data(sqlite3* db, const char* zDbName,
 */
 
 /*
+** Slot of a configuration parameter
+*/
+typedef enum _CipherParamValueSlot
+{
+  CIPHER_PARAM_SLOT_VALUE = 0,  /* current (transient) value */
+  CIPHER_PARAM_SLOT_DEFAULT,    /* default value */
+  CIPHER_PARAM_SLOT_MIN,        /* minimum value (read only) */
+  CIPHER_PARAM_SLOT_MAX         /* maximum value (read only) */
+} CipherParamValueSlot;
+
+/*
+** Textual alias for an integer value of a parameter
+**
+** Components:
+**   m_name   - the alias (1st char = alpha); NULL terminates a table of aliases
+**   m_value  - the value the alias stands for (must be >= 0)
+**
+** Aliases are matched case-insensitively. Several aliases may map to the same
+** value; the FIRST entry for a value is its canonical name. Numbers are always
+** accepted in addition to aliases.
+*/
+typedef struct _CipherParamAlias
+{
+  const char* m_name;
+  int         m_value;
+} CipherParamAlias;
+
+#define CIPHER_PARAM_ALIAS_SENTINEL { NULL, 0 }
+
+/*
+** Optional behaviour of a parameter; all components are optional (may be NULL)
+**
+** Components:
+**   m_nameToValue  - dynamic alias lookup (returns -1 if the name is unknown)
+**   m_valueToName  - dynamic alias lookup (returns NULL if the value has no name)
+**   m_check        - additional validation after the range check (returns 1 if the value is valid)
+**   m_apply        - called after a parameter was changed successfully
+**   m_count        - number of currently available values (valid values are 1..count);
+**                    replaces m_maxValue as upper bound
+** The functions are called while the connection (or global) mutex is held. They must not
+** block and must not call any of the sqlite3mc_config* functions or execute SQL statements
+** (the configuration state is being modified; a nested call would work on an inconsistent state).
+** Hooks within SQLite3 Multiple Ciphers change further parameters with the internal function
+** sqlite3mcConfigSetIntLocked, which does not take the lock again.
+*/
+typedef struct _CipherParamOps
+{
+  int         (*m_nameToValue)(const char* zName);
+  const char* (*m_valueToName)(int iValue);
+  int         (*m_check)(const char* zCipher, sqlite3_int64 iValue);
+  void        (*m_apply)(sqlite3* db, const char* zCipher, CipherParamValueSlot eSlot, int iValue);
+  int         (*m_count)(void);
+} CipherParamOps;
+
+/*
+** Flags of a parameter
+**   DEFAULT_LOCKED - setting the default value only changes the current value
+**   ENABLE_ONLY    - the value 0 is rejected (a feature that can only be switched on)
+**   NAMED_PRAGMA   - the PRAGMA returns the alias name instead of the number
+**   NAMED_SQL      - the SQL function returns the alias name instead of the number
+**   APPLY_FIRST    - URI: the parameter is applied before all others (preset)
+**   SELECTOR       - the parameter selects the cipher scheme; an invalid value in a URI fails the open
+**   NAME_ONLY      - the value is build dependent: text interfaces accept only names, no numbers
+*/
+#define CIPHER_PARAM_FLAG_DEFAULT_LOCKED 0x01
+#define CIPHER_PARAM_FLAG_ENABLE_ONLY    0x02
+#define CIPHER_PARAM_FLAG_NAMED_PRAGMA   0x04
+#define CIPHER_PARAM_FLAG_NAMED_SQL      0x08
+#define CIPHER_PARAM_FLAG_APPLY_FIRST    0x10
+#define CIPHER_PARAM_FLAG_SELECTOR       0x20
+#define CIPHER_PARAM_FLAG_NAME_ONLY      0x40
+
+/*
 ** Structure for a single cipher configuration parameter
 **
 ** Components:
@@ -133,6 +206,12 @@ SQLITE_API unsigned char* wxsqlite3_codec_data(sqlite3* db, const char* zDbName,
 **   m_default   - default parameter value
 **   m_minValue  - minimum valid parameter value
 **   m_maxValue  - maximum valid parameter value
+**   m_flags     - flags (CIPHER_PARAM_FLAG_*), 0 if none
+**   m_aliases   - table of textual aliases for the values, or NULL
+**   m_ops       - additional behaviour, or NULL
+**
+** The last 3 components are optional: when the 5 components m_name .. m_maxValue are
+** initialized only, they are set to 0 (NULL).
 */
 typedef struct _CipherParams
 {
@@ -141,6 +220,9 @@ typedef struct _CipherParams
   int   m_default;
   int   m_minValue;
   int   m_maxValue;
+  unsigned int            m_flags;
+  const CipherParamAlias* m_aliases;
+  const CipherParamOps*   m_ops;
 } CipherParams;
 
 /*

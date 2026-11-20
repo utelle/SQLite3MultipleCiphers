@@ -30,7 +30,7 @@
 SQLITE_PRIVATE CipherParams mcAES128Params[] =
 {
   { "legacy",            AES128_LEGACY_DEFAULT, AES128_LEGACY_DEFAULT, 0, 1 },
-  { "legacy_page_size",  0,                     0,                     0, SQLITE_MAX_PAGE_SIZE },
+  { "legacy_page_size",  0,                     0,                     0, SQLITE_MAX_PAGE_SIZE, 0, NULL, &cipherParamOpsLegacyPageSize },
   CIPHER_PARAMS_SENTINEL
 };
 

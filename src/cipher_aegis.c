@@ -38,30 +38,17 @@
 #define AEGIS_MCOST_DEFAULT  (19*1024)
 #define AEGIS_PCOST_DEFAULT  1
 
-SQLITE_PRIVATE const char* mcAegisAlgorithmNames[AEGIS_ALGORITHM_MAX+1] =
-{ "", "aegis-128l", "aegis-128x2", "aegis-128x4", "aegis-256", "aegis-256x2", "aegis-256x4" };
-
-SQLITE_PRIVATE int sqlite3mcAegisAlgorithmToIndex(const char* algorithmName)
+/* Names of the algorithms (aliases for the values of parameter "algorithm") */
+static const CipherParamAlias mcAegisAlgorithmAliases[] =
 {
-  int j = 0;
-  for (j = AEGIS_ALGORITHM_MIN; j <= AEGIS_ALGORITHM_MAX; j++)
-  {
-    if (sqlite3_stricmp(algorithmName, mcAegisAlgorithmNames[j]) == 0)
-      break;
-  }
-  if (j <= AEGIS_ALGORITHM_MAX)
-    return j;
-  else
-    return -1;
-}
-
-SQLITE_PRIVATE const char* sqlite3mcAegisAlgorithmToString(int algorithmIndex)
-{
-  if (algorithmIndex >= AEGIS_ALGORITHM_MIN && algorithmIndex <= AEGIS_ALGORITHM_MAX)
-    return mcAegisAlgorithmNames[algorithmIndex];
-  else
-    return "unknown";
-}
+  { "aegis-128l",   AEGIS_ALGORITHM_128L  },
+  { "aegis-128x2",  AEGIS_ALGORITHM_128X2 },
+  { "aegis-128x4",  AEGIS_ALGORITHM_128X4 },
+  { "aegis-256",    AEGIS_ALGORITHM_256   },
+  { "aegis-256x2",  AEGIS_ALGORITHM_256X2 },
+  { "aegis-256x4",  AEGIS_ALGORITHM_256X4 },
+  CIPHER_PARAM_ALIAS_SENTINEL
+};
 
 typedef int (*AegisEncryptDetached_t)(uint8_t* c, uint8_t* mac, size_t maclen, 
                                       const uint8_t* m, size_t mlen,
@@ -118,7 +105,7 @@ SQLITE_PRIVATE CipherParams mcAegisParams[] =
   { "tcost",                 AEGIS_TCOST_DEFAULT,     AEGIS_TCOST_DEFAULT,     ARGON2_MIN_TIME,     0x7fffffff },
   { "mcost",                 AEGIS_MCOST_DEFAULT,     AEGIS_MCOST_DEFAULT,     ARGON2_MIN_MEMORY,   0x7fffffff },
   { "pcost",                 AEGIS_PCOST_DEFAULT,     AEGIS_PCOST_DEFAULT,     ARGON2_MIN_LANES,    ARGON2_MAX_LANES},
-  { "algorithm",             AEGIS_ALGORITHM_DEFAULT, AEGIS_ALGORITHM_DEFAULT, AEGIS_ALGORITHM_MIN, AEGIS_ALGORITHM_MAX },
+  { "algorithm",             AEGIS_ALGORITHM_DEFAULT, AEGIS_ALGORITHM_DEFAULT, AEGIS_ALGORITHM_MIN, AEGIS_ALGORITHM_MAX, CIPHER_PARAM_FLAG_NAMED_PRAGMA, mcAegisAlgorithmAliases, NULL },
   { "plaintext_header_size", 0,                       0,                       0, 100 /* restrict to db header size */ },
   CIPHER_PARAMS_SENTINEL
 };

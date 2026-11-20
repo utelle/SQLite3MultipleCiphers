@@ -79,19 +79,45 @@
 #define SQLCIPHER_V5_NONCE_LEN 24
 #define SQLCIPHER_V5_TAG_LEN   16
 
+/* Parameter "plaintext_header_size": must be a multiple of the AES block size */
+static int
+sqlCipherCheckPlaintextHeaderSize(const char* zCipher, sqlite3_int64 value)
+{
+  (void) zCipher;
+  return value % 16 == 0;
+}
+
+/* Parameter "legacy": configure all parameters according to the selected SQLCipher version */
+static void
+sqlCipherApplyLegacy(sqlite3* db, const char* zCipher, CipherParamValueSlot eSlot, int value)
+{
+  (void) zCipher;
+  sqlite3mcConfigureSQLCipherVersion(db, eSlot == CIPHER_PARAM_SLOT_DEFAULT, value);
+}
+
+static const CipherParamOps sqlCipherOpsLegacy =
+{
+  NULL, NULL, NULL, sqlCipherApplyLegacy, NULL
+};
+
+static const CipherParamOps sqlCipherOpsPlaintextHeaderSize =
+{
+  NULL, NULL, sqlCipherCheckPlaintextHeaderSize, NULL, NULL
+};
+
 SQLITE_PRIVATE CipherParams mcSQLCipherParams[] =
 {
-  { "legacy",                SQLCIPHER_LEGACY_DEFAULT,   SQLCIPHER_LEGACY_DEFAULT,   0, SQLCIPHER_VERSION_MAX },
-  { "legacy_page_size",      SQLCIPHER_LEGACY_PAGE_SIZE, SQLCIPHER_LEGACY_PAGE_SIZE, 0, SQLITE_MAX_PAGE_SIZE },
+  { "legacy",                SQLCIPHER_LEGACY_DEFAULT,   SQLCIPHER_LEGACY_DEFAULT,   0, SQLCIPHER_VERSION_MAX, CIPHER_PARAM_FLAG_APPLY_FIRST, NULL, &sqlCipherOpsLegacy },
+  { "legacy_page_size",      SQLCIPHER_LEGACY_PAGE_SIZE, SQLCIPHER_LEGACY_PAGE_SIZE, 0, SQLITE_MAX_PAGE_SIZE, 0, NULL, &cipherParamOpsLegacyPageSize },
   { "kdf_iter",              SQLCIPHER_KDF_ITER,         SQLCIPHER_KDF_ITER,         1, 0x7fffffff },
   { "fast_kdf_iter",         SQLCIPHER_FAST_KDF_ITER,    SQLCIPHER_FAST_KDF_ITER,    1, 0x7fffffff },
-  { "hmac_use",              SQLCIPHER_HMAC_USE,         SQLCIPHER_HMAC_USE,         0, 1 },
+  { "hmac_use",              SQLCIPHER_HMAC_USE,         SQLCIPHER_HMAC_USE,         0, 1, 0, cipherParamAliasBool, NULL },
   { "hmac_pgno",             SQLCIPHER_HMAC_PGNO_LE,     SQLCIPHER_HMAC_PGNO_LE,     0, 2 },
   { "hmac_salt_mask",        SQLCIPHER_HMAC_SALT_MASK,   SQLCIPHER_HMAC_SALT_MASK,   0x00, 0xff },
-  { "kdf_algorithm",         SQLCIPHER_KDF_ALGORITHM,    SQLCIPHER_KDF_ALGORITHM,    0, 2 },
-  { "hmac_algorithm",        SQLCIPHER_HMAC_ALGORITHM,   SQLCIPHER_HMAC_ALGORITHM,   0, 2 },
-  { "hmac_algorithm_compat", SQLCIPHER_HMAC_ALGO_COMPAT, SQLCIPHER_HMAC_ALGO_COMPAT, 0, 1 },
-  { "plaintext_header_size", 0,                          0,                          0, 100 /* restrict to db header size */ },
+  { "kdf_algorithm",         SQLCIPHER_KDF_ALGORITHM,    SQLCIPHER_KDF_ALGORITHM,    0, 2, 0, cipherParamAliasSha, NULL },
+  { "hmac_algorithm",        SQLCIPHER_HMAC_ALGORITHM,   SQLCIPHER_HMAC_ALGORITHM,   0, 2, 0, cipherParamAliasSha, NULL },
+  { "hmac_algorithm_compat", SQLCIPHER_HMAC_ALGO_COMPAT, SQLCIPHER_HMAC_ALGO_COMPAT, 0, 1, 0, cipherParamAliasBool, NULL },
+  { "plaintext_header_size", 0,                          0,                          0, 100 /* restrict to db header size */, 0, NULL, &sqlCipherOpsPlaintextHeaderSize },
   CIPHER_PARAMS_SENTINEL
 };
 
