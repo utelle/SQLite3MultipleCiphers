@@ -263,8 +263,13 @@ vle_getValueBytes(sqlite3_value* val, const unsigned char** p, int* len)
   }
   else
   {
-    *p = (const unsigned char*) sqlite3_value_blob(val);
+    /*
+    ** No conversion takes place for a BLOB, so the length can (and must) be
+    ** asked for first: if the expansion of a zeroblob fails, the value is
+    ** turned into NULL and sqlite3_value_bytes() reports 0 afterwards.
+    */
     *len = sqlite3_value_bytes(val);
+    *p = (const unsigned char*) sqlite3_value_blob(val);
     if (*p == NULL && *len > 0) return SQLITE_NOMEM;
   }
   return SQLITE_OK;
@@ -305,8 +310,14 @@ vle_getScope(sqlite3_value* argv, int strict, const unsigned char** scope, int* 
     int scope_type = sqlite3_value_type(argv);
     if (scope_type == SQLITE_BLOB || (scope_type == SQLITE_TEXT && !strict))
     {
+      /* Order of the two calls as in the released version (legacy TEXT scopes) */
       *scopeLen = sqlite3_value_bytes(argv);
       *scope = (const unsigned char*) sqlite3_value_blob(argv);
+      if (*scope == NULL && *scopeLen > 0)
+      {
+        /* zeroblob that could not be expanded: do not fall back to the default scope */
+        return SQLITE_NOMEM;
+      }
     }
     else if (strict && (scope_type == SQLITE_TEXT || scope_type == SQLITE_INTEGER))
     {
@@ -574,12 +585,25 @@ vle_packValue(sqlite3_value* val, unsigned char** out, int* out_len)
       break;
     }
     case SQLITE_TEXT:
-      payloadLen = sqlite3_value_bytes(val);
+      /* The conversion to UTF-8 determines the length: text before bytes */
       payload = sqlite3_value_text(val);
+      if (payload == NULL)
+      {
+        return SQLITE_NOMEM;
+      }
+      payloadLen = sqlite3_value_bytes(val);
       break;
     case SQLITE_BLOB:
+      /*
+      ** A zeroblob is expanded by sqlite3_value_blob, which can fail. The
+      ** value is NULL afterwards (length 0), so the length is taken before.
+      */
       payloadLen = sqlite3_value_bytes(val);
       payload = sqlite3_value_blob(val);
+      if (payload == NULL && payloadLen > 0)
+      {
+        return SQLITE_NOMEM;
+      }
       break;
     default:
       return SQLITE_MISUSE;
@@ -867,6 +891,8 @@ static void vle_setKey(sqlite3_context* ctx, int argc, sqlite3_value** argv)
   if (result != NULL)
   {
     sqlite3_result_text(ctx, result, -1, sqlite3_free);
+    /* Update VLE context of the connection, only if the call succeeds */
+    *vle = vleNew;
   }
   else
   {
@@ -874,8 +900,9 @@ static void vle_setKey(sqlite3_context* ctx, int argc, sqlite3_value** argv)
   }
   sqlite3_free(options);
 
-  /* Update VLE context of the connection */
-  *vle = vleNew;
+  /* Do not leave key material on the stack */
+  sqlite3mcSecureZeroMemory(&vleNew, sizeof(vleNew));
+  sqlite3mcSecureZeroMemory(digest, sizeof(digest));
 }
 
 static void
@@ -915,9 +942,14 @@ vle_encrypt(sqlite3_context* ctx, int argc, sqlite3_value** argv)
   /* Pack Value */
   unsigned char* payload = NULL;
   int payloadLen = 0;
-  if (vle_packValue(argv[0], &payload, &payloadLen) != SQLITE_OK)
+  const int valueType = sqlite3_value_type(argv[0]);
+  int packRc = vle_packValue(argv[0], &payload, &payloadLen);
+  if (packRc != SQLITE_OK)
   {
-    sqlite3_result_error(ctx, "sqlite3mc_vle_encrypt: Failed to pack value", -1);
+    if (packRc == SQLITE_NOMEM)
+      sqlite3_result_error_nomem(ctx);
+    else
+      sqlite3_result_error(ctx, "sqlite3mc_vle_encrypt: Failed to pack value", -1);
     return;
   }
 
@@ -948,7 +980,7 @@ vle_encrypt(sqlite3_context* ctx, int argc, sqlite3_value** argv)
   unsigned char* tag = ciphertext + payloadLen + 1;
 
   /* Output SQLite value type and value */
-  ciphertext[0] = (uint8_t) sqlite3_value_type(argv[0]);
+  ciphertext[0] = (uint8_t) valueType;
   if (payloadLen > 0)
   {
     memcpy(ciphertext + 1, payload, payloadLen);
@@ -994,6 +1026,12 @@ vle_decrypt(sqlite3_context* ctx, int argc, sqlite3_value** argv)
   /* Retrieve value */
   int blobLen = sqlite3_value_bytes(argv[0]);
   const unsigned char* blob = (const unsigned char*) sqlite3_value_blob(argv[0]);
+  if (blob == NULL && blobLen > 0)
+  {
+    /* zeroblob that could not be expanded */
+    sqlite3_result_error_nomem(ctx);
+    return;
+  }
 
   if (blobLen < (int) sizeof(VleHeader) + (int) vle->nonceLen + (int) vle->tagLen + 1)
   {
