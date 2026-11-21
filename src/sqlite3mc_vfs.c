@@ -1425,8 +1425,11 @@ static int mcPage1LooksPlain(const unsigned char* p)
 **
 ** A database looks encrypted, if page 1 does not start with the
 ** SQLite magic string (except for databases with a plaintext header).
-** An empty file, a file shorter than 16 bytes or a file starting
-** with zero bytes is not considered to be encrypted.
+** An empty file, a file shorter than the checked header or a file
+** whose checked header consists of zero bytes only (preallocated, never
+** written) is not considered to be encrypted.
+** A key salt of 16 zero bytes is valid (PRAGMA cipher_salt, raw key with
+** salt), so the first 16 bytes alone do not tell anything.
 **
 ** Returns 1, if the main database file of the journal is encrypted
 */
@@ -1451,7 +1454,7 @@ static int mcMainDbLooksEncrypted(sqlite3mc_file* mcFile, int* isEncrypted)
     *isEncrypted = 1;
     return rc;
   }
-  for (j = 0; j < 16; ++j)
+  for (j = 0; j < MC_PAGE1_CHECK_SIZE; ++j)
   {
     if (page1[j] != 0)
     {
