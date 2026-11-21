@@ -71,8 +71,15 @@ SQLITE_PRIVATE void sqlite3mcSecureZeroMemory(void* v, size_t n)
 
 /* Flag indicating whether securing memory allocations is initialized */
 static volatile int mcSecureMemoryInitialized = 0;
-/* Flag indicating whether memory allocations will be secured */
-static volatile int mcSecureMemoryFlag = 0;
+/*
+** Flag indicating whether memory allocations will be secured
+**
+** The flag is written by PRAGMA memory_security and read by the allocator
+** functions of all threads. It has the atomic type that belongs to the
+** macros MC_ATOMIC_LOAD and MC_ATOMIC_STORE (see hwcheck.c): with C11
+** atomics these macros accept only objects of an atomic type.
+*/
+static mcAtomicUInt mcSecureMemoryFlag = 0;
 
 /* Map of default memory allocation methods */
 static volatile sqlite3_mem_methods mcDefaultMemoryMethods;
@@ -98,7 +105,7 @@ static void* mcMemoryAlloc(int nByte)
 */
 static void mcMemoryFree(void* pPrior)
 {
-  if (mcSecureMemoryFlag)
+  if (MC_ATOMIC_LOAD(&mcSecureMemoryFlag))
   {
     int nSize = mcMemorySize(pPrior);
     sqlite3mcSecureZeroMemory(pPrior, nSize);
@@ -112,7 +119,7 @@ static void mcMemoryFree(void* pPrior)
 static void* mcMemoryRealloc(void* pPrior, int nByte)
 {
   void* pNew = NULL;
-  if (mcSecureMemoryFlag)
+  if (MC_ATOMIC_LOAD(&mcSecureMemoryFlag))
   {
     int nPriorSize = mcMemorySize(pPrior);
     if (nByte == 0)
@@ -172,7 +179,8 @@ static void mcMemoryShutdown(void* pAppData)
 {
   if (mcDefaultMemoryMethods.xShutdown != NULL)
     mcDefaultMemoryMethods.xShutdown(pAppData);
-  mcSecureMemoryFlag = mcSecureMemoryInitialized = 0;
+  MC_ATOMIC_STORE(&mcSecureMemoryFlag, 0);
+  mcSecureMemoryInitialized = 0;
 }
 
 static sqlite3_mem_methods mcSecureMemoryMethods =
@@ -230,13 +238,15 @@ SQLITE_PRIVATE void sqlite3mcInitMemoryMethods()
         }
         else
         {
-          mcSecureMemoryFlag = mcSecureMemoryInitialized = 0;
+          MC_ATOMIC_STORE(&mcSecureMemoryFlag, 0);
+          mcSecureMemoryInitialized = 0;
         }
       }
     }
     else
     {
-      mcSecureMemoryFlag = mcSecureMemoryInitialized = 0;
+      MC_ATOMIC_STORE(&mcSecureMemoryFlag, 0);
+      mcSecureMemoryInitialized = 0;
     }
   }
 #endif /* SQLITE3MC_SECURE_MEMORY */
