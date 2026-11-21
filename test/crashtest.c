@@ -3,8 +3,8 @@
 **
 ** A VFS below the SQLite3 Multiple Ciphers VFS keeps all files in memory and
 ** counts every write, sync, truncate and delete of a named file. An operation
-** (a transaction, a rekey, VACUUM, ...) is run again and again; in run k the
-** k-th of these calls fails in one of four ways:
+** (a transaction, a rekey, VACUUM, a transaction with auto_vacuum, ...) is run
+** again and again; in run k the k-th of these calls fails in one of four ways:
 **
 **   crash      the process stops: the call and everything after it is lost
 **   torn       like crash, but the first half of the failing write arrives
@@ -492,8 +492,8 @@ static const Cipher ciphers[] =
     "PRAGMA cipher='ascon128'; PRAGMA key='raw:hex:0303030303030303030303030303030303030303030303030303030303030303';" },
 };
 
-enum { OP_UPDATE, OP_REKEY, OP_REKEY_CIPHER, OP_DECRYPT, OP_VACUUM };
-static const char* opNames[] = { "update", "rekey", "rekey-cipher", "decrypt", "vacuum" };
+enum { OP_UPDATE, OP_REKEY, OP_REKEY_CIPHER, OP_DECRYPT, OP_VACUUM, OP_AUTOVACUUM };
+static const char* opNames[] = { "update", "rekey", "rekey-cipher", "decrypt", "vacuum", "autovacuum" };
 
 static const char* journalModes[] = { "delete", "truncate", "persist", "wal" };
 
@@ -511,6 +511,28 @@ static const char* updateSql =
   "INSERT INTO t(x, y) SELECT printf('" MARKER "-new-%d', i), zeroblob(i % 400) FROM t WHERE i <= 60;"
   "DELETE FROM t WHERE i % 7 = 0;"
   "COMMIT;";
+
+/*
+** With auto_vacuum: a small database, so that the next root page lies behind
+** the end of the file. The new row grows the database by overflow pages, then
+** CREATE TABLE moves one of them away to make room for the new root page.
+** While moving, SQLite reads that page behind the end of the file and expects
+** zeros.
+*/
+static const char* fillSmallSql =
+  "CREATE TABLE t(i INTEGER PRIMARY KEY, x TEXT, y BLOB);"
+  "CREATE INDEX tx ON t(x);"
+  "WITH RECURSIVE c(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM c WHERE n < 10)"
+  " INSERT INTO t SELECT n, printf('" MARKER "-%d', n), zeroblob(n) FROM c;";
+
+static const char* autovacuumSql =
+  "BEGIN;"
+  "INSERT INTO t(x, y) VALUES ('" MARKER "-big', zeroblob(20000));"
+  "CREATE TABLE t2(a BLOB PRIMARY KEY);"
+  "INSERT INTO t2 VALUES (x'01');"
+  "DELETE FROM t WHERE i % 5 = 0;"
+  "COMMIT;"
+  "PRAGMA incremental_vacuum;";
 
 static const char* stateSql =
   "SELECT count(*) || ':' || ifnull(sum(length(x)), 0) || ':' || ifnull(sum(length(y)), 0) || ':' ||"
@@ -589,6 +611,7 @@ static int runOperation(const Cipher* c, const char* journal, int op)
       rc = sqlite3_exec(db, rekeySql, NULL, NULL, NULL);
     }
     if (op == OP_VACUUM) rc = sqlite3_exec(db, "VACUUM;", NULL, NULL, NULL);
+    if (op == OP_AUTOVACUUM) rc = sqlite3_exec(db, autovacuumSql, NULL, NULL, NULL);
   }
   failAt = 0;        /* closing must not count */
   {
@@ -621,9 +644,10 @@ static void runScenario(const Cipher* c, const char* journal, int pageSize, int 
   sqlite3_snprintf(sizeof(setup), setup, "PRAGMA page_size=%d;", pageSize);
   sqlite3_exec(db, c->keyOld, NULL, NULL, NULL);
   sqlite3_exec(db, setup, NULL, NULL, NULL);
+  if (op == OP_AUTOVACUUM) sqlite3_exec(db, "PRAGMA auto_vacuum=INCREMENTAL;", NULL, NULL, NULL);
   sqlite3_snprintf(sizeof(setup), setup, "PRAGMA journal_mode=%s;", journal);
   sqlite3_exec(db, setup, NULL, NULL, NULL);
-  if (sqlite3_exec(db, fillSql, NULL, NULL, NULL) != SQLITE_OK)
+  if (sqlite3_exec(db, (op == OP_AUTOVACUUM) ? fillSmallSql : fillSql, NULL, NULL, NULL) != SQLITE_OK)
   {
     FAIL("%s: setup failed: %s", name, sqlite3_errmsg(db));
     sqlite3_close(db);
@@ -674,7 +698,7 @@ static void runScenario(const Cipher* c, const char* journal, int pageSize, int 
       sqlite3_free(s);
     }
   }
-  if (op == OP_UPDATE && stateNew != NULL && stateOld != NULL && strcmp(stateNew, stateOld) == 0)
+  if ((op == OP_UPDATE || op == OP_AUTOVACUUM) && stateNew != NULL && stateOld != NULL && strcmp(stateNew, stateOld) == 0)
     FAIL("%s: update did not change the rows", name);
 
   for (mode = MODE_CRASH; mode <= MODE_IOERR; mode++)
@@ -803,9 +827,9 @@ int main(int argc, char** argv)
       for (p = 0; p < 2; p++)
       {
         if (!full && p != 1) continue;                  /* 4096 */
-        for (op = OP_UPDATE; op <= OP_VACUUM; op++)
+        for (op = OP_UPDATE; op <= OP_AUTOVACUUM; op++)
         {
-          if (!full && op != OP_UPDATE && op != OP_REKEY && op != OP_REKEY_CIPHER) continue;
+          if (!full && op != OP_UPDATE && op != OP_REKEY && op != OP_REKEY_CIPHER && op != OP_AUTOVACUUM) continue;
           runScenario(&ciphers[i], journalModes[j], pageSizes[p], op, filter);
         }
       }
