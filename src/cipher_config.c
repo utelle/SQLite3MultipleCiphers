@@ -1547,6 +1547,12 @@ sqlite3mcCodecQueryParameters(sqlite3* db, const char* zDb, const char* zUri, in
         sqlite3mcSecureZeroMemory(zDecoded, nKey);
         sqlite3_free(zDecoded);
       }
+      else
+      {
+        /* A key was requested: without it the database must not be used */
+        *ret = SQLITE_NOMEM;
+        sqlite3ErrorWithMsg(db, *ret, "Setting up cipher key failed. Out of memory.");
+      }
     }
     else
     {
@@ -1662,6 +1668,24 @@ sqlite3mcHandleMainKey(sqlite3* db, const char* zPath)
   if (rc == SQLITE_OK)
   {
     sqlite3mcCodecQueryParameters(db, "main", zPath, &rc);
+  }
+  if (rc != SQLITE_OK)
+  {
+    /*
+    ** The cipher configuration or the key given in the URI could not be set
+    ** up. sqlite3_open() returns the error, but the connection handle is
+    ** handed out as well. Treat it as SQLite treats every other failed open:
+    ** the handle can only be asked for the error and be closed. Otherwise an
+    ** application that goes on with the handle would read and write the
+    ** database without the encryption it asked for.
+    */
+    sqlite3_mutex_enter(db->mutex);
+    if (sqlite3_errcode(db) == SQLITE_OK)
+    {
+      sqlite3Error(db, rc);
+    }
+    db->eOpenState = SQLITE_STATE_SICK;
+    sqlite3_mutex_leave(db->mutex);
   }
   return rc;
 }
