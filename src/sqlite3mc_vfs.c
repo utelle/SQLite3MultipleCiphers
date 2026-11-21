@@ -1229,7 +1229,7 @@ static int mcIoClose(sqlite3_file* pFile)
 /*
 ** Read operation on main database file
 */
-static int mcReadMainDb(sqlite3_file* pFile, void* buffer, int count, sqlite3_int64 offset)
+static int mcReadMainDb(sqlite3_file* pFile, void* buffer, int count, sqlite3_int64 offset, int shortRead)
 {
   int rc = SQLITE_OK;
   sqlite3mc_file* mcFile = (sqlite3mc_file*) pFile;
@@ -1313,9 +1313,31 @@ static int mcReadMainDb(sqlite3_file* pFile, void* buffer, int count, sqlite3_in
       unsigned int pageNo = offset / pageSize + 1;
       unsigned int nPages = count / pageSize;
       unsigned int iPage;
+      sqlite3_int64 fileSize = 0;
+      if (shortRead)
+      {
+        /*
+        ** The read stopped at the end of the file, and the rest of the buffer
+        ** is zero-filled. SQLite reads pages behind the end of the file, for
+        ** example when it moves pages in auto-vacuum mode, and expects zeros
+        ** there. Such pages are not decrypted. A page that is only partly in
+        ** the file is still decrypted, so that a truncated file is reported
+        ** as corrupt.
+        */
+        rc = REALFILE(pFile)->pMethods->xFileSize(REALFILE(pFile), &fileSize);
+        if (rc != SQLITE_OK)
+        {
+          return rc;
+        }
+      }
       for (iPage = 0; iPage < nPages; ++iPage)
       {
-        void* bufferDecrypted = sqlite3mcCodec(mcFile->codec, data, pageNo, 3);
+        void* bufferDecrypted;
+        if (shortRead && offset >= fileSize)
+        {
+          break;
+        }
+        bufferDecrypted = sqlite3mcCodec(mcFile->codec, data, pageNo, 3);
         rc = sqlite3mcGetCodecLastError(mcFile->codec);
         if (rc != SQLITE_OK)
         {
@@ -1831,7 +1853,7 @@ static int mcIoRead(sqlite3_file* pFile, void* buffer, int count, sqlite3_int64 
   if (mcFile->openFlags & SQLITE_OPEN_MAIN_DB)
   {
     int rcRead = rc;
-    rc = mcReadMainDb(pFile, buffer, count, offset);
+    rc = mcReadMainDb(pFile, buffer, count, offset, rcRead == SQLITE_IOERR_SHORT_READ);
     if (rc == SQLITE_OK) rc = rcRead;   /* Keep Short-Read state */
   }
   else if (mcFile->openFlags & SQLITE_OPEN_MAIN_JOURNAL)
