@@ -456,6 +456,7 @@ mcRegisterCodecExtensions(sqlite3* db, char** pzErrMsg, const sqlite3_api_routin
     /* sqlite3_set_clientdata failed with OOM */
     return rc;
   }
+  codecConfig->m_db = db;
   db->mcConfig = codecConfig;
 
   if (rc == SQLITE_OK)

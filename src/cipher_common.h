@@ -86,6 +86,7 @@ typedef struct _CodecParameter
 
 typedef struct _CodecConfig
 {
+  sqlite3*        m_db;                /* Connection that refers to this configuration via db->mcConfig */
   CodecParameter* m_globalConfigTable;
 } CodecConfig;
 

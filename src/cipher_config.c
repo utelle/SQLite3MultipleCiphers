@@ -514,7 +514,18 @@ sqlite3mcConfigParams(sqlite3_context* context, int argc, sqlite3_value** argv)
     return;
   }
 
-  codecParams = (CodecParameter*)sqlite3_user_data(context);
+  /*
+  ** The configuration is looked up via the connection, not via the user data
+  ** of the function: the configuration is destroyed when the connection is
+  ** closed, while the function can still be called by statements that are
+  ** finalized later (sqlite3_close_v2).
+  */
+  codecParams = sqlite3mcGetCodecParams(sqlite3_context_db_handle(context));
+  if (codecParams == NULL)
+  {
+    sqlite3_result_error(context, "Cipher configuration not available", -1);
+    return;
+  }
 
   /* Check first argument whether it is a common parameter */
   /* If the first argument is a common parameter, param1 will point to its parameter table entry */
