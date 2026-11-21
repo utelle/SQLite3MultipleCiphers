@@ -123,6 +123,16 @@ sqlite3mcFreeCodecConfig(void* ptr)
   CodecConfig* codecConfig = (CodecConfig*)ptr;
   if (codecConfig != NULL)
   {
+    /*
+    ** SQLite destroys the client data of a connection in sqlite3_close(),
+    ** before the b-trees are closed, and a connection closed with
+    ** sqlite3_close_v2() lives on as long as it has unfinalized statements.
+    ** db->mcConfig must not keep pointing to the freed configuration.
+    */
+    if (codecConfig->m_db != NULL && codecConfig->m_db->mcConfig == (void*) codecConfig)
+    {
+      codecConfig->m_db->mcConfig = NULL;
+    }
     sqlite3mcFreeCodecParameterTable(codecConfig->m_globalConfigTable);
     sqlite3_free(codecConfig);
   }
