@@ -1019,6 +1019,7 @@ static int mcVfsOpen(sqlite3_vfs* pVfs, const char* zName, sqlite3_file* pFile, 
   mcFile->pageNo = 0;
   mcFile->pageSize = 0;
   mcFile->pageNoOffset = 0;
+  mcFile->checksumOffset = -1;
   mcFile->afterPage = 0;
   mcFile->tempCipher = 0;
 
@@ -1100,6 +1101,11 @@ static int mcVfsOpen(sqlite3_vfs* pVfs, const char* zName, sqlite3_file* pFile, 
     {
       /* Version is 3, but SHM not supported */
       pFile->pMethods = mcIoMethodsGlobal[IOMETHODS_VERSION_NOSHM];
+    }
+    else if (ioMethodsVersion == 2 && mcFile->pFile->pMethods->xShmMap == NULL)
+    {
+      /* Version is 2, but SHM not supported: version 2 adds nothing but the SHM methods */
+      pFile->pMethods = mcIoMethodsGlobal[1];
     }
     else
     {
