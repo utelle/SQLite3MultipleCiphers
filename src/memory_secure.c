@@ -39,6 +39,8 @@
 
 SQLITE_PRIVATE void sqlite3mcSecureZeroMemory(void* v, size_t n)
 {
+  /* The functions below are declared to take a non-null pointer, even for length 0 */
+  if (v == NULL || n == 0) return;
 #ifdef _WIN32
   SecureZeroMemory(v, n);
 #elif defined(SQLITE3MC_HAVE_MEMSET_S)
