@@ -250,6 +250,8 @@ mcRegisterCodecExtensions(sqlite3* db, char** pzErrMsg, const sqlite3_api_routin
 ** Codec implementation
 */
 #if HAVE_CIPHER_AES_128_CBC || HAVE_CIPHER_AES_256_CBC || HAVE_CIPHER_SQLCIPHER || HAVE_CIPHER_AES256GCM
+/* The AES implementation is part of this build (see PRAGMA mc_aes_backend) */
+#define SQLITE3MC_HAVE_AES_CORE 1
 #include "rijndael.c"
 #include "aes_hardware.c"
 #include "aes_hw_blocks.c"
@@ -257,6 +259,8 @@ mcRegisterCodecExtensions(sqlite3* db, char** pzErrMsg, const sqlite3_api_routin
 #include "aes_vpaes.c"
 #include "aes_core.c"
 #include "aes_gcm.c"
+#else
+#define SQLITE3MC_HAVE_AES_CORE 0
 #endif
 
 #if HAVE_CIPHER_AEGIS
