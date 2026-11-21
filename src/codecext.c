@@ -543,9 +543,23 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
   int oldSecure = 0;
   u16 oldFixed = 0;
 
+  if (db == NULL)
+  {
+    return SQLITE_MISUSE;
+  }
+
+  /*
+  ** The connection mutex is held from the first look at the schema until
+  ** the end: schema index, file name, b-tree and codec that are determined
+  ** below must not be invalidated by another thread that detaches the
+  ** database from this connection in the meantime.
+  */
+  sqlite3_mutex_enter(db->mutex);
+
   if (!sqlite3mcIsEncryptionSupported(db, zDbName))
   {
     sqlite3ErrorWithMsg(db, rc, "Rekeying failed. Encryption is not supported by the VFS.");
+    sqlite3_mutex_leave(db->mutex);
     return rc;
   }
   if (zKey != NULL && nKey < 0)
@@ -558,11 +572,13 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
   if (dbIndex < 0)
   {
     sqlite3ErrorWithMsg(db, rc, "Rekeying failed. Database '%s' not found.", zDbName);
+    sqlite3_mutex_leave(db->mutex);
     return rc;
   }
   if (dbFileName == NULL || dbFileName[0] == 0)
   {
     sqlite3ErrorWithMsg(db, rc, "Rekeying not supported for in-memory or temporary databases.");
+    sqlite3_mutex_leave(db->mutex);
     return rc;
   }
   pBt = db->aDb[dbIndex].pBt;
@@ -586,10 +602,10 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
   if ((zKey == NULL || nKey == 0) && (codec == NULL || !sqlite3mcIsEncrypted(codec)))
   {
     /* Database not encrypted and key not specified, therefore do nothing */
+    sqlite3_mutex_leave(db->mutex);
     return SQLITE_OK;
   }
 
-  sqlite3_mutex_enter(db->mutex);
   if (!db->autoCommit || sqlite3BtreeTxnState(pBt) != SQLITE_TXN_NONE)
   {
     rc = SQLITE_MISUSE;
@@ -601,6 +617,7 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
   if (codec == NULL || !sqlite3mcIsEncrypted(codec))
   {
     /* Database not encrypted, but key specified, therefore encrypt database */
+    rc = SQLITE_OK;
     if (codec == NULL)
     {
       codecAllocated = 1;
