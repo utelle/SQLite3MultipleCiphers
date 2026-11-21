@@ -726,6 +726,12 @@ SQLITE_PRIVATE unsigned char* mcReadDatabaseHeader(Codec* codec, unsigned char* 
     {
       sqlite3_int64 fileSize = 0;
       int ret = sqlite3OsFileSize(fd, &fileSize);
+      if (ret != SQLITE_OK)
+      {
+        /* The size is unknown: do not take the file for empty and generate a new salt */
+        *rc = ret;
+        return NULL;
+      }
       if (fileSize == 0)
       {
         /* Empty file: there is no salt yet, a random salt will be generated */
