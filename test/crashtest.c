@@ -57,6 +57,7 @@ struct CtFile
   sqlite3_file base;
   CtData* pData;
   int isTemp;
+  int szChunk;               /* SQLITE_FCNTL_CHUNK_SIZE, 0: not set */
 };
 
 static CtData* disk[MAX_FILES];
@@ -208,6 +209,7 @@ static int ctTruncate(sqlite3_file* f, sqlite3_int64 size)
 {
   CtFile* p = (CtFile*) f;
   if (!p->isTemp && !failNow()) return SQLITE_IOERR_TRUNCATE;
+  if (p->szChunk > 0) size = (size + p->szChunk - 1) / p->szChunk * p->szChunk;
   if (size < p->pData->n) p->pData->n = size;
   return SQLITE_OK;
 }
@@ -235,7 +237,29 @@ static int ctFileSize(sqlite3_file* f, sqlite3_int64* pSize)
 
 static int ctLock(sqlite3_file* f, int l) { (void) f; (void) l; return SQLITE_OK; }
 static int ctCheckReserved(sqlite3_file* f, int* pRes) { (void) f; *pRes = 0; return SQLITE_OK; }
-static int ctFileControl(sqlite3_file* f, int op, void* arg) { (void) f; (void) op; (void) arg; return SQLITE_NOTFOUND; }
+/*
+** Like the unix VFS: with a chunk size, the file is extended to a multiple of
+** the chunk size when SQLite announces the new size. The database is then
+** shorter than the file, and the pages behind its end are zeros inside the
+** file, not a short read.
+*/
+static int ctFileControl(sqlite3_file* f, int op, void* arg)
+{
+  CtFile* p = (CtFile*) f;
+  if (op == SQLITE_FCNTL_CHUNK_SIZE)
+  {
+    p->szChunk = *(int*) arg;
+    return SQLITE_OK;
+  }
+  if (op == SQLITE_FCNTL_SIZE_HINT && p->szChunk > 0 && !p->isTemp)
+  {
+    sqlite3_int64 n = *(sqlite3_int64*) arg;
+    n = (n + p->szChunk - 1) / p->szChunk * p->szChunk;
+    if (n > p->pData->n && ctResize(p->pData, n) != SQLITE_OK) return SQLITE_NOMEM;
+    return SQLITE_OK;
+  }
+  return SQLITE_NOTFOUND;
+}
 static int ctSectorSize(sqlite3_file* f) { (void) f; return 512; }
 static int ctDeviceChar(sqlite3_file* f) { (void) f; return 0; }
 
@@ -492,8 +516,13 @@ static const Cipher ciphers[] =
     "PRAGMA cipher='ascon128'; PRAGMA key='raw:hex:0303030303030303030303030303030303030303030303030303030303030303';" },
 };
 
-enum { OP_UPDATE, OP_REKEY, OP_REKEY_CIPHER, OP_DECRYPT, OP_VACUUM, OP_AUTOVACUUM };
-static const char* opNames[] = { "update", "rekey", "rekey-cipher", "decrypt", "vacuum", "autovacuum" };
+enum { OP_UPDATE, OP_REKEY, OP_REKEY_CIPHER, OP_DECRYPT, OP_VACUUM, OP_AUTOVACUUM, OP_AUTOVACUUM_CHUNK };
+static const char* opNames[] = { "update", "rekey", "rekey-cipher", "decrypt", "vacuum", "autovacuum", "autovacuum-chunk" };
+
+#define IS_AUTOVACUUM(op) ((op) == OP_AUTOVACUUM || (op) == OP_AUTOVACUUM_CHUNK)
+
+/* Chunk size of the main database file for OP_AUTOVACUUM_CHUNK */
+#define CHUNK_SIZE 65536
 
 static const char* journalModes[] = { "delete", "truncate", "persist", "wal" };
 
@@ -518,6 +547,12 @@ static const char* updateSql =
 ** CREATE TABLE moves one of them away to make room for the new root page.
 ** While moving, SQLite reads that page behind the end of the file and expects
 ** zeros.
+**
+** The operation autovacuum-chunk is the same with SQLITE_FCNTL_CHUNK_SIZE: the
+** file is longer than the database, and the page that SQLite reads behind
+** the end of the database lies inside the file. It arrives as zeros without
+** a short read. Pages inside the database must still be verified: all-zero
+** pages there are damage.
 */
 static const char* fillSmallSql =
   "CREATE TABLE t(i INTEGER PRIMARY KEY, x TEXT, y BLOB);"
@@ -586,6 +621,11 @@ static int runOperation(const Cipher* c, const char* journal, int op)
   if (rc == SQLITE_OK) rc = sqlite3_exec(db, c->keyOld, NULL, NULL, NULL);
   sqlite3_snprintf(sizeof(setup), setup, "PRAGMA journal_mode=%s; PRAGMA synchronous=FULL; PRAGMA cache_size=20;", journal);
   if (rc == SQLITE_OK) rc = sqlite3_exec(db, setup, NULL, NULL, NULL);
+  if (rc == SQLITE_OK && op == OP_AUTOVACUUM_CHUNK)
+  {
+    int chunk = CHUNK_SIZE;
+    rc = sqlite3_file_control(db, "main", SQLITE_FCNTL_CHUNK_SIZE, &chunk);
+  }
   if (rc == SQLITE_OK)
   {
     /* Count and fail only during the operation */
@@ -611,7 +651,7 @@ static int runOperation(const Cipher* c, const char* journal, int op)
       rc = sqlite3_exec(db, rekeySql, NULL, NULL, NULL);
     }
     if (op == OP_VACUUM) rc = sqlite3_exec(db, "VACUUM;", NULL, NULL, NULL);
-    if (op == OP_AUTOVACUUM) rc = sqlite3_exec(db, autovacuumSql, NULL, NULL, NULL);
+    if (IS_AUTOVACUUM(op)) rc = sqlite3_exec(db, autovacuumSql, NULL, NULL, NULL);
   }
   failAt = 0;        /* closing must not count */
   {
@@ -644,10 +684,15 @@ static void runScenario(const Cipher* c, const char* journal, int pageSize, int 
   sqlite3_snprintf(sizeof(setup), setup, "PRAGMA page_size=%d;", pageSize);
   sqlite3_exec(db, c->keyOld, NULL, NULL, NULL);
   sqlite3_exec(db, setup, NULL, NULL, NULL);
-  if (op == OP_AUTOVACUUM) sqlite3_exec(db, "PRAGMA auto_vacuum=INCREMENTAL;", NULL, NULL, NULL);
+  if (op == OP_AUTOVACUUM_CHUNK)
+  {
+    int chunk = CHUNK_SIZE;
+    sqlite3_file_control(db, "main", SQLITE_FCNTL_CHUNK_SIZE, &chunk);
+  }
+  if (IS_AUTOVACUUM(op)) sqlite3_exec(db, "PRAGMA auto_vacuum=INCREMENTAL;", NULL, NULL, NULL);
   sqlite3_snprintf(sizeof(setup), setup, "PRAGMA journal_mode=%s;", journal);
   sqlite3_exec(db, setup, NULL, NULL, NULL);
-  if (sqlite3_exec(db, (op == OP_AUTOVACUUM) ? fillSmallSql : fillSql, NULL, NULL, NULL) != SQLITE_OK)
+  if (sqlite3_exec(db, IS_AUTOVACUUM(op) ? fillSmallSql : fillSql, NULL, NULL, NULL) != SQLITE_OK)
   {
     FAIL("%s: setup failed: %s", name, sqlite3_errmsg(db));
     sqlite3_close(db);
@@ -698,7 +743,7 @@ static void runScenario(const Cipher* c, const char* journal, int pageSize, int 
       sqlite3_free(s);
     }
   }
-  if ((op == OP_UPDATE || op == OP_AUTOVACUUM) && stateNew != NULL && stateOld != NULL && strcmp(stateNew, stateOld) == 0)
+  if ((op == OP_UPDATE || IS_AUTOVACUUM(op)) && stateNew != NULL && stateOld != NULL && strcmp(stateNew, stateOld) == 0)
     FAIL("%s: update did not change the rows", name);
 
   for (mode = MODE_CRASH; mode <= MODE_IOERR; mode++)
@@ -827,9 +872,9 @@ int main(int argc, char** argv)
       for (p = 0; p < 2; p++)
       {
         if (!full && p != 1) continue;                  /* 4096 */
-        for (op = OP_UPDATE; op <= OP_AUTOVACUUM; op++)
+        for (op = OP_UPDATE; op <= OP_AUTOVACUUM_CHUNK; op++)
         {
-          if (!full && op != OP_UPDATE && op != OP_REKEY && op != OP_REKEY_CIPHER && op != OP_AUTOVACUUM) continue;
+          if (!full && op != OP_UPDATE && op != OP_REKEY && op != OP_REKEY_CIPHER && !IS_AUTOVACUUM(op)) continue;
           runScenario(&ciphers[i], journalModes[j], pageSizes[p], op, filter);
         }
       }

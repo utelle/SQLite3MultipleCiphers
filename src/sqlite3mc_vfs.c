@@ -1227,6 +1227,72 @@ static int mcIoClose(sqlite3_file* pFile)
 }
 
 /*
+** Returns the database size in pages as stored in the header of page 1
+** in the database file, or 0 if it is not available or not valid.
+**
+** The value is only valid if the "version-valid-for" number (offset 92)
+** equals the file change counter (offset 24), the same rule SQLite applies.
+** A write transaction does not change page 1 in the file before the commit:
+** the page is referenced by the B-tree for the whole transaction and
+** therefore not spilled from the page cache. So during a write transaction
+** this is the size of the database at the start of the transaction.
+*/
+static unsigned int mcDbPagesFromFileHeader(sqlite3mc_file* mcFile)
+{
+  Codec* codec = mcFile->codec;
+  const int pageSize = sqlite3mcGetPageSize(codec);
+  unsigned int nPages = 0;
+  unsigned char* buf = (unsigned char*) sqlite3_malloc(pageSize);
+  if (buf != NULL)
+  {
+    if (REALFILE(mcFile)->pMethods->xRead(REALFILE(mcFile), buf, pageSize, 0) == SQLITE_OK &&
+        sqlite3mcHasReadCipher(codec) &&
+        sqlite3mcDecrypt(codec, 1, buf, pageSize) == SQLITE_OK &&
+        memcmp(buf + 24, buf + 92, 4) == 0)
+    {
+      nPages = ((unsigned int) buf[28] << 24) |
+               ((unsigned int) buf[29] << 16) |
+               ((unsigned int) buf[30] << 8)  |
+               (unsigned int) buf[31];
+    }
+    sqlite3_free(buf);
+  }
+  return nPages;
+}
+
+/*
+** Returns 1 if the page pageNo, which was read from the main database
+** file as all-zero raw page, may be a page that was never written.
+**
+** SQLite reads pages behind the end of the database in a write transaction,
+** for example to set a flag after it moved a page in auto-vacuum mode. The
+** content of such a page is not meaningful. If the file is longer than
+** the database (SQLITE_FCNTL_CHUNK_SIZE, size hint, leftovers), the page is
+** in the file and is read as zeros without a short read. The size of the
+** pager (dbOrigSize) cannot be used here, because it is derived from the
+** file length and not from the database header.
+**
+** Every page up to the database size was written with MAC at some time. For
+** such a page an all-zero raw page is damage and has to fail. A valid page
+** is never all-zero in the raw form, because nonce and MAC are not zero.
+*/
+static int mcZeroPageIsUnwritten(sqlite3mc_file* mcFile, unsigned int pageNo)
+{
+  BtShared* pBt = sqlite3mcGetBtShared(mcFile->codec);
+  Pager* pPager = (pBt != NULL) ? pBt->pPager : NULL;
+  if (pPager == NULL || pPager->eState < PAGER_WRITER_LOCKED)
+  {
+    return 0;
+  }
+  return pageNo > mcDbPagesFromFileHeader(mcFile);
+}
+
+static int mcIsZeroPage(const unsigned char* data, int size)
+{
+  return (size > 0 && data[0] == 0 && memcmp(data, data + 1, size - 1) == 0);
+}
+
+/*
 ** Read operation on main database file
 */
 static int mcReadMainDb(sqlite3_file* pFile, void* buffer, int count, sqlite3_int64 offset, int shortRead)
@@ -1336,6 +1402,18 @@ static int mcReadMainDb(sqlite3_file* pFile, void* buffer, int count, sqlite3_in
         if (shortRead && offset >= fileSize)
         {
           break;
+        }
+        if (mcIsZeroPage(data, pageSize) && mcZeroPageIsUnwritten(mcFile, pageNo))
+        {
+          /*
+          ** Page behind the end of the database, never written: keep it
+          ** zero-filled and do not decrypt it. Any page with a non-zero
+          ** byte is still decrypted and verified.
+          */
+          data += pageSize;
+          offset += pageSize;
+          ++pageNo;
+          continue;
         }
         bufferDecrypted = sqlite3mcCodec(mcFile->codec, data, pageNo, 3);
         rc = sqlite3mcGetCodecLastError(mcFile->codec);
