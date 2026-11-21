@@ -1573,8 +1573,26 @@ static int mcMainDbLooksEncrypted(sqlite3mc_file* mcFile, int* isEncrypted)
 #define MC_JREC_ENC     2  /* page 1 record is not plaintext -> encrypted */
 #define MC_JREC_UNKNOWN 3  /* no usable page 1 record found */
 
-#define MC_JREC_MAX_SCAN 16 /* records examined while looking for page 1 */
+#define MC_JREC_MAX_SCAN 16     /* records examined while looking for page 1 */
+#define MC_JREC_MAX_SEGMENTS 64 /* journal headers followed while doing so */
 
+/*
+** Look for the record of page 1 among the first records of a (hot) journal
+** and tell whether its content is plaintext.
+**
+** The journal is walked exactly as the pager plays it back (pager_playback):
+** a journal consists of one or more segments, each one starting with a header
+** on a sector boundary, followed by the number of records given in the header
+** (nRec). Records behind the nRec records of a segment do not exist for the
+** pager. They must not be examined, and the bytes found there must not be
+** taken for records: the next segment starts on the next sector boundary,
+** not directly behind the last record.
+**
+**   nRec == 0xffffffff  journal written without sync: all complete records
+**                       up to the end of the file belong to the segment
+**   nRec == 0           header was never synced: the pager plays back no
+**                       record of this segment
+*/
 static int mcJournalFirstRecordState(sqlite3_file* pFile, int* state)
 {
   static const unsigned char journalMagic[8] = { 0xd9, 0xd5, 0x05, 0xf9, 0x20, 0xa1, 0x63, 0xd7 };
@@ -1582,65 +1600,83 @@ static int mcJournalFirstRecordState(sqlite3_file* pFile, int* state)
   unsigned char header[28];
   unsigned char pgno[4];
   unsigned char content[MC_PAGE1_CHECK_SIZE];
-  unsigned int sectorSize, pageSize;
-  sqlite3_int64 offset, stride;
-  int i, rc;
+  unsigned int sectorSize = 0, pageSize = 0;
+  sqlite3_int64 journalSize = 0;
+  sqlite3_int64 hdrOffset = 0;   /* offset of the header of the current segment */
+  sqlite3_int64 offset = 0;
+  sqlite3_int64 stride = 0;
+  int nScanned = 0;              /* records examined so far */
+  int nSegments = 0;
+  int rc;
 
   *state = MC_JREC_UNKNOWN;
 
-  rc = realJournal->pMethods->xRead(realJournal, header, 28, 0);
-  if (rc == SQLITE_IOERR_SHORT_READ)
-  {
-    *state = MC_JREC_NONE;      /* shorter than a header: nothing to play back */
-    return SQLITE_OK;
-  }
+  rc = realJournal->pMethods->xFileSize(realJournal, &journalSize);
   if (rc != SQLITE_OK) return rc;   /* unknown: fail closed */
 
-  if (memcmp(header, journalMagic, 8) != 0)
+  while (nScanned < MC_JREC_MAX_SCAN && nSegments < MC_JREC_MAX_SEGMENTS)
   {
-    *state = MC_JREC_NONE;      /* invalid header: SQLite ignores the journal */
-    return SQLITE_OK;
-  }
+    sqlite3_int64 nRec;
+    sqlite3_int64 i;
 
-  sectorSize = sqlite3Get4byte(header + 20);
-  pageSize = sqlite3Get4byte(header + 24);
-  if (!MC_VALID_SECTOR_SIZE(sectorSize) || !MC_VALID_PAGE_SIZE(pageSize))
-  {
-    *state = MC_JREC_NONE;      /* header rejected by SQLite as well */
-    return SQLITE_OK;
-  }
+    /* Header of the segment */
+    if (hdrOffset + (sqlite3_int64) sizeof(header) > journalSize) break;
+    rc = realJournal->pMethods->xRead(realJournal, header, sizeof(header), hdrOffset);
+    if (rc == SQLITE_IOERR_SHORT_READ) break;
+    if (rc != SQLITE_OK) return rc; /* unknown: fail closed */
+    if (memcmp(header, journalMagic, 8) != 0) break;   /* end of the journal for SQLite */
 
-  /* Records follow the header, which is padded to one sector.
-  ** Record layout: 4 byte page number, page data, 4 byte checksum. */
-  offset = (sqlite3_int64)sectorSize;
-  stride = (sqlite3_int64)pageSize + 8;
-
-  for (i = 0; i < MC_JREC_MAX_SCAN; ++i, offset += stride)
-  {
-    rc = realJournal->pMethods->xRead(realJournal, pgno, 4, offset);
-    if (rc == SQLITE_IOERR_SHORT_READ)
+    if (nSegments == 0)
     {
-      /* End of journal: no record at all, or page 1 not among the records */
-      *state = (i == 0) ? MC_JREC_NONE : MC_JREC_UNKNOWN;
+      /* Sector size and page size are taken from the first header only */
+      sectorSize = sqlite3Get4byte(header + 20);
+      pageSize = sqlite3Get4byte(header + 24);
+      if (!MC_VALID_SECTOR_SIZE(sectorSize) || !MC_VALID_PAGE_SIZE(pageSize))
+      {
+        *state = MC_JREC_NONE;      /* header rejected by SQLite as well */
+        return SQLITE_OK;
+      }
+      /* Record layout: 4 byte page number, page data, 4 byte checksum */
+      stride = (sqlite3_int64) pageSize + 8;
+    }
+    ++nSegments;
+
+    /* Records follow the header, which is padded to one sector */
+    offset = hdrOffset + (sqlite3_int64) sectorSize;
+    nRec = (sqlite3_int64) sqlite3Get4byte(header + 8);
+    if (nRec == 0xffffffff)
+    {
+      nRec = (journalSize > offset) ? (journalSize - offset) / stride : 0;
+    }
+
+    for (i = 0; i < nRec && nScanned < MC_JREC_MAX_SCAN; ++i, ++nScanned, offset += stride)
+    {
+      if (offset + stride > journalSize)
+      {
+        /* Truncated record: SQLite stops playback here */
+        *state = (nScanned == 0) ? MC_JREC_NONE : MC_JREC_UNKNOWN;
+        return SQLITE_OK;
+      }
+      rc = realJournal->pMethods->xRead(realJournal, pgno, 4, offset);
+      if (rc != SQLITE_OK) return (rc == SQLITE_IOERR_SHORT_READ) ? SQLITE_IOERR_READ : rc;
+
+      if (sqlite3Get4byte(pgno) != 1) continue;
+
+      rc = realJournal->pMethods->xRead(realJournal, content, MC_PAGE1_CHECK_SIZE, offset + 4);
+      if (rc != SQLITE_OK) return (rc == SQLITE_IOERR_SHORT_READ) ? SQLITE_IOERR_READ : rc;
+
+      *state = mcPage1LooksPlain(content) ? MC_JREC_PLAIN : MC_JREC_ENC;
       return SQLITE_OK;
     }
-    if (rc != SQLITE_OK) return rc;
+    if (i < nRec) break;            /* scan limit reached within this segment */
 
-    if (sqlite3Get4byte(pgno) != 1) continue;
-
-    rc = realJournal->pMethods->xRead(realJournal, content, MC_PAGE1_CHECK_SIZE, offset + 4);
-    if (rc == SQLITE_IOERR_SHORT_READ)
-    {
-      /* Truncated page 1 record: SQLite stops playback here */
-      *state = (i == 0) ? MC_JREC_NONE : MC_JREC_UNKNOWN;
-      return SQLITE_OK;
-    }
-    if (rc != SQLITE_OK) return rc;
-
-    *state = mcPage1LooksPlain(content) ? MC_JREC_PLAIN : MC_JREC_ENC;
-    return SQLITE_OK;
+    /* The header of the next segment starts on the next sector boundary */
+    hdrOffset = ((offset + (sqlite3_int64) sectorSize - 1) / (sqlite3_int64) sectorSize) * (sqlite3_int64) sectorSize;
   }
-  return SQLITE_OK;             /* page 1 not found within the scan limit: UNKNOWN */
+
+  /* No record at all that SQLite would play back, or page 1 not among the records examined */
+  *state = (nScanned == 0) ? MC_JREC_NONE : MC_JREC_UNKNOWN;
+  return SQLITE_OK;
 }
 
 /*
