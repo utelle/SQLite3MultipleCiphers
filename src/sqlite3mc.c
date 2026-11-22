@@ -562,6 +562,116 @@ sqlite3mcGetGlobalCipherCount()
   return cipherCount;
 }
 
+/*
+** Plausibility check of the alias names of a parameter
+** (1st char = alpha, rest = alphanumeric, underscore, hyphen or dot; so an alias is never a number)
+*/
+static int
+mcCheckAliasName(const char* name)
+{
+  size_t nl, j;
+  if (name == NULL)
+    return 0;
+  nl = strlen(name);
+  if (nl < 1 || nl >= CIPHER_NAME_MAXLEN || !sqlite3Isalpha(name[0]))
+    return 0;
+  for (j = 1; j < nl; ++j)
+  {
+    char c = name[j];
+    if (!(c == '_' || c == '-' || c == '.' || sqlite3Isalnum(c)))
+      return 0;
+  }
+  return 1;
+}
+
+#define CIPHER_PARAM_FLAGS_ALL        0x7f
+#define CIPHER_PARAM_ALIAS_COUNT_MAX  256
+
+/*
+** Plausibility check of a table of parameters (terminated by a sentinel entry)
+** Returns NULL if the table is valid, otherwise a description of the first problem found;
+** *pIndex is set to the index of the offending parameter.
+** isCommon: the table is the table of the common parameters (no check for shadowed names).
+*/
+static const char*
+mcCheckParamTable(const CipherParams* params, int isCommon, int* pIndex)
+{
+  int np, k;
+  for (np = 0; np < CIPHER_PARAMS_COUNT_MAX && params[np].m_name != NULL && params[np].m_name[0] != 0; ++np)
+  {
+    const CipherParams* p = &params[np];
+    int nAlias = 0;
+    *pIndex = np;
+
+    /* Unique parameter names; no name of a common parameter (it would never be reached by a PRAGMA) */
+    for (k = 0; k < np; ++k)
+    {
+      if (sqlite3_stricmp(p->m_name, params[k].m_name) == 0)
+        return "duplicate parameter name";
+    }
+    if (!isCommon)
+    {
+      const CipherParams* common = globalCodecParameterTable[0].m_params;
+      for (; common != NULL && common->m_name[0] != 0; ++common)
+      {
+        if (sqlite3_stricmp(p->m_name, common->m_name) == 0)
+          return "parameter name is already used by a common parameter";
+      }
+    }
+
+    /* Flags */
+    if ((p->m_flags & ~((unsigned int) CIPHER_PARAM_FLAGS_ALL)) != 0)
+      return "unknown flags";
+
+    /* Additional behaviour: name conversions come in pairs */
+    if (p->m_ops != NULL && ((p->m_ops->m_nameToValue == NULL) != (p->m_ops->m_valueToName == NULL)))
+      return "m_nameToValue and m_valueToName must be given both or none";
+
+    /* Aliases */
+    if (p->m_aliases != NULL)
+    {
+      const CipherParamAlias* a = p->m_aliases;
+      for (; a->m_name != NULL; ++a, ++nAlias)
+      {
+        const CipherParamAlias* b;
+        if (nAlias >= CIPHER_PARAM_ALIAS_COUNT_MAX)
+          return "alias table is not terminated";
+        if (!mcCheckAliasName(a->m_name))
+          return "invalid alias name";
+        if (a->m_value < p->m_minValue || a->m_value > p->m_maxValue)
+          return "alias value out of the range of the parameter";
+        for (b = p->m_aliases; b < a; ++b)
+        {
+          if (sqlite3_stricmp(a->m_name, b->m_name) == 0)
+            return "duplicate alias name";
+        }
+      }
+      /* If only names are accepted, every value needs a name */
+      if ((p->m_flags & CIPHER_PARAM_FLAG_NAME_ONLY) != 0 && p->m_maxValue - p->m_minValue < CIPHER_PARAM_ALIAS_COUNT_MAX)
+      {
+        int v;
+        for (v = p->m_minValue; v <= p->m_maxValue; ++v)
+        {
+          const CipherParamAlias* c = p->m_aliases;
+          while (c->m_name != NULL && c->m_value != v)
+            ++c;
+          if (c->m_name == NULL)
+            return "NAME_ONLY parameter has a value without alias";
+        }
+      }
+    }
+
+    /* Flags that need names */
+    if ((p->m_flags & CIPHER_PARAM_FLAG_NAME_ONLY) != 0 &&
+        p->m_aliases == NULL && (p->m_ops == NULL || p->m_ops->m_nameToValue == NULL))
+      return "flag NAME_ONLY requires aliases";
+    if ((p->m_flags & (CIPHER_PARAM_FLAG_NAMED_PRAGMA | CIPHER_PARAM_FLAG_NAMED_SQL)) != 0 &&
+        p->m_aliases == NULL && (p->m_ops == NULL || p->m_ops->m_valueToName == NULL))
+      return "flags NAMED_PRAGMA/NAMED_SQL require aliases";
+  }
+  return NULL;
+}
+
 static int
 sqlite3mcRegisterCipher(const CipherDescriptor* desc, const CipherParams* params, int makeDefault)
 {
@@ -617,6 +727,18 @@ sqlite3mcRegisterCipher(const CipherDescriptor* desc, const CipherParams* params
   /* Check for parameter count in valid range and valid sentinel parameter */
   if (np >= CIPHER_PARAMS_COUNT_MAX || params[np].m_name == 0)
     return SQLITE_ERROR;
+
+  /* Check flags, aliases and additional behaviour of the parameters */
+  {
+    int errIndex = 0;
+    const char* errReason = mcCheckParamTable(params, 0, &errIndex);
+    if (errReason != NULL)
+    {
+      sqlite3_log(SQLITE_ERROR, "sqlite3mc_register_cipher: cipher '%s', parameter '%s': %s",
+                  desc->m_name, params[errIndex].m_name, errReason);
+      return SQLITE_ERROR;
+    }
+  }
 
   /* Sanity checks were successful, now register cipher */
 
@@ -724,6 +846,15 @@ sqlite3mcInitCipherTables()
   {
     globalCodecParameterTable[n] = globalSentinelParams;
   }
+
+#ifdef SQLITE_DEBUG
+  {
+    int errIndex = 0;
+    const char* errReason = mcCheckParamTable(globalCommonParams.m_params, 1, &errIndex);
+    assert(errReason == NULL);
+    (void) errReason;
+  }
+#endif
 
   return SQLITE_OK;
 }
