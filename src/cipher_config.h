@@ -75,6 +75,7 @@ typedef struct _CipherConfigRequest
   sqlite3_int64        iValue;
   const char*          zValue;
   int                  strictNames;  /* integers are not accepted for parameters with flag NAME_ONLY (SQL function) */
+  int                  dryRun;       /* set: check the value (conversion, range, constraints), but change nothing */
 } CipherConfigRequest;
 
 typedef struct _CipherConfigResult

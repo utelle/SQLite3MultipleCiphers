@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `PRAGMA cipher='name{param=value,...}'` selects a cipher scheme and configures several of its parameters at once. Only parameters of the specified cipher scheme are accepted. Presets (e.g. `legacy` of SQLCipher) are applied first, values may be aliases or enclosed in single quotes. Errors in the structure of the list, unknown cipher or parameter names and invalid values are reported as errors; in this case nothing is changed.
+
 ## [2.7.1] - 2026-11-15
 
 ### Fixed

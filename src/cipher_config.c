@@ -378,6 +378,10 @@ cipherCfgApplySet(const CipherConfigRequest* request, CipherParamValueSlot eSlot
       return CIPHER_CONFIG_ERR_CONSTRAINT;
   }
 
+  /* Only check the value */
+  if (request->dryRun)
+    return CIPHER_CONFIG_OK;
+
   /* Commit */
   if (eSlot == CIPHER_PARAM_SLOT_DEFAULT)
   {
@@ -1112,6 +1116,256 @@ wxsqlite3_codec_data(sqlite3* db, const char* zDbName, const char* paramName)
 */
 
 /*
+** PRAGMA cipher='name{param=value,param=value,...}'
+**
+** Selects a cipher scheme and configures several of its parameters at once.
+** Rules:
+** - The list is enclosed in curly braces directly behind the cipher name; blanks are ignored.
+** - A value is either unquoted (no comma, no braces) or enclosed in single quotes ('' stands for one quote).
+** - Only parameters of the specified cipher scheme are accepted (no common parameters, not 'cipher').
+**   Presets (parameters with flag APPLY_FIRST, e.g. SQLCipher "legacy") are applied first,
+**   so that individual values win.
+** - Slots as for any other PRAGMA: main database -> default value and current value, other schema -> current value.
+** - Errors in the structure of the list, an unknown cipher name, an unknown parameter name and invalid values
+**   (malformed, out of range, ...) are reported as errors. Everything is checked BEFORE anything is changed,
+**   so that the PRAGMA either changes all or nothing.
+*/
+
+#define CIPHER_LIST_ENTRIES_MAX 128
+
+typedef struct _CipherListEntry
+{
+  char*         zKey;
+  char*         zValue;
+  CipherParams* pParam;
+} CipherListEntry;
+
+/* Removes blanks at both ends of [z, zEnd) and terminates the result; returns the start of the result */
+static char*
+cipherCfgTrim(char* z, char* zEnd)
+{
+  while (z < zEnd && sqlite3Isspace(*z))
+    ++z;
+  while (zEnd > z && sqlite3Isspace(zEnd[-1]))
+    --zEnd;
+  *zEnd = 0;
+  return z;
+}
+
+/* Parses the text between the braces (modified in place); returns NULL or a description of the error */
+static const char*
+cipherCfgParseList(char* z, CipherListEntry* aEntry, int* pnEntry)
+{
+  int n = 0;
+  char* p = z;
+  *pnEntry = 0;
+  while (sqlite3Isspace(*p))
+    ++p;
+  if (*p == 0)
+    return NULL;   /* empty list */
+  for (;;)
+  {
+    char* zKeyStart = p;
+    char* zVal;
+    int atEnd;
+    if (n >= CIPHER_LIST_ENTRIES_MAX)
+      return "too many entries";
+    while (*p != 0 && *p != '=' && *p != ',' && *p != '{' && *p != '}' && *p != '\'')
+      ++p;
+    if (*p != '=')
+      return (*p == 0 || *p == ',') ? "missing '=' after parameter name" : "unexpected character in parameter name";
+    aEntry[n].zKey = cipherCfgTrim(zKeyStart, p);
+    if (aEntry[n].zKey[0] == 0)
+      return "missing parameter name";
+    ++p;
+    while (sqlite3Isspace(*p))
+      ++p;
+    if (*p == '\'')
+    {
+      /* quoted value; '' stands for one quote; the unescaped value is written in place */
+      char* r = p + 1;
+      char* w = p;
+      aEntry[n].zValue = w;
+      for (;;)
+      {
+        if (*r == 0)
+          return "missing closing quote";
+        if (*r == '\'')
+        {
+          if (r[1] != '\'')
+            break;
+          *w++ = '\'';
+          r += 2;
+          continue;
+        }
+        *w++ = *r++;
+      }
+      p = r + 1;
+      while (sqlite3Isspace(*p))
+        ++p;
+      if (*p != 0 && *p != ',')
+        return "unexpected character behind quoted value";
+      *w = 0;
+      atEnd = (*p == 0);
+    }
+    else
+    {
+      zVal = p;
+      while (*p != 0 && *p != ',' && *p != '{' && *p != '}' && *p != '\'')
+        ++p;
+      if (*p != 0 && *p != ',')
+        return "unexpected character in value";
+      atEnd = (*p == 0);
+      aEntry[n].zValue = cipherCfgTrim(zVal, p);   /* may overwrite the comma with the terminator */
+      if (aEntry[n].zValue[0] == 0)
+        return "missing value";
+    }
+    ++n;
+    if (atEnd)
+      break;
+    *p++ = 0;   /* skip the comma (may already be overwritten by the terminator) */
+    while (sqlite3Isspace(*p))
+      ++p;
+    if (*p == 0)
+      return "missing parameter after comma";
+  }
+  *pnEntry = n;
+  return NULL;
+}
+
+static int
+cipherCfgPragmaCipherList(sqlite3* db, int dbIndex, const char* zValue, char** pzOut)
+{
+  CipherListEntry aEntry[CIPHER_LIST_ENTRIES_MAX];
+  CipherParamSpec spec;
+  CipherConfigRequest request;
+  CipherConfigResult result;
+  CodecParameter* codecParams;
+  CodecParameter* cipherTable;
+  const char* zErr = NULL;
+  char* zWork;
+  char* zBrace;
+  char* zCipher = NULL;
+  char* zEnd;
+  int nEntry = 0;
+  int j, pass;
+
+  zWork = sqlite3_mprintf("%s", zValue);
+  if (zWork == NULL)
+  {
+    *pzOut = NULL;
+    return SQLITE_NOMEM;
+  }
+
+  /* Split into cipher name and list */
+  zBrace = strchr(zWork, '{');
+  zEnd = zWork + strlen(zWork);
+  while (zEnd > zWork && sqlite3Isspace(zEnd[-1]))
+    --zEnd;
+  if (zEnd == zWork || zEnd[-1] != '}')
+  {
+    zErr = "missing closing brace";
+  }
+  else
+  {
+    *zBrace = 0;
+    zEnd[-1] = 0;
+    zCipher = cipherCfgTrim(zWork, zBrace);
+    if (zCipher[0] == 0)
+      zErr = "missing cipher name";
+    else
+      zErr = cipherCfgParseList(zBrace + 1, aEntry, &nEntry);
+  }
+  if (zErr != NULL)
+  {
+    *pzOut = sqlite3_mprintf("invalid cipher configuration '%s': %s", zValue, zErr);
+    sqlite3_free(zWork);
+    return SQLITE_ERROR;
+  }
+
+  spec.eSlot = (dbIndex <= 0) ? CIPHER_PARAM_SLOT_DEFAULT : CIPHER_PARAM_SLOT_VALUE;
+  spec.zName = "cipher";
+  codecParams = sqlite3mcGetCodecParams(db);
+  cipherTable = (codecParams != NULL) ? cipherCfgFindCipherTable(codecParams, zCipher) : NULL;
+  if (cipherTable == NULL)
+  {
+    /* Unknown cipher: the request fails and delivers the usual error message, nothing is changed */
+    cipherCfgInitRequest(&request, db, CIPHER_PARAM_SCOPE_AUTO, NULL, &spec);
+    cipherCfgSetText(&request, zCipher);
+    request.dryRun = 1;
+    sqlite3mcConfigExec(&request, &result);
+    *pzOut = (result.eErr != CIPHER_CONFIG_OK) ? sqlite3mcConfigErrorMsg(&request, &result)
+                                               : sqlite3_mprintf("cipher '%s' is not available", zCipher);
+    sqlite3_free(zWork);
+    return SQLITE_ERROR;
+  }
+
+  /* Check parameter names and values before anything is changed */
+  for (j = 0; j < nEntry; ++j)
+  {
+    CipherParamSpec entrySpec;
+    CipherConfigRequest entryRequest;
+    CipherConfigResult entryResult;
+    aEntry[j].pParam = cipherCfgFindParam(cipherTable->m_params, aEntry[j].zKey);
+    if (aEntry[j].pParam == NULL)
+    {
+      *pzOut = sqlite3_mprintf("invalid cipher configuration '%s': cipher '%s' has no parameter '%s'",
+                               zValue, cipherTable->m_name, aEntry[j].zKey);
+      sqlite3_free(zWork);
+      return SQLITE_ERROR;
+    }
+    entrySpec.eSlot = spec.eSlot;
+    entrySpec.zName = aEntry[j].zKey;
+    cipherCfgInitRequest(&entryRequest, db, CIPHER_PARAM_SCOPE_CIPHER, cipherTable->m_name, &entrySpec);
+    cipherCfgSetText(&entryRequest, aEntry[j].zValue);
+    entryRequest.dryRun = 1;
+    sqlite3mcConfigExec(&entryRequest, &entryResult);
+    if (entryResult.eErr != CIPHER_CONFIG_OK)
+    {
+      *pzOut = sqlite3mcConfigErrorMsg(&entryRequest, &entryResult);
+      sqlite3_free(zWork);
+      return SQLITE_ERROR;
+    }
+  }
+
+  /* Select the cipher */
+  cipherCfgInitRequest(&request, db, CIPHER_PARAM_SCOPE_AUTO, NULL, &spec);
+  cipherCfgSetText(&request, zCipher);
+  sqlite3mcConfigExec(&request, &result);
+  if (result.eErr != CIPHER_CONFIG_OK)
+  {
+    *pzOut = sqlite3mcConfigErrorMsg(&request, &result);
+    sqlite3_free(zWork);
+    return SQLITE_ERROR;
+  }
+  *pzOut = cipherCfgFormatValue(result.pParam, CIPHER_PARAM_FLAG_NAMED_PRAGMA, result.iValue);
+
+  /* Pass 0: presets, pass 1: all other parameters, so that individual values win */
+  for (pass = 0; pass < 2; ++pass)
+  {
+    for (j = 0; j < nEntry; ++j)
+    {
+      CipherParamSpec entrySpec;
+      CipherConfigRequest entryRequest;
+      CipherConfigResult entryResult;
+      int isPreset = ((aEntry[j].pParam->m_flags & CIPHER_PARAM_FLAG_APPLY_FIRST) != 0);
+      if ((pass == 0) != isPreset)
+        continue;
+      entrySpec.eSlot = spec.eSlot;
+      entrySpec.zName = aEntry[j].zKey;
+      cipherCfgInitRequest(&entryRequest, db, CIPHER_PARAM_SCOPE_CIPHER, cipherTable->m_name, &entrySpec);
+      cipherCfgSetText(&entryRequest, aEntry[j].zValue);
+      sqlite3mcConfigExec(&entryRequest, &entryResult);
+      /* Not expected, because the values were checked before */
+      if (entryResult.eErr != CIPHER_CONFIG_OK)
+        cipherCfgLogError("PRAGMA", &entryRequest, &entryResult);
+    }
+  }
+  sqlite3_free(zWork);
+  return SQLITE_OK;
+}
+
+/*
 ** Called for every pragma name that is not handled otherwise.
 ** Slot: main database or no schema given -> default value, any other schema (temp, attached) -> current value.
 ** Returns SQLITE_NOTFOUND if the name is not a parameter of the common parameters or of the current cipher.
@@ -1129,6 +1383,10 @@ sqlite3mcPragmaConfig(sqlite3* db, int dbIndex, const char* zName, const char* z
   CipherParamSpec spec;
   CipherConfigRequest request;
   CipherConfigResult result;
+
+  /* Only the PRAGMA cipher accepts a parameter list: cipher='name{param=value,...}' */
+  if (zValue != NULL && sqlite3_stricmp(zName, "cipher") == 0 && strchr(zValue, '{') != NULL)
+    return cipherCfgPragmaCipherList(db, dbIndex, zValue, pzOut);
 
   spec.eSlot = (dbIndex <= 0) ? CIPHER_PARAM_SLOT_DEFAULT : CIPHER_PARAM_SLOT_VALUE;
   spec.zName = zName;
