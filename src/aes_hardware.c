@@ -157,7 +157,7 @@ aesGenKeyDecrypt(const unsigned char* userKey, const int bits, unsigned char* ke
 */
 
 SQLITE3MC_FUNC_ISA("sse4.2,aes")
-static void
+static int
 aesEncryptCBC(const unsigned char* in,
               unsigned char* out,
               unsigned char ivec[16],
@@ -219,13 +219,14 @@ aesEncryptCBC(const unsigned char* in,
 
     memcpy(&out[16*numBlocks], lastblock, lenFrag);
   }
+  return 0;
 }
 
 /*
 ** AES CBC CTS decryption
 */
 SQLITE3MC_FUNC_ISA("sse4.2,aes")
-static void
+static int
 aesDecryptCBC(const unsigned char* in,
               unsigned char* out,
               unsigned char ivec[16],
@@ -310,6 +311,7 @@ aesDecryptCBC(const unsigned char* in,
     _mm_storeu_si128(&((__m128i*) out)[i], data);
     feedback = last_in;
   }
+  return 0;
 }
 
 #elif HAS_AES_HARDWARE == AES_HARDWARE_NEON
@@ -457,7 +459,7 @@ aesGenKeyDecrypt(const unsigned char* userKey, const int bits, unsigned char* ke
 /*
 ** AES CBC CTS Encryption
 */
-static FUNC_ISA void
+static FUNC_ISA int
 aesEncryptCBC(const unsigned char* in,
               unsigned char* out,
               unsigned char ivec[16],
@@ -521,12 +523,13 @@ aesEncryptCBC(const unsigned char* in,
 
     memcpy(&out[numBlocks*16], lastblock, lenFrag);
   }
+  return 0;
 }
 
 /*
 ** AES CBC CTS decryption
 */
-static FUNC_ISA void
+static FUNC_ISA int
 aesDecryptCBC(const unsigned char* in,
               unsigned char* out,
               unsigned char ivec[16],
@@ -619,6 +622,7 @@ aesDecryptCBC(const unsigned char* in,
 
     feedback = last_in;
   }
+  return 0;
 }
 
 #else

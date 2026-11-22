@@ -36,7 +36,7 @@
 SQLITE_PRIVATE CipherParams mcChaCha20Params[] =
 {
   { "legacy",                CHACHA20_LEGACY_DEFAULT,   CHACHA20_LEGACY_DEFAULT,   0, 1 },
-  { "legacy_page_size",      CHACHA20_LEGACY_PAGE_SIZE, CHACHA20_LEGACY_PAGE_SIZE, 0, SQLITE_MAX_PAGE_SIZE },
+  { "legacy_page_size",      CHACHA20_LEGACY_PAGE_SIZE, CHACHA20_LEGACY_PAGE_SIZE, 0, SQLITE_MAX_PAGE_SIZE, 0, NULL, &cipherParamOpsLegacyPageSize },
   { "kdf_iter",              CHACHA20_KDF_ITER_DEFAULT, CHACHA20_KDF_ITER_DEFAULT, 1, 0x7fffffff },
   { "plaintext_header_size", 0,                         0,                         0, 100 /* restrict to db header size */ },
   CIPHER_PARAMS_SENTINEL

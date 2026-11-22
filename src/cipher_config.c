@@ -33,100 +33,571 @@ sqlite3mcGetCodecParams(sqlite3* db)
   return codecParams;
 }
 
+/*
+** Unified parameter configuration
+*/
+
+/*
+** Overview
+**
+** The configuration parameters can be accessed in four ways:
+**   1) C API:         sqlite3mc_config, sqlite3mc_config_cipher
+**   2) SQL function:  sqlite3mc_config with 1 to 3 arguments
+**   3) URI parameters
+**   4) PRAGMAs
+** Every way translates its input into a CipherConfigRequest. The request is
+** executed by sqlite3mcConfigExec, which contains all the logic (locking,
+** resolving cipher and parameter, converting and validating the value, setting
+** or getting the addressed slot). A way only decides how its input is parsed and
+** how the result or an error is reported.
+**
+** Parameters have 4 slots (see CipherParamValueSlot). Prefixes "default:", "min:"
+** and "max:" of a parameter name are only parsed by the textual interfaces of the
+** C API and the SQL function. PRAGMA and URI choose the slot directly.
+**
+** Additional properties of a parameter (text aliases for values, validation,
+** behaviour flags) are part of the structure CipherParams (m_flags, m_aliases, m_ops).
+*/
+
+/* --- Helpers --- */
+
+static int
+cipherCfgMaxValue(const CipherParams* param)
+{
+  /* The upper bound can be dynamic (e.g. number of compiled in ciphers) */
+  if (param->m_ops != NULL && param->m_ops->m_count != NULL)
+  {
+    return param->m_ops->m_count();
+  }
+  return param->m_maxValue;
+}
+
+static int
+cipherCfgSlotValue(const CipherParams* param, CipherParamValueSlot eSlot)
+{
+  switch (eSlot)
+  {
+    case CIPHER_PARAM_SLOT_DEFAULT: return param->m_default;
+    case CIPHER_PARAM_SLOT_MIN:     return param->m_minValue;
+    case CIPHER_PARAM_SLOT_MAX:     return cipherCfgMaxValue(param);
+    default:                        return param->m_value;
+  }
+}
+
+/* Find a parameter in a parameter table */
+static CipherParams*
+cipherCfgFindParam(CipherParams* table, const char* zName)
+{
+  for (; table != NULL && table->m_name[0] != 0; ++table)
+  {
+    if (sqlite3_stricmp(zName, table->m_name) == 0)
+      return table;
+  }
+  return NULL;
+}
+
+/* Index 0 of the codec table holds the common parameters; ciphers start at index 1 */
+static CodecParameter*
+cipherCfgFindCipherTable(CodecParameter* codecParams, const char* zCipher)
+{
+  int j;
+  for (j = 1; codecParams[j].m_name[0] != 0; ++j)
+  {
+    if (sqlite3_stricmp(zCipher, codecParams[j].m_name) == 0) return &codecParams[j];
+  }
+  return NULL;
+}
+
+static CodecParameter*
+cipherCfgFindCipherTableById(CodecParameter* codecParams, int id)
+{
+  int j;
+  for (j = 1; codecParams[j].m_name[0] != 0; ++j)
+  {
+    if (codecParams[j].m_id == id)
+      return &codecParams[j];
+  }
+  return NULL;
+}
+
+/* Decimal or hexadecimal ("0x...") integer; the whole string must be consumed */
+static int
+cipherCfgParseInt(const char* z, sqlite3_int64* pValue)
+{
+  sqlite3_int64 value = 0;
+  int negative = 0;
+  int base = 10;
+  int nDigits = 0;
+  if (z == NULL)
+    return 0;
+  if (*z == '-')
+  {
+    negative = 1;
+    ++z;
+  }
+  if (z[0] == '0' && (z[1] == 'x' || z[1] == 'X'))
+  {
+    base = 16;
+    z += 2;
+  }
+  for (; *z != 0; ++z)
+  {
+    int digit;
+    if (*z >= '0' && *z <= '9')
+      digit = *z - '0';
+    else if (base == 16 && *z >= 'a' && *z <= 'f')
+      digit = *z - 'a' + 10;
+    else if (base == 16 && *z >= 'A' && *z <= 'F')
+      digit = *z - 'A' + 10;
+    else
+      return 0;
+    /* Clamp on overflow; the range check rejects such values anyway */
+    if (value > (LARGEST_INT64 - digit) / base)
+      value = LARGEST_INT64;
+    else
+      value = value * base + digit;
+    ++nDigits;
+  }
+  if (nDigits == 0) return 0;
+  *pValue = negative ? -value : value;
+  return 1;
+}
+
+/* At most ONE prefix: "default:", "min:" or "max:" */
+SQLITE_PRIVATE int
+sqlite3mcParseParamSpec(const char* zSpec, CipherParamSpec* spec)
+{
+  spec->eSlot = CIPHER_PARAM_SLOT_VALUE;
+  spec->zName = "";
+  if (zSpec == NULL) return 0;
+  if (sqlite3_strnicmp(zSpec, "default:", 8) == 0)  { spec->eSlot = CIPHER_PARAM_SLOT_DEFAULT; zSpec += 8; }
+  else if (sqlite3_strnicmp(zSpec, "min:", 4) == 0) { spec->eSlot = CIPHER_PARAM_SLOT_MIN;     zSpec += 4; }
+  else if (sqlite3_strnicmp(zSpec, "max:", 4) == 0) { spec->eSlot = CIPHER_PARAM_SLOT_MAX;     zSpec += 4; }
+  spec->zName = zSpec;
+  return zSpec[0] != 0;
+}
+
+/* --- Text <-> value (aliases) --- */
+
+static const char*
+cipherCfgValueToName(const CipherParams* param, int iValue)
+{
+  const CipherParamAlias* alias;
+  if (param == NULL)
+    return NULL;
+  if (param->m_ops != NULL && param->m_ops->m_valueToName != NULL)
+    return param->m_ops->m_valueToName(iValue);
+  for (alias = param->m_aliases; alias != NULL && alias->m_name != NULL; ++alias)
+  {
+    if (alias->m_value == iValue)
+      return alias->m_name;
+  }
+  return NULL;
+}
+
+static int
+cipherCfgNameToValue(const CipherParams* param, const char* zName, sqlite3_int64* pValue)
+{
+  const CipherParamAlias* alias;
+  if (param == NULL) return 0;
+  if (param->m_ops != NULL && param->m_ops->m_nameToValue != NULL)
+  {
+    int value = param->m_ops->m_nameToValue(zName);
+    if (value >= 0)
+    {
+      *pValue = value;
+      return 1;
+    }
+  }
+  for (alias = param->m_aliases; alias != NULL && alias->m_name != NULL; ++alias)
+  {
+    if (sqlite3_stricmp(zName, alias->m_name) == 0)
+    {
+      *pValue = alias->m_value;
+      return 1;
+    }
+  }
+  return 0;
+}
+
+/* Comma separated list of the textual values of a parameter or NULL; must be freed with sqlite3_free */
+static char*
+cipherCfgAllowedValues(const CipherParams* param)
+{
+  char* zList = NULL;
+  int value;
+  int maxValue = cipherCfgMaxValue(param);
+  if (param == NULL)
+    return NULL;
+  if (param->m_ops != NULL && param->m_ops->m_valueToName != NULL)
+  {
+    for (value = param->m_minValue; value <= maxValue; ++value)
+    {
+      const char* zName = param->m_ops->m_valueToName(value);
+      if (zName != NULL && zName[0] != 0)
+      {
+        char* zNew = sqlite3_mprintf("%s%s%s", zList ? zList : "", zList ? ", " : "", zName);
+        sqlite3_free(zList);
+        zList = zNew;
+      }
+    }
+  }
+  else
+  {
+    const CipherParamAlias* alias;
+    for (alias = param->m_aliases; alias != NULL && alias->m_name != NULL; ++alias)
+    {
+      char* zNew = sqlite3_mprintf("%s%s%s", zList ? zList : "", zList ? ", " : "", alias->m_name);
+      sqlite3_free(zList);
+      zList = zNew;
+    }
+  }
+  return zList;
+}
+
+/* Value as text, in the way the text based interfaces show it; the result must be freed with sqlite3_free */
+static char*
+cipherCfgFormatValue(const CipherParams* param, unsigned int nameFlag, int iValue)
+{
+  const char* zName = (param != NULL && (param->m_flags & nameFlag) != 0) ? cipherCfgValueToName(param, iValue) : NULL;
+  return (zName != NULL) ? sqlite3_mprintf("%s", zName) : sqlite3_mprintf("%d", iValue);
+}
+
+/* --- Error messages --- */
+
+SQLITE_PRIVATE char*
+sqlite3mcConfigErrorMsg(const CipherConfigRequest* request, const CipherConfigResult* result)
+{
+  char zValue[48];
+  const char* zParam = (request->zParam != NULL) ? request->zParam : "";
+  char* zOf = (result->zCipher != NULL && strcmp(result->zCipher, "global") != 0 && result->pParam != NULL)
+              ? sqlite3_mprintf(" of cipher '%s'", result->zCipher) : sqlite3_mprintf("");
+  char* zMsg = NULL;
+
+  if (request->eValueType == CIPHER_PARAM_VALUE_TEXT)
+  {
+    sqlite3_snprintf((int) sizeof(zValue), zValue, "%.40s", (request->zValue != NULL) ? request->zValue : "");
+  }
+  else
+  {
+    sqlite3_snprintf((int) sizeof(zValue), zValue, "%lld", (long long) request->iValue);
+  }
+
+  switch (result->eErr)
+  {
+    case CIPHER_CONFIG_OK:
+      break;
+    case CIPHER_CONFIG_ERR_NODB:
+      zMsg = sqlite3_mprintf("changing parameter '%s' requires a database connection", zParam);
+      break;
+    case CIPHER_CONFIG_ERR_NOTABLE:
+      zMsg = sqlite3_mprintf("codec parameter table not found");
+      break;
+    case CIPHER_CONFIG_ERR_UNKNOWN_CIPHER:
+      zMsg = sqlite3_mprintf("unknown cipher '%s'", (request->zCipher != NULL) ? request->zCipher : "");
+      break;
+    case CIPHER_CONFIG_ERR_UNKNOWN_PARAM:
+      zMsg = sqlite3_mprintf("unknown parameter '%s'%s", zParam,
+                             (request->eScope == CIPHER_PARAM_SCOPE_CIPHER && request->zCipher != NULL) ? " for the given cipher" : "");
+      break;
+    case CIPHER_CONFIG_ERR_SLOT_READONLY:
+      zMsg = sqlite3_mprintf("only the current value and the default value of parameter '%s' can be changed", zParam);
+      break;
+    case CIPHER_CONFIG_ERR_BAD_VALUE:
+    {
+      char* zAllowed = (result->pParam != NULL) ? cipherCfgAllowedValues(result->pParam) : NULL;
+      zMsg = sqlite3_mprintf("invalid value '%s' for parameter '%s'%s%s%s%s",
+                             zValue, zParam, zOf,
+                             (zAllowed != NULL) ? " (allowed: " : "", (zAllowed != NULL) ? zAllowed : "", (zAllowed != NULL) ? ")" : "");
+      sqlite3_free(zAllowed);
+      break;
+    }
+    case CIPHER_CONFIG_ERR_RANGE:
+      zMsg = sqlite3_mprintf("value %s for parameter '%s'%s out of range [%d..%d]", zValue, zParam, zOf,
+                             (result->pParam != NULL) ? result->pParam->m_minValue : 0,
+                             (result->pParam != NULL) ? cipherCfgMaxValue(result->pParam) : 0);
+      break;
+    case CIPHER_CONFIG_ERR_CONSTRAINT:
+      zMsg = sqlite3_mprintf("value %s for parameter '%s'%s does not satisfy constraints", zValue, zParam, zOf);
+      break;
+    default:
+      zMsg = sqlite3_mprintf("configuration error %d", result->eErr);
+      break;
+  }
+  sqlite3_free(zOf);
+  return zMsg;
+}
+
+/* --- The core --- */
+
+static int
+cipherCfgConvertValue(const CipherParams* param, const CipherConfigRequest* request, sqlite3_int64* pValue)
+{
+  int nameOnly = ((param->m_flags & CIPHER_PARAM_FLAG_NAME_ONLY) != 0);
+  if (request->eValueType == CIPHER_PARAM_VALUE_INT)
+  {
+    /* Integers are not accepted for name-only parameters in the SQL function */
+    if (nameOnly && request->strictNames)
+      return CIPHER_CONFIG_ERR_BAD_VALUE;
+    *pValue = request->iValue;
+    return CIPHER_CONFIG_OK;
+  }
+  if (request->eValueType == CIPHER_PARAM_VALUE_TEXT && request->zValue != NULL)
+  {
+    if (cipherCfgNameToValue(param, request->zValue, pValue))
+      return CIPHER_CONFIG_OK;
+    if (!nameOnly && cipherCfgParseInt(request->zValue, pValue))
+      return CIPHER_CONFIG_OK;
+  }
+  return CIPHER_CONFIG_ERR_BAD_VALUE;
+}
+
+static int
+cipherCfgApplySet(const CipherConfigRequest* request, CipherParamValueSlot eSlot,
+                  CipherParams* param, const char* zCipher, CipherConfigResult* result)
+{
+  sqlite3_int64 value = 0;
+  int rc;
+
+  if (eSlot == CIPHER_PARAM_SLOT_MIN || eSlot == CIPHER_PARAM_SLOT_MAX)
+    return CIPHER_CONFIG_ERR_SLOT_READONLY;
+  rc = cipherCfgConvertValue(param, request, &value);
+  if (rc != CIPHER_CONFIG_OK)
+    return rc;
+
+  if (value < param->m_minValue || value > cipherCfgMaxValue(param))
+    return CIPHER_CONFIG_ERR_RANGE;
+  if ((param->m_flags & CIPHER_PARAM_FLAG_ENABLE_ONLY) != 0 && value == 0)
+    return CIPHER_CONFIG_ERR_CONSTRAINT;
+  if (param->m_ops != NULL)
+  {
+    /* Dynamic enumeration: the value must exist in this build (e.g. cipher compiled in) */
+    if (param->m_ops->m_valueToName != NULL && param->m_ops->m_valueToName((int) value) == NULL)
+      return CIPHER_CONFIG_ERR_RANGE;
+    if (param->m_ops->m_check != NULL && !param->m_ops->m_check(zCipher, value))
+      return CIPHER_CONFIG_ERR_CONSTRAINT;
+  }
+
+  /* Commit */
+  if (eSlot == CIPHER_PARAM_SLOT_DEFAULT)
+  {
+    if ((param->m_flags & CIPHER_PARAM_FLAG_DEFAULT_LOCKED) != 0)
+      result->defaultIgnored = 1;
+    else
+      param->m_default = (int) value;
+  }
+  param->m_value = (int) value;
+
+  if (param->m_ops != NULL && param->m_ops->m_apply != NULL)
+  {
+    param->m_ops->m_apply(request->db, zCipher, eSlot, (int) value);
+  }
+  return CIPHER_CONFIG_OK;
+}
+
+/*
+** Core of the configuration logic WITHOUT locking.
+** The caller must hold the mutex of the connection (db->mutex), or the static main mutex if db == NULL.
+** This is the only function that may be used by parameter hooks (CipherParamOps) to change parameters.
+*/
+static int
+cipherCfgExecLocked(const CipherConfigRequest* request, CipherConfigResult* result)
+{
+  CodecParameter* codecParams;
+  CodecParameter* cipherTable = NULL;
+  CipherParams* param = NULL;
+  int eErr = CIPHER_CONFIG_OK;
+
+  memset(result, 0, sizeof(*result));
+  result->iValue = -1;
+  result->zCipher = "global";
+
+  if (request->zParam == NULL || request->zParam[0] == 0)
+  {
+    result->eErr = CIPHER_CONFIG_ERR_UNKNOWN_PARAM;
+    return result->eErr;
+  }
+  /* The process wide table can be read, but not be changed */
+  if (request->isSet && request->db == NULL)
+  {
+    result->eErr = CIPHER_CONFIG_ERR_NODB;
+    return result->eErr;
+  }
+  codecParams = (request->db != NULL) ? sqlite3mcGetCodecParams(request->db) : globalCodecParameterTable;
+  if (codecParams == NULL)
+  {
+    result->eErr = CIPHER_CONFIG_ERR_NOTABLE;
+    return result->eErr;
+  }
+
+  /* Resolve scope and parameter */
+  switch (request->eScope)
+  {
+    case CIPHER_PARAM_SCOPE_GLOBAL:
+      param = cipherCfgFindParam(codecParams[0].m_params, request->zParam);
+      break;
+    case CIPHER_PARAM_SCOPE_CIPHER:
+      cipherTable = (request->zCipher != NULL) ? cipherCfgFindCipherTable(codecParams, request->zCipher) : NULL;
+      if (cipherTable == NULL)
+        eErr = CIPHER_CONFIG_ERR_UNKNOWN_CIPHER;
+      else
+        param = cipherCfgFindParam(cipherTable->m_params, request->zParam);
+      break;
+    case CIPHER_PARAM_SCOPE_AUTO:
+    default:
+      /*
+      ** PRAGMA style: common parameter first, otherwise parameter of the "current" cipher.
+      ** The current cipher is the cipher that would be used for the next key setup, that is
+      ** its current (transient) value. The value is not consumed here.
+      */
+      param = cipherCfgFindParam(codecParams[0].m_params, request->zParam);
+      if (param == NULL)
+      {
+        CipherParams* cipherParam = cipherCfgFindParam(codecParams[0].m_params, "cipher");
+        if (cipherParam != NULL)
+        {
+          cipherTable = cipherCfgFindCipherTableById(codecParams, cipherParam->m_value);
+          if (cipherTable != NULL)
+            param = cipherCfgFindParam(cipherTable->m_params, request->zParam);
+        }
+      }
+      break;
+  }
+  if (eErr == CIPHER_CONFIG_OK && param == NULL)
+    eErr = CIPHER_CONFIG_ERR_UNKNOWN_PARAM;
+  if (cipherTable != NULL)
+    result->zCipher = cipherTable->m_name;
+
+  /* Get or set */
+  if (eErr == CIPHER_CONFIG_OK)
+  {
+    CipherParamValueSlot eSlot = request->eSlot;
+    /*
+    ** A PRAGMA on the main database addresses the default value. A parameter whose default value
+    ** can not be changed (e.g. hmac_check) is addressed by its current value instead.
+    */
+    if (request->eScope == CIPHER_PARAM_SCOPE_AUTO && eSlot == CIPHER_PARAM_SLOT_DEFAULT &&
+        (param->m_flags & CIPHER_PARAM_FLAG_DEFAULT_LOCKED) != 0)
+    {
+      eSlot = CIPHER_PARAM_SLOT_VALUE;
+    }
+    result->pParam = param;
+    if (request->isSet)
+      eErr = cipherCfgApplySet(request, eSlot, param, result->zCipher, result);
+    /* Always report the actual state after the call */
+    result->iValue = cipherCfgSlotValue(param, eSlot);
+  }
+
+  result->eErr = eErr;
+  return eErr;
+}
+
+SQLITE_PRIVATE int
+sqlite3mcConfigExec(const CipherConfigRequest* request, CipherConfigResult* result)
+{
+  sqlite3_mutex* mutex = (request->db != NULL) ? request->db->mutex : sqlite3_mutex_alloc(SQLITE_MUTEX_STATIC_MAIN);
+  int rc;
+  sqlite3_mutex_enter(mutex);
+  rc = cipherCfgExecLocked(request, result);
+  sqlite3_mutex_leave(mutex);
+  return rc;
+}
+
+/*
+** Set an integer parameter of a cipher for a connection from within a parameter hook.
+** The mutex of the connection is already held by the caller, therefore no locking is done.
+** eSlot is CIPHER_PARAM_SLOT_VALUE or CIPHER_PARAM_SLOT_DEFAULT.
+** Returns CIPHER_CONFIG_OK or an error code CIPHER_CONFIG_ERR_*.
+*/
+SQLITE_PRIVATE int
+sqlite3mcConfigSetIntLocked(sqlite3* db, const char* zCipher, const char* zParam, CipherParamValueSlot eSlot, int value)
+{
+  CipherConfigRequest request;
+  CipherConfigResult result;
+  memset(&request, 0, sizeof(request));
+  request.db = db;
+  request.eScope = CIPHER_PARAM_SCOPE_CIPHER;
+  request.zCipher = zCipher;
+  request.zParam = zParam;
+  request.eSlot = eSlot;
+  request.isSet = 1;
+  request.eValueType = CIPHER_PARAM_VALUE_INT;
+  request.iValue = value;
+  return cipherCfgExecLocked(&request, &result);
+}
+
+/* --- Request builders and logging --- */
+
+static void
+cipherCfgInitRequest(CipherConfigRequest* request, sqlite3* db, CipherParamScope eScope, const char* zCipher, const CipherParamSpec* spec)
+{
+  memset(request, 0, sizeof(*request));
+  request->db = db;
+  request->eScope = eScope;
+  request->zCipher = zCipher;
+  request->zParam = spec->zName;
+  request->eSlot = spec->eSlot;
+}
+
+static void
+cipherCfgSetInt(CipherConfigRequest* request, sqlite3_int64 iValue)
+{
+  request->isSet = 1;
+  request->eValueType = CIPHER_PARAM_VALUE_INT;
+  request->iValue = iValue;
+}
+
+static void
+cipherCfgSetText(CipherConfigRequest* request, const char* zValue)
+{
+  request->isSet = 1;
+  request->eValueType = CIPHER_PARAM_VALUE_TEXT;
+  request->zValue = zValue;
+}
+
+static void
+cipherCfgLogError(const char* zFunction, const CipherConfigRequest* request, const CipherConfigResult* result)
+{
+  char* zMsg = sqlite3mcConfigErrorMsg(request, result);
+  if (zMsg != NULL)
+  {
+    sqlite3_log(SQLITE_WARNING, "%s: %s", zFunction, zMsg);
+    sqlite3_free(zMsg);
+  }
+}
+
+/*
+** 1) C API
+*/
+
+/*
+** A negative new value means "get". The return value is the content of the addressed
+** slot after the call (the unchanged value, if a new value was rejected) or -1 if the
+** parameter was not found.
+*/
+
 SQLITE_API int
 sqlite3mc_config(sqlite3* db, const char* paramName, int newValue)
 {
-  int value = -1;
-  CodecParameter* codecParams;
-  int hasDefaultPrefix = 0;
-  int hasMinPrefix = 0;
-  int hasMaxPrefix = 0;
-  CipherParams* param;
+  CipherParamSpec spec;
+  CipherConfigRequest request;
+  CipherConfigResult result;
 
 #ifndef SQLITE_OMIT_AUTOINIT
-  if (sqlite3_initialize()) return value;
+  if (sqlite3_initialize()) return -1;
 #endif
 
-  if (paramName == NULL || (db == NULL && newValue >= 0))
+  if (paramName == NULL || !sqlite3mcParseParamSpec(paramName, &spec))
+    return -1;
+  cipherCfgInitRequest(&request, db, CIPHER_PARAM_SCOPE_GLOBAL, NULL, &spec);
+  if (newValue >= 0)
+    cipherCfgSetInt(&request, newValue);
+  sqlite3mcConfigExec(&request, &result);
+  if (result.eErr != CIPHER_CONFIG_OK && result.eErr != CIPHER_CONFIG_ERR_UNKNOWN_PARAM)
   {
-    return value;
+    cipherCfgLogError("sqlite3mc_config", &request, &result);
   }
-
-  codecParams = (db != NULL) ? sqlite3mcGetCodecParams(db) : globalCodecParameterTable;
-  if (codecParams == NULL)
-  {
-    return value;
-  }
-
-  if (sqlite3_strnicmp(paramName, "default:", 8) == 0)
-  {
-    hasDefaultPrefix = 1;
-    paramName += 8;
-  }
-  if (sqlite3_strnicmp(paramName, "min:", 4) == 0)
-  {
-    hasMinPrefix = 1;
-    paramName += 4;
-  }
-  if (sqlite3_strnicmp(paramName, "max:", 4) == 0)
-  {
-    hasMaxPrefix = 1;
-    paramName += 4;
-  }
-
-  param = codecParams[0].m_params;
-  for (; param->m_name[0] != 0; ++param)
-  {
-    if (sqlite3_stricmp(paramName, param->m_name) == 0) break;
-  }
-  if (param->m_name[0] != 0)
-  {
-    int cipherCount = sqlite3mcGetGlobalCipherCount();
-    if (db != NULL)
-    {
-      sqlite3_mutex_enter(db->mutex);
-    }
-    else
-    {
-      sqlite3_mutex_enter(sqlite3_mutex_alloc(SQLITE_MUTEX_STATIC_MAIN));
-    }
-    value = (hasDefaultPrefix) ? param->m_default : (hasMinPrefix) ? param->m_minValue : (hasMaxPrefix) ? param->m_maxValue : param->m_value;
-    if (!hasMinPrefix && !hasMaxPrefix && newValue >= 0 && newValue >= param->m_minValue && newValue <= param->m_maxValue)
-    {
-      int allowChange = 1;
-
-      if (sqlite3_stricmp(paramName, "cipher") == 0)
-      {
-        /* Allow cipher change only if new cipher is actually available */
-        allowChange = newValue > 0 && newValue <= cipherCount;
-      }
-      else if (sqlite3_stricmp(paramName, "encrypt_temp_db") == 0)
-      {
-        /* Allow only to enable unconditional encryption of temporary database */
-        allowChange = newValue > 0;
-      }
-
-      if (allowChange)
-      {
-        /* Do not allow to change the default value for parameter "hmac_check" */
-        if (hasDefaultPrefix && (sqlite3_stricmp(paramName, "hmac_check") != 0))
-        {
-          param->m_default = newValue;
-        }
-        param->m_value = newValue;
-        value = newValue;
-      }
-    }
-    if (db != NULL)
-    {
-      sqlite3_mutex_leave(db->mutex);
-    }
-    else
-    {
-      sqlite3_mutex_leave(sqlite3_mutex_alloc(SQLITE_MUTEX_STATIC_MAIN));
-    }
-  }
-  return value;
+  return result.iValue;
 }
 
 SQLITE_API int
@@ -228,166 +699,32 @@ sqlite3mc_cipher_name_copy(int cipherIndex, char* cipherName, int maxCipherNameS
   return ok;
 }
 
-static
-int checkParameterValue(const char* paramName, sqlite_int64 value, const char* cipherName)
-{
-  int ok = 1;
-  if (sqlite3_stricmp(paramName, "legacy_page_size") == 0 && value > 0)
-  {
-    ok = value >= 512 && value <= SQLITE_MAX_PAGE_SIZE && ((value - 1) & value) == 0;
-  }
-  if (ok && sqlite3_stricmp(paramName, "plaintext_header_size") == 0 && value > 0)
-  {
-    if (sqlite3_stricmp(cipherName, "sqlcipher") == 0)
-    {
-      ok = value % 16 == 0;
-    }
-  }
-  if (ok && sqlite3_stricmp(paramName, "encrypt_temp_db") == 0 && value >= 0)
-  {
-    ok = value == 1;
-  }
-  return ok;
-}
-
 SQLITE_API int
 sqlite3mc_config_cipher(sqlite3* db, const char* cipherName, const char* paramName, int newValue)
 {
-  int value = -1;
-  CodecParameter* codecParams;
-  CipherParams* cipherParamTable = NULL;
-  int j = 0;
+  CipherParamSpec spec;
+  CipherConfigRequest request;
+  CipherConfigResult result;
 
 #ifndef SQLITE_OMIT_AUTOINIT
-  if (sqlite3_initialize()) return value;
+  if (sqlite3_initialize()) return -1;
 #endif
 
-  if (cipherName == NULL || paramName == NULL)
+  if (cipherName == NULL || paramName == NULL || !sqlite3mcParseParamSpec(paramName, &spec))
   {
     sqlite3_log(SQLITE_WARNING,
-                "sqlite3mc_config_cipher: cipher name ('%s*) or parameter ('%s*) missing",
+                "sqlite3mc_config_cipher: cipher name ('%s') or parameter ('%s') missing",
                 (cipherName == NULL) ? "" : cipherName, (paramName == NULL) ? "" : paramName);
-    return value;
+    return -1;
   }
-  else if (db == NULL && newValue >= 0)
+  cipherCfgInitRequest(&request, db, CIPHER_PARAM_SCOPE_CIPHER, cipherName, &spec);
+  if (newValue >= 0) cipherCfgSetInt(&request, newValue);
+  sqlite3mcConfigExec(&request, &result);
+  if (result.eErr != CIPHER_CONFIG_OK && (newValue != -1 || result.eErr == CIPHER_CONFIG_ERR_UNKNOWN_CIPHER))
   {
-    sqlite3_log(SQLITE_WARNING,
-                "sqlite3mc_config_cipher: global change of parameter '%s' for cipher '%s' not supported",
-                paramName, cipherName);
-    return value;
+    cipherCfgLogError("sqlite3mc_config_cipher", &request, &result);
   }
-
-  codecParams = (db != NULL) ? sqlite3mcGetCodecParams(db) : globalCodecParameterTable;
-  if (codecParams == NULL)
-  {
-    sqlite3_log(SQLITE_WARNING,
-                "sqlite3mc_config_cipher: codec parameter table not found");
-    return value;
-  }
-
-  /*
-  ** Index 0 is not a valid cipher entry, but an entry for global parameters.
-  ** Therefore start with index 1, the first valid cipher entry, if any.
-  */
-  for (j = 1; codecParams[j].m_name[0] != 0; ++j)
-  {
-    if (sqlite3_stricmp(cipherName, codecParams[j].m_name) == 0) break;
-  }
-  if (codecParams[j].m_name[0] != 0)
-  {
-    cipherParamTable = codecParams[j].m_params;
-  }
-
-  if (cipherParamTable != NULL)
-  {
-    int hasDefaultPrefix = 0;
-    int hasMinPrefix = 0;
-    int hasMaxPrefix = 0;
-    CipherParams* param = cipherParamTable;
-
-    if (sqlite3_strnicmp(paramName, "default:", 8) == 0)
-    {
-      hasDefaultPrefix = 1;
-      paramName += 8;
-    }
-    if (sqlite3_strnicmp(paramName, "min:", 4) == 0)
-    {
-      hasMinPrefix = 1;
-      paramName += 4;
-    }
-    if (sqlite3_strnicmp(paramName, "max:", 4) == 0)
-    {
-      hasMaxPrefix = 1;
-      paramName += 4;
-    }
-
-#if HAVE_CIPHER_SQLCIPHER
-    /* Special handling for SQLCipher legacy mode */
-    if (db != NULL &&
-        sqlite3_stricmp(cipherName, "sqlcipher") == 0 &&
-        sqlite3_stricmp(paramName, "legacy") == 0)
-    {
-      if (!hasMinPrefix && !hasMaxPrefix)
-      {
-        if (newValue > 0 && newValue <= SQLCIPHER_VERSION_MAX)
-        {
-          sqlite3mcConfigureSQLCipherVersion(db, hasDefaultPrefix, newValue);
-        }
-        else if (newValue != -1)
-        {
-          sqlite3_log(SQLITE_WARNING,
-                      "sqlite3mc_config_cipher: SQLCipher legacy version %d out of range [%d..%d]",
-                      newValue, 1, SQLCIPHER_VERSION_MAX);
-        }
-      }
-    }
-#endif
-
-    for (; param->m_name[0] != 0; ++param)
-    {
-      if (sqlite3_stricmp(paramName, param->m_name) == 0) break;
-    }
-    if (param->m_name[0] != 0)
-    {
-      if (db != NULL)
-      {
-        sqlite3_mutex_enter(db->mutex);
-      }
-      else
-      {
-        sqlite3_mutex_enter(sqlite3_mutex_alloc(SQLITE_MUTEX_STATIC_MASTER));
-      }
-      value = (hasDefaultPrefix) ? param->m_default : (hasMinPrefix) ? param->m_minValue : (hasMaxPrefix) ? param->m_maxValue : param->m_value;
-      if (!hasMinPrefix && !hasMaxPrefix)
-      {
-        if (newValue >= 0 && newValue >= param->m_minValue && newValue <= param->m_maxValue &&
-            checkParameterValue(paramName, newValue, cipherName))
-        {
-          if (hasDefaultPrefix)
-          {
-            param->m_default = newValue;
-          }
-          param->m_value = newValue;
-          value = newValue;
-        }
-        else if (newValue != -1)
-        {
-          sqlite3_log(SQLITE_WARNING,
-                      "sqlite3mc_config_cipher: Value %d for parameter '%s' of cipher '%s' out of range [%d..%d]",
-                      newValue, paramName, cipherName, param->m_minValue, param->m_maxValue);
-        }
-      }
-      if (db != NULL)
-      {
-        sqlite3_mutex_leave(db->mutex);
-      }
-      else
-      {
-        sqlite3_mutex_leave(sqlite3_mutex_alloc(SQLITE_MUTEX_STATIC_MASTER));
-      }
-    }
-  }
-  return value;
+  return result.iValue;
 }
 
 SQLITE_API unsigned char*
@@ -492,19 +829,90 @@ sqlite3mcCodecDataSql(sqlite3_context* context, int argc, sqlite3_value** argv)
   }
 }
 
+/*
+** 2) SQL function sqlite3mc_config
+*/
+
+/*
+**   sqlite3mc_config(common)                 get common parameter
+**   sqlite3mc_config(common, value)          set common parameter
+**   sqlite3mc_config(cipher)                 list the parameters of the cipher
+**   sqlite3mc_config(cipher, param)          get cipher parameter
+**   sqlite3mc_config(cipher, param, value)   set cipher parameter
+** The value is an integer or text (alias name or number). Prefixes "default:", "min:"
+** and "max:" are allowed for parameter names, but not for cipher names.
+*/
+
+static int
+cipherCfgSetFromSqlValue(CipherConfigRequest* request, sqlite3_value* value)
+{
+  switch (sqlite3_value_type(value))
+  {
+    case SQLITE_INTEGER:
+      cipherCfgSetInt(request, sqlite3_value_int64(value));
+      return 1;
+    case SQLITE_TEXT:
+      cipherCfgSetText(request, (const char*) sqlite3_value_text(value));
+      return 1;
+    default:
+      return 0;
+  }
+}
+
+static void
+cipherCfgSqlResult(sqlite3_context* context, const CipherConfigRequest* request, const CipherConfigResult* result)
+{
+  if (result->eErr != CIPHER_CONFIG_OK)
+  {
+    char* zMsg = sqlite3mcConfigErrorMsg(request, result);
+    sqlite3_result_error(context, (zMsg != NULL) ? zMsg : "configuration error", -1);
+    sqlite3_free(zMsg);
+  }
+  else
+  {
+    const CipherParams* param = result->pParam;
+    const char* zName = (param != NULL && (param->m_flags & CIPHER_PARAM_FLAG_NAMED_SQL) != 0)
+                      ? cipherCfgValueToName(param, result->iValue) : NULL;
+    if (zName != NULL)
+      sqlite3_result_text(context, zName, -1, SQLITE_TRANSIENT);
+    else
+      sqlite3_result_int(context, result->iValue);
+  }
+}
+
+static void
+cipherCfgSqlListParams(sqlite3_context* context, const CipherParams* table)
+{
+  char* zList = NULL;
+  int j;
+  for (j = 0; table != NULL && table[j].m_name[0] != 0; ++j)
+  {
+    char* zNew = sqlite3_mprintf("%s%s%s", zList ? zList : "", zList ? "," : "", table[j].m_name);
+    if (zNew == NULL)
+    {
+      sqlite3_free(zList);
+      sqlite3_result_error_nomem(context);
+      return;
+    }
+    sqlite3_free(zList);
+    zList = zNew;
+  }
+  if (zList != NULL)
+    sqlite3_result_text(context, zList, -1, sqlite3_free);
+  else
+    sqlite3_result_null(context);
+}
+
 SQLITE_PRIVATE void
 sqlite3mcConfigParams(sqlite3_context* context, int argc, sqlite3_value** argv)
 {
-  CodecParameter* codecParams;
-  const char* nameParam1;
-  int hasDefaultPrefix = 0;
-  int hasMinPrefix = 0;
-  int hasMaxPrefix = 0;
-  CipherParams* param1;
-  CipherParams* cipherParamTable = NULL;
-  int isCommonParam1;
-  int isCipherParam1 = 0;
-  int cipherCount = sqlite3mcGetGlobalCipherCount();
+  sqlite3* db = sqlite3_context_db_handle(context);
+  CodecParameter* codecParams = sqlite3mcGetCodecParams(db);
+  CipherParamSpec spec1;
+  CipherParamSpec spec2;
+  CipherConfigRequest request;
+  CipherConfigResult result;
+  CodecParameter* cipherTable = NULL;
 
   assert(argc == 1 || argc == 2 || argc == 3);
   /* NULL values are not allowed for the first 2 arguments */
@@ -527,275 +935,91 @@ sqlite3mcConfigParams(sqlite3_context* context, int argc, sqlite3_value** argv)
     return;
   }
 
-  /* Check first argument whether it is a common parameter */
-  /* If the first argument is a common parameter, param1 will point to its parameter table entry */
-  nameParam1 = (const char*)sqlite3_value_text(argv[0]);
-  if (sqlite3_strnicmp(nameParam1, "default:", 8) == 0)
+  sqlite3mcParseParamSpec((const char*) sqlite3_value_text(argv[0]), &spec1);
+  if (cipherCfgFindParam(codecParams[0].m_params, spec1.zName) != NULL)
   {
-    hasDefaultPrefix = 1;
-    nameParam1 += 8;
-  }
-  if (sqlite3_strnicmp(nameParam1, "min:", 4) == 0)
-  {
-    hasMinPrefix = 1;
-    nameParam1 += 4;
-  }
-  if (sqlite3_strnicmp(nameParam1, "max:", 4) == 0)
-  {
-    hasMaxPrefix = 1;
-    nameParam1 += 4;
-  }
-
-  param1 = codecParams[0].m_params;
-  cipherParamTable = NULL;
-  for (; param1->m_name[0] != 0; ++param1)
-  {
-    if (sqlite3_stricmp(nameParam1, param1->m_name) == 0) break;
-  }
-  isCommonParam1 = param1->m_name[0] != 0;
-
-  /* Check first argument whether it is a cipher name, if it wasn't a common parameter */
-  /* If the first argument is a cipher name, cipherParamTable will point to the corresponding cipher parameter table */
-  if (!isCommonParam1)
-  {
-    if (!hasDefaultPrefix && !hasMinPrefix && !hasMaxPrefix)
+    /* First argument is the name of a common parameter */
+    if (argc > 2)
     {
-      int j;
-      /*
-      ** Index 0 is not a valid cipher entry, but an entry for global parameters.
-      ** Therefore start with index 1, the first valid cipher entry, if any.
-      */
-      for (j = 1; codecParams[j].m_name[0] != 0; ++j)
-      {
-        if (sqlite3_stricmp(nameParam1, codecParams[j].m_name) == 0) break;
-      }
-      isCipherParam1 = codecParams[j].m_name[0] != 0;
-      if (isCipherParam1)
-      {
-        cipherParamTable = codecParams[j].m_params;
-      }
-    }
-    if (!isCipherParam1)
-    {
-      /* Prefix not allowed for cipher names or cipher name not found */
-      sqlite3_result_error(context, "Cipher name not found", -1);
+      sqlite3_result_error(context, "Too many arguments for a common parameter", -1);
       return;
     }
-  }
-
-  if (argc == 1)
-  {
-    /* Return value of param1 */
-    if (isCommonParam1)
+    cipherCfgInitRequest(&request, db, CIPHER_PARAM_SCOPE_GLOBAL, NULL, &spec1);
+    if (argc == 2 && !cipherCfgSetFromSqlValue(&request, argv[1]))
     {
-      int value = (hasDefaultPrefix) ? param1->m_default : (hasMinPrefix) ? param1->m_minValue : (hasMaxPrefix) ? param1->m_maxValue : param1->m_value;
-      if (sqlite3_stricmp(nameParam1, "cipher") == 0)
-      {
-        sqlite3_result_text(context, globalCodecDescriptorTable[value - 1].m_name, -1, SQLITE_STATIC);
-      }
-      else
-      {
-        sqlite3_result_int(context, value);
-      }
-    }
-    else if (isCipherParam1)
-    {
-      /* Return a list of available parameters for the requested cipher */
-      int nParams = 0;
-      int lenTotal = 0;
-      int j;
-      for (j = 0; cipherParamTable[j].m_name[0] != 0; ++j)
-      {
-        ++nParams;
-        lenTotal += (int) strlen(cipherParamTable[j].m_name);
-      }
-      if (nParams > 0)
-      {
-        char* paramList = (char*)sqlite3_malloc(lenTotal + nParams);
-        if (paramList != NULL)
-        {
-          char* p = paramList;
-          strcpy(paramList, cipherParamTable[0].m_name);
-          for (j = 1; j < nParams; ++j)
-          {
-            strcat(paramList, ",");
-            strcat(paramList, cipherParamTable[j].m_name);
-          }
-          sqlite3_result_text(context, paramList, -1, sqlite3_free);
-        }
-        else
-        {
-          /* Not enough memory to allocate the result */
-          sqlite3_result_error_nomem(context);
-        }
-      }
-      else
-      {
-        /* Cipher has no parameters */
-        sqlite3_result_null(context);
-      }
+      sqlite3_result_error(context, "Invalid parameter value type", -1);
+      return;
     }
   }
   else
   {
-    /* 2 or more arguments */
-    int arg2Type = sqlite3_value_type(argv[1]);
-    if (argc == 2 && isCommonParam1)
+    /* First argument has to be a cipher name; a prefix is not allowed for cipher names */
+    if (spec1.eSlot == CIPHER_PARAM_SLOT_VALUE && spec1.zName[0] != 0)
     {
-      /* Set value of common parameter */
-      if (sqlite3_stricmp(nameParam1, "cipher") == 0)
-      {
-        /* 2nd argument is a cipher name */
-        if (arg2Type == SQLITE_TEXT)
-        {
-          const char* nameCipher = (const char*)sqlite3_value_text(argv[1]);
-          int j;
-          /*
-          ** Here index 0 is a valid cipher entry, because this is the list of registered ciphers.
-          */
-          for (j = 0; globalCodecDescriptorTable[j].m_name[0] != 0; ++j)
-          {
-            if (sqlite3_stricmp(nameCipher, globalCodecDescriptorTable[j].m_name) == 0) break;
-          }
-          if (globalCodecDescriptorTable[j].m_name[0] != 0)
-          {
-            if (hasDefaultPrefix)
-            {
-              param1->m_default = j + 1;
-            }
-            param1->m_value = j + 1;
-            sqlite3_result_text(context, globalCodecDescriptorTable[j].m_name, -1, SQLITE_STATIC);
-          }
-          else
-          {
-            /* No match for cipher name found */
-            sqlite3_result_error(context, "Cipher not found", -1);
-          }
-        }
-        else
-        {
-          /* Invalid parameter type */
-          sqlite3_result_error(context, "Invalid parameter value type", -1);
-        }
-      }
-      else if (arg2Type == SQLITE_INTEGER)
-      {
-        /* Check that parameter value is within allowed range */
-        sqlite_int64 value = sqlite3_value_int64(argv[1]);
-        if (value >= param1->m_minValue && value <= param1->m_maxValue &&
-            checkParameterValue(nameParam1, value, ""))
-          {
-          /* Do not allow to change the default value for parameter "hmac_check" */
-          if (hasDefaultPrefix && (sqlite3_stricmp(nameParam1, "hmac_check") != 0))
-          {
-            param1->m_default = value;
-          }
-          param1->m_value = value;
-          sqlite3_result_int(context, value);
-        }
-        else
-        {
-          /* Parameter value not within allowed range */
-          sqlite3_result_error(context, "Parameter value does not satisfy constraints", -1);
-        }
-      }
-      else
-      {
-        sqlite3_result_error(context, "Invalid parameter value type", -1);
-      }
+      cipherTable = cipherCfgFindCipherTable(codecParams, spec1.zName);
     }
-    else if (isCipherParam1 && arg2Type == SQLITE_TEXT)
+    if (cipherTable == NULL)
     {
-      /* get or set cipher parameter */
-      const char* nameParam2 = (const char*)sqlite3_value_text(argv[1]);
-      CipherParams* param2 = cipherParamTable;
-      hasDefaultPrefix = 0;
-      if (sqlite3_strnicmp(nameParam2, "default:", 8) == 0)
-      {
-        hasDefaultPrefix = 1;
-        nameParam2 += 8;
-      }
-      hasMinPrefix = 0;
-      if (sqlite3_strnicmp(nameParam2, "min:", 4) == 0)
-      {
-        hasMinPrefix = 1;
-        nameParam2 += 4;
-      }
-      hasMaxPrefix = 0;
-      if (sqlite3_strnicmp(nameParam2, "max:", 4) == 0)
-      {
-        hasMaxPrefix = 1;
-        nameParam2 += 4;
-      }
-      for (; param2->m_name[0] != 0; ++param2)
-      {
-        if (sqlite3_stricmp(nameParam2, param2->m_name) == 0) break;
-      }
-
-#if HAVE_CIPHER_SQLCIPHER
-      /* Special handling for SQLCipher legacy mode */
-      if (argc == 3 &&
-        sqlite3_stricmp(nameParam1, "sqlcipher") == 0 &&
-        sqlite3_stricmp(nameParam2, "legacy") == 0)
-      {
-        if (!hasMinPrefix && !hasMaxPrefix && sqlite3_value_type(argv[2]) == SQLITE_INTEGER)
-        {
-          sqlite_int64 legacy = sqlite3_value_int64(argv[2]);
-          if (legacy > 0 && legacy <= SQLCIPHER_VERSION_MAX)
-          {
-            sqlite3* db = sqlite3_context_db_handle(context);
-            sqlite3mcConfigureSQLCipherVersion(db, hasDefaultPrefix, legacy);
-          }
-        }
-      }
-#endif
-
-      if (param2->m_name[0] != 0)
-      {
-        if (argc == 2)
-        {
-          /* Return parameter value */
-          int value = (hasDefaultPrefix) ? param2->m_default : (hasMinPrefix) ? param2->m_minValue : (hasMaxPrefix) ? param2->m_maxValue : param2->m_value;
-          sqlite3_result_int(context, value);
-        }
-        else if (!hasMinPrefix && !hasMaxPrefix && sqlite3_value_type(argv[2]) == SQLITE_INTEGER)
-        {
-          /* Change cipher parameter value */
-          sqlite_int64 value = sqlite3_value_int64(argv[2]);
-          if (value >= 0 && value >= param2->m_minValue && value <= param2->m_maxValue &&
-              checkParameterValue(nameParam2, value, nameParam1))
-          {
-            if (hasDefaultPrefix)
-            {
-              param2->m_default = value;
-            }
-            param2->m_value = value;
-            sqlite3_result_int(context, value);
-          }
-          else
-          {
-            /* Cipher parameter value not within allowed range */
-            sqlite3_result_error(context, "Cipher parameter value does not satisfy constraints", -1);
-          }
-        }
-        else
-        {
-          /* Only current value and default value of a parameter can be changed */
-          sqlite3_result_error(context, "Only current value and default value of a parameter can be changed", -1);
-        }
-      }
-      else
-      {
-        /* Cipher parameter not found */
-        sqlite3_result_error(context, "Cipher parameter not found", -1);
-      }
+      sqlite3_result_error(context, "Cipher name not found", -1);
+      return;
     }
-    else
+    if (argc == 1)
     {
-      /* Cipher has no parameters */
-      sqlite3_result_error(context, "Cipher has no parameters", -1);
+      cipherCfgSqlListParams(context, cipherTable->m_params);
+      return;
+    }
+    sqlite3mcParseParamSpec((const char*) sqlite3_value_text(argv[1]), &spec2);
+    cipherCfgInitRequest(&request, db, CIPHER_PARAM_SCOPE_CIPHER, cipherTable->m_name, &spec2);
+    if (argc == 3 && !cipherCfgSetFromSqlValue(&request, argv[2]))
+    {
+      sqlite3_result_error(context, "Invalid parameter value type", -1);
+      return;
     }
   }
+  request.strictNames = 1;
+  sqlite3mcConfigExec(&request, &result);
+  cipherCfgSqlResult(context, &request, &result);
+}
+
+/*
+** 3) URI parameters
+*/
+
+/*
+** configDefault = 1: main database           -> default values are configured
+** configDefault = 0: attached database       -> only the current (transient) values are configured
+**
+** Invalid values are logged and ignored, except for parameters which select the cipher
+** scheme (flag SELECTOR): an invalid value there makes opening the database fail.
+*/
+
+static int
+cipherCfgUriApply(sqlite3* db, CipherParamScope eScope, const char* zCipher, const CipherParams* param,
+                  CipherParamValueSlot eSlot, const char* zValue)
+{
+  CipherParamSpec spec;
+  CipherConfigRequest request;
+  CipherConfigResult result;
+  spec.eSlot = eSlot;
+  spec.zName = param->m_name;
+  cipherCfgInitRequest(&request, db, eScope, zCipher, &spec);
+  cipherCfgSetText(&request, zValue);
+  sqlite3mcConfigExec(&request, &result);
+  if (result.eErr == CIPHER_CONFIG_OK) return SQLITE_OK;
+  if (result.pParam != NULL && (result.pParam->m_flags & CIPHER_PARAM_FLAG_SELECTOR) != 0)
+  {
+    char* zMsg = sqlite3mcConfigErrorMsg(&request, &result);
+    sqlite3ErrorWithMsg(db, SQLITE_ERROR, "%s", (zMsg != NULL) ? zMsg : "invalid cipher configuration");
+    sqlite3_free(zMsg);
+    return SQLITE_ERROR;
+  }
+  /* Do not complain, if a flag is explicitly switched off, which can only be switched on */
+  if (!(result.eErr == CIPHER_CONFIG_ERR_CONSTRAINT && result.pParam != NULL &&
+        (result.pParam->m_flags & CIPHER_PARAM_FLAG_ENABLE_ONLY) != 0))
+  {
+    cipherCfgLogError("URI parameter", &request, &result);
+  }
+  return SQLITE_OK;
 }
 
 SQLITE_PRIVATE int
@@ -807,6 +1031,12 @@ sqlite3mcConfigureFromUri(sqlite3* db, const char* zDbName, int configDefault)
   const char* dbFileName = zDbName;
   if (dbFileName != NULL)
   {
+    CipherParamValueSlot eSlot = (configDefault) ? CIPHER_PARAM_SLOT_DEFAULT : CIPHER_PARAM_SLOT_VALUE;
+    CodecParameter* codecParams = sqlite3mcGetCodecParams(db);
+    CodecParameter* cipherTable;
+    CipherParams* param;
+    int pass;
+
     /* Handle ChaCha20 hardware acceleration option */
     const char* chacha20HwAccelOption = sqlite3_uri_parameter(dbFileName, "mc_chacha20_hwaccel");
     if (chacha20HwAccelOption != NULL && chacha20HwAccelOption[0] != 0)
@@ -816,125 +1046,41 @@ sqlite3mcConfigureFromUri(sqlite3* db, const char* zDbName, int configDefault)
       /* Invalid option values are ignored here. */
     }
 
-    /* Enable unconditional encryption of temporary databases */
-    int encryptTempDb = sqlite3_uri_boolean(dbFileName, "encrypt_temp_db", 0);
-    sqlite3mc_config(db, "encrypt_temp_db", encryptTempDb);
+    if (codecParams == NULL) return SQLITE_OK;
 
-    /* Check whether cipher is specified */
-    const char* cipherName = sqlite3_uri_parameter(dbFileName, "cipher");
-    if (cipherName == NULL || cipherName[0] == 0)
+    /* Common parameters; "cipher" is the first one and therefore known before the cipher parameters are processed */
+    for (param = codecParams[0].m_params; param->m_name[0] != 0; ++param)
     {
-      int defaultCipherIndex = sqlite3mc_config(db, "cipher", -1);
-      if (defaultCipherIndex > 0)
+      const char* zValue = sqlite3_uri_parameter(dbFileName, param->m_name);
+      if (zValue != NULL && zValue[0] != 0)
       {
-        cipherName = sqlite3mcFindCipherName(defaultCipherIndex);
-        sqlite3mc_config(db, "cipher", defaultCipherIndex);
+        rc = cipherCfgUriApply(db, CIPHER_PARAM_SCOPE_GLOBAL, NULL, param, eSlot, zValue);
+        if (rc != SQLITE_OK) return rc;
       }
     }
-    if (cipherName != NULL && cipherName[0] != 0)
+
+    /* Parameters of the effective cipher: the one given in the URI or, if not given, the default cipher */
     {
-      int j = 0;
-      CipherParams* cipherParams = NULL;
+      CipherParams* cipherParam = cipherCfgFindParam(codecParams[0].m_params, "cipher");
+      if (cipherParam == NULL) return SQLITE_OK;
+      cipherTable = cipherCfgFindCipherTableById(codecParams, (configDefault) ? cipherParam->m_default : cipherParam->m_value);
+      if (cipherTable == NULL) return SQLITE_OK;
+    }
 
-      /* Try to locate the cipher name */
-      for (j = 1; globalCodecParameterTable[j].m_name[0] != 0; ++j)
+    /* Pass 0: presets (e.g. SQLCipher "legacy"); pass 1: all other parameters, so that individual values win */
+    for (pass = 0; pass < 2; ++pass)
+    {
+      for (param = cipherTable->m_params; param->m_name[0] != 0; ++param)
       {
-        if (sqlite3_stricmp(cipherName, globalCodecParameterTable[j].m_name) == 0) break;
-      }
-
-      /* j is the index of the cipher name, if found */
-      cipherParams = (globalCodecParameterTable[j].m_name[0] != 0) ? globalCodecParameterTable[j].m_params : NULL;
-      if (cipherParams != NULL)
-      {
-        /*
-        ** Flag whether to skip the legacy parameter
-        ** Currently enabled only in case of the SQLCipher scheme
-        */
-        int skipLegacy = 0;
-        /* Set global parameters (cipher and hmac_check) */
-        int hmacCheck = sqlite3_uri_boolean(dbFileName, "hmac_check", 1);
-        if (configDefault)
+        int isPreset = ((param->m_flags & CIPHER_PARAM_FLAG_APPLY_FIRST) != 0);
+        const char* zValue;
+        if ((pass == 0) != isPreset) continue;
+        zValue = sqlite3_uri_parameter(dbFileName, param->m_name);
+        if (zValue != NULL && zValue[0] != 0)
         {
-          sqlite3mc_config(db, "default:cipher", globalCodecParameterTable[j].m_id);
+          rc = cipherCfgUriApply(db, CIPHER_PARAM_SCOPE_CIPHER, cipherTable->m_name, param, eSlot, zValue);
+          if (rc != SQLITE_OK) return rc;
         }
-        else
-        {
-          sqlite3mc_config(db, "cipher", globalCodecParameterTable[j].m_id);
-        }
-        if (!hmacCheck)
-        {
-          sqlite3mc_config(db, "hmac_check", hmacCheck);
-        }
-
-#if HAVE_CIPHER_SQLCIPHER
-        /* Special handling for SQLCipher */
-        if (sqlite3_stricmp(cipherName, "sqlcipher") == 0)
-        {
-          sqlite3_int64 legacy = sqlite3_uri_int64(dbFileName, "legacy", 0);
-          if (legacy > 0 && legacy <= SQLCIPHER_VERSION_MAX)
-          {
-            char* param = (configDefault) ? "default:legacy" : "legacy";
-            sqlite3mc_config_cipher(db, cipherName, param, (int)legacy);
-            skipLegacy = 1;
-          }
-        }
-#endif
-
-#if HAVE_CIPHER_AEGIS
-        int hasAegisAlgorithm = 0;
-        int aegisAlgorithm = 0;
-        if (sqlite3_stricmp(cipherName, "aegis") == 0)
-        {
-          const char* algorithm = sqlite3_uri_parameter(dbFileName, "algorithm");
-          if (algorithm != NULL && *algorithm != 0)
-          {
-            int intValue = -1;
-            int isIntValue = sqlite3GetInt32(algorithm, &intValue) != 0;
-            if (!isIntValue)
-            {
-              intValue = sqlite3mcAegisAlgorithmToIndex(algorithm);
-            }
-            if (intValue > 0)
-            {
-              hasAegisAlgorithm = 1;
-              aegisAlgorithm = intValue;
-            }
-          }
-        }
-#endif
-
-        /* Check all cipher specific parameters */
-        for (j = 0; cipherParams[j].m_name[0] != 0; ++j)
-        {
-          sqlite3_int64 value = -1;
-          if (skipLegacy && sqlite3_stricmp(cipherParams[j].m_name, "legacy") == 0) continue;
-
-#if HAVE_CIPHER_AEGIS
-          if (hasAegisAlgorithm && sqlite3_stricmp(cipherParams[j].m_name, "algorithm") == 0)
-          {
-            value = aegisAlgorithm;
-          }
-          else
-#endif
-          {
-            value = sqlite3_uri_int64(dbFileName, cipherParams[j].m_name, -1);
-          }
-          if (value >= 0 && value <= 0x7fffffff)
-          {
-            /* Configure cipher parameter if it was given in the URI */
-            const char* param = (configDefault) ? sqlite3_mprintf("default:%s", cipherParams[j].m_name) : cipherParams[j].m_name;
-            sqlite3mc_config_cipher(db, cipherName, param, value);
-            if (configDefault)
-            {
-              sqlite3_free((char*) param);
-            }
-          }
-        }
-      }
-      else
-      {
-        rc = SQLITE_ERROR;
-        sqlite3ErrorWithMsg(db, rc, "unknown cipher '%s'", cipherName);
       }
     }
   }
@@ -962,6 +1108,56 @@ wxsqlite3_codec_data(sqlite3* db, const char* zDbName, const char* paramName)
 #endif
 
 /*
+** 4) PRAGMA [schema.]name [= value]
+*/
+
+/*
+** Called for every pragma name that is not handled otherwise.
+** Slot: main database or no schema given -> default value, any other schema (temp, attached) -> current value.
+** Returns SQLITE_NOTFOUND if the name is not a parameter of the common parameters or of the current cipher.
+**
+** A PRAGMA returns the value that is valid after its execution, even if the requested value could not be set
+** (out of range, rejected by a constraint). The reason is written to the SQLite log; an application can detect
+** the failure by comparing the requested value with the returned one. Only a value that can not be interpreted
+** at all (not a number, unknown cipher name) is reported as an error. An unknown alias of an other parameter
+** (e.g. an algorithm name) is treated like a rejected value.
+*/
+
+SQLITE_PRIVATE int
+sqlite3mcPragmaConfig(sqlite3* db, int dbIndex, const char* zName, const char* zValue, char** pzOut)
+{
+  CipherParamSpec spec;
+  CipherConfigRequest request;
+  CipherConfigResult result;
+
+  spec.eSlot = (dbIndex <= 0) ? CIPHER_PARAM_SLOT_DEFAULT : CIPHER_PARAM_SLOT_VALUE;
+  spec.zName = zName;
+  cipherCfgInitRequest(&request, db, CIPHER_PARAM_SCOPE_AUTO, NULL, &spec);
+  if (zValue != NULL)
+    cipherCfgSetText(&request, zValue);
+  sqlite3mcConfigExec(&request, &result);
+  if (result.eErr == CIPHER_CONFIG_ERR_UNKNOWN_PARAM)
+    return SQLITE_NOTFOUND;
+  if ((result.eErr == CIPHER_CONFIG_ERR_BAD_VALUE &&
+       !(result.pParam != NULL && result.pParam->m_aliases != NULL &&
+        (result.pParam->m_flags & CIPHER_PARAM_FLAG_SELECTOR) == 0)) ||
+         result.eErr == CIPHER_CONFIG_ERR_UNKNOWN_CIPHER ||
+         result.eErr == CIPHER_CONFIG_ERR_NODB ||
+         result.eErr == CIPHER_CONFIG_ERR_NOTABLE)
+  {
+    *pzOut = sqlite3mcConfigErrorMsg(&request, &result);
+    return SQLITE_ERROR;
+  }
+  if (result.eErr != CIPHER_CONFIG_OK)
+  {
+    /* Value rejected: report the unchanged value, log the reason */
+    cipherCfgLogError("PRAGMA", &request, &result);
+  }
+  *pzOut = cipherCfgFormatValue(result.pParam, CIPHER_PARAM_FLAG_NAMED_PRAGMA, result.iValue);
+  return SQLITE_OK;
+}
+
+/*
 ** Functions called from patched SQLite version
 */
 
@@ -971,7 +1167,6 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
   int rc = sqlite3_file_control(db, zDbName, op, pArg);
   if (rc == SQLITE_NOTFOUND)
   {
-    int configDefault;
     char* pragmaName;
     char* pragmaValue;
     int dbIndex = (zDbName) ? sqlite3FindDbName(db, zDbName) : 0;
@@ -981,71 +1176,43 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
       return rc;
     }
 
-    configDefault = (dbIndex <= 0);
     pragmaName = ((char**) pArg)[1];
     pragmaValue = ((char**) pArg)[2];
-    if (sqlite3StrICmp(pragmaName, "cipher") == 0)
+    if (sqlite3StrICmp(pragmaName, "mc_aes_info") == 0)
     {
-      int cipherId = -1;
-      if (pragmaValue != NULL)
+      ((char**)pArg)[0] = sqlite3_mprintf("%s", aesHardwareAvailable() ? "hardware" : "software");
+      rc = SQLITE_OK;
+    }
+    else if (sqlite3StrICmp(pragmaName, "mc_aes_backend_info") == 0)
+    {
+#if SQLITE3MC_HAVE_AES_CORE
+      ((char**)pArg)[0] = sqlite3_mprintf("%s", aesBackendInfo());
+#else
+      /* No cipher scheme of this build uses AES: the list of backends is empty */
+      ((char**)pArg)[0] = sqlite3_mprintf("%s", "");
+#endif
+      rc = SQLITE_OK;
+    }
+    else if (sqlite3StrICmp(pragmaName, "mc_aes_backend") == 0)
+    {
+#if SQLITE3MC_HAVE_AES_CORE
+      const char* backendName = aesRequestBackend(pragmaValue);
+#else
+      const char* backendName = NULL;
+#endif
+      if (backendName != NULL)
       {
-        int j = 1;
-        /* Try to locate the cipher name */
-        for (j = 1; globalCodecParameterTable[j].m_name[0] != 0; ++j)
-        {
-          if (sqlite3_stricmp(pragmaValue, globalCodecParameterTable[j].m_name) == 0) break;
-        }
-        cipherId = (globalCodecParameterTable[j].m_name[0] != 0) ? globalCodecParameterTable[j].m_id : CODEC_TYPE_UNKNOWN;
-      }
-
-      /* cipherId is the numeric id of the cipher name, if found */
-      if ((cipherId == -1) || (cipherId > 0 && cipherId <= CODEC_COUNT_MAX))
-      {
-        int value;
-        if (configDefault)
-        {
-          value = sqlite3mc_config(db, "default:cipher", cipherId);
-        }
-        else
-        {
-          value = sqlite3mc_config(db, "cipher", cipherId);
-        }
-        if (value > 0)
-        {
-          ((char**)pArg)[0] = sqlite3_mprintf("%s", globalCodecDescriptorTable[value - 1].m_name);
-          rc = SQLITE_OK;
-        }
-        else
-        {
-          ((char**)pArg)[0] = sqlite3_mprintf("Cipher '%s' could not be located.", pragmaValue);
-          rc = SQLITE_ERROR;
-        }
+        ((char**)pArg)[0] = sqlite3_mprintf("%s", backendName);
+        rc = SQLITE_OK;
       }
       else
       {
-        ((char**) pArg)[0] = sqlite3_mprintf("Cipher '%s' unknown.", pragmaValue);
+        if (pragmaValue != NULL)
+          ((char**)pArg)[0] = sqlite3_mprintf("AES backend '%s' not available or unknown", pragmaValue);
+        else
+          ((char**)pArg)[0] = sqlite3_mprintf("No AES backend available");
         rc = SQLITE_ERROR;
       }
-    }
-    else if (sqlite3StrICmp(pragmaName, "hmac_check") == 0)
-    {
-      int hmacCheck = (pragmaValue != NULL) ? sqlite3GetBoolean(pragmaValue, 1) : -1;
-      int value = sqlite3mc_config(db, "hmac_check", hmacCheck);
-      ((char**)pArg)[0] = sqlite3_mprintf("%d", value);
-      rc = SQLITE_OK;
-    }
-    else if (sqlite3StrICmp(pragmaName, "encrypt_temp_db") == 0)
-    {
-      int encryptTempDb = (pragmaValue != NULL) ? sqlite3GetBoolean(pragmaValue, 0) : -1;
-      int value = sqlite3mc_config(db, "encrypt_temp_db", encryptTempDb);
-      ((char**)pArg)[0] = sqlite3_mprintf("%d", value);
-      rc = SQLITE_OK;
-    }
-    else if (sqlite3StrICmp(pragmaName, "mc_aes_info") == 0)
-    {
-      const char* hwInfo = sqlite3mcHardwareInfo();
-      ((char**)pArg)[0] = sqlite3_mprintf("%s", aesHardwareAvailable() ? "hardware" : "software");
-      rc = SQLITE_OK;
     }
     else if (sqlite3StrICmp(pragmaName, "mc_cpu_info") == 0)
     {
@@ -1357,71 +1524,8 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
 #endif /* SQLITE3MC_SECURE_MEMORY */
     else
     {
-      int j;
-      int intValue = (pragmaValue != NULL) ? 0 : -1;
-      int isIntValue = (pragmaValue != NULL) ? (sqlite3GetInt32(pragmaValue, &intValue) != 0) : 1;
-
-      /* Determine cipher */
-      int cipher = sqlite3mc_config(db, "cipher", -1);
-      CipherParams* cipherParams = NULL;
-
-      /* Try to locate the cipher name */
-      for (j = 1; globalCodecParameterTable[j].m_name[0] != 0; ++j)
-      {
-        if (cipher == globalCodecParameterTable[j].m_id) break;
-      }
-
-      /* j is the index of the cipher name, if found */
-      cipherParams = (globalCodecParameterTable[j].m_name[0] != 0) ? globalCodecParameterTable[j].m_params : NULL;
-      if (cipherParams != NULL)
-      {
-        const char* cipherName = globalCodecParameterTable[j].m_name;
-#if HAVE_CIPHER_AEGIS
-        int isAegisAlgorithm = 0;
-        if (sqlite3_stricmp(cipherName, "aegis") == 0 &&
-            sqlite3_stricmp(pragmaName, "algorithm") == 0)
-        {
-          if (!isIntValue)
-          {
-            intValue = sqlite3mcAegisAlgorithmToIndex(pragmaValue);
-            isIntValue = 1;
-          }
-          isAegisAlgorithm = 1;
-        }
-#endif
-        for (j = 0; cipherParams[j].m_name[0] != 0; ++j)
-        {
-          if (sqlite3_stricmp(pragmaName, cipherParams[j].m_name) == 0) break;
-        }
-        if (cipherParams[j].m_name[0] != 0)
-        {
-          char* param = (configDefault) ? sqlite3_mprintf("default:%s", pragmaName) : pragmaName;
-          if (isIntValue)
-          {
-            int value = sqlite3mc_config_cipher(db, cipherName, param, intValue);
-#if HAVE_CIPHER_AEGIS
-            if (isAegisAlgorithm)
-            {
-              ((char**)pArg)[0] = sqlite3_mprintf("%s", sqlite3mcAegisAlgorithmToString(value));
-            }
-            else
-#endif
-            {
-              ((char**)pArg)[0] = sqlite3_mprintf("%d", value);
-            }
-            rc = SQLITE_OK;
-          }
-          else
-          {
-            ((char**) pArg)[0] = sqlite3_mprintf("Malformed integer value '%s'.", pragmaValue);
-            rc = SQLITE_ERROR;
-          }
-          if (configDefault)
-          {
-            sqlite3_free(param);
-          }
-        }
-      }
+      /* Configuration parameters of the ciphers (common parameters and parameters of the current cipher) */
+      rc = sqlite3mcPragmaConfig(db, dbIndex, pragmaName, pragmaValue, &((char**) pArg)[0]);
     }
   }
   return rc;

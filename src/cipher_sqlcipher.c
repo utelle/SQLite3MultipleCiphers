@@ -14,6 +14,10 @@
 
 #define CIPHER_NAME_SQLCIPHER "sqlcipher"
 
+/* TODO: Disable for Release until SQLCIPHER5 has been released officially */
+/* !!! Enabled for testing only !!! */
+#define SQLITE3MC_ENABLE_SQLCIPHER5 1
+
 /*
 ** Configuration parameters for "sqlcipher"
 **
@@ -41,7 +45,12 @@
 #define SQLCIPHER_VERSION_2   2
 #define SQLCIPHER_VERSION_3   3
 #define SQLCIPHER_VERSION_4   4
+#if SQLITE3MC_ENABLE_SQLCIPHER5 != 0
+#define SQLCIPHER_VERSION_5   5
+#define SQLCIPHER_VERSION_MAX SQLCIPHER_VERSION_5
+#else
 #define SQLCIPHER_VERSION_MAX SQLCIPHER_VERSION_4
+#endif
 
 #ifndef SQLCIPHER_VERSION_DEFAULT
 #define SQLCIPHER_VERSION_DEFAULT SQLCIPHER_VERSION_4
@@ -65,19 +74,50 @@
 #define SQLCIPHER_HMAC_ALGORITHM SQLCIPHER_ALGORITHM_SHA512
 #endif
 
+#define SQLCIPHER_V5_PAGESIZE  8192
+#define SQLCIPHER_V5_RESERVED  48
+#define SQLCIPHER_V5_NONCE_LEN 24
+#define SQLCIPHER_V5_TAG_LEN   16
+
+/* Parameter "plaintext_header_size": must be a multiple of the AES block size */
+static int
+sqlCipherCheckPlaintextHeaderSize(const char* zCipher, sqlite3_int64 value)
+{
+  (void) zCipher;
+  return value % 16 == 0;
+}
+
+/* Parameter "legacy": configure all parameters according to the selected SQLCipher version */
+static void
+sqlCipherApplyLegacy(sqlite3* db, const char* zCipher, CipherParamValueSlot eSlot, int value)
+{
+  (void) zCipher;
+  sqlite3mcConfigureSQLCipherVersion(db, eSlot == CIPHER_PARAM_SLOT_DEFAULT, value);
+}
+
+static const CipherParamOps sqlCipherOpsLegacy =
+{
+  NULL, NULL, NULL, sqlCipherApplyLegacy, NULL
+};
+
+static const CipherParamOps sqlCipherOpsPlaintextHeaderSize =
+{
+  NULL, NULL, sqlCipherCheckPlaintextHeaderSize, NULL, NULL
+};
+
 SQLITE_PRIVATE CipherParams mcSQLCipherParams[] =
 {
-  { "legacy",                SQLCIPHER_LEGACY_DEFAULT,   SQLCIPHER_LEGACY_DEFAULT,   0, SQLCIPHER_VERSION_MAX },
-  { "legacy_page_size",      SQLCIPHER_LEGACY_PAGE_SIZE, SQLCIPHER_LEGACY_PAGE_SIZE, 0, SQLITE_MAX_PAGE_SIZE },
+  { "legacy",                SQLCIPHER_LEGACY_DEFAULT,   SQLCIPHER_LEGACY_DEFAULT,   0, SQLCIPHER_VERSION_MAX, CIPHER_PARAM_FLAG_APPLY_FIRST, NULL, &sqlCipherOpsLegacy },
+  { "legacy_page_size",      SQLCIPHER_LEGACY_PAGE_SIZE, SQLCIPHER_LEGACY_PAGE_SIZE, 0, SQLITE_MAX_PAGE_SIZE, 0, NULL, &cipherParamOpsLegacyPageSize },
   { "kdf_iter",              SQLCIPHER_KDF_ITER,         SQLCIPHER_KDF_ITER,         1, 0x7fffffff },
   { "fast_kdf_iter",         SQLCIPHER_FAST_KDF_ITER,    SQLCIPHER_FAST_KDF_ITER,    1, 0x7fffffff },
-  { "hmac_use",              SQLCIPHER_HMAC_USE,         SQLCIPHER_HMAC_USE,         0, 1 },
+  { "hmac_use",              SQLCIPHER_HMAC_USE,         SQLCIPHER_HMAC_USE,         0, 1, 0, cipherParamAliasBool, NULL },
   { "hmac_pgno",             SQLCIPHER_HMAC_PGNO_LE,     SQLCIPHER_HMAC_PGNO_LE,     0, 2 },
   { "hmac_salt_mask",        SQLCIPHER_HMAC_SALT_MASK,   SQLCIPHER_HMAC_SALT_MASK,   0x00, 0xff },
-  { "kdf_algorithm",         SQLCIPHER_KDF_ALGORITHM,    SQLCIPHER_KDF_ALGORITHM,    0, 2 },
-  { "hmac_algorithm",        SQLCIPHER_HMAC_ALGORITHM,   SQLCIPHER_HMAC_ALGORITHM,   0, 2 },
-  { "hmac_algorithm_compat", SQLCIPHER_HMAC_ALGO_COMPAT, SQLCIPHER_HMAC_ALGO_COMPAT, 0, 1 },
-  { "plaintext_header_size", 0,                          0,                          0, 100 /* restrict to db header size */ },
+  { "kdf_algorithm",         SQLCIPHER_KDF_ALGORITHM,    SQLCIPHER_KDF_ALGORITHM,    0, 2, 0, cipherParamAliasSha, NULL },
+  { "hmac_algorithm",        SQLCIPHER_HMAC_ALGORITHM,   SQLCIPHER_HMAC_ALGORITHM,   0, 2, 0, cipherParamAliasSha, NULL },
+  { "hmac_algorithm_compat", SQLCIPHER_HMAC_ALGO_COMPAT, SQLCIPHER_HMAC_ALGO_COMPAT, 0, 1, 0, cipherParamAliasBool, NULL },
+  { "plaintext_header_size", 0,                          0,                          0, 100 /* restrict to db header size */, 0, NULL, &sqlCipherOpsPlaintextHeaderSize },
   CIPHER_PARAMS_SENTINEL
 };
 
@@ -103,7 +143,7 @@ typedef struct _sqlCipherCipher
   uint8_t   m_key[KEYLENGTH_SQLCIPHER];
   uint8_t   m_salt[SALTLENGTH_SQLCIPHER];
   uint8_t   m_hmacKey[KEYLENGTH_SQLCIPHER];
-  Rijndael* m_aes;
+  AesCtx*   m_aes;
 } SQLCipherCipher;
 
 static void*
@@ -112,14 +152,14 @@ AllocateSQLCipherCipher(sqlite3* db)
   SQLCipherCipher* sqlCipherCipher = (SQLCipherCipher*) sqlite3_malloc(sizeof(SQLCipherCipher));
   if (sqlCipherCipher != NULL)
   {
-    sqlCipherCipher->m_aes = (Rijndael*)sqlite3_malloc(sizeof(Rijndael));
+    sqlCipherCipher->m_aes = (AesCtx*)sqlite3_malloc(sizeof(AesCtx));
     if (sqlCipherCipher->m_aes != NULL)
     {
       sqlCipherCipher->m_keyLength = KEYLENGTH_SQLCIPHER;
       memset(sqlCipherCipher->m_key, 0, KEYLENGTH_SQLCIPHER);
       memset(sqlCipherCipher->m_salt, 0, SALTLENGTH_SQLCIPHER);
       memset(sqlCipherCipher->m_hmacKey, 0, KEYLENGTH_SQLCIPHER);
-      RijndaelCreate(sqlCipherCipher->m_aes);
+      sqlite3mcAesCbcWipe(sqlCipherCipher->m_aes);
     }
     else
     {
@@ -156,7 +196,7 @@ static void
 FreeSQLCipherCipher(void* cipher)
 {
   SQLCipherCipher* sqlCipherCipher = (SQLCipherCipher*) cipher;
-  sqlite3mcSecureZeroMemory(sqlCipherCipher->m_aes, sizeof(Rijndael));
+  sqlite3mcSecureZeroMemory(sqlCipherCipher->m_aes, sizeof(AesCtx));
   sqlite3_free(sqlCipherCipher->m_aes);
   sqlite3mcSecureZeroMemory(sqlCipherCipher, sizeof(SQLCipherCipher));
   sqlite3_free(sqlCipherCipher);
@@ -182,7 +222,16 @@ CloneSQLCipherCipher(void* cipherTo, void* cipherFrom)
   memcpy(sqlCipherCipherTo->m_key, sqlCipherCipherFrom->m_key, KEYLENGTH_SQLCIPHER);
   memcpy(sqlCipherCipherTo->m_salt, sqlCipherCipherFrom->m_salt, SALTLENGTH_SQLCIPHER);
   memcpy(sqlCipherCipherTo->m_hmacKey, sqlCipherCipherFrom->m_hmacKey, KEYLENGTH_SQLCIPHER);
-  RijndaelInvalidate(sqlCipherCipherTo->m_aes);
+#if SQLITE3MC_ENABLE_SQLCIPHER5 != 0
+  if (sqlCipherCipherFrom->m_legacy == SQLCIPHER_VERSION_5)
+  {
+    memcpy(sqlCipherCipherTo->m_aes, sqlCipherCipherFrom->m_aes, sizeof(AesCtx));
+  }
+  else
+#endif
+  {
+    sqlite3mcAesCbcWipe(sqlCipherCipherTo->m_aes);
+  }
 }
 
 static int
@@ -213,10 +262,14 @@ GetReservedSQLCipherCipher(void* cipher)
 {
   SQLCipherCipher* sqlCipherCipher = (SQLCipherCipher*) cipher;
   int reserved = SALTLENGTH_SQLCIPHER;
-  if (sqlCipherCipher->m_hmacUse != 0)
+#if SQLITE3MC_ENABLE_SQLCIPHER5 != 0
+  if (sqlCipherCipher->m_legacy < SQLCIPHER_VERSION_5)
+#endif
   {
-    switch (sqlCipherCipher->m_hmacAlgorithm)
+    if (sqlCipherCipher->m_hmacUse != 0)
     {
+      switch (sqlCipherCipher->m_hmacAlgorithm)
+      {
       case SQLCIPHER_ALGORITHM_SHA1:
       case SQLCIPHER_ALGORITHM_SHA256:
         reserved += SHA256_DIGEST_SIZE;
@@ -225,8 +278,15 @@ GetReservedSQLCipherCipher(void* cipher)
       default:
         reserved += SHA512_DIGEST_SIZE;
         break;
+      }
     }
   }
+#if SQLITE3MC_ENABLE_SQLCIPHER5 != 0
+  else
+  {
+    reserved = SQLCIPHER_V5_RESERVED;
+  }
+#endif
   return reserved;
 }
 
@@ -285,6 +345,13 @@ GenerateKeySQLCipherCipher(void* cipher, char* userPassword, int passwordLength,
         break;
     }
   }
+
+#if SQLITE3MC_ENABLE_SQLCIPHER5 != 0
+  if (sqlCipherCipher->m_legacy == SQLCIPHER_VERSION_5)
+  {
+    sqlite3mcAesXaesInit(sqlCipherCipher->m_aes, sqlCipherCipher->m_key);
+  }
+#endif
 
   if (sqlCipherCipher->m_hmacUse != 0)
   {
@@ -369,7 +436,6 @@ EncryptPageSQLCipherCipher(void* cipher, int page, unsigned char* data, int len,
   int nReserved = GetReservedSQLCipherCipher(cipher);
   int n = len - nReserved;
   int offset = 0;
-  int blen;
   unsigned char iv[128];
   int usePlaintextHeader = 0;
 
@@ -397,39 +463,63 @@ EncryptPageSQLCipherCipher(void* cipher, int page, unsigned char* data, int len,
     return SQLITE_CORRUPT;
   }
 
-  /* Generate nonce (64 bytes) */
-  memset(iv, 0, 128);
-  chacha20_rng(iv, 128);
-
-  RijndaelInit(sqlCipherCipher->m_aes, RIJNDAEL_Direction_Mode_CBC, RIJNDAEL_Direction_Encrypt, sqlCipherCipher->m_key, RIJNDAEL_Direction_KeyLength_Key32Bytes, iv);
-  blen = RijndaelBlockEncrypt(sqlCipherCipher->m_aes, data + offset, (n - offset) * 8, data + offset);
-  memcpy(data + n, iv, nReserved);
-  if (page == 1 && usePlaintextHeader == 0)
+#if SQLITE3MC_ENABLE_SQLCIPHER5 != 0
+  if (sqlCipherCipher->m_legacy == SQLCIPHER_VERSION_5)
   {
-    memcpy(data, sqlCipherCipher->m_salt, SALTLENGTH_SQLCIPHER);
+    /* Generate nonce */
+    chacha20_rng(data+n, SQLCIPHER_V5_NONCE_LEN);
+    rc = sqlite3mcAesXaesPageSeal(sqlCipherCipher->m_aes, (uint32_t)page, data + offset, n - offset, data + offset, data + n);
+    /* Fill spare bytes of reserve area with random data */
+    chacha20_rng(data + n + SQLCIPHER_V5_NONCE_LEN + SQLCIPHER_V5_TAG_LEN,
+                 SQLCIPHER_V5_RESERVED - SQLCIPHER_V5_NONCE_LEN - SQLCIPHER_V5_TAG_LEN);
+    if (page == 1 && usePlaintextHeader == 0)
+    {
+      memcpy(data, sqlCipherCipher->m_salt, SALTLENGTH_SQLCIPHER);
+    }
   }
-
-  /* hmac calculation */
-  if (sqlCipherCipher->m_hmacUse == 1 && nReserved > 0)
+  else
+#endif
   {
-    unsigned char pgno_raw[4];
-    unsigned char hmac_out[64];
-    int hmac_size = GetHmacSizeSQLCipherCipher(sqlCipherCipher->m_hmacAlgorithm);
+    /* Generate nonce */
+    memset(iv, 0, 128);
+    chacha20_rng(iv, 128);
+    rc = sqlite3mcAesCbcInit(sqlCipherCipher->m_aes, sqlCipherCipher->m_key, KEYLENGTH_SQLCIPHER, AES_FOR_ENCRYPT);
+    if (rc == SQLITE_OK)
+    {
+      rc = sqlite3mcAesCbcEncrypt(sqlCipherCipher->m_aes, iv, data + offset, n - offset);
+    }
+    if (rc != SQLITE_OK)
+    {
+      return rc;
+    }
+    memcpy(data + n, iv, nReserved);
+    if (page == 1 && usePlaintextHeader == 0)
+    {
+      memcpy(data, sqlCipherCipher->m_salt, SALTLENGTH_SQLCIPHER);
+    }
 
-    if (sqlCipherCipher->m_hmacPgno == SQLCIPHER_HMAC_PGNO_LE)
+    /* hmac calculation */
+    if (sqlCipherCipher->m_hmacUse == 1 && nReserved > 0)
     {
-      STORE32_LE(pgno_raw, page);
+      unsigned char pgno_raw[4];
+      unsigned char hmac_out[64];
+      int hmac_size = GetHmacSizeSQLCipherCipher(sqlCipherCipher->m_hmacAlgorithm);
+
+      if (sqlCipherCipher->m_hmacPgno == SQLCIPHER_HMAC_PGNO_LE)
+      {
+        STORE32_LE(pgno_raw, page);
+      }
+      else if (sqlCipherCipher->m_hmacPgno == SQLCIPHER_HMAC_PGNO_BE)
+      {
+        STORE32_BE(pgno_raw, page);
+      }
+      else
+      {
+        memcpy(pgno_raw, &page, 4);
+      }
+      sqlcipher_hmac(sqlCipherCipher->m_hmacAlgorithm, sqlCipherCipher->m_hmacKey, KEYLENGTH_SQLCIPHER, data + offset, n + PAGE_NONCE_LEN_SQLCIPHER - offset, pgno_raw, 4, hmac_out);
+      memcpy(data + n + PAGE_NONCE_LEN_SQLCIPHER, hmac_out, hmac_size);
     }
-    else if (sqlCipherCipher->m_hmacPgno == SQLCIPHER_HMAC_PGNO_BE)
-    {
-      STORE32_BE(pgno_raw, page);
-    }
-    else
-    {
-      memcpy(pgno_raw, &page, 4);
-    }
-    sqlcipher_hmac(sqlCipherCipher->m_hmacAlgorithm, sqlCipherCipher->m_hmacKey, KEYLENGTH_SQLCIPHER, data + offset, n + PAGE_NONCE_LEN_SQLCIPHER - offset, pgno_raw, 4, hmac_out);
-    memcpy(data + n + PAGE_NONCE_LEN_SQLCIPHER, hmac_out, hmac_size);
   }
 
   return rc;
@@ -445,7 +535,6 @@ DecryptPageSQLCipherCipher(void* cipher, int page, unsigned char* data, int len,
   int n = len - nReserved;
   int offset = 0;
   int hmacOk = 1;
-  int blen;
   unsigned char iv[128];
   int usePlaintextHeader = 0;
 
@@ -473,48 +562,75 @@ DecryptPageSQLCipherCipher(void* cipher, int page, unsigned char* data, int len,
     return (page == 1) ? SQLITE_NOTADB : SQLITE_CORRUPT;
   }
 
-  /* Get nonce from buffer */
-  memcpy(iv, data + n, nReserved);
-
-  /* hmac check */
-  if (sqlCipherCipher->m_hmacUse == 1 && nReserved > 0 && hmacCheck != 0)
+#if SQLITE3MC_ENABLE_SQLCIPHER5 != 0
+  if (sqlCipherCipher->m_legacy == SQLCIPHER_VERSION_5)
   {
-    unsigned char pgno_raw[4];
-    unsigned char hmac_out[64];
-    int hmac_size = GetHmacSizeSQLCipherCipher(sqlCipherCipher->m_hmacAlgorithm);
-    if (sqlCipherCipher->m_hmacPgno == SQLCIPHER_HMAC_PGNO_LE)
+    int ret = sqlite3mcAesXaesPageOpen(sqlCipherCipher->m_aes, (uint32_t)page, data + offset, n - offset, data + offset, data + n);
+    if (ret == 0)
     {
-      STORE32_LE(pgno_raw, page);
-    }
-    else if (sqlCipherCipher->m_hmacPgno == SQLCIPHER_HMAC_PGNO_BE)
-    {
-      STORE32_BE(pgno_raw, page);
+      if (page == 1 && usePlaintextHeader == 0)
+      {
+        memcpy(data, SQLITE_FILE_HEADER, 16);
+      }
     }
     else
     {
-      memcpy(pgno_raw, &page, 4);
-    }
-    sqlcipher_hmac(sqlCipherCipher->m_hmacAlgorithm, sqlCipherCipher->m_hmacKey, KEYLENGTH_SQLCIPHER, data + offset, n + PAGE_NONCE_LEN_SQLCIPHER - offset, pgno_raw, 4, hmac_out);
-    hmacOk = (CompareHmacSQLCipherCipher(data + n + PAGE_NONCE_LEN_SQLCIPHER, hmac_out, hmac_size) == 0);
-  }
-
-  if (hmacOk != 0)
-  {
-    RijndaelInit(sqlCipherCipher->m_aes, RIJNDAEL_Direction_Mode_CBC, RIJNDAEL_Direction_Decrypt, sqlCipherCipher->m_key, RIJNDAEL_Direction_KeyLength_Key32Bytes, iv);
-    blen = RijndaelBlockDecrypt(sqlCipherCipher->m_aes, data + offset, (n - offset) * 8, data + offset);
-    if (nReserved > 0)
-    {
-      memcpy(data + n, iv, nReserved);
-    }
-    if (page == 1 && usePlaintextHeader == 0)
-    {
-      memcpy(data, SQLITE_FILE_HEADER, 16);
+      rc = SQLITE_CORRUPT;
     }
   }
   else
+#endif
   {
-    /* Bad MAC */
-    rc = (page == 1) ? SQLITE_NOTADB : SQLITE_CORRUPT;
+    /* Get nonce from buffer */
+    memcpy(iv, data + n, nReserved);
+
+    /* hmac check */
+    if (sqlCipherCipher->m_hmacUse == 1 && nReserved > 0 && hmacCheck != 0)
+    {
+      unsigned char pgno_raw[4];
+      unsigned char hmac_out[64];
+      int hmac_size = GetHmacSizeSQLCipherCipher(sqlCipherCipher->m_hmacAlgorithm);
+      if (sqlCipherCipher->m_hmacPgno == SQLCIPHER_HMAC_PGNO_LE)
+      {
+        STORE32_LE(pgno_raw, page);
+      }
+      else if (sqlCipherCipher->m_hmacPgno == SQLCIPHER_HMAC_PGNO_BE)
+      {
+        STORE32_BE(pgno_raw, page);
+      }
+      else
+      {
+        memcpy(pgno_raw, &page, 4);
+      }
+      sqlcipher_hmac(sqlCipherCipher->m_hmacAlgorithm, sqlCipherCipher->m_hmacKey, KEYLENGTH_SQLCIPHER, data + offset, n + PAGE_NONCE_LEN_SQLCIPHER - offset, pgno_raw, 4, hmac_out);
+      hmacOk = (CompareHmacSQLCipherCipher(data + n + PAGE_NONCE_LEN_SQLCIPHER, hmac_out, hmac_size) == 0);
+    }
+
+    if (hmacOk != 0)
+    {
+      rc = sqlite3mcAesCbcInit(sqlCipherCipher->m_aes, sqlCipherCipher->m_key, KEYLENGTH_SQLCIPHER, AES_FOR_DECRYPT);
+      if (rc == SQLITE_OK)
+      {
+        rc = sqlite3mcAesCbcDecrypt(sqlCipherCipher->m_aes, iv, data + offset, n - offset);
+      }
+      if (rc != SQLITE_OK)
+      {
+        return rc;
+      }
+      if (nReserved > 0)
+      {
+        memcpy(data + n, iv, nReserved);
+      }
+      if (page == 1 && usePlaintextHeader == 0)
+      {
+        memcpy(data, SQLITE_FILE_HEADER, 16);
+      }
+    }
+    else
+    {
+      /* Bad MAC */
+      rc = (page == 1) ? SQLITE_NOTADB : SQLITE_CORRUPT;
+    }
   }
 
   return rc;

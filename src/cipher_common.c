@@ -14,24 +14,8 @@ static unsigned char padding[] =
 
 /* --- Codec Descriptor Table --- */
 
-/*
-** Common configuration parameters
-**
-** - cipher     : default cipher type
-** - hmac_check : flag whether page hmac should be verified on read
-*/
-
-static CipherParams commonParams[] =
-{
-  { "cipher",          CODEC_TYPE_UNKNOWN,   CODEC_TYPE_UNKNOWN, 1,      CODEC_COUNT_MAX },
-  { "hmac_check",                       1,                    1, 0,                    1 },
-  { "encrypt_temp_db",                  0,                    0, 0,                    1 },
-  CIPHER_PARAMS_SENTINEL
-};
-
 #define CIPHER_NAME_GLOBAL "global"
 
-static CodecParameter globalCommonParams   = { CIPHER_NAME_GLOBAL, CODEC_TYPE_UNKNOWN, commonParams };
 static CodecParameter globalSentinelParams = { "",                 CODEC_TYPE_UNKNOWN, NULL };
 
 SQLITE_PRIVATE int
@@ -102,6 +86,10 @@ sqlite3mcCloneCodecParameterTable()
         cloneCipherParams[offset + k].m_default  = params[k].m_default;
         cloneCipherParams[offset + k].m_minValue = params[k].m_minValue;
         cloneCipherParams[offset + k].m_maxValue = params[k].m_maxValue;
+        /* Flags, aliases and operations are immutable and therefore shared */
+        cloneCipherParams[offset + k].m_flags    = params[k].m_flags;
+        cloneCipherParams[offset + k].m_aliases  = params[k].m_aliases;
+        cloneCipherParams[offset + k].m_ops      = params[k].m_ops;
       }
       offset += (n + 1);
     }
@@ -161,6 +149,64 @@ static const CipherDescriptor mcDummyDescriptor =
 };
 
 static CipherDescriptor globalCodecDescriptorTable[CODEC_COUNT_MAX + 1];
+
+/*
+** Operations of the common parameter "cipher"
+**
+** The cipher index depends on the set of ciphers compiled into the library
+** and on the registration order. Therefore the cipher name is the only stable
+** way to select a cipher.
+** These functions deliberately do not take any mutex: they are called while the
+** database connection mutex (or the static main mutex) is already held.
+*/
+
+static int
+cipherOpsCipherCount(void)
+{
+  return globalCipherCount;
+}
+
+static int
+cipherOpsCipherNameToValue(const char* zName)
+{
+  int j;
+  for (j = 0; j < globalCipherCount && globalCodecDescriptorTable[j].m_name != NULL && globalCodecDescriptorTable[j].m_name[0] != 0; ++j)
+  {
+    if (sqlite3_stricmp(zName, globalCodecDescriptorTable[j].m_name) == 0) return j + 1;
+  }
+  return -1;
+}
+
+static const char*
+cipherOpsCipherValueToName(int iValue)
+{
+  return (iValue >= 1 && iValue <= globalCipherCount) ? globalCodecDescriptorTable[iValue - 1].m_name : NULL;
+}
+
+static const CipherParamOps cipherParamOpsCipher =
+{
+  cipherOpsCipherNameToValue, cipherOpsCipherValueToName, NULL, NULL, cipherOpsCipherCount
+};
+
+/*
+** Common configuration parameters
+**
+** - cipher          : default cipher type
+** - hmac_check      : flag whether page hmac should be verified on read
+** - encrypt_temp_db : flag whether temporary databases are always encrypted
+*/
+
+static CipherParams commonParams[] =
+{
+  { "cipher",          CODEC_TYPE_UNKNOWN, CODEC_TYPE_UNKNOWN, 1, CODEC_COUNT_MAX,
+    CIPHER_PARAM_FLAG_SELECTOR | CIPHER_PARAM_FLAG_NAME_ONLY | CIPHER_PARAM_FLAG_NAMED_PRAGMA | CIPHER_PARAM_FLAG_NAMED_SQL,
+    NULL, &cipherParamOpsCipher },
+  { "hmac_check",      1, 1, 0, 1, CIPHER_PARAM_FLAG_DEFAULT_LOCKED, cipherParamAliasBool, NULL },
+  { "encrypt_temp_db", 0, 0, 0, 1, CIPHER_PARAM_FLAG_ENABLE_ONLY,    cipherParamAliasBool, NULL },
+  CIPHER_PARAMS_SENTINEL
+};
+
+static CodecParameter globalCommonParams = { CIPHER_NAME_GLOBAL, CODEC_TYPE_UNKNOWN, commonParams };
 
 /* --- Codec --- */
 
@@ -793,23 +839,24 @@ sqlite3mcDecrypt(Codec* codec, int page, unsigned char* data, int len)
 SQLITE_PRIVATE void
 sqlite3mcConfigureSQLCipherVersion(sqlite3* db, int configDefault, int legacyVersion)
 {
-  static char* stdNames[] = { "legacy_page_size",         "kdf_iter",         "hmac_use",         "kdf_algorithm",         "hmac_algorithm",         NULL };
-  static char* defNames[] = { "default:legacy_page_size", "default:kdf_iter", "default:hmac_use", "default:kdf_algorithm", "default:hmac_algorithm", NULL };
+  static const char* names[] = { "legacy_page_size", "kdf_iter", "hmac_use", "kdf_algorithm", "hmac_algorithm", NULL };
   static int versionParams[SQLCIPHER_VERSION_MAX][5] =
   {
     { 1024,   4000, 0, SQLCIPHER_ALGORITHM_SHA1,   SQLCIPHER_ALGORITHM_SHA1   },
     { 1024,   4000, 1, SQLCIPHER_ALGORITHM_SHA1,   SQLCIPHER_ALGORITHM_SHA1   },
     { 1024,  64000, 1, SQLCIPHER_ALGORITHM_SHA1,   SQLCIPHER_ALGORITHM_SHA1   },
-    { 4096, 256000, 1, SQLCIPHER_ALGORITHM_SHA512, SQLCIPHER_ALGORITHM_SHA512 }
+    { 4096, 256000, 1, SQLCIPHER_ALGORITHM_SHA512, SQLCIPHER_ALGORITHM_SHA512 },
+    { 8192, 256000, 0, SQLCIPHER_ALGORITHM_SHA512, SQLCIPHER_ALGORITHM_SHA512 }
   };
   if (legacyVersion > 0 && legacyVersion <= SQLCIPHER_VERSION_MAX)
   {
-    char** names = (configDefault != 0) ? defNames : stdNames;
+    CipherParamValueSlot eSlot = (configDefault != 0) ? CIPHER_PARAM_SLOT_DEFAULT : CIPHER_PARAM_SLOT_VALUE;
     int* values = &versionParams[legacyVersion - 1][0];
     int j;
     for (j = 0; names[j] != NULL; ++j)
     {
-      sqlite3mc_config_cipher(db, "sqlcipher", names[j], values[j]);
+      /* Called from the parameter hook of 'legacy': the connection mutex is already held */
+      sqlite3mcConfigSetIntLocked(db, "sqlcipher", names[j], eSlot, values[j]);
     }
   }
 }

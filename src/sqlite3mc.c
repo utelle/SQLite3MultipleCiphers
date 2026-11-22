@@ -227,7 +227,7 @@ SQLITE_PRIVATE void sqlite3mcSecureZeroMemory(void* v, size_t n);
 /* Hardware accelerated implementation of chacha20-poly1305 */
 #include "chacha20/libchacha20.c"
 
-#if HAVE_CIPHER_CHACHA20 || HAVE_CIPHER_SQLCIPHER || HAVE_CIPHER_ASCON128 || HAVE_CIPHER_AEGIS
+#if HAVE_CIPHER_CHACHA20 || HAVE_CIPHER_SQLCIPHER || HAVE_CIPHER_ASCON128 || HAVE_CIPHER_AEGIS || HAVE_CIPHER_AES256GCM
 #include "fastpbkdf2.c"
 #endif
 
@@ -249,8 +249,18 @@ mcRegisterCodecExtensions(sqlite3* db, char** pzErrMsg, const sqlite3_api_routin
 /*
 ** Codec implementation
 */
-#if HAVE_CIPHER_AES_128_CBC || HAVE_CIPHER_AES_256_CBC || HAVE_CIPHER_SQLCIPHER
+#if HAVE_CIPHER_AES_128_CBC || HAVE_CIPHER_AES_256_CBC || HAVE_CIPHER_SQLCIPHER || HAVE_CIPHER_AES256GCM
+/* The AES implementation is part of this build (see PRAGMA mc_aes_backend) */
+#define SQLITE3MC_HAVE_AES_CORE 1
 #include "rijndael.c"
+#include "aes_hardware.c"
+#include "aes_hw_blocks.c"
+#include "aes_rijndael.c"
+#include "aes_vpaes.c"
+#include "aes_core.c"
+#include "aes_gcm.c"
+#else
+#define SQLITE3MC_HAVE_AES_CORE 0
 #endif
 
 #if HAVE_CIPHER_AEGIS
@@ -261,6 +271,9 @@ mcRegisterCodecExtensions(sqlite3* db, char** pzErrMsg, const sqlite3_api_routin
 #define AEGIS_OMIT_MAC_API
 
 #include "aegis/libaegis.c"
+#endif
+
+#if HAVE_CIPHER_AEGIS || HAVE_CIPHER_AES256GCM
 #include "argon2/libargon2.c"
 #endif
 
@@ -273,6 +286,7 @@ mcRegisterCodecExtensions(sqlite3* db, char** pzErrMsg, const sqlite3_api_routin
 #include "cipher_sds_rc4.c"
 #include "cipher_ascon.c"
 #include "cipher_aegis.c"
+#include "cipher_aes256gcm.c"
 #include "cipher_common.c"
 #include "cipher_config.c"
 
@@ -797,6 +811,12 @@ sqlite3mc_initialize(const char* arg)
   {
     aegis_init();
     rc = sqlite3mcRegisterCipher(&mcAegisDescriptor, mcAegisParams, (CODEC_TYPE_AEGIS == CODEC_TYPE));
+  }
+#endif
+#if HAVE_CIPHER_AES256GCM
+  if (rc == SQLITE_OK)
+  {
+    rc = sqlite3mcRegisterCipher(&mcAes256GcmDescriptor, mcAes256GcmParams, (CODEC_TYPE_AES256GCM == CODEC_TYPE));
   }
 #endif
 

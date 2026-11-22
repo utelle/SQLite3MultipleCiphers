@@ -17,7 +17,13 @@ AEGIS_PRIVATE
 int aegis_runtime_has_neon(void);
 
 AEGIS_PRIVATE
-int aegis_runtime_has_armcrypto(void);
+int aegis_runtime_has_neon_aes(void);
+
+AEGIS_PRIVATE
+int aegis_runtime_has_neon_sha3(void);
+
+AEGIS_PRIVATE
+int aegis_runtime_has_sve2_aes(void);
 
 AEGIS_PRIVATE
 int aegis_runtime_has_avx(void);
@@ -27,6 +33,12 @@ int aegis_runtime_has_avx2(void);
 
 AEGIS_PRIVATE
 int aegis_runtime_has_avx512f(void);
+
+AEGIS_PRIVATE
+int aegis_runtime_has_avx512vl(void);
+
+AEGIS_PRIVATE
+int aegis_runtime_has_narrow_avx512(void);
 
 AEGIS_PRIVATE
 int aegis_runtime_has_aesni(void);

@@ -17,14 +17,14 @@
 #if 0
 #include "aegis256_aesni.h"
 #include "aegis256_altivec.h"
-#include "aegis256_armcrypto.h"
+#include "aegis256_neon_aes.h"
 #endif
 
 #if HAS_AEGIS_AES_HARDWARE == AEGIS_AES_HARDWARE_NONE
 #include "aegis256_soft.h"
 static const aegis256_implementation *implementation_256 = &aegis256_soft_implementation;
 #elif HAS_AEGIS_AES_HARDWARE == AEGIS_AES_HARDWARE_NEON
-static const aegis256_implementation *implementation_256 = &aegis256_armcrypto_implementation;
+static const aegis256_implementation *implementation_256 = &aegis256_neon_aes_implementation;
 #elif HAS_AEGIS_AES_HARDWARE == AEGIS_AES_HARDWARE_NI
 static const aegis256_implementation *implementation_256 = &aegis256_aesni_implementation;
 #elif HAS_AEGIS_AES_HARDWARE == AEGIS_AES_HARDWARE_ALTIVEC
@@ -128,54 +128,38 @@ aegis256_state_init(aegis256_state *st_, const uint8_t *ad, size_t adlen, const 
 
 AEGIS_API
 int
-aegis256_state_encrypt_update(aegis256_state *st_, uint8_t *c, size_t clen_max, size_t *written,
-                              const uint8_t *m, size_t mlen)
+aegis256_state_encrypt_update(aegis256_state *st_, uint8_t *c, const uint8_t *m, size_t mlen)
 {
-    return implementation_256->state_encrypt_update(st_, c, clen_max, written, m, mlen);
+    return implementation_256->state_encrypt_update(st_, c, m, mlen);
 }
 
 AEGIS_API
 int
-aegis256_state_encrypt_detached_final(aegis256_state *st_, uint8_t *c, size_t clen_max,
-                                      size_t *written, uint8_t *mac, size_t maclen)
+aegis256_state_encrypt_final(aegis256_state *st_, uint8_t *mac, size_t maclen)
 {
     if (maclen != 16 && maclen != 32) {
         errno = EINVAL;
         return -1;
     }
-    return implementation_256->state_encrypt_detached_final(st_, c, clen_max, written, mac, maclen);
+    return implementation_256->state_encrypt_final(st_, mac, maclen);
 }
 
 AEGIS_API
 int
-aegis256_state_encrypt_final(aegis256_state *st_, uint8_t *c, size_t clen_max, size_t *written,
-                             size_t maclen)
+aegis256_state_decrypt_update(aegis256_state *st_, uint8_t *m, const uint8_t *c, size_t clen)
+{
+    return implementation_256->state_decrypt_update(st_, m, c, clen);
+}
+
+AEGIS_API
+int
+aegis256_state_decrypt_final(aegis256_state *st_, const uint8_t *mac, size_t maclen)
 {
     if (maclen != 16 && maclen != 32) {
         errno = EINVAL;
         return -1;
     }
-    return implementation_256->state_encrypt_final(st_, c, clen_max, written, maclen);
-}
-
-AEGIS_API
-int
-aegis256_state_decrypt_detached_update(aegis256_state *st_, uint8_t *m, size_t mlen_max,
-                                       size_t *written, const uint8_t *c, size_t clen)
-{
-    return implementation_256->state_decrypt_detached_update(st_, m, mlen_max, written, c, clen);
-}
-
-AEGIS_API
-int
-aegis256_state_decrypt_detached_final(aegis256_state *st_, uint8_t *m, size_t mlen_max,
-                                      size_t *written, const uint8_t *mac, size_t maclen)
-{
-    if (maclen != 16 && maclen != 32) {
-        errno = EINVAL;
-        return -1;
-    }
-    return implementation_256->state_decrypt_detached_final(st_, m, mlen_max, written, mac, maclen);
+    return implementation_256->state_decrypt_final(st_, mac, maclen);
 }
 
 #endif /* AEGIS_OMIT_INCREMENTAL */
@@ -185,6 +169,14 @@ void
 aegis256_stream(uint8_t *out, size_t len, const uint8_t *npub, const uint8_t *k)
 {
     implementation_256->stream(out, len, npub, k);
+}
+
+AEGIS_API
+void
+aegis256_stream_xor(uint8_t *out, const uint8_t *in, size_t len, const uint8_t *npub,
+                    const uint8_t *k)
+{
+    implementation_256->stream_xor(out, in, len, npub, k);
 }
 
 AEGIS_API
@@ -234,6 +226,13 @@ AEGIS_API
 int
 aegis256_mac_verify(aegis256_mac_state *st_, const uint8_t *mac, size_t maclen)
 {
+#if defined(__GNUC__) || defined(__clang__)
+    if (maclen != 16 && maclen != 32) {
+        errno = EINVAL;
+        return -1;
+    }
+    return implementation_256->state_mac_verify(st_, mac, maclen);
+#else
     uint8_t expected_mac[32];
 
     switch (maclen) {
@@ -247,6 +246,7 @@ aegis256_mac_verify(aegis256_mac_state *st_, const uint8_t *mac, size_t maclen)
         errno = EINVAL;
         return -1;
     }
+#endif
 }
 
 AEGIS_API
@@ -272,8 +272,8 @@ aegis256_pick_best_implementation(void)
     implementation_256 = &aegis256_soft_implementation;
 
 #if HAS_AEGIS_AES_HARDWARE == AEGIS_AES_HARDWARE_NEON
-    if (aegis_runtime_has_armcrypto()) {
-        implementation_256 = &aegis256_armcrypto_implementation;
+    if (aegis_runtime_has_neon_aes()) {
+        implementation_256 = &aegis256_neon_aes_implementation;
         return 0;
     }
 #endif

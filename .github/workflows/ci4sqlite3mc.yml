@@ -73,6 +73,11 @@ jobs:
         make threadtest
         ./threadtest
 
+    - name: AES tests
+      run: |
+        make aestest
+        ./aestest
+
     - name: Crash tests
       run: |
         make crashtest

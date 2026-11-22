@@ -18,6 +18,7 @@ The following files constitute the kernel of the **SQLite3 Multiple Ciphers** en
 | cipher_common.h    | Header for the common cipher functions |
 | cipher_config.c    | Common cipher configuration functions |
 | cipher_aegis.c     | Implementation of the **AEGIS** encryption extension |
+| cipher_aes256gcm.c | Implementation of the **AES-256-GCM** encryption extension (AES-256-GCM-SIV, XAES-256-GCM) |
 | cipher_ascon.c     | Implementation of the **Ascon128** encryption extension |
 | cipher_chacha20.c  | Implementation of the **ChaCha20-Poly1305** encryption extension |
 | cipher_wxaes128.c  | Implementation of the **wxSQLite3 AES 128-bit** encryption extension |

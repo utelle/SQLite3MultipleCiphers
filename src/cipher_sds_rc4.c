@@ -28,10 +28,9 @@
 SQLITE_PRIVATE CipherParams mcRC4Params[] =
 {
   { "legacy",           RC4_LEGACY_DEFAULT, RC4_LEGACY_DEFAULT, RC4_LEGACY_DEFAULT, RC4_LEGACY_DEFAULT },
-  { "legacy_page_size", 0,                  0,                  0,                  SQLITE_MAX_PAGE_SIZE },
+  { "legacy_page_size", 0,                  0,                  0,                  SQLITE_MAX_PAGE_SIZE, 0, NULL, &cipherParamOpsLegacyPageSize },
   CIPHER_PARAMS_SENTINEL
 };
-
 
 #define KEYLENGTH_RC4 16
 

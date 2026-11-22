@@ -20,6 +20,8 @@ typedef struct aegis256x4_implementation {
                             size_t maclen, const uint8_t *ad, size_t adlen, const uint8_t *npub,
                             const uint8_t *k);
     void (*stream)(uint8_t *out, size_t len, const uint8_t *npub, const uint8_t *k);
+    void (*stream_xor)(uint8_t *out, const uint8_t *in, size_t len, const uint8_t *npub,
+                       const uint8_t *k);
     void (*encrypt_unauthenticated)(uint8_t *c, const uint8_t *m, size_t mlen, const uint8_t *npub,
                                     const uint8_t *k);
     void (*decrypt_unauthenticated)(uint8_t *m, const uint8_t *c, size_t clen, const uint8_t *npub,
@@ -27,16 +29,10 @@ typedef struct aegis256x4_implementation {
 #ifndef AEGIS_OMIT_INCREMENTAL
     void (*state_init)(aegis256x4_state *st_, const uint8_t *ad, size_t adlen, const uint8_t *npub,
                        const uint8_t *k);
-    int (*state_encrypt_update)(aegis256x4_state *st_, uint8_t *c, size_t clen_max, size_t *written,
-                                const uint8_t *m, size_t mlen);
-    int (*state_encrypt_detached_final)(aegis256x4_state *st_, uint8_t *c, size_t clen_max,
-                                        size_t *written, uint8_t *mac, size_t maclen);
-    int (*state_encrypt_final)(aegis256x4_state *st_, uint8_t *c, size_t clen_max, size_t *written,
-                               size_t maclen);
-    int (*state_decrypt_detached_update)(aegis256x4_state *st_, uint8_t *m, size_t mlen_max,
-                                         size_t *written, const uint8_t *c, size_t clen);
-    int (*state_decrypt_detached_final)(aegis256x4_state *st_, uint8_t *m, size_t mlen_max,
-                                        size_t *written, const uint8_t *mac, size_t maclen);
+    int (*state_encrypt_update)(aegis256x4_state *st_, uint8_t *c, const uint8_t *m, size_t mlen);
+    int (*state_encrypt_final)(aegis256x4_state *st_, uint8_t *mac, size_t maclen);
+    int (*state_decrypt_update)(aegis256x4_state *st_, uint8_t *m, const uint8_t *c, size_t clen);
+    int (*state_decrypt_final)(aegis256x4_state *st_, const uint8_t *mac, size_t maclen);
 #endif /* AEGIS_OMIT_INCREMENTAL */
 #ifndef AEGIS_OMIT_MAC_API
     void (*state_mac_init)(aegis256x4_mac_state *st_, const uint8_t *npub, const uint8_t *k);
@@ -44,6 +40,8 @@ typedef struct aegis256x4_implementation {
     int (*state_mac_final)(aegis256x4_mac_state *st_, uint8_t *mac, size_t maclen);
     void (*state_mac_reset)(aegis256x4_mac_state *st);
     void (*state_mac_clone)(aegis256x4_mac_state *dst, const aegis256x4_mac_state *src);
+    int (*state_mac_verify)(aegis256x4_mac_state *st_, const uint8_t *mac, size_t maclen);
+
 #endif /* AEGIS_OMIT_MAC_API */
 } aegis256x4_implementation;
 

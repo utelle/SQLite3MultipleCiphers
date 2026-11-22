@@ -31,11 +31,10 @@
 SQLITE_PRIVATE CipherParams mcAES256Params[] =
 {
   { "legacy",            AES256_LEGACY_DEFAULT, AES256_LEGACY_DEFAULT, 0, 1 },
-  { "legacy_page_size",  0,                     0,                     0, SQLITE_MAX_PAGE_SIZE },
+  { "legacy_page_size",  0,                     0,                     0, SQLITE_MAX_PAGE_SIZE, 0, NULL, &cipherParamOpsLegacyPageSize },
   { "kdf_iter",          CODEC_SHA_ITER,        CODEC_SHA_ITER,        1, 0x7fffffff },
   CIPHER_PARAMS_SENTINEL
 };
-
 
 typedef struct _AES256Cipher
 {
@@ -44,7 +43,7 @@ typedef struct _AES256Cipher
   int       m_kdfIter;
   int       m_keyLength;
   uint8_t   m_key[KEYLENGTH_AES256];
-  Rijndael* m_aes;
+  AesCtx*   m_aes;
 } AES256Cipher;
 
 static void*
@@ -53,12 +52,12 @@ AllocateAES256Cipher(sqlite3* db)
   AES256Cipher* aesCipher = (AES256Cipher*) sqlite3_malloc(sizeof(AES256Cipher));
   if (aesCipher != NULL)
   {
-    aesCipher->m_aes = (Rijndael*) sqlite3_malloc(sizeof(Rijndael));
+    aesCipher->m_aes = (AesCtx*) sqlite3_malloc(sizeof(AesCtx));
     if (aesCipher->m_aes != NULL)
     {
       aesCipher->m_keyLength = KEYLENGTH_AES256;
       memset(aesCipher->m_key, 0, KEYLENGTH_AES256);
-      RijndaelCreate(aesCipher->m_aes);
+      sqlite3mcAesCbcWipe(aesCipher->m_aes);
     }
     else
     {
@@ -80,7 +79,7 @@ static void
 FreeAES256Cipher(void* cipher)
 {
   AES256Cipher* aesCipher = (AES256Cipher*) cipher;
-  sqlite3mcSecureZeroMemory(aesCipher->m_aes, sizeof(Rijndael));
+  sqlite3mcSecureZeroMemory(aesCipher->m_aes, sizeof(AesCtx));
   sqlite3_free(aesCipher->m_aes);
   sqlite3mcSecureZeroMemory(aesCipher, sizeof(AES256Cipher));
   sqlite3_free(aesCipher);
@@ -96,7 +95,7 @@ CloneAES256Cipher(void* cipherTo, void* cipherFrom)
   aesCipherTo->m_kdfIter = aesCipherFrom->m_kdfIter;
   aesCipherTo->m_keyLength = aesCipherFrom->m_keyLength;
   memcpy(aesCipherTo->m_key, aesCipherFrom->m_key, KEYLENGTH_AES256);
-  RijndaelInvalidate(aesCipherTo->m_aes);
+  sqlite3mcAesCbcWipe(aesCipherTo->m_aes);
 }
 
 static int

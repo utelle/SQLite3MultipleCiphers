@@ -253,6 +253,8 @@ static const Cipher ciphers[] =
     "PRAGMA cipher='chacha20'; PRAGMA key='k3';", "PRAGMA cipher='chacha20'; PRAGMA rekey='k3';", "cipher=sqlcipher&key=k1" },
   { "aegis",     "PRAGMA cipher='aegis'; PRAGMA key='k1';",     "PRAGMA cipher='aegis'; PRAGMA key='k2';",
     "PRAGMA cipher='chacha20'; PRAGMA key='k3';", "PRAGMA cipher='chacha20'; PRAGMA rekey='k3';", "cipher=aegis&key=k1" },
+  { "aes256gcm", "PRAGMA cipher='aes256gcm'; PRAGMA key='k1';", "PRAGMA cipher='aes256gcm'; PRAGMA key='k2';",
+    "PRAGMA cipher='chacha20'; PRAGMA key='k3';", "PRAGMA cipher='chacha20'; PRAGMA rekey='k3';", "cipher=aes256gcm&key=k1" },
 };
 
 static const char* fillSql =
