@@ -5,15 +5,23 @@
 **    available on this machine: FIPS-197 (block encryption), NIST SP 800-38A
 **    (CBC), CBC with ciphertext stealing (reference values computed with an
 **    independent implementation), the XAES-256-GCM test vectors of
-**    c2sp.org/XAES-256-GCM and AES-256-GCM-SIV vectors (RFC 8452 C.2 and
-**    values computed with OpenSSL via Python cryptography, plus the 32-bit
-**    counter wrap) with every GHASH variant.
+**    c2sp.org/XAES-256-GCM and AES-256-GCM-SIV vectors (RFC 8452 C.2 and C.3,
+**    the Wycheproof cases with a wrapped counter or a modified tag, values
+**    computed with OpenSSL via Python cryptography, plus the 32-bit counter
+**    wrap) with every GHASH variant.
 ** 2. All backends must give the same result for random keys, IVs and data:
 **    CBC with and without ciphertext stealing, block encryption (ECB) and
 **    XAES-256-GCM, also for buffers that do not start on an aligned address.
 ** 3. XAES-256-GCM must reject a changed ciphertext, tag, AAD, nonce or page
 **    number, and must not return any plaintext in that case.
 ** 4. Invalid use (wrong direction, key length, data length) must be refused.
+** 5. The cipher scheme aes256gcm on database level, with both algorithms, both
+**    key derivation functions and a raw key: the database must open with its
+**    own configuration only, no plaintext may reach the file, a changed byte
+**    in a page or in byte 20 of the header and a page at the place of another
+**    one must be detected, every write must use a new nonce, hmac_check=0
+**    must still read a page whose free space was changed, and a plaintext
+**    header must work with the salt given separately.
 **
 ** Usage: aestest [rounds]
 */
@@ -66,6 +74,13 @@ static int fromHex(const char* hex, unsigned char* out)
   return n;
 }
 
+static int allZero(const unsigned char* p, size_t n)
+{
+  size_t i;
+  for (i = 0; i < n; i++) if (p[i] != 0) return 0;
+  return 1;
+}
+
 /*
 ** 1. Known-answer tests
 */
@@ -113,12 +128,82 @@ static const struct { const char *key, *nonce, *aad, *plain, *sealed; } xaesVect
 };
 
 /* AES-256-GCM-SIV: key, nonce, AAD, plaintext, ciphertext || tag.
-** The first entry is RFC 8452, C.2 (first vector); the others were computed with an independent
-** implementation (Python cryptography / OpenSSL, AESGCMSIV) for various AAD and plaintext lengths. */
+** The first 26 entries are RFC 8452, C.2 (all vectors) and C.3 (counter wrap); the others were computed
+** with an independent implementation (Python cryptography / OpenSSL, AESGCMSIV) for various AAD and
+** plaintext lengths. */
 static const struct { const char *key, *nonce, *aad, *plain, *sealed; } gcmSivVectors[] =
 {
+  /* RFC 8452 C.2, vector 1 */
   { "0100000000000000000000000000000000000000000000000000000000000000", "030000000000000000000000", "",
     "", "07f5f4169bbf55a8400cd47ea6fd400f" },
+  /* RFC 8452 C.2, vectors 2 to 24 */
+  { "0100000000000000000000000000000000000000000000000000000000000000", "030000000000000000000000", "",
+    "0100000000000000", "c2ef328e5c71c83b843122130f7364b761e0b97427e3df28" },
+  { "0100000000000000000000000000000000000000000000000000000000000000", "030000000000000000000000", "",
+    "010000000000000000000000", "9aab2aeb3faa0a34aea8e2b18ca50da9ae6559e48fd10f6e5c9ca17e" },
+  { "0100000000000000000000000000000000000000000000000000000000000000", "030000000000000000000000", "",
+    "01000000000000000000000000000000", "85a01b63025ba19b7fd3ddfc033b3e76c9eac6fa700942702e90862383c6c366" },
+  { "0100000000000000000000000000000000000000000000000000000000000000", "030000000000000000000000", "",
+    "0100000000000000000000000000000002000000000000000000000000000000",
+    "4a6a9db4c8c6549201b9edb53006cba821ec9cf850948a7c86c68ac7539d027fe819e63abcd020b006a976397632eb5d" },
+  { "0100000000000000000000000000000000000000000000000000000000000000", "030000000000000000000000", "",
+    "010000000000000000000000000000000200000000000000000000000000000003000000000000000000000000000000",
+    "c00d121893a9fa603f48ccc1ca3c57ce7499245ea0046db16c53c7c66fe717e39cf6c748837b61f6ee3adcee17534ed5790bc96880a99ba804bd12c0e6a22cc4" },
+  { "0100000000000000000000000000000000000000000000000000000000000000", "030000000000000000000000", "",
+    "01000000000000000000000000000000020000000000000000000000000000000300000000000000000000000000000004000000000000000000000000000000",
+    "c2d5160a1f8683834910acdafc41fbb1632d4a353e8b905ec9a5499ac34f96c7e1049eb080883891a4db8caaa1f99dd004d80487540735234e3744512c6f90ce112864c269fc0d9d88c61fa47e39aa08" },
+  { "0100000000000000000000000000000000000000000000000000000000000000", "030000000000000000000000", "01",
+    "0200000000000000", "1de22967237a813291213f267e3b452f02d01ae33e4ec854" },
+  { "0100000000000000000000000000000000000000000000000000000000000000", "030000000000000000000000", "01",
+    "020000000000000000000000", "163d6f9cc1b346cd453a2e4cc1a4a19ae800941ccdc57cc8413c277f" },
+  { "0100000000000000000000000000000000000000000000000000000000000000", "030000000000000000000000", "01",
+    "02000000000000000000000000000000", "c91545823cc24f17dbb0e9e807d5ec17b292d28ff61189e8e49f3875ef91aff7" },
+  { "0100000000000000000000000000000000000000000000000000000000000000", "030000000000000000000000", "01",
+    "0200000000000000000000000000000003000000000000000000000000000000",
+    "07dad364bfc2b9da89116d7bef6daaaf6f255510aa654f920ac81b94e8bad365aea1bad12702e1965604374aab96dbbc" },
+  { "0100000000000000000000000000000000000000000000000000000000000000", "030000000000000000000000", "01",
+    "020000000000000000000000000000000300000000000000000000000000000004000000000000000000000000000000",
+    "c67a1f0f567a5198aa1fcc8e3f21314336f7f51ca8b1af61feac35a86416fa47fbca3b5f749cdf564527f2314f42fe2503332742b228c647173616cfd44c54eb" },
+  { "0100000000000000000000000000000000000000000000000000000000000000", "030000000000000000000000", "01",
+    "02000000000000000000000000000000030000000000000000000000000000000400000000000000000000000000000005000000000000000000000000000000",
+    "67fd45e126bfb9a79930c43aad2d36967d3f0e4d217c1e551f59727870beefc98cb933a8fce9de887b1e40799988db1fc3f91880ed405b2dd298318858467c895bde0285037c5de81e5b570a049b62a0" },
+  { "0100000000000000000000000000000000000000000000000000000000000000", "030000000000000000000000",
+    "010000000000000000000000", "02000000", "22b3f4cd1835e517741dfddccfa07fa4661b74cf" },
+  { "0100000000000000000000000000000000000000000000000000000000000000", "030000000000000000000000",
+    "010000000000000000000000000000000200", "0300000000000000000000000000000004000000",
+    "43dd0163cdb48f9fe3212bf61b201976067f342bb879ad976d8242acc188ab59cabfe307" },
+  { "0100000000000000000000000000000000000000000000000000000000000000", "030000000000000000000000",
+    "0100000000000000000000000000000002000000", "030000000000000000000000000000000400",
+    "462401724b5ce6588d5a54aae5375513a075cfcdf5042112aa29685c912fc2056543" },
+  { "e66021d5eb8e4f4066d4adb9c33560e4f46e44bb3da0015c94f7088736864200", "e0eaf5284d884a0e77d31646", "", "",
+    "169fbb2fbf389a995f6390af22228a62" },
+  { "bae8e37fc83441b16034566b7a806c46bb91c3c5aedb64a6c590bc84d1a5e269", "e4b47801afc0577e34699b9e", "4fbdc66f14",
+    "671fdd", "0eaccb93da9bb81333aee0c785b240d319719d" },
+  { "6545fc880c94a95198874296d5cc1fd161320b6920ce07787f86743b275d1ab3", "2f6d1f0434d8848c1177441f",
+    "6787f3ea22c127aaf195", "195495860f04", "a254dad4f3f96b62b84dc40c84636a5ec12020ec8c2c" },
+  { "d1894728b3fed1473c528b8426a582995929a1499e9ad8780c8d63d0ab4149c0", "9f572c614b4745914474e7c7",
+    "489c8fde2be2cf97e74e932d4ed87d", "c9882e5386fd9f92ec", "0df9e308678244c44bc0fd3dc6628dfe55ebb0b9fb2295c8c2" },
+  { "a44102952ef94b02b805249bac80e6f61455bfac8308a2d40d8c845117808235", "5c9e940fea2f582950a70d5a",
+    "0da55210cc1c1b0abde3b2f204d1e9f8b06bc47f", "1db2316fd568378da107b52b",
+    "8dbeb9f7255bf5769dd56692404099c2587f64979f21826706d497d5" },
+  { "9745b3d1ae06556fb6aa7890bebc18fe6b3db4da3d57aa94842b9803a96e07fb", "6de71860f762ebfbd08284e4",
+    "f37de21c7ff901cfe8a69615a93fdf7a98cad481796245709f", "21702de0de18baa9c9596291b08466",
+    "793576dfa5c0f88729a7ed3c2f1bffb3080d28f6ebb5d3648ce97bd5ba67fd" },
+  { "b18853f68d833640e42a3c02c25b64869e146d7b233987bddfc240871d7576f7", "028ec6eb5ea7e298342a94d4",
+    "9c2159058b1f0fe91433a5bdc20e214eab7fecef4454a10ef0657df21ac7", "b202b370ef9768ec6561c4fe6b7e7296fa85",
+    "857e16a64915a787637687db4a9519635cdd454fc2a154fea91f8363a39fec7d0a49" },
+  { "3c535de192eaed3822a2fbbe2ca9dfc88255e14a661b8aa82cc54236093bbc23", "688089e55540db1872504e1c",
+    "734320ccc9d9bbbb19cb81b2af4ecbc3e72834321f7aa0f70b7282b4f33df23f167541",
+    "ced532ce4159b035277d4dfbb7db62968b13cd4eec",
+    "626660c26ea6612fb17ad91e8e767639edd6c9faee9d6c7029675b89eaf4ba1ded1a286594" },
+  /* RFC 8452 C.3, counter wrap */
+  { "0000000000000000000000000000000000000000000000000000000000000000", "000000000000000000000000", "",
+    "000000000000000000000000000000004db923dc793ee6497c76dcc03a98e108",
+    "f3f80f2cf0cb2dd9c5984fcda908456cc537703b5ba70324a6793a7bf218d3eaffffffff000000000000000000000000" },
+  { "0000000000000000000000000000000000000000000000000000000000000000", "000000000000000000000000", "",
+    "eb3640277c7ffd1303c7a542d02d3e4c0000000000000000",
+    "18ce4f0b8cb4d0cac65fea8f79257b20888e53e72299e56dffffffff000000000000000000000000" },
+  /* computed with Python cryptography */
   { "af73cd4542b77e975d4d4ac44ff2c6e4d27f14240d537b96d74105043841e062", "ef19eb7d03fd3c0db155d1d8", "",
     "", "57a203d519e4bb328adfad161a656d77" },
   { "bdf58e99f8606c8c3b6a421c466c7f40be4973257fddf7164b87c1d0e2e39da3", "fad11fc8e14e6e4aab879aa9", "27595baf5d2a25b94e3fbac1",
@@ -159,6 +244,117 @@ static const struct { const char *key, *nonce, *aad, *plain, *sealed; } gcmSivVe
     "e099b2a0dac7847423670bd567cccb6c42f052bbaedc308df01f0e6576503a630c02c25a3841daa2932bd1d9b511cfc8f75d6c95dcde5310e406fddd58e8e5a4e783a5251047039bbcc79bf26b96605f3b5db46291696523368c31b7e356df21dc3390cfa7953f6673cd7f5d1f02ea76a913d7ccba53d5b0cee52e83500b3536ba03d7c2bbbc6344a58823162e525a925a8fc673d0f31f84530acf38818fb5007227d7db044f80e206a4ec0b043e54216cdcd06de857e6fc9ea9498eb5a2cf563fd695a55461e480b0eda37cdb9f144c8edcbd8c41bde9cff0aa590d8585dd1267695226d48f394d48fb473b2f885eb0267117e90a94041ef8526eb72a09df7b", "8383b853dbcf8c762712981c654a856ba4d50ab2a8b90f11a1f317a929b89bc0e060bbcda8005fc6cc63cfa277fa82950486810fc4e1fc6e8b3c4c6bd7abfd42b8e2b833d83f4b896902ab872fca8c782e15a267b813f77789da774b822d371a68f45a72d794ce71b2d08a50816c5b4a0ff4bec16aa4e8c2b486c87f300f30fc9cbd678f8a43905615d56270efe8a2ceba768de7f2a6439fae207f1cb1098ca6fde44bc7727ecb034579c2584ad2cce7d8cc7aa7adac73d64546e93414cd7311ac74b6155b5f35270422c140f4c4da661a4dbef0fc579fc3ca7168bf5caa6dea25fb739f69ed009190c557be1cccc41b6827af18faaae87b4f7832ad911f2a5a98ba37b5de5a71c47d1adb07c0fb36dc" },
   { "22419f8f4553ebcb2fe7131059ede2ef61454145045e38dc0428754d2dcae32b", "b5e9ff1958ae67a1a0924c11", "35e94f71b2b94398d107e41840bdef42ab9f6a45",
     "afc0ccd862b6611802a751fb6b6b84b2bf9fb9dac887c26c7a26083c8735c6ade3e87892785de8eb73530e009004ca640484972dc144353546624a14caad6c07008667521f8cee5e2a444e063fb7897c93afde66d5074efb969aebed394f2a0972405446acfabb77a20249d76f0dc674c7deccc192efb1157264c3f639e1da80c01004210212a3ee60608f293269b5347a4d489f142b029239014666e457233f3352c755e655b1a5a77d0895048011b479d3b1af50cb25734d6ade860815583a64ff3d86a21dff81c44d2a75fc26ced6c6648cbabe19d627ceacc0ec35afb20e64013fdaab602f9b4f892a7e2236cd27c1d60b77aa344d8a4cf9f2fdaa67f0d090", "03604b5749448ccc9fb37a7bdc1f906b0cbaa6724438544f6e56abac88da9afc24cd624875e6351a12ae2847ba94b2224bab76b017efb5783d070414e3bf528512b656da5ef67689cdad44bb994a5c956b9b4330fe8e267302b9c07865cf4de96d31e1fa60c74a90a9dd2206e82712ef7d499d641624a7e793abb239e35135a8ed69743b4c5eec20a6b999fa24efbd6a523009617144c2a3545d897f6122828aadcb4760ffe56420c265ad27539eb9daa0b7014c0874264057f41c87784029be4b9168f6c4303b13ccec6f0ea5478ed30acd310bae33b338b1380567afc217bc762ae4337b2d16cbf4d2d911e14338ef08f260542a80ee5ded7505fb1663586304da0b298e8f87dcf76501e8bf66c33042" },
+};
+
+/*
+** AES-256-GCM-SIV cases of Wycheproof (github.com/C2SP/wycheproof, testvectors_v1/aes_gcm_siv_test.json)
+** with the flags WrappedIv (valid: the 32-bit counter wraps around) and ModifiedTag (invalid: one or
+** more bits of the tag are flipped, open must fail and must not return any plaintext).
+** tcId, key, nonce, AAD, plaintext, ciphertext || tag, valid
+*/
+static const struct { int tcId; const char *key, *nonce, *aad, *plain, *sealed; int valid; } gcmSivWycheproof[] =
+{
+  { 164, "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f", "010101010101010101010101",
+    "40c32e00c2fdab59c1a1c573b46b5068",
+    "bdd411814564c4218d224d50591c818855a862a0a519ac0b3d71a2edb12aa71eb81959bcc6b84c45aa424c9aca0b7bdd",
+    "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    1 },
+  { 165, "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f", "000000000000000000000000",
+    "2cc3a1973e0560f7224a394e52fa8488",
+    "d04846a01f472262e60a1cb4cfcbdcb05c3f819628a3a49395c5dae96c434b2417ce071699afa74a60c32c0bafd9c01a",
+    "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ffffffffffffffffffffffffffffffff",
+    1 },
+  { 166, "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f", "010101010101010101010101",
+    "2e34d12622a441b557eeb1d647c6cb73",
+    "79637cee9decf33e3080de3d2c55bd21cd529ba8080b583edb6cfe13cda04bd00debe58b8cd48d6e02a1ecfc4d87923a",
+    "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000fefffffffefffffffefffffffeffffff",
+    1 },
+  { 167, "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f", "000000000000000000000000",
+    "0814a95481bf915a4097949e3525c7e7",
+    "6492a73880dac7f36743715b0fc7063d3e46a25044310bba5849ed88bfcb54b0adbe3978040bda849906e1aa09d1a8e3",
+    "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ffffff7f00112233445566778899aabb",
+    1 },
+  { 168, "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f", "010101010101010101010101",
+    "b691ef42f2ab8d1b4a581bb08394b13a",
+    "7848d9e872f40bca1b82a4e7185fb75193b3496cc1dc2a72b86ed156ab8389e71687ed25eb6485e66561fa8c39853368",
+    "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ffffffffffffff7f0011223344556677",
+    1 },
+  { 169, "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff", "000000000000000000000000",
+    "a5b997fe28ddf26fe182eb8db608bd14", "f663044a4e7dd822aba0b7de2d869981",
+    "0000000000000000000000000000000013a1883272188b4c8d2727178198fe95", 0 },
+  { 170, "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff", "000000000000000000000000",
+    "5906c4d15a8dc345026d29c98e55cfcd", "759dfbbb8a251ccc", "000000000000000000000000000000000000000000000000", 0 },
+  { 171, "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff", "000000000000000000000000",
+    "de645c9a49b8e777ca18c54048b7bde8", "49861b1fb6bcf8e4", "ffffffffffffffffffffffffffffffffffffffffffffffff", 0 },
+  { 172, "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff", "000000000000000000000000",
+    "3dbceccc23f7bc994c4df048e43c59fb", "", "0987e35e40981a2730c1740c7201731f", 0 },
+  { 173, "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff", "000000000000000000000000",
+    "369e1e751ac0d45a5401775304dbe1a0", "f663044a4e7dd822aba0b7de2d869981",
+    "0000000000000000000000000000000013a1883272188b4c8d2727178198fe95", 0 },
+  { 174, "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff", "000000000000000000000000",
+    "0bf63034cdfd77e90b94936583199da8", "759dfbbb8a251ccc", "000000000000000000000000000000000000000000000000", 0 },
+  { 175, "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff", "000000000000000000000000",
+    "2241caabc859139436c23a274eebf0d1", "", "0987e35e40981a2730c1740c7201731f", 0 },
+  { 176, "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff", "000000000000000000000000",
+    "9b6589f03d26c71a67ffb6c9bea6fdb5", "49861b1fb6bcf8e4", "ffffffffffffffffffffffffffffffffffffffffffffffff", 0 },
+  { 177, "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff", "000000000000000000000000",
+    "086f2deb0c0e871a2a38df9adc1f3e9d", "", "0987e35e40981a2730c1740c7201731f", 0 },
+  { 178, "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff", "000000000000000000000000",
+    "9dbcadbc6f27b088037e6f738b16c105", "", "0987e35e40981a2730c1740c7201731f", 0 },
+  { 179, "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff", "000000000000000000000000",
+    "d44919c638e293a9ce8647d00b8e58c5", "759dfbbb8a251ccc", "000000000000000000000000000000000000000000000000", 0 },
+  { 180, "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff", "000000000000000000000000",
+    "c0537898455fa05d51f7554f12596617", "49861b1fb6bcf8e4", "ffffffffffffffffffffffffffffffffffffffffffffffff", 0 },
+  { 181, "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff", "000000000000000000000000",
+    "45ba6c8dd2f6364e32e43429eee15faa", "", "0987e35e40981a2730c1740c7201731f", 0 },
+  { 182, "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff", "000000000000000000000000",
+    "1d6b385d7eee3e166a8e2776755602fd", "f663044a4e7dd822aba0b7de2d869981",
+    "0000000000000000000000000000000013a1883272188b4c8d2727178198fe95", 0 },
+  { 183, "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff", "000000000000000000000000",
+    "7a972ec263df56ebe4f001a718e47200", "49861b1fb6bcf8e4", "ffffffffffffffffffffffffffffffffffffffffffffffff", 0 },
+  { 184, "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff", "000000000000000000000000",
+    "fd9d1ffd0dcfe6f0a1c2695477b1cd96", "f663044a4e7dd822aba0b7de2d869981",
+    "0000000000000000000000000000000013a1883272188b4c8d2727178198fe95", 0 },
+  { 185, "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff", "000000000000000000000000",
+    "7e5cbe5af5820f0757072bab5758d327", "49861b1fb6bcf8e4", "ffffffffffffffffffffffffffffffffffffffffffffffff", 0 },
+  { 186, "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff", "000000000000000000000000",
+    "9294a1bd55de4c4f642ed5b9b2058da6", "", "0987e35e40981a2730c1740c7201731f", 0 },
+  { 187, "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff", "000000000000000000000000",
+    "a3afb9ce48b7cd22dddd8f37cd451cd8", "759dfbbb8a251ccc", "000000000000000000000000000000000000000000000000", 0 },
+  { 188, "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff", "000000000000000000000000",
+    "f4cf766370972a85f9b1f511e5ea693a", "f663044a4e7dd822aba0b7de2d869981",
+    "0000000000000000000000000000000013a1883272188b4c8d2727178198fe95", 0 },
+  { 189, "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff", "000000000000000000000000",
+    "ddb6b2168243150206fe5c513f7e6c37", "759dfbbb8a251ccc", "000000000000000000000000000000000000000000000000", 0 },
+  { 190, "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff", "000000000000000000000000",
+    "63d504e4e4729cb5c8a29bc08723efe4", "49861b1fb6bcf8e4", "ffffffffffffffffffffffffffffffffffffffffffffffff", 0 },
+  { 191, "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff", "000000000000000000000000",
+    "1fed71d3675dd386d3c65664710b3eba", "", "0987e35e40981a2730c1740c7201731f", 0 },
+  { 192, "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff", "000000000000000000000000",
+    "454aac70fc89f9de4e045e46bcb048c0", "f663044a4e7dd822aba0b7de2d869981",
+    "0000000000000000000000000000000013a1883272188b4c8d2727178198fe95", 0 },
+  { 193, "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff", "000000000000000000000000",
+    "8ecff481b5c13a653d624e3441c6573c", "49861b1fb6bcf8e4", "ffffffffffffffffffffffffffffffffffffffffffffffff", 0 },
+  { 194, "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff", "000000000000000000000000",
+    "0591c8849ce9f1aaee5769eb3e28d51a", "", "0987e35e40981a2730c1740c7201731f", 0 },
+  { 195, "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff", "000000000000000000000000",
+    "c61613923b69169d512bdc788bfa62a3", "", "0987e35e40981a2730c1740c7201731f", 0 },
+  { 196, "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff", "000000000000000000000000",
+    "e5879b6d2d5bb63b290b49a08e631f6a", "f663044a4e7dd822aba0b7de2d869981",
+    "0000000000000000000000000000000013a1883272188b4c8d2727178198fe95", 0 },
+  { 197, "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff", "000000000000000000000000",
+    "00ea3f6b86feece042d68677fd378635", "759dfbbb8a251ccc", "000000000000000000000000000000000000000000000000", 0 },
+  { 198, "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff", "000000000000000000000000",
+    "5a95d77d7e02d9b92c59b9618f276f38", "49861b1fb6bcf8e4", "ffffffffffffffffffffffffffffffffffffffffffffffff", 0 },
+  { 199, "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff", "000000000000000000000000",
+    "498eeebd21577b187a36c59285864cd2", "", "0987e35e40981a2730c1740c7201731f", 0 },
+  { 200, "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff", "000000000000000000000000",
+    "3305208cc80840a9b49616b1109ef788", "f663044a4e7dd822aba0b7de2d869981",
+    "0000000000000000000000000000000013a1883272188b4c8d2727178198fe95", 0 },
+  { 201, "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff", "000000000000000000000000",
+    "5e53ca98c89c017426e4bc07090840b0", "49861b1fb6bcf8e4", "ffffffffffffffffffffffffffffffffffffffffffffffff", 0 },
+  { 202, "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff", "000000000000000000000000",
+    "55a2987aa94bf46ad1b6d253a44c1622", "49861b1fb6bcf8e4", "ffffffffffffffffffffffffffffffffffffffffffffffff", 0 },
 };
 
 static void testKnownAnswers(int impl)
@@ -242,6 +438,52 @@ static void testKnownAnswersGcmSiv(int impl)
             "%s/%s: AES-256-GCM-SIV test vector %d", name, ghashNames[ghashIds[g]], (int) i + 1);
       CHECK(sqlite3mcAesGcmSivOpen(&ctx, nonce, aad, aadLen, buf, len, tag, buf) == SQLITE_OK && memcmp(buf, plain, len) == 0,
             "%s/%s: AES-256-GCM-SIV test vector %d, open", name, ghashNames[ghashIds[g]], (int) i + 1);
+      sqlite3mcAesCbcWipe(&ctx);
+    }
+  }
+  sqlite3mcAesGhashSelect(AES_GHASH_AUTO);
+}
+
+/*
+** Wycheproof: valid cases must give ciphertext and tag, invalid ones must be rejected
+** and must not leave any plaintext in the output buffer.
+*/
+static void testWycheproofGcmSiv(int impl)
+{
+  const char* name = implNames[impl];
+  unsigned char key[32], nonce[12], aad[64], plain[64], sealed[80], buf[80], tag[16];
+  AesCtx ctx;
+  size_t i, g;
+
+  for (g = 0; g < sizeof(ghashIds) / sizeof(ghashIds[0]); g++)
+  {
+    if (sqlite3mcAesGhashSelect(ghashIds[g]) != 0) continue;
+    for (i = 0; i < sizeof(gcmSivWycheproof) / sizeof(gcmSivWycheproof[0]); i++)
+    {
+      int aadLen, len;
+      fromHex(gcmSivWycheproof[i].key, key);
+      fromHex(gcmSivWycheproof[i].nonce, nonce);
+      aadLen = fromHex(gcmSivWycheproof[i].aad, aad);
+      len = fromHex(gcmSivWycheproof[i].plain, plain);
+      fromHex(gcmSivWycheproof[i].sealed, sealed);
+      CHECK(sqlite3mcAesGcmSivInitImpl(&ctx, key, impl) == SQLITE_OK, "%s: GCM-SIV init", name);
+      if (gcmSivWycheproof[i].valid)
+      {
+        CHECK(sqlite3mcAesGcmSivSeal(&ctx, nonce, aad, aadLen, plain, len, buf, tag) == SQLITE_OK &&
+              memcmp(buf, sealed, len) == 0 && memcmp(tag, sealed + len, 16) == 0,
+              "%s/%s: Wycheproof tcId %d, seal", name, ghashNames[ghashIds[g]], gcmSivWycheproof[i].tcId);
+        CHECK(sqlite3mcAesGcmSivOpen(&ctx, nonce, aad, aadLen, sealed, len, sealed + len, buf) == SQLITE_OK &&
+              memcmp(buf, plain, len) == 0,
+              "%s/%s: Wycheproof tcId %d, open", name, ghashNames[ghashIds[g]], gcmSivWycheproof[i].tcId);
+      }
+      else
+      {
+        memset(buf, 0x5a, sizeof(buf));
+        CHECK(sqlite3mcAesGcmSivOpen(&ctx, nonce, aad, aadLen, sealed, len, sealed + len, buf) == AES_GCM_TAG_MISMATCH &&
+              allZero(buf, len),
+              "%s/%s: Wycheproof tcId %d (modified tag) accepted or plaintext returned",
+              name, ghashNames[ghashIds[g]], gcmSivWycheproof[i].tcId);
+      }
       sqlite3mcAesCbcWipe(&ctx);
     }
   }
@@ -350,13 +592,6 @@ static void testCrossBlocks(int rounds)
 /*
 ** 2. and 3.: XAES-256-GCM with every backend and every GHASH variant
 */
-static int allZero(const unsigned char* p, size_t n)
-{
-  size_t i;
-  for (i = 0; i < n; i++) if (p[i] != 0) return 0;
-  return 1;
-}
-
 static void testCrossXaes(int rounds)
 {
   unsigned char key[32], nonce[24], aad[40], tag[16], refTag[16], badTag[16];
@@ -587,6 +822,271 @@ static void testMisuse(int impl)
   sqlite3mcAesCbcWipe(&ctx);
 }
 
+/*
+** 5. The cipher scheme aes256gcm on database level
+*/
+#define GCM_DBFILE "aestest-gcm.db"
+#define GCM_MARKER "PLAINTEXT MARKER"
+#define GCM_ROWS 200
+#define GCM_RAWKEY "raw:hex:000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+
+typedef struct GcmVariant
+{
+  const char* name;
+  const char* config;    /* SQL that selects the cipher scheme and sets the key */
+  int reserve;           /* reserved bytes per page */
+  const char* wrong[3];  /* configurations that must not open the database */
+} GcmVariant;
+
+static const GcmVariant gcmVariants[] =
+{
+  { "GCM-SIV, Argon2id", "PRAGMA cipher='aes256gcm'; PRAGMA key='secret';", 28,
+    { "PRAGMA cipher='aes256gcm'; PRAGMA key='wrong';",
+      "PRAGMA cipher='aes256gcm{algorithm=xaes-256-gcm}'; PRAGMA key='secret';",
+      "PRAGMA cipher='aes256gcm{tcost=3}'; PRAGMA key='secret';" } },
+  { "XAES-256-GCM, Argon2id", "PRAGMA cipher='aes256gcm{algorithm=xaes-256-gcm}'; PRAGMA key='secret';", 40,
+    { "PRAGMA cipher='aes256gcm{algorithm=xaes-256-gcm}'; PRAGMA key='wrong';",
+      "PRAGMA cipher='aes256gcm'; PRAGMA key='secret';",
+      "PRAGMA cipher='aes256gcm{algorithm=xaes-256-gcm,mcost=20000}'; PRAGMA key='secret';" } },
+  { "GCM-SIV, PBKDF2", "PRAGMA cipher='aes256gcm{kdf=pbkdf2-hmac-sha512,kdf_iter=10000}'; PRAGMA key='secret';", 28,
+    { "PRAGMA cipher='aes256gcm{kdf=pbkdf2-hmac-sha512,kdf_iter=10000}'; PRAGMA key='wrong';",
+      "PRAGMA cipher='aes256gcm'; PRAGMA key='secret';",
+      "PRAGMA cipher='aes256gcm{kdf=pbkdf2-hmac-sha512,kdf_iter=10001}'; PRAGMA key='secret';" } },
+  { "XAES-256-GCM, raw key", "PRAGMA cipher='aes256gcm{algorithm=xaes-256-gcm}'; PRAGMA key='" GCM_RAWKEY "';", 40,
+    { "PRAGMA cipher='aes256gcm{algorithm=xaes-256-gcm}'; PRAGMA key='secret';",
+      "PRAGMA cipher='aes256gcm'; PRAGMA key='" GCM_RAWKEY "';",
+      "PRAGMA cipher='chacha20'; PRAGMA key='" GCM_RAWKEY "';" } },
+};
+
+static long gcmFileSize(void)
+{
+  long size = -1;
+  FILE* f = fopen(GCM_DBFILE, "rb");
+  if (f != NULL)
+  {
+    if (fseek(f, 0, SEEK_END) == 0) size = ftell(f);
+    fclose(f);
+  }
+  return size;
+}
+
+static int gcmFileIo(long offset, unsigned char* buf, int n, int write)
+{
+  int ok;
+  FILE* f = fopen(GCM_DBFILE, write ? "r+b" : "rb");
+  if (f == NULL) return 0;
+  ok = fseek(f, offset, SEEK_SET) == 0 &&
+       (write ? fwrite(buf, 1, n, f) : fread(buf, 1, n, f)) == (size_t) n;
+  fclose(f);
+  return ok;
+}
+
+static void gcmFlip(long offset)
+{
+  unsigned char b;
+  if (gcmFileIo(offset, &b, 1, 0))
+  {
+    b ^= 0x01;
+    gcmFileIo(offset, &b, 1, 1);
+  }
+}
+
+static int gcmFileContains(const char* text)
+{
+  long size = gcmFileSize(), i;
+  size_t n = strlen(text);
+  int found = 0;
+  unsigned char* buf = (size > 0) ? (unsigned char*) malloc(size) : NULL;
+  if (buf != NULL && gcmFileIo(0, buf, (int) size, 0))
+  {
+    for (i = 0; i + (long) n <= size && !found; i++) found = memcmp(buf + i, text, n) == 0;
+  }
+  free(buf);
+  return found;
+}
+
+/*
+** Opens the test database, runs extra (if given) and config and reads all data.
+** Returns SQLITE_OK if all rows are there and the integrity check passes,
+** SQLITE_MISMATCH if the data is wrong, otherwise the error code.
+*/
+static int gcmCheck(const char* config, const char* extra)
+{
+  sqlite3* db = NULL;
+  sqlite3_stmt* stmt = NULL;
+  int rc = sqlite3_open(GCM_DBFILE, &db);
+  if (rc == SQLITE_OK && extra != NULL) rc = sqlite3_exec(db, extra, NULL, NULL, NULL);
+  if (rc == SQLITE_OK) rc = sqlite3_exec(db, config, NULL, NULL, NULL);
+  if (rc == SQLITE_OK)
+    rc = sqlite3_prepare_v2(db, "SELECT (SELECT count(*) FROM t WHERE x = '" GCM_MARKER " ' || id AND length(y) = 200), "
+                                "(SELECT v FROM s), (SELECT integrity_check FROM pragma_integrity_check)", -1, &stmt, NULL);
+  if (rc == SQLITE_OK) rc = sqlite3_step(stmt);
+  if (rc == SQLITE_ROW)
+  {
+    const char* v = (const char*) sqlite3_column_text(stmt, 1);
+    const char* ic = (const char*) sqlite3_column_text(stmt, 2);
+    rc = (sqlite3_column_int(stmt, 0) == GCM_ROWS && v != NULL && strcmp(v, "short") == 0 &&
+          ic != NULL && strcmp(ic, "ok") == 0) ? SQLITE_OK : SQLITE_MISMATCH;
+  }
+  sqlite3_finalize(stmt);
+  sqlite3_close(db);
+  return rc;
+}
+
+/* Creates the test database; returns the page size and the root page of table s */
+static int gcmCreate(const char* config, int* pageSize, int* pageS)
+{
+  sqlite3* db = NULL;
+  sqlite3_stmt* stmt = NULL;
+  int rc;
+  remove(GCM_DBFILE);
+  rc = sqlite3_open(GCM_DBFILE, &db);
+  if (rc == SQLITE_OK) rc = sqlite3_exec(db, config, NULL, NULL, NULL);
+  if (rc == SQLITE_OK)
+    rc = sqlite3_exec(db, "CREATE TABLE t(id INTEGER PRIMARY KEY, x TEXT, y TEXT); CREATE TABLE s(v TEXT);"
+                          "WITH RECURSIVE c(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM c WHERE n < 200) "
+                          "INSERT INTO t SELECT n, '" GCM_MARKER " ' || n, hex(zeroblob(100)) FROM c;"
+                          "INSERT INTO s VALUES ('short');", NULL, NULL, NULL);
+  if (rc == SQLITE_OK)
+    rc = sqlite3_prepare_v2(db, "SELECT (SELECT page_size FROM pragma_page_size), "
+                                "(SELECT rootpage FROM sqlite_schema WHERE name = 's')", -1, &stmt, NULL);
+  if (rc == SQLITE_OK && sqlite3_step(stmt) == SQLITE_ROW)
+  {
+    *pageSize = sqlite3_column_int(stmt, 0);
+    *pageS = sqlite3_column_int(stmt, 1);
+  }
+  sqlite3_finalize(stmt);
+  sqlite3_close(db);
+  return rc;
+}
+
+static void testAes256GcmVariant(const GcmVariant* v)
+{
+  int pageSize = 0, pageS = 0, k, rc;
+  long offS;
+  unsigned char hdr[24], before[65536], after[65536], other[65536];
+  sqlite3* db = NULL;
+
+  rc = gcmCreate(v->config, &pageSize, &pageS);
+  CHECK(rc == SQLITE_OK && pageSize >= 512 && pageSize <= 65536 && pageS > 2, "%s: create (rc=%d)", v->name, rc);
+  if (rc != SQLITE_OK || pageSize < 512 || pageSize > 65536 || pageS <= 2) return;
+  offS = (long) (pageS - 1) * pageSize;
+
+  /* File: salt instead of the SQLite header, reserve in byte 20, no plaintext */
+  CHECK(gcmFileIo(0, hdr, 24, 0) && memcmp(hdr, "SQLite format 3", 16) != 0, "%s: no salt at the start of the file", v->name);
+  CHECK(hdr[20] == v->reserve, "%s: byte 20 is %d, expected %d", v->name, hdr[20], v->reserve);
+  CHECK(!gcmFileContains(GCM_MARKER), "%s: plaintext in the database file", v->name);
+
+  /* Readable with the same configuration only */
+  CHECK(gcmCheck(v->config, NULL) == SQLITE_OK, "%s: reopen", v->name);
+  for (k = 0; k < 3; k++)
+  {
+    rc = gcmCheck(v->wrong[k], NULL);
+    CHECK(rc == SQLITE_NOTADB, "%s: opened with \"%s\" (rc=%d)", v->name, v->wrong[k], rc);
+  }
+
+  /* A changed byte in the data, in the nonce or in the tag of a page, or in page 1 */
+  {
+    long offsets[4];
+    offsets[0] = offS + 100;
+    offsets[1] = offS + pageSize - v->reserve;
+    offsets[2] = offS + pageSize - 1;
+    offsets[3] = 60;
+    for (k = 0; k < 4; k++)
+    {
+      gcmFlip(offsets[k]);
+      rc = gcmCheck(v->config, NULL);
+      CHECK(rc == ((k == 3) ? SQLITE_NOTADB : SQLITE_CORRUPT), "%s: changed byte at offset %ld (rc=%d)", v->name, offsets[k], rc);
+      gcmFlip(offsets[k]);
+    }
+  }
+
+  /* A page at the place of another page */
+  if (gcmFileIo(offS, before, pageSize, 0) && gcmFileIo(offS - pageSize, other, pageSize, 0))
+  {
+    gcmFileIo(offS, other, pageSize, 1);
+    rc = gcmCheck(v->config, NULL);
+    CHECK(rc == SQLITE_CORRUPT, "%s: page %d at the place of page %d (rc=%d)", v->name, pageS - 1, pageS, rc);
+    gcmFileIo(offS, before, pageSize, 1);
+  }
+
+  /* Changed byte 20 (reserved bytes per page) */
+  {
+    unsigned char values[2], old = hdr[20];
+    values[0] = (unsigned char) ((v->reserve == 28) ? 40 : 28);
+    values[1] = 0;
+    for (k = 0; k < 2; k++)
+    {
+      gcmFileIo(20, &values[k], 1, 1);
+      rc = gcmCheck(v->config, NULL);
+      CHECK(rc == SQLITE_NOTADB || rc == SQLITE_CORRUPT, "%s: byte 20 set to %d (rc=%d)", v->name, values[k], rc);
+      gcmFileIo(20, &old, 1, 1);
+    }
+  }
+  CHECK(gcmCheck(v->config, NULL) == SQLITE_OK, "%s: reopen after the changes were undone", v->name);
+
+  /* hmac_check=0 gives the data of a page whose free space was changed */
+  gcmFlip(offS + pageSize / 2);
+  rc = gcmCheck(v->config, NULL);
+  CHECK(rc == SQLITE_CORRUPT, "%s: changed free space (rc=%d)", v->name, rc);
+  rc = gcmCheck(v->config, "PRAGMA hmac_check=0;");
+  CHECK(rc == SQLITE_OK, "%s: changed free space with hmac_check=0 (rc=%d)", v->name, rc);
+  gcmFlip(offS + pageSize / 2);
+
+  /* A page written again with the same content gets a new nonce and a new ciphertext */
+  gcmFileIo(offS, before, pageSize, 0);
+  rc = sqlite3_open(GCM_DBFILE, &db);
+  if (rc == SQLITE_OK) rc = sqlite3_exec(db, v->config, NULL, NULL, NULL);
+  if (rc == SQLITE_OK) rc = sqlite3_exec(db, "UPDATE s SET v = 'other'; UPDATE s SET v = 'short';", NULL, NULL, NULL);
+  sqlite3_close(db);
+  CHECK(rc == SQLITE_OK && gcmFileIo(offS, after, pageSize, 0), "%s: update (rc=%d)", v->name, rc);
+  CHECK(memcmp(before + pageSize - v->reserve, after + pageSize - v->reserve, v->reserve - 16) != 0,
+        "%s: nonce not changed", v->name);
+  CHECK(memcmp(before, after, pageSize - v->reserve) != 0, "%s: ciphertext not changed", v->name);
+  CHECK(gcmCheck(v->config, NULL) == SQLITE_OK, "%s: reopen after the update", v->name);
+  remove(GCM_DBFILE);
+}
+
+/* Plaintext header: the salt is not in the file and has to be given */
+static void testAes256GcmPlaintextHeader(void)
+{
+  static const char* config =
+    "PRAGMA cipher='aes256gcm{plaintext_header_size=32,kdf=pbkdf2-hmac-sha512,kdf_iter=10000}';"
+    "PRAGMA cipher_salt='00112233445566778899aabbccddeeff'; PRAGMA key='secret';";
+  static const char* noSalt =
+    "PRAGMA cipher='aes256gcm{plaintext_header_size=32,kdf=pbkdf2-hmac-sha512,kdf_iter=10000}'; PRAGMA key='secret';";
+  static const char* otherSalt =
+    "PRAGMA cipher='aes256gcm{plaintext_header_size=32,kdf=pbkdf2-hmac-sha512,kdf_iter=10000}';"
+    "PRAGMA cipher_salt='00112233445566778899aabbccddeefe'; PRAGMA key='secret';";
+  int pageSize = 0, pageS = 0, rc;
+  unsigned char hdr[32];
+
+  rc = gcmCreate(config, &pageSize, &pageS);
+  CHECK(rc == SQLITE_OK, "plaintext header: create (rc=%d)", rc);
+  CHECK(gcmFileIo(0, hdr, 32, 0) && memcmp(hdr, "SQLite format 3", 16) == 0 &&
+        ((hdr[16] << 8) | hdr[17]) == (pageSize & 0xffff) && hdr[20] == 28,
+        "plaintext header: header not in plaintext");
+  CHECK(!gcmFileContains(GCM_MARKER) && !gcmFileContains("CREATE TABLE"), "plaintext header: plaintext in the database file");
+  CHECK(gcmCheck(config, NULL) == SQLITE_OK, "plaintext header: reopen");
+  rc = gcmCheck(noSalt, NULL);
+  CHECK(rc != SQLITE_OK, "plaintext header: opened without the salt (rc=%d)", rc);
+  rc = gcmCheck(otherSalt, NULL);
+  CHECK(rc == SQLITE_NOTADB, "plaintext header: opened with another salt (rc=%d)", rc);
+  remove(GCM_DBFILE);
+}
+
+static void testAes256GcmDatabase(void)
+{
+  int before = failures;
+  size_t i;
+  for (i = 0; i < sizeof(gcmVariants) / sizeof(gcmVariants[0]); i++)
+  {
+    testAes256GcmVariant(&gcmVariants[i]);
+  }
+  testAes256GcmPlaintextHeader();
+  printf("  aes256gcm on database level: %s\n", failures == before ? "ok" : "FAILED");
+}
+
 int main(int argc, char** argv)
 {
   int rounds = (argc > 1) ? atoi(argv[1]) : 200;
@@ -618,6 +1118,7 @@ int main(int argc, char** argv)
     int before = failures;
     testKnownAnswers(impls[i]);
     testKnownAnswersGcmSiv(impls[i]);
+    testWycheproofGcmSiv(impls[i]);
     testGcmSivCounterWrap(impls[i]);
     testGcmSivNonceReuse(impls[i]);
     testPages(impls[i]);
@@ -629,6 +1130,7 @@ int main(int argc, char** argv)
   testCrossBlocks(rounds);
   testCrossXaes(rounds);
   testCrossGcmSiv(rounds);
+  testAes256GcmDatabase();
 
   printf("%d checks, %d failures\n", checks, failures);
   return failures != 0;
