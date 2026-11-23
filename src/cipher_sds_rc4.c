@@ -152,6 +152,17 @@ DecryptPageRC4Cipher(void* cipher, int page, unsigned char* data, int len, int r
   /* Use the legacy encryption scheme */
   sqlite3mcRC4(rc4Cipher->m_key, rc4Cipher->m_keyLength, data, len, data);
 
+  /*
+  ** Page 1: this cipher scheme doesn't use reserved bytes, so the reserved size in the
+  ** database header (offset 20) must be 0. RC4 is a pure stream cipher without any
+  ** authentication, a modified value would make SQLite interpret the pages with a wrong
+  ** layout.
+  */
+  if (page == 1 && data[20] != 0)
+  {
+    return SQLITE_NOTADB;
+  }
+
   return rc;
 }
 

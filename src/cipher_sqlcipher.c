@@ -562,6 +562,18 @@ DecryptPageSQLCipherCipher(void* cipher, int page, unsigned char* data, int len,
     return (page == 1) ? SQLITE_NOTADB : SQLITE_CORRUPT;
   }
 
+  /*
+  ** Page 1: if the reserved size in the database header (offset 20) is not encrypted
+  ** (offset > 20: non-legacy mode or a plaintext header), it is not covered by the HMAC
+  ** either. SQLite takes the usable size of the pages from the header; a modified value
+  ** would make SQLite interpret the pages with a wrong layout. Therefore the value must
+  ** match the reserved size of this cipher scheme. Not checked in recovery mode.
+  */
+  if (page == 1 && hmacCheck != 0 && offset > 20 && data[20] != (unsigned char) nReserved)
+  {
+    return SQLITE_NOTADB;
+  }
+
 #if SQLITE3MC_ENABLE_SQLCIPHER5 != 0
   if (sqlCipherCipher->m_legacy == SQLCIPHER_VERSION_5)
   {

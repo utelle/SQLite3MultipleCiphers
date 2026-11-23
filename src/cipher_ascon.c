@@ -263,6 +263,17 @@ DecryptPageAscon128Cipher(void* cipher, int page, unsigned char* data, int len, 
     return (page == 1) ? SQLITE_NOTADB : SQLITE_CORRUPT;
   }
 
+  /*
+  ** Page 1: the reserved size in the database header (offset 20, not encrypted) must match
+  ** the reserved size of this cipher scheme. SQLite takes the usable size of the pages from
+  ** the header; a modified value would make SQLite interpret the (authenticated) pages
+  ** with a wrong layout. Not checked in recovery mode (hmac_check=0).
+  */
+  if (page == 1 && hmacCheck != 0 && data[20] != (unsigned char) nReserved)
+  {
+    return SQLITE_NOTADB;
+  }
+
   /* Decrypt and verify MAC */
   memset(otk, 0, ASCON_HASH_BYTES);
   AsconGenOtk(otk, ascon128Cipher->m_key, data + n + PAGE_TAG_LEN_ASCON128, page);

@@ -334,6 +334,17 @@ DecryptPageAes256GcmCipher(void* cipher, int page, unsigned char* data, int len,
     return (page == 1) ? SQLITE_NOTADB : SQLITE_CORRUPT;
   }
 
+  /*
+  ** Page 1: the reserved size in the database header (offset 20, not encrypted) must match
+  ** the reserved size of this cipher scheme. SQLite takes the usable size of the pages from
+  ** the header; a modified value would make SQLite interpret the (authenticated) pages
+  ** with a wrong layout. Not checked in recovery mode (hmac_check=0).
+  */
+  if (page == 1 && hmacCheck != 0 && data[20] != (unsigned char) nReserved)
+  {
+    return SQLITE_NOTADB;
+  }
+
   if (hmacCheck != 0)
   {
     /* Decrypt and verify the tag */
