@@ -10,6 +10,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `PRAGMA cipher='name{param=value,...}'` selects a cipher scheme and configures several of its parameters at once. Only parameters of the specified cipher scheme are accepted. Presets (e.g. `legacy` of SQLCipher) are applied first, values may be aliases or enclosed in single quotes. Errors in the structure of the list, unknown cipher or parameter names and invalid values are reported as errors; in this case nothing is changed.
+- Add plausibility check of param value alias names
+- Add new cipher scheme `aes256gcm`
+- Add preliminary support for SQLCipher 5 (currently in beta phase) - **DO NOT USE FOR PRODUCTION!**
+
+### Changed
+
+- Revised AES implementation
+- Unified cipher configuration
+  The separate implementations for the 4 configuration methods (C API, SQL functions, PRAGMA statements, URI parameters) were unified to use common helper functions.
+- Add an option to take all random values directly from the OS
+- Update `libaegis` code to version 0.10.7
+- Changed syntax for raw key material to avoid misinterpreting binary and hexadecimal strings
+
+### Fixed
+
+- Ciphers `ascon128`, `aegis`, and `aes256gcm`: the reserved size in the database header (offset 20) was not verified against the reserved size of the cipher scheme, so that a modified header byte made SQLite interpret authenticated pages with a wrong usable size. Databases with a wrong value are now rejected (`SQLITE_NOTADB`), unless in recovery mode (`hmac_check=0`).
+  The reserved size is also checked for `sqlcipher`, if the byte at offset 20 is not encrypted (like non-legacy mode, or if `plaintext_header_size` is greater or equal 32. For the cipher scheme `rc4` it is checked that **no** reserved bytes are used, because the cipher scheme encrypts always whole pages unconditionally.
+- mcReadDatabaseHeader ignored the result of sqlite3OsFileSize; a failed size query made a short header read look like an empty file, for which a new random salt is generated
+- sqlite3_rekey_v2 looked up the schema index, the database file name, the b-tree and the codec before it entered the connection mutex; on a serialized connection another thread could detach the database in this window
+- Handle failure on setting up a key from URI parameter
+  - the hexkey URI parameter is decoded into an allocated buffer; if the allocation failed, no key was set and no error was reported, so sqlite3_open and ATTACH succeeded and wrote the database in plaintext
+  - if the cipher configuration or the key of the main database fails in sqlite3_open, mark the returned connection handle as unusable (SQLITE_STATE_SICK), as SQLite does for every other failed open; until now the handle stayed fully usable without encryption although sqlite3_open had returned an error
+- Fix possible use after free of cipher config
+  After sqlite3_close_v2() with unfinalized statements, `db->mcConfig` points to the freed cipher configuration. Clear the pointer in the destructor of the cipher configuration.
+- Check full database header for all-zero
+  - mcMainDbLooksEncrypted treated a database whose first 16 bytes are zero as not encrypted
+  - an all-zero salt is a supported configuration (PRAGMA cipher_salt, raw key with salt)
+  - only a checked header that is zero as a whole (preallocated file that was never written) is taken for "not encrypted"
+- Fix state check of page 1 in a hot journal
+  - mcJournalFirstRecordState scanned 16 records with a fixed stride and ignored the record count (nRec) of the journal header
+  - if the first journal segment holds fewer than 16 records (pager spilled early, small page cache), the scan ran into the next segment at a misaligned position and took page content for page numbers
+  - follow the segment headers on sector boundaries and examine only the nRec records of each segment, exactly as pager_playback does
+  - limit the number of headers followed, so a crafted journal can not cause an unbounded number of reads
+- `mcReadDatabaseHeader` ignored the result of sqlite3OsFileSize; a failed size query made a short header read look like an empty file, for which a new random salt is generated
+- Detect OOM for BLOB and TEXT args in VLE functions
+- a file with version 2 I/O methods and without xShmMap was given the method table with the SHM forwarders (only version 3 was handled); SQLite then accepted WAL mode and called the missing method
+- Fix issue with autovacuum (Don't decrypt pages behind the end of the database file)
+- Don't decrypt pages behind the end of the database file
 
 ## [2.7.1] - 2026-11-15
 

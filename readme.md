@@ -10,10 +10,14 @@ The code was mainly developed under Windows, but was tested under Linux as well.
 
 ## Version information
 
-- 2.7.1 - *November 2026*
-  - Fixed issue #308 - In 64-bit WASM builds random number generation aborts. 32-bit WASM builds are not affected.
-  - Fixed issue #309 - `sqlite3_rekey` did not use the transient cipher parameter values, if the old and new cipher scheme were identical. Instead the default values were used. The expected behaviour has been restored.
-  - Fixed issue #310 - Call `sqlite3OsFileControlHint` instead of `sqlite3OsFileControl` to check whether a codec is in use. Only `SQLITE_TEST` builds are affected
+- 2.8.0 - *Upcoming (planned for first half of December 2026)*
+  > **Note:** Version 2.8.0 has not been released yet. The current repository trunk is a development snapshot and is **not recommended for production use**. For production, please use the latest official release, [2.7.1](https://github.com/utelle/SQLite3MultipleCiphers/releases/tag/v2.7.1).
+
+  - Added convenience method to specify cipher configuration parameters in `PRAGMA cipher`
+  - Added new modern AEAD cipher scheme `aes256gcm`
+  - Added preliminary support for SQLCipher 5 (currently in [beta phase](https://www.zetetic.net/blog/2026/10/22/sqlcipher-5.0.0-beta.1/)) - **DO NOT USE FOR PRODUCTION!**
+  - Revised AES implementations with improved performance
+  - Updated `libaegis` code to version 0.10.7 (improved performance on machines without AES hardware support)
 
 For details and further version information please consult the [CHANGELOG](CHANGELOG.md).
 
