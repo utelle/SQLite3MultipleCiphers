@@ -474,7 +474,7 @@ static void set_cipher(sqlite3* db, const char* cipher)
 {
   if (cipher)
   {
-    char sql[64];
+    char sql[128];
     snprintf(sql, sizeof(sql), "PRAGMA cipher='%s'", cipher);
     sqlite3_exec(db, sql, 0, 0, 0);
   }
@@ -695,6 +695,11 @@ static int open_new_state(const Scen* s, sqlite3** pDb, int* pN)
 /* ------------------------------------------------------------------ */
 /* Part 1 (and 4): commit failures                                    */
 /* ------------------------------------------------------------------ */
+/* aes256gcm with its two algorithms: GCM-SIV (28 reserved bytes) and XAES-256-GCM (40);
+** cheap Argon2 parameters keep the test fast */
+#define GCM_SIV  "aes256gcm{algorithm=aes-256-gcm-siv,mcost=1024,tcost=1}"
+#define GCM_XAES "aes256gcm{algorithm=xaes-256-gcm,mcost=1024,tcost=1}"
+
 static const Scen scenarios[] =
 {
   /* encrypted -> encrypted, same reserved bytes (normal path) */
@@ -722,6 +727,18 @@ static const Scen scenarios[] =
   { "plain -> sqlcipher [VACUUM]: sync failure",   NULL,        NULL,      "sqlcipher", "new-key", F_DB_SYNC,        0  },
   { "sqlcipher -> plain [VACUUM]: control",        "sqlcipher", "old-key", NULL,        NULL,      F_NONE,           0  },
   { "sqlcipher -> plain [VACUUM]: sync failure",   "sqlcipher", "old-key", NULL,        NULL,      F_DB_SYNC,        0  },
+  /* aes256gcm: same algorithm (normal path), other algorithm or cipher (VACUUM path) */
+  { "aes256gcm -> aes256gcm: control",             GCM_SIV,     "old-key", GCM_SIV,     "new-key", F_NONE,           0  },
+  { "aes256gcm -> aes256gcm: sync failure",        GCM_SIV,     "old-key", GCM_SIV,     "new-key", F_DB_SYNC,        0  },
+  { "aes256gcm -> aes256gcm: sync failure, spill", GCM_SIV,     "old-key", GCM_SIV,     "new-key", F_DB_SYNC,        10 },
+  { "aes256gcm -> aes256gcm: journal delete failure", GCM_SIV,  "old-key", GCM_SIV,     "new-key", F_JOURNAL_DELETE, 0  },
+  { "chacha20 -> aes256gcm [VACUUM]: control",     "chacha20",  "old-key", GCM_SIV,     "new-key", F_NONE,           0  },
+  { "chacha20 -> aes256gcm [VACUUM]: sync failure", "chacha20", "old-key", GCM_SIV,     "new-key", F_DB_SYNC,        0  },
+  { "aes256gcm -> aes256gcm/xaes [VACUUM]: control", GCM_SIV,   "old-key", GCM_XAES,    "new-key", F_NONE,           0  },
+  { "aes256gcm -> aes256gcm/xaes [VACUUM]: sync failure", GCM_SIV, "old-key", GCM_XAES, "new-key", F_DB_SYNC,        0  },
+  { "aes256gcm/xaes -> aes256gcm/xaes: sync failure", GCM_XAES, "old-key", GCM_XAES,    "new-key", F_DB_SYNC,        0  },
+  { "plain -> aes256gcm/xaes [VACUUM]: sync failure", NULL,     NULL,      GCM_XAES,    "new-key", F_DB_SYNC,        0  },
+  { "aes256gcm/xaes -> plain [VACUUM]: sync failure", GCM_XAES, "old-key", NULL,        NULL,      F_DB_SYNC,        0  },
 };
 
 /* WAL mode: commit failure = sync failure on the WAL file.
@@ -740,6 +757,11 @@ static const Scen walScenarios[] =
   { "WAL plain -> chacha20 [VACUUM] (rekey_salt): WAL sync",      NULL,        NULL,      "chacha20", "new-key", F_WAL_SYNC, 0, 1 },
   { "WAL chacha20 -> plain [VACUUM]: control",              "chacha20",  "old-key", NULL,       NULL,      F_NONE,     0,  0 },
   { "WAL chacha20 -> plain [VACUUM]: WAL sync",             "chacha20",  "old-key", NULL,       NULL,      F_WAL_SYNC, 0,  0 },
+  { "WAL aes256gcm -> aes256gcm (old salt): WAL sync",       GCM_SIV,     "old-key", GCM_SIV,    "new-key", F_WAL_SYNC, 0,  0 },
+  { "WAL aes256gcm -> aes256gcm (rekey_salt): control",      GCM_SIV,     "old-key", GCM_SIV,    "new-key", F_NONE,     0,  1 },
+  { "WAL aes256gcm -> aes256gcm (rekey_salt): WAL sync",     GCM_SIV,     "old-key", GCM_SIV,    "new-key", F_WAL_SYNC, 0,  1 },
+  { "WAL aes256gcm -> aes256gcm/xaes [VACUUM] (rekey_salt): control",  GCM_SIV, "old-key", GCM_XAES, "new-key", F_NONE,     0, 1 },
+  { "WAL aes256gcm -> aes256gcm/xaes [VACUUM] (rekey_salt): WAL sync", GCM_SIV, "old-key", GCM_XAES, "new-key", F_WAL_SYNC, 0, 1 },
 };
 
 static void run(const Scen* s)
@@ -886,6 +908,8 @@ static const Scen txnScenarios[] =
   { "chacha20 -> chacha20 [in-place]",  "chacha20",  "old-key", "chacha20",  "new-key", F_NONE, 0 },
   { "plain -> aes128cbc [in-place]",    NULL,        NULL,      "aes128cbc", "new-key", F_NONE, 0 },
   { "aes128cbc -> plain [in-place]",    "aes128cbc", "old-key", NULL,        NULL,      F_NONE, 0 },
+  { "aes256gcm -> aes256gcm [in-place]",  GCM_SIV,   "old-key", GCM_SIV,     "new-key", F_NONE, 0 },
+  { "aes256gcm -> aes256gcm/xaes [VACUUM]", GCM_SIV, "old-key", GCM_XAES,    "new-key", F_NONE, 0 },
 };
 
 static void run_in_txn(const Scen* s)
@@ -951,6 +975,7 @@ static const Scen miscScenarios[] =
   { "chacha20 -> chacha20 [in-place]", "chacha20",  "old-key", "chacha20", "new-key", F_NONE, 0 },
   { "aes128cbc -> chacha20 [VACUUM]",  "aes128cbc", "old-key", "chacha20", "new-key", F_NONE, 0 },
   { "plain -> chacha20 [VACUUM]",      NULL,        NULL,      "chacha20", "new-key", F_NONE, 0 },
+  { "aes256gcm -> aes256gcm [in-place]", GCM_SIV,  "old-key", GCM_SIV,    "new-key", F_NONE, 0 },
 };
 
 /* A SELECT is in the middle of its run (read transaction open, autocommit=1).
@@ -1044,6 +1069,7 @@ static const Scen oomScenarios[] =
   { "plain -> aes128cbc + sync failure", NULL,        NULL,      "aes128cbc", "new-key", F_DB_SYNC, 0 },
   { "aes128cbc -> plain",                "aes128cbc", "old-key", NULL,        NULL,      F_NONE,    0 },
   { "aes128cbc -> plain + sync failure", "aes128cbc", "old-key", NULL,        NULL,      F_DB_SYNC, 0 },
+  { "aes256gcm -> aes256gcm/xaes [VACUUM] + sync failure", GCM_SIV, "old-key", GCM_XAES, "new-key", F_DB_SYNC, 0 },
 };
 
 /* WAL: only cases in which the new state can be opened without cipher_salt
