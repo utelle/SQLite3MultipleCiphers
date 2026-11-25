@@ -261,6 +261,11 @@ DecryptPageAES128Cipher(void* cipher, int page, unsigned char* data, int len, in
       {
         memcpy(data, SQLITE_FILE_HEADER, 16);
       }
+      else if (hmacCheck)
+      {
+        /* Wrong key: never hand garbage to the pager (a checkpoint would write it back) */
+        rc = SQLITE_NOTADB;
+      }
     }
   }
   return rc;
