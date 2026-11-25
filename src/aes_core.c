@@ -816,7 +816,20 @@ aesCbcCtsDecryptHw(const AesCtx* ctx, const unsigned char iv[16], unsigned char*
 }
 
 /*
-** Optional: define SQLITE3MC_AES_HW_HAS_ENCRYPT_BLOCKS and include aes_hw_blocks.c
+** The interleaved multi-block encryption of aes_hw_blocks.c is used for
+** sqlite3mcAesEncryptBlocks() whenever it is compiled in (AES-NI, or AArch64
+** with the crypto extension). Without it every block is encrypted by a separate
+** call of the CBC function, which makes the counter mode of AES-GCM-SIV and
+** XAES-256-GCM considerably slower. Define SQLITE3MC_AES_HW_NO_ENCRYPT_BLOCKS
+** to keep the generic block-by-block function.
+*/
+#if defined(AES_HW_BLOCKS_AVAILABLE) && !defined(SQLITE3MC_AES_HW_NO_ENCRYPT_BLOCKS) \
+    && !defined(SQLITE3MC_AES_HW_HAS_ENCRYPT_BLOCKS)
+# define SQLITE3MC_AES_HW_HAS_ENCRYPT_BLOCKS 1
+#endif
+
+/*
+** Define SQLITE3MC_AES_HW_HAS_ENCRYPT_BLOCKS and include aes_hw_blocks.c
 ** (before this file, or provide the function elsewhere) to use the interleaved
 ** multi-block encryption of the hardware backend for sqlite3mcAesEncryptBlocks():
 **   int sqlite3mcAesHwEncryptBlocks(const unsigned char* in, unsigned char* out, size_t nblocks,
