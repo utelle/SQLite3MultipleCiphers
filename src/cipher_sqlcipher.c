@@ -14,9 +14,10 @@
 
 #define CIPHER_NAME_SQLCIPHER "sqlcipher"
 
-/* TODO: Disable for Release until SQLCIPHER5 has been released officially */
-/* !!! Enabled for testing only !!! */
-#define SQLITE3MC_ENABLE_SQLCIPHER5 1
+/* TODO: Enable by default after official release of SQLCipher version 5 */
+#ifndef SQLITE3MC_ENABLE_SQLCIPHER5
+#define SQLITE3MC_ENABLE_SQLCIPHER5 0
+#endif
 
 /*
 ** Configuration parameters for "sqlcipher"
