@@ -502,7 +502,11 @@ sqlite3mcGetBtShared(Codec* codec)
 SQLITE_PRIVATE int
 sqlite3mcGetPageSize(Codec* codec)
 {
-  return codec->m_btShared->pageSize;
+  /*
+  ** Use the pager's page size: during hot journal playback the pager takes the page size
+  ** from the journal header before page 1 (and thus BtShared->pageSize) is known.
+  */
+  return (codec->m_btShared->pPager != NULL) ? codec->m_btShared->pPager->pageSize : codec->m_btShared->pageSize;
 }
 
 SQLITE_PRIVATE int
