@@ -411,6 +411,29 @@ sqlite3_key_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
     dbIndex = (zDbName) ? sqlite3FindDbName(db, zDbName) : 0;
     if (dbIndex >= 0 && dbIndex != 1)
     {
+      /*
+      ** Changing the key replaces the codec and clears the page cache. This
+      ** would silently discard the dirty pages of a write transaction and
+      ** invalidate the pages held by a read transaction, and could leave the
+      ** database file in an unreadable state. Therefore the key must be set
+      ** before the database is used. This does not affect ATTACH ... KEY,
+      ** which does not go through this function, nor the repetition of a
+      ** key after a wrong one, as no transaction could be started then.
+      ** The existing codec is left untouched, so the connection is neither
+      ** unencrypted nor invalidated.
+      */
+      Btree* pBtKey = db->aDb[dbIndex].pBt;
+      /*
+      ** In shared cache mode the pager (and its codec) is shared by all connections
+      ** using the same database, therefore the state of the shared b-tree is checked,
+      ** not only the state of the b-tree handle of this connection.
+      */
+      if (pBtKey != NULL && pBtKey->pBt != NULL && pBtKey->pBt->inTransaction != TRANS_NONE)
+      {
+        rc = SQLITE_ERROR;
+        sqlite3ErrorWithMsg(db, rc, "Setting key failed for '%s'. The key can not be set while a transaction is active.", (zDbName) ? zDbName : "main");
+        goto leave_key;
+      }
       rc = sqlite3mcCodecAttach(db, dbIndex, dbFileName, zKey, nKey);
       if (rc != SQLITE_OK)
       {
@@ -616,7 +639,7 @@ sqlite3_rekey_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
 
   if (!db->autoCommit || sqlite3BtreeTxnState(pBt) != SQLITE_TXN_NONE)
   {
-    rc = SQLITE_MISUSE;
+    rc = SQLITE_ERROR;
     sqlite3ErrorWithMsg(db, rc, "Rekeying failed. Cannot rekey while a transaction is open.");
     sqlite3_mutex_leave(db->mutex);
     return rc;
