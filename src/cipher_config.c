@@ -1835,13 +1835,13 @@ sqlite3mcCodecQueryParameters(sqlite3* db, const char* zDb, const char* zUri, in
       sqlite3ErrorWithMsg(db, *ret, "Setting up cipher key failed due to invalid hexkey parameter.");
     }
   }
-  else if ((zKey = sqlite3_uri_parameter(zUri, "key")) != 0)
+  else if ((zKey = sqlite3_uri_parameter(zUri, "key")) != 0 && zKey[0])
   {
     *ret = sqlite3_key_v2(db, zDb, zKey, sqlite3Strlen30(zKey));
     if (*ret != SQLITE_OK)
       sqlite3ErrorWithMsg(db, *ret, "Setting up cipher key failed.");
   }
-  else if ((zKey = sqlite3_uri_parameter(zUri, "textkey")) != 0)
+  else if ((zKey = sqlite3_uri_parameter(zUri, "textkey")) != 0 && zKey[0])
   {
     *ret = sqlite3_key_v2(db, zDb, zKey, -1);
     if (*ret != SQLITE_OK)

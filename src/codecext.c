@@ -415,6 +415,14 @@ sqlite3_key_v2(sqlite3* db, const char* zDbName, const void* zKey, int nKey)
       if (rc != SQLITE_OK)
       {
         sqlite3ErrorWithMsg(db, rc, "Setting key failed for '%s'.", (zDbName) ? zDbName : "main");
+        if (dbIndex == 0)
+        {
+          if (sqlite3_errcode(db) == SQLITE_OK)
+          {
+            sqlite3Error(db, rc);
+          }
+          db->eOpenState = SQLITE_STATE_SICK;
+        }
       }
     }
     else
