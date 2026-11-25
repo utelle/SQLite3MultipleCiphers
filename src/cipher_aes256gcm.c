@@ -34,7 +34,10 @@
 ** The page number (4 bytes, big endian) is authenticated as additional data,
 ** so pages can not be swapped unnoticed. The first 16 bytes of the database
 ** file contain the key salt, bytes 16 to 23 of page 1 are not encrypted (as in
-** the other SQLite3 Multiple Ciphers schemes).
+** the other SQLite3 Multiple Ciphers schemes). On page 1 all header bytes that
+** are not encrypted (from offset 16 up to offset 24, or up to the end of the
+** plaintext header if parameter plaintext_header_size is greater than 24) are
+** authenticated, too: they follow the page number in the additional data.
 */
 
 #define AES256GCM_ALGORITHM_GCMSIV  1
@@ -293,6 +296,8 @@ EncryptPageAes256GcmCipher(void* cipher, int page, unsigned char* data, int len,
   int n = len - nReserved;
   int usePlaintextHeader = 0;
   int offset = Aes256GcmPageOffset(aesCipher, page, &usePlaintextHeader);
+  const unsigned char* aadExtra = NULL;
+  size_t aadExtraLen = 0;
 
   /* Check whether number of required reserved bytes and actually reserved bytes match */
   if (nReserved != reserved)
@@ -300,15 +305,23 @@ EncryptPageAes256GcmCipher(void* cipher, int page, unsigned char* data, int len,
     return SQLITE_CORRUPT;
   }
 
-  /* Generate nonce, encrypt and authenticate (page number is additional data) */
+  /*
+  ** Generate nonce, encrypt and authenticate. Additional data: the page number and, on page 1,
+  ** the unencrypted header bytes behind the salt (offsets 16 up to the start of the encrypted area)
+  */
+  if (offset > SALTLENGTH_AES256GCM)
+  {
+    aadExtra = data + SALTLENGTH_AES256GCM;
+    aadExtraLen = (size_t) (offset - SALTLENGTH_AES256GCM);
+  }
   chacha20_rng(data + n, aesCipher->m_nonceLength);
   if (aesCipher->m_algorithm == AES256GCM_ALGORITHM_XAES)
   {
-    rc = sqlite3mcAesXaesPageSeal(aesCipher->m_aes, (uint32_t) page, data + offset, n - offset, data + offset, data + n);
+    rc = sqlite3mcAesXaesPageSealEx(aesCipher->m_aes, (uint32_t) page, aadExtra, aadExtraLen, data + offset, n - offset, data + offset, data + n);
   }
   else
   {
-    rc = sqlite3mcAesGcmSivPageSeal(aesCipher->m_aes, (uint32_t) page, data + offset, n - offset, data + offset, data + n);
+    rc = sqlite3mcAesGcmSivPageSealEx(aesCipher->m_aes, (uint32_t) page, aadExtra, aadExtraLen, data + offset, n - offset, data + offset, data + n);
   }
 
   if (rc == SQLITE_OK && page == 1 && usePlaintextHeader == 0)
@@ -327,6 +340,8 @@ DecryptPageAes256GcmCipher(void* cipher, int page, unsigned char* data, int len,
   int n = len - nReserved;
   int usePlaintextHeader = 0;
   int offset = Aes256GcmPageOffset(aesCipher, page, &usePlaintextHeader);
+  const unsigned char* aadExtra = NULL;
+  size_t aadExtraLen = 0;
 
   /* Check whether number of required reserved bytes and actually reserved bytes match */
   if (nReserved != reserved)
@@ -347,14 +362,19 @@ DecryptPageAes256GcmCipher(void* cipher, int page, unsigned char* data, int len,
 
   if (hmacCheck != 0)
   {
-    /* Decrypt and verify the tag */
+    /* Decrypt and verify the tag; the additional data are the same as on encryption (see above) */
+    if (offset > SALTLENGTH_AES256GCM)
+    {
+      aadExtra = data + SALTLENGTH_AES256GCM;
+      aadExtraLen = (size_t) (offset - SALTLENGTH_AES256GCM);
+    }
     if (aesCipher->m_algorithm == AES256GCM_ALGORITHM_XAES)
     {
-      rc = sqlite3mcAesXaesPageOpen(aesCipher->m_aes, (uint32_t) page, data + offset, n - offset, data + offset, data + n);
+      rc = sqlite3mcAesXaesPageOpenEx(aesCipher->m_aes, (uint32_t) page, aadExtra, aadExtraLen, data + offset, n - offset, data + offset, data + n);
     }
     else
     {
-      rc = sqlite3mcAesGcmSivPageOpen(aesCipher->m_aes, (uint32_t) page, data + offset, n - offset, data + offset, data + n);
+      rc = sqlite3mcAesGcmSivPageOpenEx(aesCipher->m_aes, (uint32_t) page, aadExtra, aadExtraLen, data + offset, n - offset, data + offset, data + n);
     }
     if (rc == AES_GCM_TAG_MISMATCH)
     {

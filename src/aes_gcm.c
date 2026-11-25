@@ -24,6 +24,7 @@
 **   sqlite3mcAesXaesOpen(ctx, nonce, aad, aadLen, in, len, tag, out)
 **   sqlite3mcAesXaesPageSeal(ctx, pgno, in, len, out, reserve)   SQLCipher 5 page
 **   sqlite3mcAesXaesPageOpen(ctx, pgno, in, len, out, reserve)
+**   sqlite3mcAesXaesPageSealEx/OpenEx(ctx, pgno, aadExtra, aadExtraLen, ...)  extra AAD bytes after the page number
 **   sqlite3mcAesXaesOpenUnverified(ctx, nonce, in, len, out)     decrypt without tag check
 **   sqlite3mcAesGhashGet(impl) / sqlite3mcAesGhashSelect(impl)   GHASH variants
 **
@@ -36,6 +37,7 @@
 **   sqlite3mcAesGcmSivOpen(ctx, nonce, aad, aadLen, in, len, tag, out)
 **   sqlite3mcAesGcmSivPageSeal(ctx, pgno, in, len, out, reserve)
 **   sqlite3mcAesGcmSivPageOpen(ctx, pgno, in, len, out, reserve)
+**   sqlite3mcAesGcmSivPageSealEx/OpenEx(ctx, pgno, aadExtra, aadExtraLen, ...)
 **   sqlite3mcAesGcmSivOpenUnverified(ctx, nonce, in, len, tag, out)   decrypt without tag check
 **
 ** The "Unverified" functions skip the authentication (recovery of damaged
@@ -924,6 +926,16 @@ sqlite3mcAesXaesOpenUnverified(const AesCtx* mainCtx, const unsigned char nonce[
   return rc;
 }
 
+/*
+** Additional authenticated data of a database page: the page number (4 bytes,
+** big endian), optionally followed by extra bytes. The extra bytes are used
+** for page 1 of the cipher scheme aes256gcm: the header bytes that are not
+** encrypted (from offset 16, behind the key salt, up to the end of the
+** unencrypted part of the page). Without extra bytes the AAD is the page
+** number only (SQLCipher 5 layout).
+*/
+#define AES_PAGE_AAD_MAX_EXTRA 128
+
 static void
 aesXaesPageAad(unsigned char aad[4], uint32_t pgno)
 {
@@ -933,17 +945,45 @@ aesXaesPageAad(unsigned char aad[4], uint32_t pgno)
   aad[3] = (unsigned char) pgno;
 }
 
+static int
+aesPageAadEx(unsigned char aad[4 + AES_PAGE_AAD_MAX_EXTRA], size_t* aadLen, uint32_t pgno,
+             const unsigned char* extra, size_t extraLen)
+{
+  if (extraLen > AES_PAGE_AAD_MAX_EXTRA || (extraLen > 0 && extra == NULL))
+  {
+    return SQLITE_MISUSE;
+  }
+  aesXaesPageAad(aad, pgno);
+  if (extraLen > 0)
+  {
+    memcpy(aad + 4, extra, extraLen);
+  }
+  *aadLen = 4 + extraLen;
+  return SQLITE_OK;
+}
+
 /*
 ** Encrypt a database page (SQLCipher 5 layout, see above). reserve[0..24)
 ** must contain the random nonce; the tag is written to reserve[24..40).
+** The Ex variant authenticates additional bytes (aadExtra) besides the page number.
 */
+SQLITE_PRIVATE int
+sqlite3mcAesXaesPageSealEx(const AesCtx* mainCtx, uint32_t pgno, const unsigned char* aadExtra, size_t aadExtraLen,
+                           const unsigned char* in, size_t len,
+                           unsigned char* out, unsigned char reserve[AES_XAES_RESERVE_SIZE])
+{
+  unsigned char aad[4 + AES_PAGE_AAD_MAX_EXTRA];
+  size_t aadLen = 0;
+  int rc = aesPageAadEx(aad, &aadLen, pgno, aadExtra, aadExtraLen);
+  if (rc != SQLITE_OK) return rc;
+  return sqlite3mcAesXaesSeal(mainCtx, reserve, aad, aadLen, in, len, out, reserve + AES_XAES_NONCE_SIZE);
+}
+
 SQLITE_PRIVATE int
 sqlite3mcAesXaesPageSeal(const AesCtx* mainCtx, uint32_t pgno, const unsigned char* in, size_t len,
                          unsigned char* out, unsigned char reserve[AES_XAES_RESERVE_SIZE])
 {
-  unsigned char aad[4];
-  aesXaesPageAad(aad, pgno);
-  return sqlite3mcAesXaesSeal(mainCtx, reserve, aad, sizeof(aad), in, len, out, reserve + AES_XAES_NONCE_SIZE);
+  return sqlite3mcAesXaesPageSealEx(mainCtx, pgno, NULL, 0, in, len, out, reserve);
 }
 
 /*
@@ -951,12 +991,22 @@ sqlite3mcAesXaesPageSeal(const AesCtx* mainCtx, uint32_t pgno, const unsigned ch
 ** AES_GCM_TAG_MISMATCH (wrong key, wrong page number or damaged page).
 */
 SQLITE_PRIVATE int
+sqlite3mcAesXaesPageOpenEx(const AesCtx* mainCtx, uint32_t pgno, const unsigned char* aadExtra, size_t aadExtraLen,
+                           const unsigned char* in, size_t len,
+                           unsigned char* out, const unsigned char reserve[AES_XAES_RESERVE_SIZE])
+{
+  unsigned char aad[4 + AES_PAGE_AAD_MAX_EXTRA];
+  size_t aadLen = 0;
+  int rc = aesPageAadEx(aad, &aadLen, pgno, aadExtra, aadExtraLen);
+  if (rc != SQLITE_OK) return rc;
+  return sqlite3mcAesXaesOpen(mainCtx, reserve, aad, aadLen, in, len, reserve + AES_XAES_NONCE_SIZE, out);
+}
+
+SQLITE_PRIVATE int
 sqlite3mcAesXaesPageOpen(const AesCtx* mainCtx, uint32_t pgno, const unsigned char* in, size_t len,
                          unsigned char* out, const unsigned char reserve[AES_XAES_RESERVE_SIZE])
 {
-  unsigned char aad[4];
-  aesXaesPageAad(aad, pgno);
-  return sqlite3mcAesXaesOpen(mainCtx, reserve, aad, sizeof(aad), in, len, reserve + AES_XAES_NONCE_SIZE, out);
+  return sqlite3mcAesXaesPageOpenEx(mainCtx, pgno, NULL, 0, in, len, out, reserve);
 }
 
 /*
@@ -1298,21 +1348,41 @@ sqlite3mcAesGcmSivOpen(const AesCtx* mainCtx, const unsigned char nonce[12],
 ** nonce before PageSeal; the tag is written to reserve[12..28).
 */
 SQLITE_PRIVATE int
+sqlite3mcAesGcmSivPageSealEx(const AesCtx* mainCtx, uint32_t pgno, const unsigned char* aadExtra, size_t aadExtraLen,
+                             const unsigned char* in, size_t len,
+                             unsigned char* out, unsigned char reserve[AES_GCMSIV_RESERVE_SIZE])
+{
+  unsigned char aad[4 + AES_PAGE_AAD_MAX_EXTRA];
+  size_t aadLen = 0;
+  int rc = aesPageAadEx(aad, &aadLen, pgno, aadExtra, aadExtraLen);
+  if (rc != SQLITE_OK) return rc;
+  return sqlite3mcAesGcmSivSeal(mainCtx, reserve, aad, aadLen, in, len, out, reserve + AES_GCMSIV_NONCE_SIZE);
+}
+
+SQLITE_PRIVATE int
 sqlite3mcAesGcmSivPageSeal(const AesCtx* mainCtx, uint32_t pgno, const unsigned char* in, size_t len,
                            unsigned char* out, unsigned char reserve[AES_GCMSIV_RESERVE_SIZE])
 {
-  unsigned char aad[4];
-  aesXaesPageAad(aad, pgno);
-  return sqlite3mcAesGcmSivSeal(mainCtx, reserve, aad, sizeof(aad), in, len, out, reserve + AES_GCMSIV_NONCE_SIZE);
+  return sqlite3mcAesGcmSivPageSealEx(mainCtx, pgno, NULL, 0, in, len, out, reserve);
+}
+
+SQLITE_PRIVATE int
+sqlite3mcAesGcmSivPageOpenEx(const AesCtx* mainCtx, uint32_t pgno, const unsigned char* aadExtra, size_t aadExtraLen,
+                             const unsigned char* in, size_t len,
+                             unsigned char* out, const unsigned char reserve[AES_GCMSIV_RESERVE_SIZE])
+{
+  unsigned char aad[4 + AES_PAGE_AAD_MAX_EXTRA];
+  size_t aadLen = 0;
+  int rc = aesPageAadEx(aad, &aadLen, pgno, aadExtra, aadExtraLen);
+  if (rc != SQLITE_OK) return rc;
+  return sqlite3mcAesGcmSivOpen(mainCtx, reserve, aad, aadLen, in, len, reserve + AES_GCMSIV_NONCE_SIZE, out);
 }
 
 SQLITE_PRIVATE int
 sqlite3mcAesGcmSivPageOpen(const AesCtx* mainCtx, uint32_t pgno, const unsigned char* in, size_t len,
                            unsigned char* out, const unsigned char reserve[AES_GCMSIV_RESERVE_SIZE])
 {
-  unsigned char aad[4];
-  aesXaesPageAad(aad, pgno);
-  return sqlite3mcAesGcmSivOpen(mainCtx, reserve, aad, sizeof(aad), in, len, reserve + AES_GCMSIV_NONCE_SIZE, out);
+  return sqlite3mcAesGcmSivPageOpenEx(mainCtx, pgno, NULL, 0, in, len, out, reserve);
 }
 
 /*
