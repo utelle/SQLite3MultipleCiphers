@@ -56,6 +56,41 @@
 #define AES256GCM_PCOST_DEFAULT      1
 #define AES256GCM_KDF_ITER           256000
 
+#define AES256GCM_PRESET_MIN         1
+#define AES256GCM_PRESET_MAX         3
+#define AES256GCM_PRESET_DEFAULT     1
+
+/* Parameter "preset": configure parameters according to the selected preset */
+static void
+mcAes256GcmApplyPreset(sqlite3* db, const char* zCipher, CipherParamValueSlot eSlot, int preset)
+{
+  static const char* names[] = { "tcost", "mcost", "pcost", "kdf_iter", NULL };
+  static int presetParams[AES256GCM_PRESET_MAX][4] =
+  {
+    { 2,  19*1024, 1,  210000 },
+    { 3,  64*1024, 1,  256000 },
+    { 3, 256*1024, 1, 1000000 }
+  };
+  int configDefault = eSlot == CIPHER_PARAM_SLOT_DEFAULT;
+
+  if (preset > 0 && preset <= AES256GCM_PRESET_MAX)
+  {
+    CipherParamValueSlot eSlot = (configDefault != 0) ? CIPHER_PARAM_SLOT_DEFAULT : CIPHER_PARAM_SLOT_VALUE;
+    int* values = &presetParams[preset - 1][0];
+    int j;
+    for (j = 0; names[j] != NULL; ++j)
+    {
+      /* Called from the parameter hook of 'preset': the connection mutex is already held */
+      sqlite3mcConfigSetIntLocked(db, "aes256gcm", names[j], eSlot, values[j]);
+    }
+  }
+}
+
+static const CipherParamOps mcAes256GcmOpsPreset =
+{
+  NULL, NULL, NULL, mcAes256GcmApplyPreset, NULL
+};
+
 /* Names of the algorithms (aliases for the values of parameter "algorithm") */
 static const CipherParamAlias mcAes256GcmAlgorithmAliases[] =
 {
@@ -74,6 +109,7 @@ static const CipherParamAlias mcAes256GcmKdfAliases[] =
 
 SQLITE_PRIVATE CipherParams mcAes256GcmParams[] =
 {
+  { "preset",                AES256GCM_PRESET_DEFAULT,    AES256GCM_PRESET_DEFAULT,    AES256GCM_PRESET_MIN,   AES256GCM_PRESET_MAX, CIPHER_PARAM_FLAG_APPLY_FIRST, NULL, &mcAes256GcmOpsPreset },
   { "kdf",                   AES256GCM_KDF_DEFAULT,       AES256GCM_KDF_DEFAULT,       AES256GCM_KDF_ARGON2ID, AES256GCM_KDF_PBKDF2, 0, mcAes256GcmKdfAliases, NULL },
   { "tcost",                 AES256GCM_TCOST_DEFAULT,     AES256GCM_TCOST_DEFAULT,     ARGON2_MIN_TIME,        0x7fffffff },
   { "mcost",                 AES256GCM_MCOST_DEFAULT,     AES256GCM_MCOST_DEFAULT,     ARGON2_MIN_MEMORY,      0x7fffffff },
@@ -92,6 +128,7 @@ SQLITE_PRIVATE CipherParams mcAes256GcmParams[] =
 
 typedef struct _aes256GcmCipher
 {
+  int     m_preset;
   int     m_kdf;
   int     m_argon2Tcost;
   int     m_argon2Mcost;
@@ -132,6 +169,7 @@ AllocateAes256GcmCipher(sqlite3* db)
   if (aesCipher != NULL)
   {
     CipherParams* cipherParams = sqlite3mcGetCipherParams(db, CIPHER_NAME_AES256GCM);
+    aesCipher->m_preset = sqlite3mcGetCipherParameter(cipherParams, "preset");
     aesCipher->m_kdf = sqlite3mcGetCipherParameter(cipherParams, "kdf");
     aesCipher->m_argon2Tcost = sqlite3mcGetCipherParameter(cipherParams, "tcost");
     aesCipher->m_argon2Mcost = sqlite3mcGetCipherParameter(cipherParams, "mcost");
@@ -160,6 +198,7 @@ CloneAes256GcmCipher(void* cipherTo, void* cipherFrom)
   Aes256GcmCipher* aesCipherTo = (Aes256GcmCipher*) cipherTo;
   Aes256GcmCipher* aesCipherFrom = (Aes256GcmCipher*) cipherFrom;
 
+  aesCipherTo->m_preset = aesCipherFrom->m_preset;
   aesCipherTo->m_kdf = aesCipherFrom->m_kdf;
   aesCipherTo->m_argon2Tcost = aesCipherFrom->m_argon2Tcost;
   aesCipherTo->m_argon2Mcost = aesCipherFrom->m_argon2Mcost;
