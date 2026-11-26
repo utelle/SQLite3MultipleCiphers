@@ -103,6 +103,41 @@ jobs:
         ./crashtest
         ./vfsstacktest
 
+  windows_clang_cl:
+    # clang-cl defines both _MSC_VER and __SIZEOF_INT128__, a combination that
+    # neither the MSVC nor the gcc/clang CI jobs cover (see issue #319).
+    name: Windows clang-cl (${{ matrix.arch }})
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64, ARM64]
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v7
+    - name: Configure
+      run: cmake -B build -G "Visual Studio 17 2022" -A ${{ matrix.arch }} -T ClangCL
+    - name: Verify that clang-cl is used
+      shell: bash
+      run: |
+        f=$(find build -name CMakeCCompiler.cmake | head -1)
+        grep -E "CMAKE_C_COMPILER_(ID|FRONTEND_VARIANT) " "$f"
+        grep -q 'CMAKE_C_COMPILER_ID "Clang"' "$f"
+        grep -q 'CMAKE_C_COMPILER_FRONTEND_VARIANT "MSVC"' "$f"
+    - name: Build
+      run: cmake --build build --config Release
+    # ARM64 binaries are only cross-compiled here; the runner is x64.
+    - name: Testing
+      if: matrix.arch == 'x64'
+      shell: bash
+      run: |
+        sh=build/Release/sqlite3mc_shell.exe
+        $sh test1.db3 ".read test/test1.sql"
+        $sh test2.db3 ".read test/test2.sql"
+        $sh test/persons-aegis-testkey.db3 ".read test/test3.sql"
+        $sh test/persons-ascon128-testkey.db3 ".read test/test4.sql"
+        $sh dummy.db3 ".read test/sqlciphertest.sql"
+
   android_build:
     name: Android (API ${{ matrix.api-level }})
     runs-on: ubuntu-latest
