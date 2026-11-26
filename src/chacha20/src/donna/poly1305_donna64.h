@@ -5,7 +5,7 @@
 
 #include "../private/common.h"
 
-#if !defined(_MSC_VER)
+#if !defined(SQLITE3MC_POLY1305_HAVE_128BIT)
 #define SODIUM_MUL(out, x, y) out = ((uint128_t) x * y)
 #define SODIUM_ADD(out, in) out += in
 #define SODIUM_ADDLO(out, in) out += in
