@@ -1417,7 +1417,18 @@ static int mcReadMainDb(sqlite3_file* pFile, void* buffer, int count, sqlite3_in
         void* bufferDecrypted;
         if (shortRead && offset >= fileSize)
         {
-          break;
+          /*
+          ** Behind the end of the file only pages that were never written
+          ** may be read as zeros: all pages of an empty (new) database file
+          ** and the pages behind the database size in a write transaction.
+          ** Everywhere else a missing page means the file was truncated
+          ** (for example in WAL mode, where the pages are not in the WAL).
+          ** The zero-filled page then goes to the codec, which fails.
+          */
+          if (fileSize == 0 || mcZeroPageIsUnwritten(mcFile, pageNo))
+          {
+            break;
+          }
         }
         if (mcIsZeroPage(data, pageSize) && mcZeroPageIsUnwritten(mcFile, pageNo))
         {
