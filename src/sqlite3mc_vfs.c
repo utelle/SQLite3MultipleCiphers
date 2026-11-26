@@ -43,7 +43,12 @@ struct sqlite3mc_file
   int afterPage;               /* Last operation processed a page; a following */
                                /* 4-byte operation is the record checksum */
   mcTempCipher* tempCipher;    /* Cipher of a temporary file opened without a name */
+  unsigned int nPagesTxnStart; /* Size of the database in pages at the start of the current */
+                               /* write transaction (MC_PAGES_UNKNOWN if not known) */
 };
+
+/* Value of nPagesTxnStart if the database size at the start of the transaction is not known */
+#define MC_PAGES_UNKNOWN 0xFFFFFFFFu
 
 /*
 ** SQLite3 Multiple Ciphers VFS structure
@@ -1014,6 +1019,7 @@ static int mcVfsOpen(sqlite3_vfs* pVfs, const char* zName, sqlite3_file* pFile, 
   mcFile->openFlags = flags;
   mcFile->zFileName = zName;
   mcFile->codec = 0;
+  mcFile->nPagesTxnStart = MC_PAGES_UNKNOWN;
   mcFile->pMainDb = 0;
   mcFile->pMainNext = 0;
   mcFile->pageNo = 0;
@@ -1238,10 +1244,11 @@ static int mcIoClose(sqlite3_file* pFile)
 **
 ** The value is only valid if the "version-valid-for" number (offset 92)
 ** equals the file change counter (offset 24), the same rule SQLite applies.
-** A write transaction does not change page 1 in the file before the commit:
-** the page is referenced by the B-tree for the whole transaction and
-** therefore not spilled from the page cache. So during a write transaction
-** this is the size of the database at the start of the transaction.
+** Page 1 in the file is not necessarily unchanged during a write transaction:
+** it can be written back with the size of the database at a later point of the
+** transaction (for example when a savepoint is rolled back). Therefore this
+** size is only used as long as the size at the start of the transaction is
+** not known (see mcIoLock).
 */
 static unsigned int mcDbPagesFromFileHeader(sqlite3mc_file* mcFile)
 {
@@ -1278,9 +1285,12 @@ static unsigned int mcDbPagesFromFileHeader(sqlite3mc_file* mcFile)
 ** pager (dbOrigSize) cannot be used here, because it is derived from the
 ** file length and not from the database header.
 **
-** Every page up to the database size was written with MAC at some time. For
-** such a page an all-zero raw page is damage and has to fail. A valid page
-** is never all-zero in the raw form, because nonce and MAC are not zero.
+** Every page up to the database size at the start of the write transaction was
+** written with MAC at some time. For such a page an all-zero raw page is damage
+** and has to fail. A valid page is never all-zero in the raw form, because nonce
+** and MAC are not zero. Pages behind that size may be gaps, which SQLite reads
+** as zeros: page 1 and the pages above the size at the start of the transaction
+** are written in any order, the file can have gaps while the transaction runs.
 */
 static int mcZeroPageIsUnwritten(sqlite3mc_file* mcFile, unsigned int pageNo)
 {
@@ -1290,7 +1300,7 @@ static int mcZeroPageIsUnwritten(sqlite3mc_file* mcFile, unsigned int pageNo)
   {
     return 0;
   }
-  return pageNo > mcDbPagesFromFileHeader(mcFile);
+  return pageNo > ((mcFile->nPagesTxnStart != MC_PAGES_UNKNOWN) ? mcFile->nPagesTxnStart : mcDbPagesFromFileHeader(mcFile));
 }
 
 static int mcIsZeroPage(const unsigned char* data, int size)
@@ -2252,11 +2262,29 @@ static int mcIoFileSize(sqlite3_file* pFile, sqlite3_int64* pSize)
 
 static int mcIoLock(sqlite3_file* pFile, int lock)
 {
-  return REALFILE(pFile)->pMethods->xLock(REALFILE(pFile), lock);
+  sqlite3mc_file* mcFile = (sqlite3mc_file*) pFile;
+  int rc = REALFILE(pFile)->pMethods->xLock(REALFILE(pFile), lock);
+  if (rc == SQLITE_OK && lock >= SQLITE_LOCK_RESERVED &&
+      mcFile->nPagesTxnStart == MC_PAGES_UNKNOWN &&
+      (mcFile->openFlags & SQLITE_OPEN_MAIN_DB) && mcFile->codec != 0)
+  {
+    /*
+    ** A write transaction starts: remember the size of the database. Up to the first write
+    ** to the database file nothing has changed, so the header of page 1 in the file is still
+    ** the one from the start of the transaction.
+    */
+    mcFile->nPagesTxnStart = mcDbPagesFromFileHeader(mcFile);
+  }
+  return rc;
 }
 
 static int mcIoUnlock(sqlite3_file* pFile, int lock)
 {
+  sqlite3mc_file* mcFile = (sqlite3mc_file*) pFile;
+  if (lock < SQLITE_LOCK_RESERVED)
+  {
+    mcFile->nPagesTxnStart = MC_PAGES_UNKNOWN;
+  }
   return REALFILE(pFile)->pMethods->xUnlock(REALFILE(pFile), lock);
 }
 
