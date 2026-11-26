@@ -271,7 +271,7 @@ GenerateKeyAegisCipher(void* cipher, char* userPassword, int passwordLength, int
   {
     rc = ARGON2_OK;
   }
-  SQLITE3MC_DEBUG_LOG("generate: codec=%p pFile=%p\n", aegisCipher, fd);
+  SQLITE3MC_DEBUG_LOG("generate: codec=%p\n", aegisCipher);
   SQLITE3MC_DEBUG_HEX("generate  key:", aegisCipher->m_key, aegisCipher->m_keyLength);
   SQLITE3MC_DEBUG_HEX("generate salt:", aegisCipher->m_salt, SALTLENGTH_AEGIS);
   return (rc == ARGON2_OK) ? SQLITE_OK : SQLITE_ERROR;

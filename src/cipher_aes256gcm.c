@@ -255,7 +255,7 @@ GenerateKeyAes256GcmCipher(void* cipher, char* userPassword, int passwordLength,
   {
     rc = sqlite3mcAesGcmSivInit(aesCipher->m_aes, aesCipher->m_key);
   }
-  SQLITE3MC_DEBUG_LOG("generate: codec=%p pFile=%p\n", aesCipher, fd);
+  SQLITE3MC_DEBUG_LOG("generate: codec=%p\n", aesCipher);
   SQLITE3MC_DEBUG_HEX("generate  key:", aesCipher->m_key, KEYLENGTH_AES256GCM);
   SQLITE3MC_DEBUG_HEX("generate salt:", aesCipher->m_salt, SALTLENGTH_AES256GCM);
   return rc;

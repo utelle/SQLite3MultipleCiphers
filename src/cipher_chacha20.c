@@ -174,7 +174,7 @@ GenerateKeyChaCha20Cipher(void* cipher, char* userPassword, int passwordLength, 
                            chacha20Cipher->m_kdfIter,
                            chacha20Cipher->m_key, KEYLENGTH_CHACHA20);
   }
-  SQLITE3MC_DEBUG_LOG("generate: codec=%p pFile=%p\n", chacha20Cipher, fd);
+  SQLITE3MC_DEBUG_LOG("generate: codec=%p\n", chacha20Cipher);
   SQLITE3MC_DEBUG_HEX("generate  key:", chacha20Cipher->m_key, KEYLENGTH_CHACHA20);
   SQLITE3MC_DEBUG_HEX("generate salt:", chacha20Cipher->m_salt, SALTLENGTH_CHACHA20);
   return SQLITE_OK;
