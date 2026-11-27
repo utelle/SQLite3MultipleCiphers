@@ -1944,7 +1944,9 @@ static int mcReadWal(sqlite3_file* pFile, const void* buffer, int count, sqlite3
   {
     const int pageSize = sqlite3mcGetPageSize(codec);
 
-    if (count == pageSize)
+    /* The page data of a frame starts after the 32-byte WAL header and the 24-byte frame header */
+    if (count == pageSize && offset >= 32 + walFrameHeaderSize &&
+        (offset - 32 - walFrameHeaderSize) % (pageSize + walFrameHeaderSize) == 0)
     {
       unsigned int pageNo = 0;
       unsigned char ac[4];
