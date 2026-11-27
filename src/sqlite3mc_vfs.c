@@ -2032,12 +2032,18 @@ static int mcWriteMainDb(sqlite3_file* pFile, const void* buffer, int count, sql
     if (deltaOffset || deltaCount)
     {
       /*
-      ** Write partial page
+      ** Write partial page(s)
       **
-      ** SQLite does never write partial database pages.
-      ** Therefore no encryption is required in this case.
+      ** SQLite itself never writes partial database pages. A VFS above this one
+      ** can split writes, for example to align them to sectors or to log them.
+      ** Passing such a part on would put plaintext into the encrypted file. It
+      ** cannot be encrypted alone, either: the part is not a page, and an
+      ** incomplete page cannot be put together from the parts reliably (the
+      ** intermediate pages are not valid pages, and while the key or the cipher
+      ** is changed, the old and the new page need different keys). Therefore
+      ** the write fails and the file stays unchanged.
       */
-      rc = REALFILE(pFile)->pMethods->xWrite(REALFILE(pFile), buffer, count, offset);
+      rc = SQLITE_IOERR_WRITE;
     }
     else
     {
