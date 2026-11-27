@@ -161,3 +161,24 @@ jobs:
         -DANDROID_PLATFORM=${{ matrix.api-level }}
     - name: Build
       run: cmake --build build
+
+  secure_memory_clang:
+    # The secure memory code (SQLITE3MC_SECURE_MEMORY=1) is compiled only when
+    # requested, and the other jobs never request it. The CMake build is used
+    # because the autotools build passes -std=c99, which selects a different
+    # atomics branch than the default C standard of clang.
+    name: Secure memory (clang, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    env:
+      CC: clang
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v7
+    - name: Configure
+      run: cmake -B build -DSQLITE3MC_SECURE_MEMORY=ON
+    - name: Build
+      run: cmake --build build
