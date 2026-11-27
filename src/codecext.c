@@ -249,7 +249,15 @@ sqlite3mcCodecAttach(sqlite3* db, int nDb, const char* zPath, const void* zKey, 
     if (nDb != 0 && nKey > 0)
     {
       /* Main database possibly encrypted, no key explicitly given for attached database */
-      Codec* mainCodec = sqlite3mcGetMainCodec(db);
+      /*
+      ** Hold the mutex of the (possibly shared) main b-tree while the main codec is
+      ** copied: another connection sharing it may replace and free the codec
+      ** (sqlite3_key_v2 holds all its b-tree mutexes while it does so).
+      */
+      Btree* pBtMain = db->aDb[0].pBt;
+      Codec* mainCodec;
+      if (pBtMain != NULL) sqlite3BtreeEnter(pBtMain);
+      mainCodec = sqlite3mcGetMainCodec(db);
       /* Attached database, therefore use the key of main database, if main database is encrypted */
       if (mainCodec != NULL && sqlite3mcIsEncrypted(mainCodec))
       {
@@ -277,6 +285,7 @@ sqlite3mcCodecAttach(sqlite3* db, int nDb, const char* zPath, const void* zKey, 
         /* Main database not encrypted */
         sqlite3mcCodecFree(codec);
       }
+      if (pBtMain != NULL) sqlite3BtreeLeave(pBtMain);
     }
     else
     {
