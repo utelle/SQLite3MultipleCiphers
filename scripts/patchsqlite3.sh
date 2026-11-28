@@ -40,7 +40,7 @@ sed 's/sqlite3_file_control\(.*SQLITE_FCNTL_PRAGMA\)/sqlite3mcFileControlPragma\
     | sed '/^          rc = sqlite3JournalOpen (/!{p;d;};n;n;a \          sqlite3mcOpenTempFile(pPager, pPager->jfd);' \
     | sed '/^  rc = sqlite3OsOpenMalloc(db->pVfs, 0, ppFd,/!{p;d;};n;n;n;n;n;n;a \    sqlite3mcOpenTempJournal(db, *ppFd);' \
     | sed '/^  rc = sqlite3OsOpen(copy.pVfs, copy.zJournal, pReal, copy.flags, 0);/!{p;d;};n;a \    sqlite3mcOpenTempJournal(copy.mcDb, pReal);' \
-    | sed '/^SQLITE_PRIVATE void sqlite3BtreeEnter(Btree \*p){/a \  if (p->pBt->pPager) p->pBt->pPager->mcDb = p->db;' \
+    | sed '/^SQLITE_PRIVATE void sqlite3BtreeEnter(Btree \*p){/a \  if (!p->sharable \&\& p->pBt->pPager) p->pBt->pPager->mcDb = p->db;' \
     | sed '/^static void lockBtreeMutex(Btree \*p){/!{p;d;};n;n;n;n;n;n;a \  if (p->pBt->pPager) p->pBt->pPager->mcDb = p->db;' \
     | sed '/^SQLITE_PRIVATE void sqlite3BtreeEnterAll(sqlite3 \*db){$/{n;/^[[:space:]]*int i;$/{n;n;n;n;s|$|\n      if (p->pBt->pPager) p->pBt->pPager->mcDb = p->db;|}}' \
     | sed '/Lock the source database handle./!{p;d;};n;n;n;n;n;n;n;n;n;n;a \  \/\* Check whether databases are compatible with backup \*\/\n  if (!sqlite3mcIsBackupSupported(pSrcDb, zSrcDb, pDestDb, zDestDb)){\n    sqlite3ErrorWithMsg(pDestDb, SQLITE_ERROR, \"backup is not supported with incompatible source and target databases\");\n    sqlite3_mutex_leave(pDestDb->mutex);\n    sqlite3_mutex_leave(pSrcDb->mutex);\n    return NULL;\n  }\n' \

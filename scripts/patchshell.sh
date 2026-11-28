@@ -21,6 +21,7 @@ sed -e '/^      sputf(stdout, "SQLite version/{n;N;d}' "$INPUT" \
   | sed '/^            "SQLite version/c \            "SQLite version \%s \%.19s" \/\*extra-version-info\*\/\n            " (\%s)\\n" \/\*SQLite3-Multiple-Ciphers-version-info\*\/' \
   | sed '/^            sqlite3_libversion(), sqlite3_sourceid());/c \            sqlite3_libversion(), sqlite3_sourceid(), sqlite3mc_version());' \
   | sed '/^          sqlite3_libversion(), sqlite3_sourceid());/a \    extern const char* sqlite3mc_version();\n    cli_printf(p->out, "\%s\\n", sqlite3mc_version());' \
+  | sed '/^  if( sqlite3_memory_used()>mem_main_enter ){/i \  sqlite3_shutdown();' \
   | sed '/Begin ext\/misc\/shathree.c/i #ifndef SQLITE_OMIT_SHELL_SHATHREE' \
   | sed '/End ext\/misc\/shathree.c/a #endif' \
   | sed '/Begin ext\/misc\/series.c/i #ifndef SQLITE_OMIT_SHELL_SERIES' \

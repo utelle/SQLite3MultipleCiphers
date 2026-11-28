@@ -43,11 +43,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - if the first journal segment holds fewer than 16 records (pager spilled early, small page cache), the scan ran into the next segment at a misaligned position and took page content for page numbers
   - follow the segment headers on sector boundaries and examine only the nRec records of each segment, exactly as pager_playback does
   - limit the number of headers followed, so a crafted journal can not cause an unbounded number of reads
-- `mcReadDatabaseHeader` ignored the result of sqlite3OsFileSize; a failed size query made a short header read look like an empty file, for which a new random salt is generated
 - Detect OOM for BLOB and TEXT args in VLE functions
 - a file with version 2 I/O methods and without xShmMap was given the method table with the SHM forwarders (only version 3 was handled); SQLite then accepted WAL mode and called the missing method
 - Fix issue with autovacuum (Don't decrypt pages behind the end of the database file)
-- Don't decrypt pages behind the end of the database file
 
 ## [2.7.1] - 2026-11-15
 

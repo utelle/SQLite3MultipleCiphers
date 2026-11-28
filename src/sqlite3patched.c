@@ -72517,7 +72517,7 @@ static void SQLITE_NOINLINE btreeLockCarefully(Btree *p);
 ** subsequent Btrees that desire a lock.
 */
 SQLITE_PRIVATE void sqlite3BtreeEnter(Btree *p){
-  if (p->pBt->pPager) p->pBt->pPager->mcDb = p->db;
+  if (!p->sharable && p->pBt->pPager) p->pBt->pPager->mcDb = p->db;
   /* Some basic sanity checking on the Btree.  The list of Btrees
   ** connected by pNext and pPrev should be in sorted order by
   ** Btree.pBt value. All elements of the list should belong to
@@ -72724,7 +72724,7 @@ SQLITE_PRIVATE int sqlite3SchemaMutexHeld(sqlite3 *db, int iDb, Schema *pSchema)
 */
 
 SQLITE_PRIVATE void sqlite3BtreeEnter(Btree *p){
-  if (p->pBt->pPager) p->pBt->pPager->mcDb = p->db;
+  if (!p->sharable && p->pBt->pPager) p->pBt->pPager->mcDb = p->db;
   p->pBt->db = p->db;
 }
 SQLITE_PRIVATE void sqlite3BtreeEnterAll(sqlite3 *db){
