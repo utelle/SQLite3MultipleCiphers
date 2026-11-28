@@ -335,6 +335,12 @@ SQLITE_PRIVATE void sqlite3mcCodecGetKey(sqlite3* db, int nDb, void** zKey, int*
 ** #ifndef SQLITE3MC_LEGACY_WAL
 ** #define SQLITE3MC_LEGACY_WAL 0
 ** #endif
+**
+** A build that still defines the symbol with a value other than 0 is rejected.
 */
+
+#if defined(SQLITE3MC_LEGACY_WAL) && (SQLITE3MC_LEGACY_WAL + 0) != 0
+#error "SQLITE3MC_LEGACY_WAL is no longer supported (WAL legacy mode was removed in version 2.7.0)"
+#endif
 
 #endif

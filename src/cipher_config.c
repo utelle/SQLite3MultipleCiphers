@@ -997,6 +997,27 @@ sqlite3mcConfigParams(sqlite3_context* context, int argc, sqlite3_value** argv)
 ** scheme (flag SELECTOR): an invalid value there makes opening the database fail.
 */
 
+/*
+** Parameter 'mc_legacy_wal' (WAL journal encryption mode of versions <= 1.2.5) is no longer
+** supported (since version 2.7.0). Setting it to a value other than 0 is reported as an
+** error, so that nobody relies on a mode which is silently not in effect. The value 0 is
+** accepted, because it describes the only mode that is available.
+*/
+
+static int
+cipherCfgLegacyWalRequested(const char* zValue)
+{
+  /* Same notation as the boolean parameters: numbers and on/off, true/false, yes/no */
+  if (zValue == NULL || zValue[0] == 0) return 0;
+  if (sqlite3_stricmp(zValue, "0") == 0 || sqlite3_stricmp(zValue, "off") == 0 ||
+      sqlite3_stricmp(zValue, "false") == 0 || sqlite3_stricmp(zValue, "no") == 0) return 0;
+  return 1;
+}
+
+#define CIPHER_LEGACY_WAL_MSG \
+  "Parameter 'mc_legacy_wal' is no longer supported (WAL legacy mode was removed in version 2.7.0); " \
+  "execute 'PRAGMA wal_checkpoint(TRUNCATE)' with the version that created the WAL journal"
+
 static int
 cipherCfgUriApply(sqlite3* db, CipherParamScope eScope, const char* zCipher, const CipherParams* param,
                   CipherParamValueSlot eSlot, const char* zValue)
@@ -1048,6 +1069,13 @@ sqlite3mcConfigureFromUri(sqlite3* db, const char* zDbName, int configDefault)
       const char* option = chacha20HwAccelOption;
       option = sqlite3mcChaCha20HwConfig(option);
       /* Invalid option values are ignored here. */
+    }
+
+    /* Removed parameter: report an attempt to enable it instead of ignoring it silently */
+    if (cipherCfgLegacyWalRequested(sqlite3_uri_parameter(dbFileName, "mc_legacy_wal")))
+    {
+      sqlite3ErrorWithMsg(db, SQLITE_ERROR, "%s", CIPHER_LEGACY_WAL_MSG);
+      return SQLITE_ERROR;
     }
 
     if (codecParams == NULL) return SQLITE_OK;
@@ -1472,6 +1500,19 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
         else
           ((char**)pArg)[0] = sqlite3_mprintf("No AES backend available");
         rc = SQLITE_ERROR;
+      }
+    }
+    else if (sqlite3StrICmp(pragmaName, "mc_legacy_wal") == 0)
+    {
+      if (cipherCfgLegacyWalRequested(pragmaValue))
+      {
+        ((char**)pArg)[0] = sqlite3_mprintf("%s", CIPHER_LEGACY_WAL_MSG);
+        rc = SQLITE_ERROR;
+      }
+      else
+      {
+        ((char**)pArg)[0] = sqlite3_mprintf("0");
+        rc = SQLITE_OK;
       }
     }
     else if (sqlite3StrICmp(pragmaName, "mc_cpu_info") == 0)
@@ -1941,7 +1982,14 @@ sqlite3mcHandleAttachKey(sqlite3* db, const char* zName, const char* zPath, sqli
 SQLITE_PRIVATE int
 sqlite3mcHandleMainKey(sqlite3* db, const char* zPath)
 {
-  int rc = sqlite3mcConfigureFromUri(db, zPath, 1);
+  int rc;
+  /*
+  ** sqlite3_open_v2() does not hold the connection mutex at this point, but the error
+  ** reporting (sqlite3ErrorWithMsg) and the state change below require it. The mutex is
+  ** recursive; sqlite3_key_v2 and the other functions called enter it themselves.
+  */
+  sqlite3_mutex_enter(db->mutex);
+  rc = sqlite3mcConfigureFromUri(db, zPath, 1);
   if (rc == SQLITE_OK)
   {
     sqlite3mcCodecQueryParameters(db, "main", zPath, &rc);
@@ -1956,13 +2004,12 @@ sqlite3mcHandleMainKey(sqlite3* db, const char* zPath)
     ** application that goes on with the handle would read and write the
     ** database without the encryption it asked for.
     */
-    sqlite3_mutex_enter(db->mutex);
     if (sqlite3_errcode(db) == SQLITE_OK)
     {
       sqlite3Error(db, rc);
     }
     db->eOpenState = SQLITE_STATE_SICK;
-    sqlite3_mutex_leave(db->mutex);
   }
+  sqlite3_mutex_leave(db->mutex);
   return rc;
 }
