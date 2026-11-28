@@ -51,6 +51,25 @@
 #include <stdlib.h>
 #include <string.h>
 
+/*
+** 32-bit access to buffers that are not necessarily aligned
+**
+** The functions of this file access the data blocks (input, output,
+** initialization vector) in units of 32 bits. The buffers come from the caller
+** and are not guaranteed to be aligned to 4 bytes (for example the encrypted
+** part of a page that starts at an offset inside the page), so a plain UINT32
+** pointer is undefined behavior; on targets that require alignment it traps
+** (SIGBUS on armhf). The unaligned type below makes the compiler generate
+** accesses that are valid for any alignment.
+*/
+#if defined(__GNUC__) || defined(__clang__)
+typedef UINT32 __attribute__((__may_alias__, __aligned__(1))) UINT32U;
+#elif defined(_MSC_VER) && (defined(_M_ARM) || defined(_M_ARM64) || defined(_M_X64))
+typedef __unaligned UINT32 UINT32U;
+#else
+typedef UINT32 UINT32U;
+#endif
+
 #ifdef TEST_AES_HW
 #define TEST_AES_HW_DEBUG
 #define TEST_AES_HW_DEBUG_DATA
@@ -1116,18 +1135,18 @@ int RijndaelBlockEncrypt(Rijndael* rijndael, UINT8* input, int inputLen, UINT8* 
     break;
     case RIJNDAEL_Direction_Mode_CBC:
       {
-        ((UINT32*)block)[0] = ((UINT32*)rijndael->m_initVector)[0] ^ ((UINT32*)input)[0];
-        ((UINT32*)block)[1] = ((UINT32*)rijndael->m_initVector)[1] ^ ((UINT32*)input)[1];
-        ((UINT32*)block)[2] = ((UINT32*)rijndael->m_initVector)[2] ^ ((UINT32*)input)[2];
-        ((UINT32*)block)[3] = ((UINT32*)rijndael->m_initVector)[3] ^ ((UINT32*)input)[3];
+        ((UINT32U*)block)[0] = ((UINT32U*)rijndael->m_initVector)[0] ^ ((UINT32U*)input)[0];
+        ((UINT32U*)block)[1] = ((UINT32U*)rijndael->m_initVector)[1] ^ ((UINT32U*)input)[1];
+        ((UINT32U*)block)[2] = ((UINT32U*)rijndael->m_initVector)[2] ^ ((UINT32U*)input)[2];
+        ((UINT32U*)block)[3] = ((UINT32U*)rijndael->m_initVector)[3] ^ ((UINT32U*)input)[3];
         RijndaelEncrypt(rijndael, block,outBuffer);
         input += 16;
         for(i = numBlocks - 1;i > 0;i--)
         {
-          ((UINT32*)block)[0] = ((UINT32*)outBuffer)[0] ^ ((UINT32*)input)[0];
-          ((UINT32*)block)[1] = ((UINT32*)outBuffer)[1] ^ ((UINT32*)input)[1];
-          ((UINT32*)block)[2] = ((UINT32*)outBuffer)[2] ^ ((UINT32*)input)[2];
-          ((UINT32*)block)[3] = ((UINT32*)outBuffer)[3] ^ ((UINT32*)input)[3];
+          ((UINT32U*)block)[0] = ((UINT32U*)outBuffer)[0] ^ ((UINT32U*)input)[0];
+          ((UINT32U*)block)[1] = ((UINT32U*)outBuffer)[1] ^ ((UINT32U*)input)[1];
+          ((UINT32U*)block)[2] = ((UINT32U*)outBuffer)[2] ^ ((UINT32U*)input)[2];
+          ((UINT32U*)block)[3] = ((UINT32U*)outBuffer)[3] ^ ((UINT32U*)input)[3];
           outBuffer += 16;
           RijndaelEncrypt(rijndael, block,outBuffer);
           input += 16;
@@ -1153,20 +1172,20 @@ int RijndaelBlockEncrypt(Rijndael* rijndael, UINT8* input, int inputLen, UINT8* 
 #if STRICT_ALIGN
       memcpy(iv,rijndael->m_initVector,16);
 #else  /* !STRICT_ALIGN */
-      *((UINT32*)iv[0]) = *((UINT32*)(rijndael->m_initVector   ));
-      *((UINT32*)iv[1]) = *((UINT32*)(rijndael->m_initVector + 4));
-      *((UINT32*)iv[2]) = *((UINT32*)(rijndael->m_initVector + 8));
-      *((UINT32*)iv[3]) = *((UINT32*)(rijndael->m_initVector +12));
+      *((UINT32U*)iv[0]) = *((UINT32U*)(rijndael->m_initVector   ));
+      *((UINT32U*)iv[1]) = *((UINT32U*)(rijndael->m_initVector + 4));
+      *((UINT32U*)iv[2]) = *((UINT32U*)(rijndael->m_initVector + 8));
+      *((UINT32U*)iv[3]) = *((UINT32U*)(rijndael->m_initVector +12));
 #endif /* ?STRICT_ALIGN */
       for(i = numBlocks; i > 0; i--)
       {
         memcpy(outBuffer, input, 16);
         for(k = 0; k < 128; k++)
         {
-          *((UINT32*) block    ) = *((UINT32*)iv[0]);
-          *((UINT32*)(block+ 4)) = *((UINT32*)iv[1]);
-          *((UINT32*)(block+ 8)) = *((UINT32*)iv[2]);
-          *((UINT32*)(block+12)) = *((UINT32*)iv[3]);
+          *((UINT32U*) block    ) = *((UINT32U*)iv[0]);
+          *((UINT32U*)(block+ 4)) = *((UINT32U*)iv[1]);
+          *((UINT32U*)(block+ 8)) = *((UINT32U*)iv[2]);
+          *((UINT32U*)(block+12)) = *((UINT32U*)iv[3]);
           RijndaelEncrypt(rijndael, block, block);
           outBuffer[k/8] ^= (block[0] & 0x80) >> (k & 7);
           iv[0][0] = (UINT8) ((iv[0][0] << 1) | (iv[0][1] >> 7));
@@ -1239,10 +1258,10 @@ int RijndaelPadEncrypt(Rijndael* rijndael, UINT8 *input, int inputOctets, UINT8 
       iv = rijndael->m_initVector;
       for(i = numBlocks; i > 0; i--)
       {
-        ((UINT32*)block)[0] = ((UINT32*)input)[0] ^ ((UINT32*)iv)[0];
-        ((UINT32*)block)[1] = ((UINT32*)input)[1] ^ ((UINT32*)iv)[1];
-        ((UINT32*)block)[2] = ((UINT32*)input)[2] ^ ((UINT32*)iv)[2];
-        ((UINT32*)block)[3] = ((UINT32*)input)[3] ^ ((UINT32*)iv)[3];
+        ((UINT32U*)block)[0] = ((UINT32U*)input)[0] ^ ((UINT32U*)iv)[0];
+        ((UINT32U*)block)[1] = ((UINT32U*)input)[1] ^ ((UINT32U*)iv)[1];
+        ((UINT32U*)block)[2] = ((UINT32U*)input)[2] ^ ((UINT32U*)iv)[2];
+        ((UINT32U*)block)[3] = ((UINT32U*)input)[3] ^ ((UINT32U*)iv)[3];
         RijndaelEncrypt(rijndael, block, outBuffer);
         iv = outBuffer;
         input += 16;
@@ -1330,26 +1349,26 @@ int RijndaelBlockDecrypt(Rijndael* rijndael, UINT8* input, int inputLen, UINT8* 
 #if STRICT_ALIGN
         memcpy(iv,rijndael->m_initVector,16);
 #else
-        *((UINT32*)iv[0]) = *((UINT32*)(rijndael->m_initVector  ));
-        *((UINT32*)iv[1]) = *((UINT32*)(rijndael->m_initVector+ 4));
-        *((UINT32*)iv[2]) = *((UINT32*)(rijndael->m_initVector+ 8));
-        *((UINT32*)iv[3]) = *((UINT32*)(rijndael->m_initVector+12));
+        *((UINT32U*)iv[0]) = *((UINT32U*)(rijndael->m_initVector  ));
+        *((UINT32U*)iv[1]) = *((UINT32U*)(rijndael->m_initVector+ 4));
+        *((UINT32U*)iv[2]) = *((UINT32U*)(rijndael->m_initVector+ 8));
+        *((UINT32U*)iv[3]) = *((UINT32U*)(rijndael->m_initVector+12));
 #endif
         for (i = numBlocks; i > 0; i--)
         {
           RijndaelDecrypt(rijndael, input, block);
-          ((UINT32*)block)[0] ^= *((UINT32*)iv[0]);
-          ((UINT32*)block)[1] ^= *((UINT32*)iv[1]);
-          ((UINT32*)block)[2] ^= *((UINT32*)iv[2]);
-          ((UINT32*)block)[3] ^= *((UINT32*)iv[3]);
+          ((UINT32U*)block)[0] ^= *((UINT32U*)iv[0]);
+          ((UINT32U*)block)[1] ^= *((UINT32U*)iv[1]);
+          ((UINT32U*)block)[2] ^= *((UINT32U*)iv[2]);
+          ((UINT32U*)block)[3] ^= *((UINT32U*)iv[3]);
 #if STRICT_ALIGN
           memcpy(iv, input, 16);
           memcpy(outBuf, block, 16);
 #else
-          *((UINT32*)iv[0]) = ((UINT32*)input)[0]; ((UINT32*)outBuffer)[0] = ((UINT32*)block)[0];
-          *((UINT32*)iv[1]) = ((UINT32*)input)[1]; ((UINT32*)outBuffer)[1] = ((UINT32*)block)[1];
-          *((UINT32*)iv[2]) = ((UINT32*)input)[2]; ((UINT32*)outBuffer)[2] = ((UINT32*)block)[2];
-          *((UINT32*)iv[3]) = ((UINT32*)input)[3]; ((UINT32*)outBuffer)[3] = ((UINT32*)block)[3];
+          *((UINT32U*)iv[0]) = ((UINT32U*)input)[0]; ((UINT32U*)outBuffer)[0] = ((UINT32U*)block)[0];
+          *((UINT32U*)iv[1]) = ((UINT32U*)input)[1]; ((UINT32U*)outBuffer)[1] = ((UINT32U*)block)[1];
+          *((UINT32U*)iv[2]) = ((UINT32U*)input)[2]; ((UINT32U*)outBuffer)[2] = ((UINT32U*)block)[2];
+          *((UINT32U*)iv[3]) = ((UINT32U*)input)[3]; ((UINT32U*)outBuffer)[3] = ((UINT32U*)block)[3];
 #endif
           input += 16;
           outBuffer += 16;
@@ -1360,20 +1379,20 @@ int RijndaelBlockDecrypt(Rijndael* rijndael, UINT8* input, int inputLen, UINT8* 
 #if STRICT_ALIGN
       memcpy(iv, rijndael->m_initVector, 16);
 #else
-      *((UINT32*)iv[0]) = *((UINT32*)(rijndael->m_initVector));
-      *((UINT32*)iv[1]) = *((UINT32*)(rijndael->m_initVector+ 4));
-      *((UINT32*)iv[2]) = *((UINT32*)(rijndael->m_initVector+ 8));
-      *((UINT32*)iv[3]) = *((UINT32*)(rijndael->m_initVector+12));
+      *((UINT32U*)iv[0]) = *((UINT32U*)(rijndael->m_initVector));
+      *((UINT32U*)iv[1]) = *((UINT32U*)(rijndael->m_initVector+ 4));
+      *((UINT32U*)iv[2]) = *((UINT32U*)(rijndael->m_initVector+ 8));
+      *((UINT32U*)iv[3]) = *((UINT32U*)(rijndael->m_initVector+12));
 #endif
       for(i = numBlocks; i > 0; i--)
       {
         memcpy(outBuffer, input, 16);
         for(k = 0; k < 128; k++)
         {
-          *((UINT32*) block    ) = *((UINT32*)iv[0]);
-          *((UINT32*)(block+ 4)) = *((UINT32*)iv[1]);
-          *((UINT32*)(block+ 8)) = *((UINT32*)iv[2]);
-          *((UINT32*)(block+12)) = *((UINT32*)iv[3]);
+          *((UINT32U*) block    ) = *((UINT32U*)iv[0]);
+          *((UINT32U*)(block+ 4)) = *((UINT32U*)iv[1]);
+          *((UINT32U*)(block+ 8)) = *((UINT32U*)iv[2]);
+          *((UINT32U*)(block+12)) = *((UINT32U*)iv[3]);
           RijndaelEncrypt(rijndael, block, block);
           iv[0][0] = (UINT8) ((iv[0][0] << 1) | (iv[0][1] >> 7));
           iv[0][1] = (UINT8) ((iv[0][1] << 1) | (iv[0][2] >> 7));
@@ -1455,10 +1474,10 @@ int RijndaelPadDecrypt(Rijndael* rijndael, UINT8 *input, int inputOctets, UINT8 
       for (i = numBlocks - 1; i > 0; i--)
       {
         RijndaelDecrypt(rijndael, input, block);
-        ((UINT32*)block)[0] ^= iv[0];
-        ((UINT32*)block)[1] ^= iv[1];
-        ((UINT32*)block)[2] ^= iv[2];
-        ((UINT32*)block)[3] ^= iv[3];
+        ((UINT32U*)block)[0] ^= iv[0];
+        ((UINT32U*)block)[1] ^= iv[1];
+        ((UINT32U*)block)[2] ^= iv[2];
+        ((UINT32U*)block)[3] ^= iv[3];
         memcpy(iv, input, 16);
         memcpy(outBuffer, block, 16);
         input += 16;
@@ -1466,10 +1485,10 @@ int RijndaelPadDecrypt(Rijndael* rijndael, UINT8 *input, int inputOctets, UINT8 
       }
       /* last block */
       RijndaelDecrypt(rijndael, input, block);
-      ((UINT32*)block)[0] ^= iv[0];
-      ((UINT32*)block)[1] ^= iv[1];
-      ((UINT32*)block)[2] ^= iv[2];
-      ((UINT32*)block)[3] ^= iv[3];
+      ((UINT32U*)block)[0] ^= iv[0];
+      ((UINT32U*)block)[1] ^= iv[1];
+      ((UINT32U*)block)[2] ^= iv[2];
+      ((UINT32U*)block)[3] ^= iv[3];
       padLen = block[15];
       if(padLen <= 0 || padLen > 16)return RIJNDAEL_CORRUPTED_DATA;
       for(i = 16 - padLen; i < 16; i++)
@@ -1511,7 +1530,7 @@ void RijndaelKeySched(Rijndael* rijndael, UINT8 key[_MAX_KEY_COLUMNS][4])
 
   for(j = 0;j < uKeyColumns;j++)
   {
-    *((UINT32*)(tempKey[j])) = *((UINT32*)(key[j]));
+    *((UINT32U*)(tempKey[j])) = *((UINT32U*)(key[j]));
   }
 
 
@@ -1520,7 +1539,7 @@ void RijndaelKeySched(Rijndael* rijndael, UINT8 key[_MAX_KEY_COLUMNS][4])
   {
     for(;(j < uKeyColumns) && (t < 4); j++, t++)
     {
-      *((UINT32*)rijndael->m_expandedKey[r][t]) = *((UINT32*)tempKey[j]);
+      *((UINT32U*)rijndael->m_expandedKey[r][t]) = *((UINT32U*)tempKey[j]);
     }
 
 
@@ -1543,12 +1562,12 @@ void RijndaelKeySched(Rijndael* rijndael, UINT8 key[_MAX_KEY_COLUMNS][4])
     {
       for(j = 1; j < uKeyColumns; j++)
       {
-        *((UINT32*)tempKey[j]) ^= *((UINT32*)tempKey[j-1]);
+        *((UINT32U*)tempKey[j]) ^= *((UINT32U*)tempKey[j-1]);
       }
     } else {
       for(j = 1; j < uKeyColumns/2; j++)
       {
-        *((UINT32*)tempKey[j]) ^= *((UINT32*)tempKey[j-1]);
+        *((UINT32U*)tempKey[j]) ^= *((UINT32U*)tempKey[j-1]);
       }
       tempKey[uKeyColumns/2][0] ^= S[tempKey[uKeyColumns/2 - 1][0]];
       tempKey[uKeyColumns/2][1] ^= S[tempKey[uKeyColumns/2 - 1][1]];
@@ -1556,14 +1575,14 @@ void RijndaelKeySched(Rijndael* rijndael, UINT8 key[_MAX_KEY_COLUMNS][4])
       tempKey[uKeyColumns/2][3] ^= S[tempKey[uKeyColumns/2 - 1][3]];
       for(j = uKeyColumns/2 + 1; j < uKeyColumns; j++)
       {
-        *((UINT32*)tempKey[j]) ^= *((UINT32*)tempKey[j-1]);
+        *((UINT32U*)tempKey[j]) ^= *((UINT32U*)tempKey[j-1]);
       }
     }
     for(j = 0; (j < uKeyColumns) && (r <= rijndael->m_uRounds); )
     {
       for(; (j < uKeyColumns) && (t < 4); j++, t++)
       {
-        *((UINT32*)rijndael->m_expandedKey[r][t]) = *((UINT32*)tempKey[j]);
+        *((UINT32U*)rijndael->m_expandedKey[r][t]) = *((UINT32U*)tempKey[j]);
       }
       if(t == 4)
       {
@@ -1583,13 +1602,13 @@ void RijndaelKeyEncToDec(Rijndael* rijndael)
   for(r = 1; r < rijndael->m_uRounds; r++)
   {
     w = rijndael->m_expandedKey[r][0];
-    *((UINT32*)w) = *((UINT32*)U1[w[0]]) ^ *((UINT32*)U2[w[1]]) ^ *((UINT32*)U3[w[2]]) ^ *((UINT32*)U4[w[3]]);
+    *((UINT32U*)w) = *((UINT32U*)U1[w[0]]) ^ *((UINT32U*)U2[w[1]]) ^ *((UINT32U*)U3[w[2]]) ^ *((UINT32U*)U4[w[3]]);
     w = rijndael->m_expandedKey[r][1];
-    *((UINT32*)w) = *((UINT32*)U1[w[0]]) ^ *((UINT32*)U2[w[1]]) ^ *((UINT32*)U3[w[2]]) ^ *((UINT32*)U4[w[3]]);
+    *((UINT32U*)w) = *((UINT32U*)U1[w[0]]) ^ *((UINT32U*)U2[w[1]]) ^ *((UINT32U*)U3[w[2]]) ^ *((UINT32U*)U4[w[3]]);
     w = rijndael->m_expandedKey[r][2];
-    *((UINT32*)w) = *((UINT32*)U1[w[0]]) ^ *((UINT32*)U2[w[1]]) ^ *((UINT32*)U3[w[2]]) ^ *((UINT32*)U4[w[3]]);
+    *((UINT32U*)w) = *((UINT32U*)U1[w[0]]) ^ *((UINT32U*)U2[w[1]]) ^ *((UINT32U*)U3[w[2]]) ^ *((UINT32U*)U4[w[3]]);
     w = rijndael->m_expandedKey[r][3];
-    *((UINT32*)w) = *((UINT32*)U1[w[0]]) ^ *((UINT32*)U2[w[1]]) ^ *((UINT32*)U3[w[2]]) ^ *((UINT32*)U4[w[3]]);
+    *((UINT32U*)w) = *((UINT32U*)U1[w[0]]) ^ *((UINT32U*)U2[w[1]]) ^ *((UINT32U*)U3[w[2]]) ^ *((UINT32U*)U4[w[3]]);
   }
 }
 
@@ -1599,54 +1618,54 @@ void RijndaelEncrypt(Rijndael* rijndael, UINT8 a[16], UINT8 b[16])
   UINT32 r;
   UINT8 temp[4][4];
 
-    *((UINT32*)temp[0]) = *((UINT32*)(a   )) ^ *((UINT32*)rijndael->m_expandedKey[0][0]);
-    *((UINT32*)temp[1]) = *((UINT32*)(a+ 4)) ^ *((UINT32*)rijndael->m_expandedKey[0][1]);
-    *((UINT32*)temp[2]) = *((UINT32*)(a+ 8)) ^ *((UINT32*)rijndael->m_expandedKey[0][2]);
-    *((UINT32*)temp[3]) = *((UINT32*)(a+12)) ^ *((UINT32*)rijndael->m_expandedKey[0][3]);
-    *((UINT32*)(b    )) = *((UINT32*)T1[temp[0][0]])
-            ^ *((UINT32*)T2[temp[1][1]])
-            ^ *((UINT32*)T3[temp[2][2]])
-            ^ *((UINT32*)T4[temp[3][3]]);
-    *((UINT32*)(b + 4)) = *((UINT32*)T1[temp[1][0]])
-            ^ *((UINT32*)T2[temp[2][1]])
-            ^ *((UINT32*)T3[temp[3][2]])
-            ^ *((UINT32*)T4[temp[0][3]]);
-    *((UINT32*)(b + 8)) = *((UINT32*)T1[temp[2][0]])
-            ^ *((UINT32*)T2[temp[3][1]])
-            ^ *((UINT32*)T3[temp[0][2]])
-            ^ *((UINT32*)T4[temp[1][3]]);
-    *((UINT32*)(b +12)) = *((UINT32*)T1[temp[3][0]])
-            ^ *((UINT32*)T2[temp[0][1]])
-            ^ *((UINT32*)T3[temp[1][2]])
-            ^ *((UINT32*)T4[temp[2][3]]);
+    *((UINT32U*)temp[0]) = *((UINT32U*)(a   )) ^ *((UINT32U*)rijndael->m_expandedKey[0][0]);
+    *((UINT32U*)temp[1]) = *((UINT32U*)(a+ 4)) ^ *((UINT32U*)rijndael->m_expandedKey[0][1]);
+    *((UINT32U*)temp[2]) = *((UINT32U*)(a+ 8)) ^ *((UINT32U*)rijndael->m_expandedKey[0][2]);
+    *((UINT32U*)temp[3]) = *((UINT32U*)(a+12)) ^ *((UINT32U*)rijndael->m_expandedKey[0][3]);
+    *((UINT32U*)(b    )) = *((UINT32U*)T1[temp[0][0]])
+            ^ *((UINT32U*)T2[temp[1][1]])
+            ^ *((UINT32U*)T3[temp[2][2]])
+            ^ *((UINT32U*)T4[temp[3][3]]);
+    *((UINT32U*)(b + 4)) = *((UINT32U*)T1[temp[1][0]])
+            ^ *((UINT32U*)T2[temp[2][1]])
+            ^ *((UINT32U*)T3[temp[3][2]])
+            ^ *((UINT32U*)T4[temp[0][3]]);
+    *((UINT32U*)(b + 8)) = *((UINT32U*)T1[temp[2][0]])
+            ^ *((UINT32U*)T2[temp[3][1]])
+            ^ *((UINT32U*)T3[temp[0][2]])
+            ^ *((UINT32U*)T4[temp[1][3]]);
+    *((UINT32U*)(b +12)) = *((UINT32U*)T1[temp[3][0]])
+            ^ *((UINT32U*)T2[temp[0][1]])
+            ^ *((UINT32U*)T3[temp[1][2]])
+            ^ *((UINT32U*)T4[temp[2][3]]);
   for(r = 1; r < rijndael->m_uRounds-1; r++)
   {
-    *((UINT32*)temp[0]) = *((UINT32*)(b   )) ^ *((UINT32*)rijndael->m_expandedKey[r][0]);
-    *((UINT32*)temp[1]) = *((UINT32*)(b+ 4)) ^ *((UINT32*)rijndael->m_expandedKey[r][1]);
-    *((UINT32*)temp[2]) = *((UINT32*)(b+ 8)) ^ *((UINT32*)rijndael->m_expandedKey[r][2]);
-    *((UINT32*)temp[3]) = *((UINT32*)(b+12)) ^ *((UINT32*)rijndael->m_expandedKey[r][3]);
+    *((UINT32U*)temp[0]) = *((UINT32U*)(b   )) ^ *((UINT32U*)rijndael->m_expandedKey[r][0]);
+    *((UINT32U*)temp[1]) = *((UINT32U*)(b+ 4)) ^ *((UINT32U*)rijndael->m_expandedKey[r][1]);
+    *((UINT32U*)temp[2]) = *((UINT32U*)(b+ 8)) ^ *((UINT32U*)rijndael->m_expandedKey[r][2]);
+    *((UINT32U*)temp[3]) = *((UINT32U*)(b+12)) ^ *((UINT32U*)rijndael->m_expandedKey[r][3]);
 
-    *((UINT32*)(b    )) = *((UINT32*)T1[temp[0][0]])
-              ^ *((UINT32*)T2[temp[1][1]])
-              ^ *((UINT32*)T3[temp[2][2]])
-              ^ *((UINT32*)T4[temp[3][3]]);
-    *((UINT32*)(b + 4)) = *((UINT32*)T1[temp[1][0]])
-              ^ *((UINT32*)T2[temp[2][1]])
-              ^ *((UINT32*)T3[temp[3][2]])
-              ^ *((UINT32*)T4[temp[0][3]]);
-    *((UINT32*)(b + 8)) = *((UINT32*)T1[temp[2][0]])
-              ^ *((UINT32*)T2[temp[3][1]])
-              ^ *((UINT32*)T3[temp[0][2]])
-              ^ *((UINT32*)T4[temp[1][3]]);
-    *((UINT32*)(b +12)) = *((UINT32*)T1[temp[3][0]])
-              ^ *((UINT32*)T2[temp[0][1]])
-              ^ *((UINT32*)T3[temp[1][2]])
-              ^ *((UINT32*)T4[temp[2][3]]);
+    *((UINT32U*)(b    )) = *((UINT32U*)T1[temp[0][0]])
+              ^ *((UINT32U*)T2[temp[1][1]])
+              ^ *((UINT32U*)T3[temp[2][2]])
+              ^ *((UINT32U*)T4[temp[3][3]]);
+    *((UINT32U*)(b + 4)) = *((UINT32U*)T1[temp[1][0]])
+              ^ *((UINT32U*)T2[temp[2][1]])
+              ^ *((UINT32U*)T3[temp[3][2]])
+              ^ *((UINT32U*)T4[temp[0][3]]);
+    *((UINT32U*)(b + 8)) = *((UINT32U*)T1[temp[2][0]])
+              ^ *((UINT32U*)T2[temp[3][1]])
+              ^ *((UINT32U*)T3[temp[0][2]])
+              ^ *((UINT32U*)T4[temp[1][3]]);
+    *((UINT32U*)(b +12)) = *((UINT32U*)T1[temp[3][0]])
+              ^ *((UINT32U*)T2[temp[0][1]])
+              ^ *((UINT32U*)T3[temp[1][2]])
+              ^ *((UINT32U*)T4[temp[2][3]]);
   }
-  *((UINT32*)temp[0]) = *((UINT32*)(b   )) ^ *((UINT32*)rijndael->m_expandedKey[rijndael->m_uRounds-1][0]);
-  *((UINT32*)temp[1]) = *((UINT32*)(b+ 4)) ^ *((UINT32*)rijndael->m_expandedKey[rijndael->m_uRounds-1][1]);
-  *((UINT32*)temp[2]) = *((UINT32*)(b+ 8)) ^ *((UINT32*)rijndael->m_expandedKey[rijndael->m_uRounds-1][2]);
-  *((UINT32*)temp[3]) = *((UINT32*)(b+12)) ^ *((UINT32*)rijndael->m_expandedKey[rijndael->m_uRounds-1][3]);
+  *((UINT32U*)temp[0]) = *((UINT32U*)(b   )) ^ *((UINT32U*)rijndael->m_expandedKey[rijndael->m_uRounds-1][0]);
+  *((UINT32U*)temp[1]) = *((UINT32U*)(b+ 4)) ^ *((UINT32U*)rijndael->m_expandedKey[rijndael->m_uRounds-1][1]);
+  *((UINT32U*)temp[2]) = *((UINT32U*)(b+ 8)) ^ *((UINT32U*)rijndael->m_expandedKey[rijndael->m_uRounds-1][2]);
+  *((UINT32U*)temp[3]) = *((UINT32U*)(b+12)) ^ *((UINT32U*)rijndael->m_expandedKey[rijndael->m_uRounds-1][3]);
   b[ 0] = T1[temp[0][0]][1];
   b[ 1] = T1[temp[1][1]][1];
   b[ 2] = T1[temp[2][2]][1];
@@ -1663,10 +1682,10 @@ void RijndaelEncrypt(Rijndael* rijndael, UINT8 a[16], UINT8 b[16])
   b[13] = T1[temp[0][1]][1];
   b[14] = T1[temp[1][2]][1];
   b[15] = T1[temp[2][3]][1];
-  *((UINT32*)(b   )) ^= *((UINT32*)rijndael->m_expandedKey[rijndael->m_uRounds][0]);
-  *((UINT32*)(b+ 4)) ^= *((UINT32*)rijndael->m_expandedKey[rijndael->m_uRounds][1]);
-  *((UINT32*)(b+ 8)) ^= *((UINT32*)rijndael->m_expandedKey[rijndael->m_uRounds][2]);
-  *((UINT32*)(b+12)) ^= *((UINT32*)rijndael->m_expandedKey[rijndael->m_uRounds][3]);
+  *((UINT32U*)(b   )) ^= *((UINT32U*)rijndael->m_expandedKey[rijndael->m_uRounds][0]);
+  *((UINT32U*)(b+ 4)) ^= *((UINT32U*)rijndael->m_expandedKey[rijndael->m_uRounds][1]);
+  *((UINT32U*)(b+ 8)) ^= *((UINT32U*)rijndael->m_expandedKey[rijndael->m_uRounds][2]);
+  *((UINT32U*)(b+12)) ^= *((UINT32U*)rijndael->m_expandedKey[rijndael->m_uRounds][3]);
 }
 
 SQLITE_PRIVATE
@@ -1675,55 +1694,55 @@ void RijndaelDecrypt(Rijndael* rijndael, UINT8 a[16], UINT8 b[16])
   int r;
   UINT8 temp[4][4];
 
-    *((UINT32*)temp[0]) = *((UINT32*)(a   )) ^ *((UINT32*)rijndael->m_expandedKey[rijndael->m_uRounds][0]);
-    *((UINT32*)temp[1]) = *((UINT32*)(a+ 4)) ^ *((UINT32*)rijndael->m_expandedKey[rijndael->m_uRounds][1]);
-    *((UINT32*)temp[2]) = *((UINT32*)(a+ 8)) ^ *((UINT32*)rijndael->m_expandedKey[rijndael->m_uRounds][2]);
-    *((UINT32*)temp[3]) = *((UINT32*)(a+12)) ^ *((UINT32*)rijndael->m_expandedKey[rijndael->m_uRounds][3]);
+    *((UINT32U*)temp[0]) = *((UINT32U*)(a   )) ^ *((UINT32U*)rijndael->m_expandedKey[rijndael->m_uRounds][0]);
+    *((UINT32U*)temp[1]) = *((UINT32U*)(a+ 4)) ^ *((UINT32U*)rijndael->m_expandedKey[rijndael->m_uRounds][1]);
+    *((UINT32U*)temp[2]) = *((UINT32U*)(a+ 8)) ^ *((UINT32U*)rijndael->m_expandedKey[rijndael->m_uRounds][2]);
+    *((UINT32U*)temp[3]) = *((UINT32U*)(a+12)) ^ *((UINT32U*)rijndael->m_expandedKey[rijndael->m_uRounds][3]);
 
-    *((UINT32*)(b   )) = *((UINT32*)T5[temp[0][0]])
-           ^ *((UINT32*)T6[temp[3][1]])
-           ^ *((UINT32*)T7[temp[2][2]])
-           ^ *((UINT32*)T8[temp[1][3]]);
-  *((UINT32*)(b+ 4)) = *((UINT32*)T5[temp[1][0]])
-           ^ *((UINT32*)T6[temp[0][1]])
-           ^ *((UINT32*)T7[temp[3][2]])
-           ^ *((UINT32*)T8[temp[2][3]]);
-  *((UINT32*)(b+ 8)) = *((UINT32*)T5[temp[2][0]])
-           ^ *((UINT32*)T6[temp[1][1]])
-           ^ *((UINT32*)T7[temp[0][2]])
-           ^ *((UINT32*)T8[temp[3][3]]);
-  *((UINT32*)(b+12)) = *((UINT32*)T5[temp[3][0]])
-           ^ *((UINT32*)T6[temp[2][1]])
-           ^ *((UINT32*)T7[temp[1][2]])
-           ^ *((UINT32*)T8[temp[0][3]]);
+    *((UINT32U*)(b   )) = *((UINT32U*)T5[temp[0][0]])
+           ^ *((UINT32U*)T6[temp[3][1]])
+           ^ *((UINT32U*)T7[temp[2][2]])
+           ^ *((UINT32U*)T8[temp[1][3]]);
+  *((UINT32U*)(b+ 4)) = *((UINT32U*)T5[temp[1][0]])
+           ^ *((UINT32U*)T6[temp[0][1]])
+           ^ *((UINT32U*)T7[temp[3][2]])
+           ^ *((UINT32U*)T8[temp[2][3]]);
+  *((UINT32U*)(b+ 8)) = *((UINT32U*)T5[temp[2][0]])
+           ^ *((UINT32U*)T6[temp[1][1]])
+           ^ *((UINT32U*)T7[temp[0][2]])
+           ^ *((UINT32U*)T8[temp[3][3]]);
+  *((UINT32U*)(b+12)) = *((UINT32U*)T5[temp[3][0]])
+           ^ *((UINT32U*)T6[temp[2][1]])
+           ^ *((UINT32U*)T7[temp[1][2]])
+           ^ *((UINT32U*)T8[temp[0][3]]);
   for(r = rijndael->m_uRounds-1; r > 1; r--)
   {
-    *((UINT32*)temp[0]) = *((UINT32*)(b   )) ^ *((UINT32*)rijndael->m_expandedKey[r][0]);
-    *((UINT32*)temp[1]) = *((UINT32*)(b+ 4)) ^ *((UINT32*)rijndael->m_expandedKey[r][1]);
-    *((UINT32*)temp[2]) = *((UINT32*)(b+ 8)) ^ *((UINT32*)rijndael->m_expandedKey[r][2]);
-    *((UINT32*)temp[3]) = *((UINT32*)(b+12)) ^ *((UINT32*)rijndael->m_expandedKey[r][3]);
-    *((UINT32*)(b   )) = *((UINT32*)T5[temp[0][0]])
-           ^ *((UINT32*)T6[temp[3][1]])
-           ^ *((UINT32*)T7[temp[2][2]])
-           ^ *((UINT32*)T8[temp[1][3]]);
-    *((UINT32*)(b+ 4)) = *((UINT32*)T5[temp[1][0]])
-           ^ *((UINT32*)T6[temp[0][1]])
-           ^ *((UINT32*)T7[temp[3][2]])
-           ^ *((UINT32*)T8[temp[2][3]]);
-    *((UINT32*)(b+ 8)) = *((UINT32*)T5[temp[2][0]])
-           ^ *((UINT32*)T6[temp[1][1]])
-           ^ *((UINT32*)T7[temp[0][2]])
-           ^ *((UINT32*)T8[temp[3][3]]);
-    *((UINT32*)(b+12)) = *((UINT32*)T5[temp[3][0]])
-           ^ *((UINT32*)T6[temp[2][1]])
-           ^ *((UINT32*)T7[temp[1][2]])
-           ^ *((UINT32*)T8[temp[0][3]]);
+    *((UINT32U*)temp[0]) = *((UINT32U*)(b   )) ^ *((UINT32U*)rijndael->m_expandedKey[r][0]);
+    *((UINT32U*)temp[1]) = *((UINT32U*)(b+ 4)) ^ *((UINT32U*)rijndael->m_expandedKey[r][1]);
+    *((UINT32U*)temp[2]) = *((UINT32U*)(b+ 8)) ^ *((UINT32U*)rijndael->m_expandedKey[r][2]);
+    *((UINT32U*)temp[3]) = *((UINT32U*)(b+12)) ^ *((UINT32U*)rijndael->m_expandedKey[r][3]);
+    *((UINT32U*)(b   )) = *((UINT32U*)T5[temp[0][0]])
+           ^ *((UINT32U*)T6[temp[3][1]])
+           ^ *((UINT32U*)T7[temp[2][2]])
+           ^ *((UINT32U*)T8[temp[1][3]]);
+    *((UINT32U*)(b+ 4)) = *((UINT32U*)T5[temp[1][0]])
+           ^ *((UINT32U*)T6[temp[0][1]])
+           ^ *((UINT32U*)T7[temp[3][2]])
+           ^ *((UINT32U*)T8[temp[2][3]]);
+    *((UINT32U*)(b+ 8)) = *((UINT32U*)T5[temp[2][0]])
+           ^ *((UINT32U*)T6[temp[1][1]])
+           ^ *((UINT32U*)T7[temp[0][2]])
+           ^ *((UINT32U*)T8[temp[3][3]]);
+    *((UINT32U*)(b+12)) = *((UINT32U*)T5[temp[3][0]])
+           ^ *((UINT32U*)T6[temp[2][1]])
+           ^ *((UINT32U*)T7[temp[1][2]])
+           ^ *((UINT32U*)T8[temp[0][3]]);
   }
 
-  *((UINT32*)temp[0]) = *((UINT32*)(b   )) ^ *((UINT32*)rijndael->m_expandedKey[1][0]);
-  *((UINT32*)temp[1]) = *((UINT32*)(b+ 4)) ^ *((UINT32*)rijndael->m_expandedKey[1][1]);
-  *((UINT32*)temp[2]) = *((UINT32*)(b+ 8)) ^ *((UINT32*)rijndael->m_expandedKey[1][2]);
-  *((UINT32*)temp[3]) = *((UINT32*)(b+12)) ^ *((UINT32*)rijndael->m_expandedKey[1][3]);
+  *((UINT32U*)temp[0]) = *((UINT32U*)(b   )) ^ *((UINT32U*)rijndael->m_expandedKey[1][0]);
+  *((UINT32U*)temp[1]) = *((UINT32U*)(b+ 4)) ^ *((UINT32U*)rijndael->m_expandedKey[1][1]);
+  *((UINT32U*)temp[2]) = *((UINT32U*)(b+ 8)) ^ *((UINT32U*)rijndael->m_expandedKey[1][2]);
+  *((UINT32U*)temp[3]) = *((UINT32U*)(b+12)) ^ *((UINT32U*)rijndael->m_expandedKey[1][3]);
   b[ 0] = S5[temp[0][0]];
   b[ 1] = S5[temp[3][1]];
   b[ 2] = S5[temp[2][2]];
@@ -1740,10 +1759,10 @@ void RijndaelDecrypt(Rijndael* rijndael, UINT8 a[16], UINT8 b[16])
   b[13] = S5[temp[2][1]];
   b[14] = S5[temp[1][2]];
   b[15] = S5[temp[0][3]];
-  *((UINT32*)(b   )) ^= *((UINT32*)rijndael->m_expandedKey[0][0]);
-  *((UINT32*)(b+ 4)) ^= *((UINT32*)rijndael->m_expandedKey[0][1]);
-  *((UINT32*)(b+ 8)) ^= *((UINT32*)rijndael->m_expandedKey[0][2]);
-  *((UINT32*)(b+12)) ^= *((UINT32*)rijndael->m_expandedKey[0][3]);
+  *((UINT32U*)(b   )) ^= *((UINT32U*)rijndael->m_expandedKey[0][0]);
+  *((UINT32U*)(b+ 4)) ^= *((UINT32U*)rijndael->m_expandedKey[0][1]);
+  *((UINT32U*)(b+ 8)) ^= *((UINT32U*)rijndael->m_expandedKey[0][2]);
+  *((UINT32U*)(b+12)) ^= *((UINT32U*)rijndael->m_expandedKey[0][3]);
 }
 
 SQLITE_PRIVATE
