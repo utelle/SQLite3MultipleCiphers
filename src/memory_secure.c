@@ -10,6 +10,26 @@
 /* For memset, memset_s */
 #include <string.h>
 
+/*
+** Emscripten: since version 3.1.23 the version macros are only defined if
+** <emscripten/version.h> is included; they are not predefined by the compiler.
+** Without the header the test of the version below was always false, and the
+** generic fallback was used. The macros exist in a lower case (older) and an
+** upper case spelling.
+*/
+#if defined(__EMSCRIPTEN__)
+  #if defined(__has_include)
+    #if __has_include(<emscripten/version.h>)
+      #include <emscripten/version.h>
+    #endif
+  #endif
+  #if defined(__EMSCRIPTEN_major__)
+    #define SQLITE3MC_EMSCRIPTEN_MAJOR __EMSCRIPTEN_major__
+  #elif defined(__EMSCRIPTEN_MAJOR__)
+    #define SQLITE3MC_EMSCRIPTEN_MAJOR __EMSCRIPTEN_MAJOR__
+  #endif
+#endif
+
 #ifdef _WIN32
 /* For SecureZeroMemory */
 #include <windows.h>
@@ -58,7 +78,7 @@ SQLITE_PRIVATE void sqlite3mcSecureZeroMemory(void* v, size_t n)
 #elif defined(__OpenBSD__) || defined(__DragonFly__) || \
       (defined(__FreeBSD__) && __FreeBSD__ >= 11) || \
       (defined(__GLIBC__) && (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 25))) || \
-      (defined(__EMSCRIPTEN__) && defined(__EMSCRIPTEN_major__) && __EMSCRIPTEN_major__ >= 3) || defined(__wasi__)
+      (defined(__EMSCRIPTEN__) && defined(SQLITE3MC_EMSCRIPTEN_MAJOR) && SQLITE3MC_EMSCRIPTEN_MAJOR >= 3) || defined(__wasi__)
   explicit_bzero(v, n);
 #elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
   memset_explicit(v, 0, n);
