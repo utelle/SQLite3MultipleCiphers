@@ -1704,8 +1704,12 @@ static int mcJournalFirstRecordState(sqlite3_file* pFile, int* state)
     hdrOffset = ((offset + (sqlite3_int64) sectorSize - 1) / (sqlite3_int64) sectorSize) * (sqlite3_int64) sectorSize;
   }
 
-  /* No record at all that SQLite would play back, or page 1 not among the records examined */
-  *state = (nScanned == 0) ? MC_JREC_NONE : MC_JREC_UNKNOWN;
+  /*
+  ** No record at all that SQLite would play back, or page 1 not among the records examined.
+  ** If the limit of followed segments was reached, further segments (with records) may
+  ** follow, even if the segments seen so far contained none (nRec == 0): unknown, too.
+  */
+  *state = (nScanned == 0 && nSegments < MC_JREC_MAX_SEGMENTS) ? MC_JREC_NONE : MC_JREC_UNKNOWN;
   return SQLITE_OK;
 }
 
