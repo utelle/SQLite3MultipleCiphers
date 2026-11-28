@@ -1112,30 +1112,37 @@ aesRequestBackend(const char* selectBackend)
   return (backend != NULL) ? backend->m_name : (const char*)NULL;
 }
 
-static const char*
-aesBackendInfo()
+/*
+** Build the list of the available AES backends (comma separated names)
+**
+** The list is built in a buffer of the caller (and not in a static buffer that
+** is shared by all threads); the PRAGMA mc_aes_backend_info can be executed by
+** several connections at the same time.
+*/
+static void
+aesBackendInfo(char* aesInfoBuf, size_t aesInfoSize)
 {
-  static char aesInfoBuf[256];
-  static int  aesInfoBuilt = 0;
+  int k = 0;
+  size_t offset = 0;
+  int writeDelim = 0;
 
-  if (!aesInfoBuilt)
+  aesInfoBuf[0] = '\0';
+  for (k = 0; aesBackends[k] != NULL; ++k)
   {
-    int k = 0;
-    int offset = 0;
-    int writeDelim = 0;
-    for (k = 0; aesBackends[k] != NULL; ++k)
+    if (aesBackends[k]->m_available())
     {
-      if (aesBackends[k]->m_available())
+      int n = snprintf(aesInfoBuf + offset, aesInfoSize - offset,
+                       (writeDelim == 0) ? "%s" : ",%s", aesBackends[k]->m_name);
+      if (n < 0 || (size_t) n >= aesInfoSize - offset)
       {
-        offset += snprintf(aesInfoBuf + offset, sizeof(aesInfoBuf) - offset,
-                           (writeDelim == 0) ? "%s" : ",%s", aesBackends[k]->m_name);
-        if (offset >= sizeof(aesInfoBuf)) break;
-        writeDelim = 1;
+        /* Does not fit (not expected): keep the names that were written completely */
+        aesInfoBuf[offset] = '\0';
+        break;
       }
+      offset += (size_t) n;
+      writeDelim = 1;
     }
-    aesInfoBuilt = 1;
   }
-  return aesInfoBuf;
 }
 
 /*

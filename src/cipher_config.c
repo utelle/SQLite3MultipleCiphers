@@ -1444,7 +1444,9 @@ sqlite3mcFileControlPragma(sqlite3* db, const char* zDbName, int op, void* pArg)
     else if (sqlite3StrICmp(pragmaName, "mc_aes_backend_info") == 0)
     {
 #if SQLITE3MC_HAVE_AES_CORE
-      ((char**)pArg)[0] = sqlite3_mprintf("%s", aesBackendInfo());
+      char aesInfo[256];
+      aesBackendInfo(aesInfo, sizeof(aesInfo));
+      ((char**)pArg)[0] = sqlite3_mprintf("%s", aesInfo);
 #else
       /* No cipher scheme of this build uses AES: the list of backends is empty */
       ((char**)pArg)[0] = sqlite3_mprintf("%s", "");
