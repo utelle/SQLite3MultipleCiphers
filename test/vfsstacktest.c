@@ -6,6 +6,9 @@
 **   shim/mc       a pass-through VFS above the Multiple Ciphers VFS
 **   shim/shim/mc  two pass-through VFSs above it
 **   mc/mc         the Multiple Ciphers VFS twice
+**   split/mc      a VFS above it that splits the writes to the main database
+**                 into parts that do not match the page boundaries: the
+**                 writes must fail, and no plaintext may reach the files
 **
 ** The pass-through VFS wraps every file and forwards every call, as VFS
 ** shims of other libraries do. For every stack and cipher the test creates
@@ -42,12 +45,14 @@ struct ShimVfs
   sqlite3_vfs base;
   sqlite3_vfs* below;
   char zName[64];
+  int splitWrites;          /* split the writes to the main database into odd-sized parts */
 };
 
 typedef struct ShimFile ShimFile;
 struct ShimFile
 {
   sqlite3_file base;
+  int splitWrites;
   sqlite3_file* real;       /* file of the VFS below, allocated directly after this struct */
 };
 
@@ -61,7 +66,26 @@ static int shimClose(sqlite3_file* f)
   return rc;
 }
 static int shimRead(sqlite3_file* f, void* b, int n, sqlite3_int64 o) { return REAL(f)->pMethods->xRead(REAL(f), b, n, o); }
-static int shimWrite(sqlite3_file* f, const void* b, int n, sqlite3_int64 o) { return REAL(f)->pMethods->xWrite(REAL(f), b, n, o); }
+static int shimWrite(sqlite3_file* f, const void* b, int n, sqlite3_int64 o)
+{
+  if (((ShimFile*) f)->splitWrites)
+  {
+    /* Like a VFS that aligns or logs writes: parts that do not match the page boundaries */
+    static const int parts[] = { 100, 777, 1, 4000, 13 };
+    static unsigned int next = 0;
+    const unsigned char* p = (const unsigned char*) b;
+    int rc = SQLITE_OK;
+    while (n > 0 && rc == SQLITE_OK)
+    {
+      int len = parts[next++ % (sizeof(parts) / sizeof(parts[0]))];
+      if (len > n) len = n;
+      rc = REAL(f)->pMethods->xWrite(REAL(f), p, len, o);
+      p += len; n -= len; o += len;
+    }
+    return rc;
+  }
+  return REAL(f)->pMethods->xWrite(REAL(f), b, n, o);
+}
 static int shimTruncate(sqlite3_file* f, sqlite3_int64 s) { return REAL(f)->pMethods->xTruncate(REAL(f), s); }
 static int shimSync(sqlite3_file* f, int fl) { return REAL(f)->pMethods->xSync(REAL(f), fl); }
 static int shimFileSize(sqlite3_file* f, sqlite3_int64* s) { return REAL(f)->pMethods->xFileSize(REAL(f), s); }
@@ -102,6 +126,7 @@ static int shimOpen(sqlite3_vfs* v, const char* zName, sqlite3_file* f, int flag
   int rc;
   p->real = (sqlite3_file*) &p[1];
   p->base.pMethods = NULL;
+  p->splitWrites = ((ShimVfs*) v)->splitWrites && (flags & SQLITE_OPEN_MAIN_DB) != 0;
   rc = BELOW(v)->xOpen(BELOW(v), zName, p->real, flags, outFlags);
   if (p->real->pMethods != NULL)
   {
@@ -123,7 +148,7 @@ static int shimCurrentTime(sqlite3_vfs* v, double* t) { return BELOW(v)->xCurren
 static int shimGetLastError(sqlite3_vfs* v, int n, char* z) { return BELOW(v)->xGetLastError(BELOW(v), n, z); }
 static int shimCurrentTimeInt64(sqlite3_vfs* v, sqlite3_int64* t) { return BELOW(v)->xCurrentTimeInt64(BELOW(v), t); }
 
-static ShimVfs shims[2];
+static ShimVfs shims[3];
 
 static const char* registerShim(ShimVfs* shim, const char* zName, const char* zBelow)
 {
@@ -368,18 +393,89 @@ static void testStack(const char* label, const char* zVfs, const Cipher* c)
   removeFiles(DB); removeFiles(ATT); removeFiles(URI);
 }
 
+/*
+** A VFS above the Multiple Ciphers VFS reads the WAL file. Only a read of a
+** frame's page data, which follows the 24-byte frame header, needs the page
+** number from the header. A read of one page size at any other offset (for
+** example at offset 0) must not look for a frame header in front of it.
+*/
+static void testWalRead(const char* zVfs, const Cipher* c)
+{
+  sqlite3* db = NULL;
+  sqlite3_file* wal = NULL;
+  unsigned char* buf;
+  char err[256];
+  const int pageSize = 4096;
+  int rc, before = failures;
+  removeFiles(DB); removeFiles(ATT); removeFiles(URI);
+  rc = sqlite3_open_v2(DB, &db, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, zVfs);
+  if (rc == SQLITE_OK) rc = exec(db, c->key1, err, sizeof(err));
+  if (rc == SQLITE_OK) rc = exec(db, "PRAGMA page_size=4096; PRAGMA journal_mode=wal; PRAGMA wal_autocheckpoint=0;", err, sizeof(err));
+  if (rc == SQLITE_OK) rc = exec(db, "CREATE TABLE t(a, b); INSERT INTO t VALUES (1, randomblob(100)), (2, randomblob(100));", err, sizeof(err));
+  CHECK(rc == SQLITE_OK, "wal %s: database created (%s)", c->name, err);
+  buf = (unsigned char*) sqlite3_malloc(pageSize);
+  if (rc == SQLITE_OK && buf != NULL &&
+      sqlite3_file_control(db, "main", SQLITE_FCNTL_JOURNAL_POINTER, &wal) == SQLITE_OK &&
+      wal != NULL && wal->pMethods != NULL)
+  {
+    /* The WAL header: bytes 0..3 are the magic number 0x377f0682 or 0x377f0683 */
+    memset(buf, 0, pageSize);
+    rc = wal->pMethods->xRead(wal, buf, pageSize, 0);
+    CHECK(rc == SQLITE_OK, "wal %s: read of a page size at offset 0 fails (rc=%d)", c->name, rc);
+    CHECK(buf[0] == 0x37 && buf[1] == 0x7f, "wal %s: read at offset 0 returns the WAL header", c->name);
+    /* Page data of the first and the second frame */
+    rc = wal->pMethods->xRead(wal, buf, pageSize, 32 + 24);
+    CHECK(rc == SQLITE_OK, "wal %s: read of the page data of frame 1 fails (rc=%d)", c->name, rc);
+    rc = wal->pMethods->xRead(wal, buf, pageSize, 32 + 24 + (pageSize + 24));
+    CHECK(rc == SQLITE_OK, "wal %s: read of the page data of frame 2 fails (rc=%d)", c->name, rc);
+    /* Not aligned to a frame */
+    rc = wal->pMethods->xRead(wal, buf, pageSize, 32 + 100);
+    CHECK(rc == SQLITE_OK, "wal %s: read at an offset inside a frame fails (rc=%d)", c->name, rc);
+  }
+  else
+  {
+    CHECK(0, "wal %s: no access to the WAL file", c->name);
+  }
+  sqlite3_free(buf);
+  sqlite3_close(db);
+  removeFiles(DB); removeFiles(ATT); removeFiles(URI);
+  printf("  %-14s %-10s %s\n", "wal read", c->name, (failures == before) ? "ok" : "FAILED");
+}
+
+/*
+** A VFS above the Multiple Ciphers VFS that splits the writes to the main
+** database gets an error, and no plaintext reaches the files.
+*/
+static void testSplitWrites(const char* zVfs, const Cipher* c)
+{
+  sqlite3* db = NULL;
+  char err[256];
+  int rc, before = failures;
+  removeFiles(DB); removeFiles(ATT); removeFiles(URI);
+  rc = sqlite3_open_v2(DB, &db, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, zVfs);
+  if (rc == SQLITE_OK) rc = exec(db, c->key1, err, sizeof(err));
+  if (rc == SQLITE_OK) rc = exec(db, "CREATE TABLE splitwritetable(x); INSERT INTO splitwritetable VALUES('" MARKER "')", err, sizeof(err));
+  CHECK(rc != SQLITE_OK, "split/mc %s: split writes were accepted", c->name);
+  sqlite3_close(db);
+  CHECK(!anyFileContains(DB, "splitwritetable") && !anyFileContains(DB, MARKER), "split/mc %s: plaintext in the database", c->name);
+  printf("  %-14s %-10s %s\n", "split/mc", c->name, (failures == before) ? "ok" : "FAILED");
+}
+
 int main(void)
 {
   const char* mcVfs = sqlite3_vfs_find(NULL)->zName;   /* the Multiple Ciphers VFS */
   char mcTwice[100];
   const char* shim1;
   const char* shim2;
+  const char* shim3;
   size_t i;
 
   shim1 = registerShim(&shims[0], "shim1", mcVfs);
   shim2 = registerShim(&shims[1], "shim2", "shim1");
+  shim3 = registerShim(&shims[2], "shim3", mcVfs);
+  if (shim3 != NULL) shims[2].splitWrites = 1;
   sqlite3_snprintf(sizeof(mcTwice), mcTwice, "multipleciphers-%s", mcVfs);
-  if (shim1 == NULL || shim2 == NULL || sqlite3mc_vfs_create(mcVfs, 0) != SQLITE_OK || sqlite3_vfs_find(mcTwice) == NULL)
+  if (shim1 == NULL || shim2 == NULL || shim3 == NULL || sqlite3mc_vfs_create(mcVfs, 0) != SQLITE_OK || sqlite3_vfs_find(mcTwice) == NULL)
   {
     printf("Could not set up the VFS stacks\n");
     return 1;
@@ -392,6 +488,8 @@ int main(void)
     testStack("shim/mc", shim1, &ciphers[i]);
     testStack("shim/shim/mc", shim2, &ciphers[i]);
     testStack("mc/mc", mcTwice, &ciphers[i]);
+    testSplitWrites(shim3, &ciphers[i]);
+    testWalRead(shim1, &ciphers[i]);
   }
   printf("%d checks, %d failures\n", checks, failures);
   return failures != 0;

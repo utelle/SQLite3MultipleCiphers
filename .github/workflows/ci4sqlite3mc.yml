@@ -88,12 +88,17 @@ jobs:
         make vfsstacktest
         ./vfsstacktest
 
+    - name: Zero page tests
+      run: |
+        make zeropagetest
+        ./zeropagetest
+
     - name: Tests with random values directly from the OS
       if: matrix.cc_compiler == 'gcc'
       run: |
         make distclean
         ./configure CFLAGS="-g -O2 -DSQLITE3MC_USE_OS_RNG=1"
-        make cryptotest tempfiletest oomtest rekeytest threadtest crashtest vfsstacktest
+        make cryptotest tempfiletest oomtest rekeytest threadtest crashtest vfsstacktest zeropagetest
         ./cryptotest
         ./tempfiletest 20000
         ./tempfiletest 20000 1 faults
@@ -102,6 +107,7 @@ jobs:
         ./threadtest
         ./crashtest
         ./vfsstacktest
+        ./zeropagetest
 
   windows_clang_cl:
     # clang-cl defines both _MSC_VER and __SIZEOF_INT128__, a combination that

@@ -1025,6 +1025,22 @@ static void testAes256GcmVariant(const GcmVariant* v)
   }
   CHECK(gcmCheck(v->config, NULL) == SQLITE_OK, "%s: reopen after the changes were undone", v->name);
 
+  /* The unencrypted header bytes 16..23 behind the salt are authenticated (additional data of page 1) */
+  for (k = 16; k < 24; k++)
+  {
+    gcmFlip(k);
+    rc = gcmCheck(v->config, NULL);
+    CHECK(rc == SQLITE_NOTADB || rc == SQLITE_CORRUPT, "%s: changed header byte %d accepted (rc=%d)", v->name, k, rc);
+    if (k == 18)
+    {
+      /* recovery mode does not check the tag: the data can still be read */
+      rc = gcmCheck(v->config, "PRAGMA hmac_check=0;");
+      CHECK(rc == SQLITE_OK, "%s: changed header byte %d with hmac_check=0 (rc=%d)", v->name, k, rc);
+    }
+    gcmFlip(k);
+  }
+  CHECK(gcmCheck(v->config, NULL) == SQLITE_OK, "%s: reopen after the header changes were undone", v->name);
+
   /* hmac_check=0 gives the data of a page whose free space was changed */
   gcmFlip(offS + pageSize / 2);
   rc = gcmCheck(v->config, NULL);
@@ -1072,7 +1088,91 @@ static void testAes256GcmPlaintextHeader(void)
   CHECK(rc != SQLITE_OK, "plaintext header: opened without the salt (rc=%d)", rc);
   rc = gcmCheck(otherSalt, NULL);
   CHECK(rc == SQLITE_NOTADB, "plaintext header: opened with another salt (rc=%d)", rc);
+
+  /* All bytes of the plaintext header behind the salt are authenticated, not only bytes 16..23 */
+  {
+    static const int offsets[] = { 18, 24, 27, 28, 31 };
+    size_t i;
+    for (i = 0; i < sizeof(offsets) / sizeof(offsets[0]); i++)
+    {
+      gcmFlip(offsets[i]);
+      rc = gcmCheck(config, NULL);
+      CHECK(rc == SQLITE_NOTADB || rc == SQLITE_CORRUPT, "plaintext header: changed header byte %d accepted (rc=%d)", offsets[i], rc);
+      if (offsets[i] < 28)
+      {
+        /* recovery mode: no tag check (the size of the database in bytes 28..31 is checked by SQLite itself) */
+        rc = gcmCheck(config, "PRAGMA hmac_check=0;");
+        CHECK(rc == SQLITE_OK, "plaintext header: changed header byte %d with hmac_check=0 (rc=%d)", offsets[i], rc);
+      }
+      gcmFlip(offsets[i]);
+    }
+    CHECK(gcmCheck(config, NULL) == SQLITE_OK, "plaintext header: reopen after the header changes were undone");
+  }
   remove(GCM_DBFILE);
+}
+
+/*
+** Page sealing with additional authenticated bytes (header bytes of page 1):
+** without extra bytes the result is that of the SQLCipher 5 page layout,
+** with extra bytes every change of them (or leaving them out) is detected.
+*/
+static void testPageExtraAad(void)
+{
+  unsigned char key[32], page[200], sealedA[200], sealedB[200], sealedC[200], back[200], extra[84], extra2[84];
+  unsigned char resX1[AES_XAES_RESERVE_SIZE], resX2[AES_XAES_RESERVE_SIZE];
+  unsigned char resG1[AES_GCMSIV_RESERVE_SIZE], resG2[AES_GCMSIV_RESERVE_SIZE];
+  AesCtx ctx;
+  int alg, extraLen;
+  rndFill(key, 32);
+  rndFill(page, sizeof(page));
+  rndFill(extra, sizeof(extra));
+  for (alg = 0; alg < 2; alg++)
+  {
+    const char* name = alg ? "GCM-SIV" : "XAES";
+    unsigned char *r1 = alg ? resG1 : resX1, *r2 = alg ? resG2 : resX2;
+    size_t rl = alg ? sizeof(resG1) : sizeof(resX1);
+    int rc = alg ? sqlite3mcAesGcmSivInit(&ctx, key) : sqlite3mcAesXaesInit(&ctx, key);
+    CHECK(rc == SQLITE_OK, "%s: init", name);
+#define PSEAL(pg, ex, exl, out, res) (alg ? sqlite3mcAesGcmSivPageSealEx(&ctx, pg, ex, exl, page, sizeof(page), out, res) \
+                                          : sqlite3mcAesXaesPageSealEx(&ctx, pg, ex, exl, page, sizeof(page), out, res))
+#define POPEN(pg, ex, exl, in, res) (alg ? sqlite3mcAesGcmSivPageOpenEx(&ctx, pg, ex, exl, in, sizeof(page), back, res) \
+                                         : sqlite3mcAesXaesPageOpenEx(&ctx, pg, ex, exl, in, sizeof(page), back, res))
+    /* Same nonce, without extra bytes: identical to PageSeal */
+    rndFill(r1, rl);
+    memcpy(r2, r1, rl);
+    CHECK(PSEAL(5, NULL, 0, sealedA, r1) == SQLITE_OK, "%s: seal without extra bytes", name);
+    rc = alg ? sqlite3mcAesGcmSivPageSeal(&ctx, 5, page, sizeof(page), sealedB, r2)
+             : sqlite3mcAesXaesPageSeal(&ctx, 5, page, sizeof(page), sealedB, r2);
+    CHECK(rc == SQLITE_OK && memcmp(sealedA, sealedB, sizeof(page)) == 0 && memcmp(r1, r2, rl) == 0,
+          "%s: PageSealEx without extra bytes differs from PageSeal", name);
+    for (extraLen = 8; extraLen <= (int) sizeof(extra); extraLen += 76)
+    {
+      /* With extra bytes: other tag, accepted only with the same extra bytes */
+      memcpy(r2, r1, rl - (alg ? 16 : 16));
+      CHECK(PSEAL(1, extra, extraLen, sealedC, r2) == SQLITE_OK, "%s/%d: seal with extra bytes", name, extraLen);
+      CHECK(POPEN(1, extra, extraLen, sealedC, r2) == SQLITE_OK && memcmp(back, page, sizeof(page)) == 0,
+            "%s/%d: open with the same extra bytes", name, extraLen);
+      CHECK(POPEN(1, NULL, 0, sealedC, r2) == AES_GCM_TAG_MISMATCH, "%s/%d: open without extra bytes accepted", name, extraLen);
+      memcpy(extra2, extra, sizeof(extra));
+      extra2[extraLen - 1] ^= 0x01;
+      CHECK(POPEN(1, extra2, extraLen, sealedC, r2) == AES_GCM_TAG_MISMATCH, "%s/%d: changed last extra byte accepted", name, extraLen);
+      extra2[extraLen - 1] ^= 0x01;
+      extra2[0] ^= 0x80;
+      CHECK(POPEN(1, extra2, extraLen, sealedC, r2) == AES_GCM_TAG_MISMATCH, "%s/%d: changed first extra byte accepted", name, extraLen);
+      CHECK(POPEN(1, extra, extraLen - 1, sealedC, r2) == AES_GCM_TAG_MISMATCH, "%s/%d: shorter extra bytes accepted", name, extraLen);
+      CHECK(POPEN(2, extra, extraLen, sealedC, r2) == AES_GCM_TAG_MISMATCH, "%s/%d: other page number accepted", name, extraLen);
+    }
+    /* Too many extra bytes are refused */
+    {
+      unsigned char big[512];
+      memset(big, 0, sizeof(big));
+      rc = PSEAL(1, big, sizeof(big), sealedC, r2);
+      CHECK(rc != SQLITE_OK, "%s: too many extra bytes accepted", name);
+    }
+#undef PSEAL
+#undef POPEN
+    sqlite3mcAesCbcWipe(&ctx);
+  }
 }
 
 static void testAes256GcmDatabase(void)
@@ -1084,6 +1184,7 @@ static void testAes256GcmDatabase(void)
     testAes256GcmVariant(&gcmVariants[i]);
   }
   testAes256GcmPlaintextHeader();
+  testPageExtraAad();
   printf("  aes256gcm on database level: %s\n", failures == before ? "ok" : "FAILED");
 }
 

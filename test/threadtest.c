@@ -10,6 +10,10 @@
 ** 2. sqlite3_backup_init must release both connection mutexes in every case,
 **    also if it refuses the backup because the source and destination
 **    databases do not match.
+** 3. ATTACH without a key copies the codec of the main database. In shared
+**    cache mode another connection can replace the shared codec at the same
+**    time (sqlite3_key). Reading the codec must be protected by the mutex of
+**    the main b-tree, otherwise the copy reads freed memory.
 **
 ** A VFS below the SQLite3 Multiple Ciphers VFS sees every write that reaches
 ** the disk. It counts the sorter's temporary files, the ones opened by a
@@ -382,6 +386,127 @@ static void backupTest(const char* label, const char* srcKey, const char* destKe
   removeFiles(DESTFILE);
 }
 
+/*
+** ATTACH without a key (copy of the main codec) while other connections to the
+** same shared cache set the key again and again
+*/
+#define SHAREDFILE "threadtest-shared.db"
+#define SHAREDOTHER "threadtest-shared-other.db"
+#define SHAREDKEY "x'0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'"
+#define SHARED_SECONDS 3
+
+typedef struct SharedCtx
+{
+  int stop;
+  int nKey, nAttach, nError;
+} SharedCtx;
+
+static SharedCtx sharedCtx;
+
+static sqlite3* openShared(void)
+{
+  sqlite3* db = NULL;
+  int flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_SHAREDCACHE;
+  if (sqlite3_open_v2(SHAREDFILE, &db, flags, NULL) != SQLITE_OK) { sqlite3_close(db); return NULL; }
+  return db;
+}
+
+static int sharedStopped(void)
+{
+  int stop;
+  sqlite3_mutex_enter(spyMutex);
+  stop = sharedCtx.stop;
+  sqlite3_mutex_leave(spyMutex);
+  return stop;
+}
+
+static void sharedCount(int* counter)
+{
+  sqlite3_mutex_enter(spyMutex);
+  ++(*counter);
+  sqlite3_mutex_leave(spyMutex);
+}
+
+static void* sharedKeyer(void* arg)
+{
+  sqlite3* db = openShared();
+  (void) arg;
+  while (db != NULL && !sharedStopped())
+  {
+    int rc = sqlite3_key(db, SHAREDKEY, (int) strlen(SHAREDKEY));
+    sharedCount(rc == SQLITE_OK ? &sharedCtx.nKey : &sharedCtx.nError);
+  }
+  sqlite3_close(db);
+  return NULL;
+}
+
+static void* sharedAttacher(void* arg)
+{
+  sqlite3* db = openShared();
+  (void) arg;
+  if (db != NULL) sqlite3_key(db, SHAREDKEY, (int) strlen(SHAREDKEY));
+  while (db != NULL && !sharedStopped())
+  {
+    int rc = sqlite3_exec(db, "ATTACH '" SHAREDOTHER "' AS o", NULL, NULL, NULL);
+    if (rc == SQLITE_OK)
+    {
+      sharedCount(&sharedCtx.nAttach);
+      sqlite3_exec(db, "DETACH o", NULL, NULL, NULL);
+    }
+    else if (rc != SQLITE_LOCKED && rc != SQLITE_BUSY)
+    {
+      sharedCount(&sharedCtx.nError);
+    }
+  }
+  sqlite3_close(db);
+  return NULL;
+}
+
+static void sharedCacheAttachTest(void)
+{
+#ifndef SQLITE_OMIT_SHARED_CACHE
+  enum { N_KEYER = 4, N_ATTACHER = 4 };
+  SQLiteThread* threads[N_KEYER + N_ATTACHER];
+  sqlite3* db;
+  int i, started = 0, rc;
+  void* out;
+
+  printf("\n== ATTACH without key in shared cache mode ==\n");
+  removeFiles(SHAREDFILE);
+  removeFiles(SHAREDOTHER);
+  memset(&sharedCtx, 0, sizeof(sharedCtx));
+  db = openShared();
+  rc = (db != NULL) ? sqlite3_key(db, SHAREDKEY, (int) strlen(SHAREDKEY)) : SQLITE_ERROR;
+  if (rc == SQLITE_OK) rc = exec(db, "CREATE TABLE t(a); INSERT INTO t VALUES (1);");
+  CHECK(rc == SQLITE_OK, "shared database created");
+  if (rc != SQLITE_OK) { sqlite3_close(db); return; }
+
+  startWatchdog("shared cache test");
+  for (i = 0; i < N_KEYER + N_ATTACHER; ++i)
+  {
+    if (sqlite3ThreadCreate(&threads[i], (i < N_KEYER) ? sharedKeyer : sharedAttacher, NULL) == SQLITE_OK) ++started;
+    else threads[i] = NULL;
+  }
+  sqlite3_sleep(SHARED_SECONDS * 1000);
+  sqlite3_mutex_enter(spyMutex);
+  sharedCtx.stop = 1;
+  sqlite3_mutex_leave(spyMutex);
+  for (i = 0; i < N_KEYER + N_ATTACHER; ++i)
+  {
+    if (threads[i] != NULL) sqlite3ThreadJoin(threads[i], &out);
+  }
+  stopWatchdog();
+  CHECK(started == N_KEYER + N_ATTACHER, "all threads started");
+  CHECK(sharedCtx.nAttach > 0, "ATTACH without key succeeded");
+  CHECK(sharedCtx.nError == 0, "no unexpected error");
+  sqlite3_close(db);
+  removeFiles(SHAREDFILE);
+  removeFiles(SHAREDOTHER);
+#else
+  printf("\n== ATTACH without key in shared cache mode ==\n  built without shared cache, skipped\n");
+#endif
+}
+
 int main(int argc, char** argv)
 {
   int rows = argc > 1 ? atoi(argv[1]) : 100000;
@@ -402,6 +527,8 @@ int main(int argc, char** argv)
   backupTest("both plaintext", NULL, NULL, 1);
   backupTest("encrypted source, plaintext destination", "source key", NULL, 0);
   backupTest("plaintext source, encrypted destination", NULL, "destination key", 0);
+
+  sharedCacheAttachTest();
 
   printf(failures ? "\nFAILED: %d failure(s)\n" : "\nOK: %d failure(s)\n", failures);
   return failures != 0;

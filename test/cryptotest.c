@@ -475,7 +475,7 @@ static const Poly1305Implementation poly1305List[] =
 #ifdef HAVE_SELECTABLE_IMPLEMENTATIONS
   { "sqleet",   sqleet_poly1305, 0 },
   { "donna",    donna_poly1305,  0 },
-#if defined(SQLITE3MC_TARGET_X86)
+#if defined(SQLITE3MC_TARGET_X86) && (defined(HAVE_TI_MODE) || defined(SQLITE3MC_POLY1305_HAVE_128BIT))
   { "sse2",     sse2_poly1305,   SQLITE3MC_CPU_SSE2 },
 #endif
 #endif
